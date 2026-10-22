@@ -4,6 +4,12 @@ from .alert import ActivitySnooze, Alert, AlertEvent, AlertRule, AlertSeverity, 
 from .analytics_zone import LineZone, PolygonZone
 from .api_key import APIKey
 from .area import Area, camera_areas
+from .arming import (
+    ArmingChange,
+    ArmingModeExclusion,
+    ArmingScheduleEntry,
+    ArmingState,
+)
 from .audit import AuditAction, AuditLog, AuditStatus
 from .backup_job import BackupJob, BackupJobStatus, RestoreJob, RestoreJobStatus
 from .baseline import ActivityBaseline, ClassBaseline
@@ -102,6 +108,10 @@ __all__ = [
     "AnomalySeverity",
     "AnomalyType",
     "Area",
+    "ArmingChange",
+    "ArmingModeExclusion",
+    "ArmingScheduleEntry",
+    "ArmingState",
     "AuditAction",
     "AuditLog",
     "AuditStatus",

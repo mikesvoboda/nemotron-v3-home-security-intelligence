@@ -49,6 +49,7 @@ from backend.api.routes import (
     alerts,
     analytics,
     analytics_zones,
+    arming,
     audit,
     auth,
     backup,
@@ -965,6 +966,12 @@ async def lifespan(_app: FastAPI) -> AsyncGenerator[None]:
         if recovered > 0:
             lifespan_logger.warning(f"Recovered {recovered} orphaned detections into new batches")
 
+        # Start ArmingScheduler (B4.7 / 4n-arming.md)
+        from backend.services.arming import get_arming_scheduler
+
+        await get_arming_scheduler().start()
+        lifespan_logger.info("Arming scheduler started")
+
         # Initialize WorkerSupervisor for automatic crash recovery (NEM-2460)
         # The supervisor monitors pipeline workers and restarts them if they crash
         async def on_worker_restart(name: str, attempt: int, error: str | None) -> None:
@@ -1322,6 +1329,11 @@ async def lifespan(_app: FastAPI) -> AsyncGenerator[None]:
     await stop_pipeline_manager()
     lifespan_logger.info("Pipeline workers stopped")
 
+    from backend.services.arming import get_arming_scheduler
+
+    await get_arming_scheduler().stop()
+    lifespan_logger.info("Arming scheduler stopped")
+
     # Stop file watcher
     if file_watcher:
         await file_watcher.stop()
@@ -1565,6 +1577,7 @@ app.include_router(alerts.router)
 app.include_router(alerts.alerts_instance_router)
 app.include_router(analytics.router)
 app.include_router(analytics_zones.router)
+app.include_router(arming.router)
 app.include_router(audit.router)
 app.include_router(auth.router)
 # Ruling F4 (2026-09-13): backup.router was implemented in f79f066e and called by the frontend

@@ -377,6 +377,13 @@ async def test_pipeline_sqlalchemy_session_path_process_and_sweep(tmp_path) -> N
     from sqlalchemy.ext.compiler import compiles
     from sqlalchemy.orm import Session, sessionmaker
 
+    from backend.models.arming import (
+        EXTERNAL_ALERTS_RULE_ID,
+        ArmingChange,
+        ArmingModeExclusion,
+        ArmingScheduleEntry,
+        ArmingState,
+    )
     from backend.models.camera import Camera
     from backend.models.enrichment import ThreatDetection
     from backend.models.event_detection import EventDetection
@@ -455,6 +462,10 @@ async def test_pipeline_sqlalchemy_session_path_process_and_sweep(tmp_path) -> N
         Alert.__table__,
         AlertEvent.__table__,
         ActivitySnooze.__table__,
+        ArmingState.__table__,
+        ArmingModeExclusion.__table__,
+        ArmingScheduleEntry.__table__,
+        ArmingChange.__table__,
     ):
         with engine.begin() as conn:
             tbl.create(conn, checkfirst=True)
@@ -550,4 +561,26 @@ async def test_pipeline_sqlalchemy_session_path_process_and_sweep(tmp_path) -> N
     swept = await pipeline.sweep_unprocessed(now=t1, upgrade_applied_at=t0 - timedelta(hours=1))
     assert [r.event_id for r in swept] == [2]
     assert len(swept[0].updated_alerts) == 1
+
+    # B4.6 + B4.7 restore interaction: restoring an archive holding the seeded
+    # "External alerts" rule (fixed UUID EXTERNAL_ALERTS_RULE_ID) into an install
+    # that already has it merges by id and leaves exactly one rule.
+    from sqlalchemy import select
+
+    from backend.services.arming import ensure_external_alerts_rule
+
+    async with session_factory() as sess:
+        await ensure_external_alerts_rule(sess)  # type: ignore[arg-type]
+        await sess.commit()
+        # Simulate restore upserting the same fixed-UUID rule
+        existing = await sess.get(AlertRule, EXTERNAL_ALERTS_RULE_ID)
+        assert existing is not None
+        existing.description = "Restored External alerts rule"
+        await sess.commit()
+        all_ext_rules = (
+            (await sess.execute(select(AlertRule).where(AlertRule.id == EXTERNAL_ALERTS_RULE_ID)))
+            .scalars()
+            .all()
+        )
+        assert len(all_ext_rules) == 1
     engine.dispose()

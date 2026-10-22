@@ -1,97 +1,90 @@
-"""API routes for receiving inbound webhooks from external systems.
-
-This module provides endpoints for webhook notifications from external
-systems like IFTTT, Zapier, n8n, and custom integrations.
+"""API routes for receiving inbound webhooks from external systems (B4.7 / 4n-arming.md).
 
 Endpoints:
-    POST /api/webhooks/inbound/alert - Create external alert
-    POST /api/webhooks/inbound/arm - Arm zones
-    POST /api/webhooks/inbound/disarm - Disarm zones
-    POST /api/webhooks/inbound/mode - Set system mode
+    POST /api/webhooks/inbound/alert  - Create an external event on a named camera and run AlertPipeline
+    POST /api/webhooks/inbound/arm    - Switch household arming mode (default 'away')
+    POST /api/webhooks/inbound/disarm - Switch household arming mode to 'disarmed'
+    POST /api/webhooks/inbound/mode   - Switch household arming mode ('home', 'away', 'night', 'disarmed')
 
-Honesty contract (B1.3, D3, UR-12)
-----------------------------------
-**All four endpoints answer 501 Not Implemented.** None of the actions
-they accept is implemented: the arming module with webhook and MQTT
-adapters is ruled for after Phase 3 (UR-12), so a handler that replied
-"Arm command for N zones queued" described work nothing queued (audit
-finding D3 — `arm_zones` said a house was armed when it was not). Each
-handler now validates the key, logs the rejected attempt for the
-integrator's sake, and raises 501 with a body naming UR-12.
-
-Authentication is unconditional and fail-closed: the shared
-:func:`~backend.api.middleware.auth.require_api_key` validates the
-``X-API-Key`` header against ``settings.api_keys``. Before B1.3 this module
-accepted *any* key of 16 or more characters. It deliberately does not
-honour ``settings.api_key_enabled`` (whose shipped default is off) — with
-that branch these routes would answer unauthenticated callers again.
-
-The request schemas below are kept byte-compatible on purpose: the Phase 4
-arming feature reuses them (package B1.3, "Keep the request schemas").
-That includes ``InboundModePayload.mode``, which stays a plain ``str``: the
-mode-value check that used to run in the handler went with the handler, and
-validating the vocabulary belongs to the feature that acts on it.
-
-Related Issues:
-    - NEM-5170: [Implement] Phase 8: Inbound Webhook API — still open: the
-      handlers remain unimplemented; only their honesty changed.
-    - NEM-5032: Epic 3: Ecosystem Integration
+Authentication is unconditional and fail-closed via `require_api_key` (`X-API-Key`).
+The source recorded in `arming_state` / `arming_changes` and namespaced into `/alert`'s
+`batch_id` is the key's SHA-256 fingerprint, never the raw key.
 """
 
 from __future__ import annotations
 
+import contextlib
 import hashlib
 import hmac
-from typing import Any
+import uuid
+from datetime import UTC, datetime
+from typing import Annotated, Any
 
-from fastapi import APIRouter, Depends, HTTPException, Request, status
+from fastapi import APIRouter, Depends, Header, HTTPException, Request, status
 from pydantic import BaseModel, Field
+from sqlalchemy import select
+from sqlalchemy.dialects.postgresql import insert as pg_insert
+from sqlalchemy.ext.asyncio import AsyncSession
 
-from backend.api.middleware.auth import require_api_key
-from backend.core.logging import get_logger, mask_ip
+from backend.api.middleware.auth import require_api_key as _require_settings_api_key
+from backend.core.database import get_db
+from backend.core.logging import get_logger
+from backend.models.api_key import APIKey
+from backend.models.arming import VALID_ARMING_MODES
+from backend.models.camera import Camera
+from backend.models.event import Event
+from backend.services.alerting.pipeline import AlertPipeline
+from backend.services.alerting.verdict import external_severity_top_score
+from backend.services.arming import (
+    ensure_external_alerts_rule,
+    key_fingerprint,
+    set_mode,
+)
 
 logger = get_logger(__name__)
 
 router = APIRouter(prefix="/api/webhooks/inbound", tags=["inbound-webhooks"])
 
-#: The body every handler raises with. Naming the ruling is the point: an
-#: integrator reading a 501 learns which decision governs the feature, not
-#: just that it is missing.
-NOT_IMPLEMENTED_DETAIL = (
-    "Inbound webhooks are not implemented (UR-12): the arming module that would act on this "
-    "request is designed after Phase 3. This endpoint takes no action."
-)
+VALID_EXTERNAL_SEVERITIES: tuple[str, ...] = ("low", "medium", "high", "critical")
+_MODES_HELP = "valid modes are home, away, night, disarmed"
 
-#: Annotated explicitly: a bare module-level dict infers ``dict[int, dict[str, str]]``,
-#: which mypy rejects against ``router.post(responses=…)``'s ``dict[int | str, …]``.
-_UNIMPLEMENTED_RESPONSES: dict[int | str, dict[str, Any]] = {
-    501: {"description": "Not implemented — UR-12; this endpoint takes no action"},
+_WEBHOOK_RESPONSES: dict[int | str, dict[str, Any]] = {
+    200: {"description": "Webhook processed"},
     401: {"description": "Authentication failed"},
     422: {"description": "Invalid payload"},
 }
 
 
 # =============================================================================
-# Schemas (kept byte-compatible for the Phase 4 arming feature — B1.3)
+# Schemas
 # =============================================================================
 
 
 class InboundAlertPayload(BaseModel):
-    """Payload for creating an external alert."""
+    """Payload for creating an external alert event on a camera (B4.7 / 4n-arming.md)."""
 
+    camera_id: str | None = Field(
+        default=None,
+        description="Camera ID associated with the external sensor/alert (required by /alert).",
+    )
     source: str = Field(
         min_length=1,
         max_length=100,
-        description="Source system identifier (e.g., 'ifttt', 'zapier').",
+        description="Source system identifier (e.g., 'ifttt', 'home_assistant').",
     )
     message: str = Field(
         min_length=1,
         max_length=1000,
-        description="Alert message.",
+        description="Alert message stored as the external event summary.",
     )
     severity: str = Field(
         default="medium",
         description="Alert severity: low, medium, high, critical.",
+    )
+    idempotency_key: str | None = Field(
+        default=None,
+        max_length=255,
+        description="Optional caller idempotency key (namespaced per API key fingerprint).",
     )
     metadata: dict[str, Any] = Field(
         default_factory=dict,
@@ -100,24 +93,24 @@ class InboundAlertPayload(BaseModel):
 
 
 class InboundArmPayload(BaseModel):
-    """Payload for arming zones."""
+    """Payload for arming the household via inbound webhook."""
 
     zone_ids: list[str] | None = Field(
         default=None,
-        description="Zone IDs to arm. If None, arms all zones.",
+        description="Zone IDs (unsupported; supplying zone_ids returns 422 naming the four modes).",
     )
     mode: str | None = Field(
         default=None,
-        description="Optional arm mode (full, perimeter, instant).",
+        description="Optional target mode (home, away, night, disarmed; default away).",
     )
 
 
 class InboundDisarmPayload(BaseModel):
-    """Payload for disarming zones."""
+    """Payload for disarming the household via inbound webhook."""
 
     zone_ids: list[str] | None = Field(
         default=None,
-        description="Zone IDs to disarm. If None, disarms all zones.",
+        description="Zone IDs (unsupported; supplying zone_ids returns 422 naming the four modes).",
     )
     reason: str | None = Field(
         default=None,
@@ -127,15 +120,36 @@ class InboundDisarmPayload(BaseModel):
 
 
 class InboundModePayload(BaseModel):
-    """Payload for setting system mode."""
+    """Payload for setting the household arming mode."""
 
     mode: str = Field(
         description="System mode: home, away, night, disarmed.",
     )
 
 
+class InboundModeWebhookResponse(BaseModel):
+    """Response returned by /mode, /arm, and /disarm."""
+
+    status: str = "ok"
+    mode: str
+    source_kind: str = "webhook"
+    source_name: str
+
+
+class InboundAlertWebhookResponse(BaseModel):
+    """Response returned by /alert."""
+
+    status: str = "ok"
+    event_id: int
+    batch_id: str
+    camera_id: str
+    severity: str
+    notify: bool
+    alert_ids: list[str] = Field(default_factory=list)
+
+
 # =============================================================================
-# Authentication
+# Authentication helpers
 # =============================================================================
 
 
@@ -144,20 +158,11 @@ def verify_hmac_signature(
     signature: str,
     secret: str,
 ) -> bool:
-    """Verify HMAC-SHA256 signature.
-
-    Args:
-        request_body: Raw request body bytes.
-        signature: Signature from X-Signature header (format: sha256=...).
-        secret: HMAC secret key.
-
-    Returns:
-        True if signature is valid.
-    """
+    """Verify HMAC-SHA256 signature."""
     if not signature.startswith("sha256="):
         return False
 
-    expected_sig = signature[7:]  # Remove "sha256=" prefix
+    expected_sig = signature[7:]
     computed_sig = hmac.new(
         secret.encode(),
         request_body,
@@ -167,101 +172,225 @@ def verify_hmac_signature(
     return hmac.compare_digest(expected_sig, computed_sig)
 
 
-def _log_rejected_attempt(endpoint: str, request: Request) -> None:
-    """Record that a correctly authenticated call reached an unimplemented route.
+async def require_api_key(
+    request: Request,
+    x_api_key: Annotated[str | None, Header(alias="X-API-Key")] = None,
+    db: AsyncSession = Depends(get_db),
+) -> str:
+    """Validate `X-API-Key` against `settings.api_keys` or active `api_keys` DB rows (fail-closed)."""
+    try:
+        return _require_settings_api_key(request, x_api_key)
+    except HTTPException as exc:
+        if not x_api_key or exc.status_code != status.HTTP_401_UNAUTHORIZED:
+            raise
+        with contextlib.suppress(Exception):
+            candidate_hash = hashlib.sha256(x_api_key.encode("utf-8")).hexdigest()
+            now = datetime.now(UTC)
+            rows = (
+                (await db.execute(select(APIKey).where(APIKey.is_active.is_(True)))).scalars().all()
+            )
+            matched = False
+            for row in rows:
+                if not isinstance(getattr(row, "key_hash", None), str):
+                    continue
+                exp = getattr(row, "expires_at", None)
+                if isinstance(exp, datetime):
+                    exp_utc = exp.replace(tzinfo=UTC) if exp.tzinfo is None else exp.astimezone(UTC)
+                    if exp_utc <= now:
+                        continue
+                if hmac.compare_digest(row.key_hash, candidate_hash):
+                    matched = True
+            if matched:
+                return x_api_key
+        raise exc
 
-    The old handlers logged a fake success ("... queued"); this records the
-    honest fact so an integrator's reports can be traced to the endpoint that
-    refuses them. No request body, key, or other secret is logged, and the
-    address is masked — the same shape ``auth.py`` uses for its own rejection
-    records (``mask_ip``, ``client_ip``), because which house an integrator
-    called from is itself not something to write to a log in the clear.
-    """
-    logger.info(
-        "Inbound webhook rejected as unimplemented (UR-12)",
-        extra={
-            "endpoint": endpoint,
-            "client_ip": mask_ip(request.client.host if request.client else "unknown"),
-        },
-    )
+
+def _validate_webhook_mode(raw_mode: str | None, *, default: str | None = None) -> str:
+    candidate = (raw_mode if raw_mode is not None else default) or ""
+    normalized = candidate.strip().lower()
+    if normalized not in VALID_ARMING_MODES:
+        raise HTTPException(
+            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            detail=f"Invalid mode {raw_mode!r}; {_MODES_HELP}",
+        )
+    return normalized
 
 
-def _reject_unimplemented(endpoint: str, request: Request) -> None:
-    """Log and raise the 501 every handler answers with (UR-12)."""
-    _log_rejected_attempt(endpoint, request)
-    raise HTTPException(status_code=status.HTTP_501_NOT_IMPLEMENTED, detail=NOT_IMPLEMENTED_DETAIL)
+def _refuse_zone_ids(zone_ids: list[str] | None) -> None:
+    if zone_ids is not None:
+        raise HTTPException(
+            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            detail=f"Zones are not supported yet; {_MODES_HELP}",
+        )
 
 
 # =============================================================================
-# Endpoints — all four answer 501 (UR-12); see the module docstring
+# Endpoints
 # =============================================================================
 
 
 @router.post(
     "/alert",
-    status_code=status.HTTP_501_NOT_IMPLEMENTED,
-    responses=_UNIMPLEMENTED_RESPONSES,
+    response_model=InboundAlertWebhookResponse,
+    status_code=status.HTTP_200_OK,
+    responses=_WEBHOOK_RESPONSES,
 )
 async def create_alert(
-    payload: InboundAlertPayload,  # noqa: ARG001 - schema kept for the arming feature
-    request: Request,
-    _api_key: str = Depends(require_api_key),
-) -> None:
-    """Not implemented (UR-12): external alert ingestion takes no action.
+    payload: InboundAlertPayload,
+    request: Request,  # noqa: ARG001
+    api_key: str = Depends(require_api_key),
+    db: AsyncSession = Depends(get_db),
+) -> InboundAlertWebhookResponse:
+    """Create an external event on `payload.camera_id` and run `AlertPipeline.process` (A4, A5)."""
+    camera_id = (payload.camera_id or "").strip()
+    if not camera_id:
+        raise HTTPException(
+            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            detail="camera_id is required for external alerts",
+        )
 
-    Accepts ``InboundAlertPayload`` and answers 501. A malformed payload
-    still 422s (the schema is live); auth failures 401 first.
-    """
-    _reject_unimplemented("alert", request)
+    sev_lower = (payload.severity or "").strip().lower()
+    if sev_lower not in VALID_EXTERNAL_SEVERITIES:
+        raise HTTPException(
+            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            detail=(
+                f"Invalid severity {payload.severity!r}; must be one of "
+                f"{', '.join(VALID_EXTERNAL_SEVERITIES)}"
+            ),
+        )
+
+    camera = await db.get(Camera, camera_id)
+    if camera is None:
+        raise HTTPException(
+            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            detail=f"Unknown camera_id: {camera_id}",
+        )
+
+    fp = key_fingerprint(api_key)
+    if payload.idempotency_key:
+        idem_sha = hashlib.sha256(payload.idempotency_key.encode("utf-8")).hexdigest()
+        batch_id = f"external:{fp}:{idem_sha}"
+    else:
+        batch_id = f"external:{uuid.uuid4()}"
+
+    now = datetime.now(UTC)
+    score = external_severity_top_score(sev_lower)
+    await ensure_external_alerts_rule(db)
+
+    await db.execute(
+        pg_insert(Event)
+        .values(
+            batch_id=batch_id,
+            camera_id=camera_id,
+            started_at=now,
+            ended_at=now,
+            risk_score=score,
+            risk_level=sev_lower,
+            summary=payload.message,
+            source="external",
+            external_source=payload.source,
+            reviewed=False,
+            flagged=False,
+            is_fast_path=False,
+        )
+        .on_conflict_do_nothing(index_elements=["batch_id"])
+    )
+
+    event = (await db.execute(select(Event).where(Event.batch_id == batch_id))).scalars().first()
+    if event is None:
+        raise HTTPException(status_code=500, detail="Failed to persist external event")
+
+    await db.commit()
+
+    # Every request, first or repeated, calls AlertPipeline.process after the commit (A5)
+    pipeline = AlertPipeline()
+    result = await pipeline.process(event.id, session=db, now=now)
+    await db.commit()
+    await pipeline._publish_alerts(result.created_alerts, result.updated_alerts)
+
+    alert_ids = [a.id for a in (*result.created_alerts, *result.updated_alerts)]
+    return InboundAlertWebhookResponse(
+        status="ok",
+        event_id=event.id,
+        batch_id=event.batch_id,
+        camera_id=event.camera_id,
+        severity=sev_lower,
+        notify=result.notify,
+        alert_ids=alert_ids,
+    )
 
 
 @router.post(
     "/arm",
-    status_code=status.HTTP_501_NOT_IMPLEMENTED,
-    responses=_UNIMPLEMENTED_RESPONSES,
+    response_model=InboundModeWebhookResponse,
+    status_code=status.HTTP_200_OK,
+    responses=_WEBHOOK_RESPONSES,
 )
 async def arm_zones(
-    payload: InboundArmPayload,  # noqa: ARG001 - schema kept for the arming feature
-    request: Request,
-    _api_key: str = Depends(require_api_key),
-) -> None:
-    """Not implemented (UR-12): arming zones takes no action.
-
-    This is the endpoint D3 names: it used to answer "Arm command for N
-    zones queued" having queued nothing, telling an integrator the house
-    was armed when it was not.
-    """
-    _reject_unimplemented("arm", request)
+    payload: InboundArmPayload,
+    request: Request,  # noqa: ARG001
+    api_key: str = Depends(require_api_key),
+    db: AsyncSession = Depends(get_db),
+) -> InboundModeWebhookResponse:
+    """Arm the household in `payload.mode` (default `away`)."""
+    _refuse_zone_ids(payload.zone_ids)
+    target_mode = _validate_webhook_mode(payload.mode, default="away")
+    fp = key_fingerprint(api_key)
+    await set_mode(db, target_mode, source_kind="webhook", source_name=fp)
+    await db.commit()
+    return InboundModeWebhookResponse(
+        status="ok",
+        mode=target_mode,
+        source_kind="webhook",
+        source_name=fp,
+    )
 
 
 @router.post(
     "/disarm",
-    status_code=status.HTTP_501_NOT_IMPLEMENTED,
-    responses=_UNIMPLEMENTED_RESPONSES,
+    response_model=InboundModeWebhookResponse,
+    status_code=status.HTTP_200_OK,
+    responses=_WEBHOOK_RESPONSES,
 )
 async def disarm_zones(
-    payload: InboundDisarmPayload,  # noqa: ARG001 - schema kept for the arming feature
-    request: Request,
-    _api_key: str = Depends(require_api_key),
-) -> None:
-    """Not implemented (UR-12): disarming zones takes no action."""
-    _reject_unimplemented("disarm", request)
+    payload: InboundDisarmPayload,
+    request: Request,  # noqa: ARG001
+    api_key: str = Depends(require_api_key),
+    db: AsyncSession = Depends(get_db),
+) -> InboundModeWebhookResponse:
+    """Disarm the household (`mode = 'disarmed'`)."""
+    _refuse_zone_ids(payload.zone_ids)
+    fp = key_fingerprint(api_key)
+    await set_mode(db, "disarmed", source_kind="webhook", source_name=fp)
+    await db.commit()
+    return InboundModeWebhookResponse(
+        status="ok",
+        mode="disarmed",
+        source_kind="webhook",
+        source_name=fp,
+    )
 
 
 @router.post(
     "/mode",
-    status_code=status.HTTP_501_NOT_IMPLEMENTED,
-    responses=_UNIMPLEMENTED_RESPONSES,
+    response_model=InboundModeWebhookResponse,
+    status_code=status.HTTP_200_OK,
+    responses=_WEBHOOK_RESPONSES,
 )
 async def set_system_mode(
-    payload: InboundModePayload,  # noqa: ARG001 - schema kept for the arming feature
-    request: Request,
-    _api_key: str = Depends(require_api_key),
-) -> None:
-    """Not implemented (UR-12): system-mode changes take no action.
-
-    Mode values are no longer validated here: the check lived in the handler
-    that acted on them, and ``InboundModePayload`` is kept unchanged for the
-    arming feature, whose ruling it is.
-    """
-    _reject_unimplemented("mode", request)
+    payload: InboundModePayload,
+    request: Request,  # noqa: ARG001
+    api_key: str = Depends(require_api_key),
+    db: AsyncSession = Depends(get_db),
+) -> InboundModeWebhookResponse:
+    """Set the household arming mode (`home`, `away`, `night`, `disarmed`)."""
+    target_mode = _validate_webhook_mode(payload.mode)
+    fp = key_fingerprint(api_key)
+    await set_mode(db, target_mode, source_kind="webhook", source_name=fp)
+    await db.commit()
+    return InboundModeWebhookResponse(
+        status="ok",
+        mode=target_mode,
+        source_kind="webhook",
+        source_name=fp,
+    )

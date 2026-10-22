@@ -188,6 +188,15 @@ _B41_ALERT_PIPELINE_COLUMNS: tuple[tuple[str, str], ...] = _add_column_pairs(
     "0012-alert-pipeline-core"
 )
 
+#: The columns and tables 0013 (B4.7 arming core) adds.
+_B47_ARMING_CORE_COLUMNS: tuple[tuple[str, str], ...] = (
+    *_add_column_pairs("0013-arming-core"),
+    ("arming_state", "schedule_updated_at"),
+    ("arming_mode_exclusions", "camera_id"),
+    ("arming_schedule", "mode"),
+    ("arming_changes", "exclusions_after"),
+)
+
 
 def _drop_columns_for_table(upgrade_id: str, table: str) -> tuple[str, ...]:
     """The columns an upgrade's own file drops from `table`, read from the shipped text."""
@@ -279,6 +288,9 @@ CHECKS: dict[str, Check] = {
     "0011-retire-vision-model-prompts": _prompt_versions_model_migrated(),
     "0012-alert-pipeline-core": all_present(
         [column_present(table, column) for table, column in _B41_ALERT_PIPELINE_COLUMNS]
+    ),
+    "0013-arming-core": all_present(
+        [column_present(table, column) for table, column in _B47_ARMING_CORE_COLUMNS]
     ),
 }
 

@@ -1864,7 +1864,8 @@ def test_create_batch_cutoff_is_minus_hours_with_exact_sql() -> None:
         "events.is_fast_path, events.object_types, events.clip_path, "
         "events.search_vector, events.entities, events.flags, "
         "events.confidence_factors, events.recommended_action, "
-        "events.deleted_at, events.snooze_until FROM events WHERE "
+        "events.deleted_at, events.snooze_until, events.source, "
+        "events.external_source FROM events WHERE "
         "events.started_at >= '2025-12-31 12:00:00+00:00' ORDER BY "
         "events.started_at DESC LIMIT 100"
     )
@@ -1909,7 +1910,8 @@ def test_test_prompt_event_not_found_exact_message_and_sql():
         "events.is_fast_path, events.object_types, events.clip_path, "
         "events.search_vector, events.entities, events.flags, "
         "events.confidence_factors, events.recommended_action, "
-        "events.deleted_at, events.snooze_until FROM events WHERE "
+        "events.deleted_at, events.snooze_until, events.source, "
+        "events.external_source FROM events WHERE "
         "events.id = 99"
     )
     assert out == {

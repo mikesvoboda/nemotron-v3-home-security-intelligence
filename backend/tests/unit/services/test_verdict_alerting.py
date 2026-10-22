@@ -2,11 +2,14 @@
 
 from __future__ import annotations
 
+from types import SimpleNamespace
+
 from backend.services.alerting.verdict import (
     FaceCandidate,
     ReidCandidate,
     ResolvedVerdict,
     SpecialistEvidence,
+    external_severity_top_score,
     resolve,
 )
 
@@ -183,3 +186,70 @@ def test_auto_enrolled_or_non_household_or_partial_trust_stays_unverified() -> N
         )
         assert res_reid.suppressed_by is None
         assert res_reid.recognised == ("Gardener",)
+
+
+def test_external_severity_top_score_and_external_event_resolution() -> None:
+    low_score = external_severity_top_score("low")
+    med_score = external_severity_top_score("medium")
+    high_score = external_severity_top_score("high")
+    crit_score = external_severity_top_score("critical")
+    assert 0 < low_score < med_score < high_score < crit_score == 100
+    assert external_severity_top_score(None) == med_score
+    assert external_severity_top_score("  LOW  ") == low_score
+    assert external_severity_top_score("HIGH") == high_score
+
+    # Dict external event with explicit risk_score
+    res_dict = resolve(
+        event={"source": "external", "risk_score": 44, "risk_level": "low"},
+        detections=[],
+    )
+    assert res_dict.source == "external"
+    assert res_dict.verdict is None
+    assert res_dict.risk_score == 44
+
+    # Object external event without risk_score derives score from risk_level
+    ev_obj = SimpleNamespace(source="external", risk_score=None, risk_level="high")
+    res_obj = resolve(event=ev_obj, detections=[])
+    assert res_obj.source == "external"
+    assert res_obj.verdict is None
+    assert res_obj.risk_score == high_score
+
+
+def test_resolve_extracts_from_event_object_verifications_and_cloud_and_legacy() -> None:
+    # Object event with verifications list picks latest id
+    v1 = SimpleNamespace(id=1, verdict="rejected")
+    v2 = SimpleNamespace(id=5, verdict="uncertain")
+    ev_with_verifs = SimpleNamespace(risk_score=61)
+    ev_with_verifs.__dict__["verifications"] = [v1, v2]
+    det_obj = SimpleNamespace(object_type="Person")
+    res_v = resolve(event=ev_with_verifs, detections=[det_obj])
+    assert res_v.source == "local"
+    assert res_v.verdict == "uncertain"
+    assert res_v.risk_score == 61
+
+    # Object event with direct .verdict attribute
+    ev_direct = SimpleNamespace(risk_score=30, verdict="rejected")
+    res_d = resolve(event=ev_direct, detections=[])
+    assert res_d.source == "local"
+    assert res_d.verdict == "rejected"
+    assert res_d.risk_score == 30
+
+    # Cloud fallback
+    res_cloud = resolve(
+        verdict="verification_failed",
+        risk_score=None,
+        cloud_verdict=("confirmed", 91),
+        detections=[],
+    )
+    assert res_cloud.source == "cloud"
+    assert res_cloud.verdict == "confirmed"
+    assert res_cloud.risk_score == 91
+
+    # Legacy scored event without verdict
+    res_legacy = resolve(
+        event={"risk_score": 55},
+        detections=[],
+    )
+    assert res_legacy.source == "local"
+    assert res_legacy.verdict is None
+    assert res_legacy.risk_score == 55

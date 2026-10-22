@@ -156,6 +156,11 @@ UPGRADES: tuple[Upgrade, ...] = (
         filename="2026-10-22-alert-pipeline-core.sql",
         source="B4.1 (alert pipeline core additive columns, open status, alert_events, activity_snoozes)",
     ),
+    Upgrade(
+        id="0013-arming-core",
+        filename="2026-10-22-arming-core.sql",
+        source="B4.7 (arming core tables, alert_rules sources/alert_on_rejected_modes, alerts.raised_while_unarmed, events.source/external_source, External alerts rule)",
+    ),
 )
 
 

@@ -1683,6 +1683,7 @@ async def bulk_create_events(
     camera_query = select(Camera.id).where(Camera.id.in_(camera_ids))
     camera_result = await db.execute(camera_query)
     valid_camera_ids = {row[0] for row in camera_result.all()}
+    verdict_events: list[tuple[Event, str]] = []
 
     for idx, item in enumerate(request.events):
         try:
@@ -1717,6 +1718,20 @@ async def bulk_create_events(
                 db.add(EventDetection(event_id=event.id, detection_id=det_id))
             if item.detection_ids:
                 await db.flush()
+            if item.verdict is not None:
+                from backend.models.event_verification import EventVerification
+
+                db.add(
+                    EventVerification(
+                        event_id=event.id,
+                        verdict=item.verdict,
+                        engine="ai-vlm",
+                        model_id="qwen",
+                        created_at=item.started_at,
+                    )
+                )
+                await db.flush()
+                verdict_events.append((event, item.verdict))
 
             results.append(
                 {
@@ -1744,6 +1759,13 @@ async def bulk_create_events(
     if succeeded > 0:
         try:
             await db.commit()
+            if verdict_events:
+                from backend.services.alerting.pipeline import AlertPipeline
+
+                pipeline = AlertPipeline()
+                for ver_ev, _ in verdict_events:
+                    await pipeline.process(ver_ev.id, session=db, now=ver_ev.started_at)
+                await db.commit()
             # Invalidate event-related caches after successful bulk create (NEM-1950)
             try:
                 await cache.invalidate_events(reason="event_created")
