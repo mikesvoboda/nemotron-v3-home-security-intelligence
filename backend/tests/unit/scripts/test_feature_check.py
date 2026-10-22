@@ -3498,19 +3498,21 @@ def test_the_warm_up_is_opt_in_and_leaves_every_other_run_byte_identical(
     assert fc.WARM_PULL_ENV == "FEATURE_CHECK_WARM_PLAYWRIGHT"
 
 
-def test_a_warm_pull_that_outlives_the_run_is_reaped_and_named(
+def test_a_warm_pull_golden_joined_is_accounted_once_by_the_join(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
-    """The fetch the boot outlives is still the harness's child.
+    """The warmer golden() joins is accounted once, and the join is the once.
 
     A slow pull and a fast boot meet in the middle: golden() arrives while the
     warmer is still running, waits for it (its own deadline, unchanged), and
     records whatever it returns — `pulled` or the same named failure the pin
-    above holds. The pin here holds the OTHER edge, the one no inline pull ever
-    had: the harness's finally must not leave a child running after the run's
-    own teardown is done. A fetch that outlives the stack would be writing into
-    the engine's image store after the postflight judged the machine clean, so
-    the reaper ends it and the account names what was left.
+    above holds. Its outcome read, its streams drained and its process reaped
+    inside that join, the warmer is done being accounted: the teardown's
+    reaper must find nothing to say about it. The first cut left the slot set
+    after the join, and CI witnessed the consequence (run 39781242786, shard
+    2, 13:04:49Z): a green run whose teardown logged `FAIL warm pull outlived
+    the run` for a fetch the leg itself had just recorded as `pulled` — a
+    re-accounting reading as a failure the run did not have.
     """
     calls: list[tuple[list[str], dict[str, Any]]] = []
     run = _golden_only_run(tmp_path, monkeypatch, False, calls, image_present=False)
@@ -3533,10 +3535,9 @@ def test_a_warm_pull_that_outlives_the_run_is_reaped_and_named(
             return 0
 
         def communicate(self, timeout: float | None = None) -> tuple[str, str]:
-            # golden()'s join goes through here, and a join is not a reaping
-            # act: the warmer completes, its streams drain, and the reaper's
-            # ledger is left for the reaper (which accounts the finished child
-            # by joining it a second time).
+            # golden()'s join goes through here, and a completed communicate
+            # has reaped the child: returncode set, streams drained, nothing
+            # left for a teardown path to wait on or kill.
             self._alive = False
             self.returncode = 0
             return ("", "")
@@ -3552,18 +3553,17 @@ def test_a_warm_pull_that_outlives_the_run_is_reaped_and_named(
     monkeypatch.setenv(fc.WARM_PULL_ENV, "1")
     _bootable(monkeypatch)
     run.up()
-    # golden() joins it first: a warm-up still in flight is waited on, then its
+    # golden() joins it: a warm-up still in flight is waited on, then its
     # outcome is recorded — here rc 0, so `pulled`, and no inline pull.
     problems = run.golden()
     assert problems == []
     assert run.summary["results"]["golden"]["playwright_image_pull"] == "pulled"
     assert _warm_calls(calls) == []
     assert reaped == [], "a still-running warm-up is waited for inside golden(), not reaped there"
-    # And after the run's own cleanup, nothing of the warmer is left running.
-    run.reap_warm_pull()
-    assert reaped == [f"{run.engine} pull {LOCK_IMAGE_V163}"], (
-        "the reaper's account names the command it ended"
-    )
+    # And after the run's own cleanup, the reaper has nothing left to account:
+    # the join was the warmer's one accounting, not a lease the reaper collects.
+    assert run.reap_warm_pull() == []
+    assert reaped == [], f"nothing re-accounts a warmer the join already accounted: {reaped}"
 
 
 def test_a_warm_pull_the_run_outlives_ends_with_the_run(

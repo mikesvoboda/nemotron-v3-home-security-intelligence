@@ -589,9 +589,12 @@ join going through `communicate(timeout=...)` (a bare `wait` never reads the
 pipe a pull fills, and the child would hang on it). The wall clock the cut buys
 is the ~29 s registry round-trip hiding inside boot+seed+smoke instead of
 appending to it. Nothing is left behind: `run_check`'s finally ends a warmer
-still running (logged as `killed <engine> pull <tag>`) and accounts an
-already-finished one by name — a fetch that outlives the stack would be writing
-into the engine's image store after the postflight judged the machine clean.
+still running (logged as `killed <engine> pull <tag>`). A warmer `golden()`
+already joined needs no second account — the join was its one accounting, and
+the join clears the slot, so the reaper is silent on every run where the leg
+itself recorded the fetch — which is why a `FAIL warm pull outlived the run`
+line, if one ever appears, means a fetch genuinely survived the postflight's
+clean-machine judgment and is a real finding, not bookkeeping noise.
 
 **The leg's own deadline follows its measured time (ruling 189).** The golden
 `docker run` carried `timeout=1800` because that was the number on hand, not a

@@ -696,10 +696,11 @@ The logic is `feature_check.py`, standard library only (`--seeded` adds `DEBUG=t
   `FEATURE_CHECK_WARM_PLAYWRIGHT` opt-in: the warmer is gated on the same
   inspect that gates the inline pull, `golden()` joins it through
   `communicate(timeout=...)` — never a bare `wait`, which never reads the pipe
-  a pull fills — and records the SAME `playwright_image_pull` value; a warmer
-  still alive at teardown is killed and named by `reap_warm_pull()` in
-  `run_check`'s finally, so no fetch outlives the postflight's clean-machine
-  judgment;
+  a pull fills — and records the SAME `playwright_image_pull` value; the join
+  is the joined warmer's one account (the slot is cleared, the reaper silent),
+  and a warmer still alive at teardown is killed and named by
+  `reap_warm_pull()` in `run_check`'s finally, so no fetch outlives the
+  postflight's clean-machine judgment;
 - a golden project that executed nothing is a problem, not a pass (ruling 114):
   a leg whose junit report lists no spec, or lists only skips, reddens Feature
   Check. A leg's exit code says the runner finished, not that a spec ran; a

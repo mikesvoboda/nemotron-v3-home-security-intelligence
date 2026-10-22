@@ -3711,7 +3711,17 @@ asyncio.run(main())
         try:
             out, err = warm.communicate(timeout=1800)
         except subprocess.TimeoutExpired as expired:
+            # The slot stays set: a warmer past its join deadline is still the
+            # reaper's to end at teardown -- that is the edge the reaper's
+            # kill branch exists for.
             return _stalled_result(expired)
+        # A completed communicate has reaped the child (returncode set, streams
+        # drained), and its outcome is golden()'s own accounting above -- the
+        # join IS the one account of this warmer. The slot goes, so the
+        # teardown reaper has nothing to say about a warmer every green run
+        # joins: CI witnessed the re-accounting reading as `FAIL warm pull
+        # outlived the run` on a pulled-and-green shard (run 39781242786).
+        self._prepull = None
         # warm.args is typed Any (typeshed), so the list() is spelled out where
         # the CompletedProcess constructor wants a sequence it can copy.
         argv: list[str] = [str(part) for part in getattr(warm, "args", []) or []]
