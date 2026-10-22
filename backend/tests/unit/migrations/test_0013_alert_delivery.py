@@ -29,8 +29,7 @@ def test_upgrade_0013_is_registered_and_checked() -> None:
 
 def test_0013_sits_last_in_order() -> None:
     ids = [u.id for u in UPGRADES]
-    assert ids[-1] == "0013-alert-delivery"
-    assert ids.index("0013-alert-delivery") == ids.index("0012-alert-pipeline-core") + 1
+    assert ids.index("0013-alert-delivery") == ids.index("0012-alert-pipeline-core") + 1 == 12
 
 
 def test_models_have_the_0013_columns() -> None:

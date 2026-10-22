@@ -108,6 +108,10 @@ class EventBulkCreateItem(BaseModel):
     summary: str = Field(..., min_length=1, max_length=1000, description="Event summary")
     reasoning: str | None = Field(None, max_length=5000, description="LLM reasoning")
     detection_ids: list[int] = Field(default_factory=list, description="Associated detection IDs")
+    verdict: str | None = Field(
+        None,
+        description="Optional VLM verdict (confirmed, uncertain, rejected, verification_failed)",
+    )
 
 
 class EventBulkCreateRequest(BaseModel):
