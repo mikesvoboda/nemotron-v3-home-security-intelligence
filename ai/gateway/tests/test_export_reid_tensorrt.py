@@ -192,6 +192,40 @@ class TestPlanBuilder:
         )
         assert "--fp16" not in captured[0]
 
+    def test_trt11_omits_removed_fp16_flag_while_trt10_keeps_it(
+        self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        """[r312b] Triton 26.09-py3 ships TensorRT 11.3 (`TRT_VERSION=11.3.0.99`),
+        which removed weak typing and dropped `--fp16` from `trtexec` (TensorRT 11
+        uses the ONNX graph's own types). When `TRT_VERSION` major >= 11,
+        `build_tensorrt_engine` must omit `--fp16` so `export_all.sh` and
+        `reid_real_tier.sh` do not fail with an unknown-option error on 26.09-py3."""
+        onnx = tmp_path / "model.onnx"
+        onnx.write_bytes(b"fake onnx")
+        plan = tmp_path / "model.plan"
+
+        captured_trt11: list = []
+        monkeypatch.setenv("TRT_VERSION", "11.3.0.99")
+        export_reid.build_tensorrt_engine(
+            str(onnx),
+            str(plan),
+            precision="fp16",
+            trtexec="/usr/bin/trtexec",
+            run=_fake_run_factory(captured_trt11),
+        )
+        assert "--fp16" not in captured_trt11[0]
+
+        captured_trt10: list = []
+        monkeypatch.setenv("TRT_VERSION", "10.14.1.48+cuda13.0")
+        export_reid.build_tensorrt_engine(
+            str(onnx),
+            str(plan),
+            precision="fp16",
+            trtexec="/usr/bin/trtexec",
+            run=_fake_run_factory(captured_trt10),
+        )
+        assert "--fp16" in captured_trt10[0]
+
     def test_the_workspace_flag_is_the_spelling_trt10_accepts(self, tmp_path: Path) -> None:
         """`--workspace=<MiB>` was deprecated in TensorRT 8 and REMOVED in 10,
         which is what the serving image ships (nvcr.io/nvidia/tritonserver:

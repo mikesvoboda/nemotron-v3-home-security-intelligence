@@ -102,7 +102,7 @@ PIP_PACKAGE_PROVIDES: dict[str, frozenset[str]] = {
     "onnxruntime-gpu": frozenset({"onnxruntime"}),
 }
 
-# Modules pre-installed in the nvcr.io/nvidia/tritonserver:26.01-py3 base image.
+# Modules pre-installed in the nvcr.io/nvidia/tritonserver:26.09-py3 base image.
 BASE_IMAGE_MODULES: frozenset[str] = frozenset({"yaml", "tensorrt"})
 
 REID_REAL_TIER_RUNNER = REPO_ROOT / "scripts" / "uplevel" / "reid_real_tier.sh"
@@ -420,9 +420,10 @@ class TestGatewayDockerfileAgentGpuBuildable:
         #     pass --build-arg TRITON_IMAGE=<digest-ref> without a fork.
         text = GATEWAY_DOCKERFILE.read_text()
         instructions = logical_instructions(text)
-        assert instructions[0] == "ARG TRITON_IMAGE=nvcr.io/nvidia/tritonserver:26.01-py3", (
-            "the first instruction must default the base so every existing build "
-            "of this file is unchanged; only the maui venue overrides it, by digest"
+        assert instructions[0] == "ARG TRITON_IMAGE=nvcr.io/nvidia/tritonserver:26.09-py3", (
+            "the first instruction must default the base to the latest supported "
+            "Triton release (ruling 312 / [r312b], 26.09-py3); venues may still "
+            "override it by digest via --build-arg TRITON_IMAGE=..."
         )
         assert instructions[1] == "FROM ${TRITON_IMAGE}", (
             "FROM must read the base from TRITON_IMAGE so the maui venue can pin "
@@ -446,9 +447,9 @@ class TestGatewayDockerfileAgentGpuBuildable:
         # agent-gpu venue and plain docker builds all get today's base. If the
         # default drifts, BASE_IMAGE_MODULES and the pip set above no longer
         # describe the image, silently. Pin the default to the base this file's
-        # module pin was measured on.
+        # module pin was measured on (ruling 312 / [r312b]: 26.09-py3).
         text = GATEWAY_DOCKERFILE.read_text()
-        assert "ARG TRITON_IMAGE=nvcr.io/nvidia/tritonserver:26.01-py3" in text
+        assert "ARG TRITON_IMAGE=nvcr.io/nvidia/tritonserver:26.09-py3" in text
         assert "FROM nvcr.io/nvidia/tritonserver" not in text, (
             "FROM must not hard-code the registry ref; the base comes from "
             "TRITON_IMAGE so the venue can override it"
