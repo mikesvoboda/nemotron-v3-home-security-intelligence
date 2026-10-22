@@ -11,6 +11,7 @@ from backend.models.alert import AlertSeverityEnum
 from backend.services.alerting.policy import (
     PolicyContext,
     SnoozeEntry,
+    arming_suppression_reason,
     default_rule_from_settings,
     evaluate,
 )
@@ -312,3 +313,153 @@ def test_threat_detection_filters_and_dedup_key_templates() -> None:
     bad_matches = evaluate(_ctx(rules=(bad_tpl_rule,)))
     assert len(bad_matches) == 1
     assert bad_matches[0].dedup_key == "front_door:r-bad"
+
+
+def test_arming_policy_unarmed_suppression_critical_breakthrough_and_mode_override() -> None:
+    """B4.7 / 4n-arming.md policy tests:
+    - unarmed and not critical gives no alert, with arming named ("Home leaves out Living room");
+    - unarmed and critical gives an alert marked raised_while_unarmed;
+    - mode-scoped alert_on_rejected_modes override;
+    - external events under the shipped rules (low and medium on an armed camera alert; on an
+      unarmed camera only critical does; a 'person' rule never matches; master switch off means
+      no alert).
+    """
+    # 1. Unarmed and not critical -> no alert, arming_suppression_reason names arming & camera
+    unarmed_ctx = _ctx(
+        camera_id="living_room",
+        camera_name="Living room",
+        mode="home",
+        armed=False,
+        rules=(_rule(severity=AlertSeverityEnum.HIGH, risk_threshold=60),),
+    )
+    assert evaluate(unarmed_ctx) == []
+    reason = arming_suppression_reason(unarmed_ctx)
+    assert reason is not None
+    assert "Home leaves out Living room" in reason
+    assert "arming" in reason.lower()
+
+    # 2. Unarmed and critical -> alert created with raised_while_unarmed=True
+    crit_verdict = ResolvedVerdict(
+        source="local",
+        verdict="confirmed",
+        risk_score=95,
+        recognised=(),
+        suppressed_by=None,
+    )
+    unarmed_crit_ctx = _ctx(
+        camera_id="living_room",
+        camera_name="Living room",
+        mode="disarmed",
+        armed=False,
+        resolved=crit_verdict,
+        rules=(_rule(severity=AlertSeverityEnum.MEDIUM, risk_threshold=60),),
+    )
+    crit_matches = evaluate(unarmed_crit_ctx)
+    assert len(crit_matches) == 1
+    assert crit_matches[0].effective_severity == AlertSeverityEnum.CRITICAL
+    assert crit_matches[0].raised_while_unarmed is True
+
+    # 3. Mode-scoped rejected verdict override (alert_on_rejected_modes)
+    rejected = ResolvedVerdict(
+        source="local",
+        verdict="rejected",
+        risk_score=75,
+        recognised=(),
+        suppressed_by=None,
+    )
+    away_only_rule = _rule(
+        id="r-away-override",
+        alert_on_rejected=True,
+        alert_on_rejected_modes=["away", "night"],
+    )
+    assert evaluate(_ctx(resolved=rejected, mode="home", rules=(away_only_rule,))) == []
+    assert len(evaluate(_ctx(resolved=rejected, mode="away", rules=(away_only_rule,)))) == 1
+
+    # 4. External events under shipped rules (A4)
+    ext_rule = _rule(
+        id="00000000-0000-4000-8000-00000000e470",
+        name="External alerts",
+        severity=AlertSeverityEnum.LOW,
+        risk_threshold=None,
+        object_types=None,
+        min_confidence=None,
+        sources=["external"],
+        dedup_key_template="{camera_id}:{object_type}:{rule_id}",
+    )
+    person_rule = _rule(
+        id="r-person",
+        name="Person Rule",
+        object_types=["person"],
+        sources=["camera", "external"],
+        risk_threshold=None,
+    )
+    default_rule = default_rule_from_settings(camera_id="front_door")
+
+    for sev_label, top_score in (("low", 29), ("medium", 59)):
+        ext_verdict = ResolvedVerdict(
+            source="external",
+            verdict=None,
+            risk_score=top_score,
+            recognised=(),
+            suppressed_by=None,
+        )
+        # Armed camera: external rule matches low and medium; person rule and default rule do not
+        ext_matches = evaluate(
+            _ctx(
+                resolved=ext_verdict,
+                detections=(),
+                external_source="ifttt",
+                armed=True,
+                rules=(default_rule, person_rule, ext_rule),
+            )
+        )
+        assert [m.rule_name for m in ext_matches] == ["External alerts"], sev_label
+        assert ext_matches[0].activity_key == ("front_door", "external:ifttt")
+
+        # Unarmed camera: low and medium external events do NOT alert
+        assert (
+            evaluate(
+                _ctx(
+                    resolved=ext_verdict,
+                    detections=(),
+                    external_source="ifttt",
+                    armed=False,
+                    rules=(default_rule, person_rule, ext_rule),
+                )
+            )
+            == []
+        )
+
+    # Unarmed camera with critical external event: alerts with raised_while_unarmed=True
+    ext_crit = ResolvedVerdict(
+        source="external",
+        verdict=None,
+        risk_score=100,
+        recognised=(),
+        suppressed_by=None,
+    )
+    ext_crit_matches = evaluate(
+        _ctx(
+            resolved=ext_crit,
+            detections=(),
+            external_source="smoke_sensor",
+            armed=False,
+            rules=(ext_rule,),
+        )
+    )
+    assert len(ext_crit_matches) == 1
+    assert ext_crit_matches[0].raised_while_unarmed is True
+
+    # Master switch off -> no alert even for critical external event
+    assert (
+        evaluate(
+            _ctx(
+                resolved=ext_crit,
+                detections=(),
+                external_source="smoke_sensor",
+                master_enabled=False,
+                rules=(ext_rule,),
+            )
+        )
+        == []
+    )

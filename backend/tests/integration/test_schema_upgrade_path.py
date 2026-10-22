@@ -194,7 +194,12 @@ async def test_upgrade_command_brings_a_saved_pre_upgrade_database_up_to_date(pr
             # ---- the schema moved ----
             after = await _json_types(conn)
             assert sorted(after) == sorted(
-                (*_ALERT_JSON_COLUMNS, "alert_rules.excluded_camera_ids")
+                (
+                    *_ALERT_JSON_COLUMNS,
+                    "alert_rules.excluded_camera_ids",
+                    "alert_rules.alert_on_rejected_modes",
+                    "alert_rules.sources",
+                )
             ), after
             assert set(after.values()) == {"jsonb"}, after
 

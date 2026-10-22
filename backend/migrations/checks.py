@@ -192,6 +192,15 @@ _B41_ALERT_PIPELINE_COLUMNS: tuple[tuple[str, str], ...] = _add_column_pairs(
 #: ``quiet_hours_periods.recipient_id`` and ``outbound_webhooks.on_local_network``.
 _B42_ALERT_DELIVERY_COLUMNS: tuple[tuple[str, str], ...] = _add_column_pairs("0013-alert-delivery")
 
+#: The columns and tables 0014 (B4.7 arming core) adds.
+_B47_ARMING_CORE_COLUMNS: tuple[tuple[str, str], ...] = (
+    *_add_column_pairs("0014-arming-core"),
+    ("arming_state", "schedule_updated_at"),
+    ("arming_mode_exclusions", "camera_id"),
+    ("arming_schedule", "mode"),
+    ("arming_changes", "exclusions_after"),
+)
+
 
 def _drop_columns_for_table(upgrade_id: str, table: str) -> tuple[str, ...]:
     """The columns an upgrade's own file drops from `table`, read from the shipped text."""
@@ -286,6 +295,9 @@ CHECKS: dict[str, Check] = {
     ),
     "0013-alert-delivery": all_present(
         [column_present(table, column) for table, column in _B42_ALERT_DELIVERY_COLUMNS]
+    ),
+    "0014-arming-core": all_present(
+        [column_present(table, column) for table, column in _B47_ARMING_CORE_COLUMNS]
     ),
 }
 

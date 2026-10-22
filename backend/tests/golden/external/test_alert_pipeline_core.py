@@ -113,11 +113,15 @@ def test_f050_f079_event_snooze_round_trip_and_six_pipeline_scenarios(
     """F-050 / F-079: PATCH /api/events/{id} snooze_until round-trips and writes an
     activity snooze, and all six B4.1 golden-path scenarios hold.
     """
-    events_res = logged_in_api.get("/api/events", params={"limit": 1})
+    events_res = logged_in_api.get("/api/events", params={"limit": 100})
     assert events_res.status_code == 200, events_res.text[:500]
     items = events_res.json()["items"]
     assert items, "expected at least one event on the live stack"
-    event_id = items[0]["id"]
+    # Pick the oldest (harness smoke) event so snoozing its camera never collides
+    # with concurrent golden tests creating fresh events at the head of the list.
+    smoke_candidates = [e for e in items if "smoke" in str(e.get("camera_id", "")).lower()]
+    target_ev = smoke_candidates[-1] if smoke_candidates else items[-1]
+    event_id = target_ev["id"]
 
     snooze_iso = (datetime.now(UTC) + timedelta(hours=1)).isoformat()
     try:

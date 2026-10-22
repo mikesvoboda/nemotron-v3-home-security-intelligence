@@ -468,6 +468,13 @@ async def test_pipeline_sqlalchemy_session_path_process_and_sweep(tmp_path) -> N
     from sqlalchemy.ext.compiler import compiles
     from sqlalchemy.orm import Session, sessionmaker
 
+    from backend.models.arming import (
+        EXTERNAL_ALERTS_RULE_ID,
+        ArmingChange,
+        ArmingModeExclusion,
+        ArmingScheduleEntry,
+        ArmingState,
+    )
     from backend.models.camera import Camera
     from backend.models.enrichment import ThreatDetection
     from backend.models.event_detection import EventDetection
@@ -546,6 +553,10 @@ async def test_pipeline_sqlalchemy_session_path_process_and_sweep(tmp_path) -> N
         Alert.__table__,
         AlertEvent.__table__,
         ActivitySnooze.__table__,
+        ArmingState.__table__,
+        ArmingModeExclusion.__table__,
+        ArmingScheduleEntry.__table__,
+        ArmingChange.__table__,
     ):
         with engine.begin() as conn:
             tbl.create(conn, checkfirst=True)
@@ -641,4 +652,173 @@ async def test_pipeline_sqlalchemy_session_path_process_and_sweep(tmp_path) -> N
     swept = await pipeline.sweep_unprocessed(now=t1, upgrade_applied_at=t0 - timedelta(hours=1))
     assert [r.event_id for r in swept] == [2]
     assert len(swept[0].updated_alerts) == 1
+
+    # B4.6 + B4.7 restore interaction: restoring an archive holding the seeded
+    # "External alerts" rule (fixed UUID EXTERNAL_ALERTS_RULE_ID) into an install
+    # that already has it merges by id and leaves exactly one rule.
+    from sqlalchemy import select
+
+    from backend.services.arming import (
+        ensure_external_alerts_rule,
+        list_changes,
+        set_mode,
+        set_mode_exclusions,
+    )
+
+    async with session_factory() as sess:
+        await ensure_external_alerts_rule(sess)  # type: ignore[arg-type]
+        await sess.commit()
+        # Simulate restore upserting the same fixed-UUID rule
+        existing = await sess.get(AlertRule, EXTERNAL_ALERTS_RULE_ID)
+        assert existing is not None
+        existing.description = "Restored External alerts rule"
+        await sess.commit()
+        all_ext_rules = (
+            (await sess.execute(select(AlertRule).where(AlertRule.id == EXTERNAL_ALERTS_RULE_ID)))
+            .scalars()
+            .all()
+        )
+        assert len(all_ext_rules) == 1
+
+    # 4n-arming.md §Tests: a camera left out of Away between an event's start and its decision:
+    # the normal path and the sweep both alert, a later event does not, and the history lists the edit.
+    t_away_start = datetime(2026, 10, 22, 13, 0, tzinfo=UTC)
+    t_pre_edit_1 = datetime(2026, 10, 22, 13, 1, tzinfo=UTC)
+    t_pre_edit_2 = datetime(2026, 10, 22, 13, 8, tzinfo=UTC)
+    t_cam_edit = datetime(2026, 10, 22, 13, 9, tzinfo=UTC)
+    t_decision = datetime(2026, 10, 22, 13, 10, tzinfo=UTC)
+    t_post_edit = datetime(2026, 10, 22, 13, 15, tzinfo=UTC)
+
+    async with session_factory() as sess:
+        await set_mode(sess, "away", now=t_away_start)  # type: ignore[arg-type]
+        await sess.commit()
+
+    with maker() as s:
+        s.add(
+            Camera(
+                id="living_room",
+                name="Living room",
+                folder_path="/cameras/living_room",
+                status="online",
+            )
+        )
+        ev_pre_1 = Event(
+            id=101,
+            batch_id="b-pre-1",
+            camera_id="living_room",
+            started_at=t_pre_edit_1,
+            risk_score=78,
+            risk_level="high",
+            summary="Pre-edit event 1 (normal path)",
+        )
+        ev_pre_2 = Event(
+            id=102,
+            batch_id="b-pre-2",
+            camera_id="living_room",
+            started_at=t_pre_edit_2,
+            risk_score=78,
+            risk_level="high",
+            summary="Pre-edit event 2 (sweep path)",
+        )
+        ev_post = Event(
+            id=103,
+            batch_id="b-post-1",
+            camera_id="living_room",
+            started_at=t_post_edit,
+            risk_score=78,
+            risk_level="high",
+            summary="Post-edit event",
+        )
+        s.add_all([ev_pre_1, ev_pre_2, ev_post])
+        s.flush()
+        d101 = Detection(
+            id=101,
+            camera_id="living_room",
+            file_path="/cameras/lr101.jpg",
+            detected_at=t_pre_edit_1,
+            object_type="person",
+            confidence=0.92,
+        )
+        d102 = Detection(
+            id=102,
+            camera_id="living_room",
+            file_path="/cameras/lr102.jpg",
+            detected_at=t_pre_edit_2,
+            object_type="car",
+            confidence=0.92,
+        )
+        d103 = Detection(
+            id=103,
+            camera_id="living_room",
+            file_path="/cameras/lr103.jpg",
+            detected_at=t_post_edit,
+            object_type="person",
+            confidence=0.92,
+        )
+        s.add_all([d101, d102, d103])
+        s.flush()
+        s.add_all(
+            [
+                EventDetection(event_id=101, detection_id=101),
+                EventDetection(event_id=102, detection_id=102),
+                EventDetection(event_id=103, detection_id=103),
+                EventVerification(
+                    event_id=101,
+                    verdict="confirmed",
+                    engine="ai-vlm",
+                    model_id="qwen",
+                    created_at=t_pre_edit_1,
+                ),
+                EventVerification(
+                    event_id=102,
+                    verdict="confirmed",
+                    engine="ai-vlm",
+                    model_id="qwen",
+                    created_at=t_pre_edit_2,
+                ),
+                EventVerification(
+                    event_id=103,
+                    verdict="confirmed",
+                    engine="ai-vlm",
+                    model_id="qwen",
+                    created_at=t_post_edit,
+                ),
+            ]
+        )
+        s.commit()
+
+    # Exclude living_room from Away at t_cam_edit (after ev_pre_1 and ev_pre_2 started)
+    async with session_factory() as sess:
+        await set_mode_exclusions(
+            sess,  # type: ignore[arg-type]
+            "away",
+            ["living_room"],
+            now=t_cam_edit,
+        )
+        await sess.commit()
+
+    # Normal path at t_decision (> t_cam_edit) alerts on ev_pre_1 (started at t_pre_edit_1 < t_cam_edit)
+    res_pre_1 = await pipeline.process(101, now=t_decision)
+    assert res_pre_1.notify is True
+    assert len(res_pre_1.created_alerts) == 1
+
+    # Sweep at t_decision (> t_cam_edit) also alerts on ev_pre_2 (started at t_pre_edit_2 < t_cam_edit)
+    # and suppresses ev_post (started at t_post_edit > t_cam_edit)
+    swept_cam = await pipeline.sweep_unprocessed(
+        now=t_post_edit + timedelta(seconds=10),
+        upgrade_applied_at=t0 - timedelta(hours=1),
+    )
+    by_eid = {r.event_id: r for r in swept_cam}
+    assert by_eid[102].notify is True
+    assert len(by_eid[102].created_alerts) == 1
+    assert by_eid[103].notify is False
+    assert "Away leaves out Living room (arming)" in by_eid[103].decided_by
+
+    async with session_factory() as sess:
+        history = await list_changes(sess)  # type: ignore[arg-type]
+        assert any(
+            c.kind == "cameras"
+            and c.to_value == {"mode": "away", "excluded_camera_ids": ["living_room"]}
+            for c in history
+        )
     engine.dispose()

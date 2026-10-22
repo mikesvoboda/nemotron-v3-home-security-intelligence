@@ -24,6 +24,14 @@ A policy rule (`alert_rules` table and the synthetic default rule, evaluated by 
 
 Background worker process (`backend/services/pipeline_workers.py`, `AnalysisQueueWorker`) that hands a closed batch to `VlmAnalyzer`, which assembles the key frames and the specialist lookups into one request for `ai-vlm`. Part of the [Pipeline](#pipeline).
 
+### Armed Camera
+
+A [Camera](#camera) that is permitted to raise non-critical [Alerts](#alert) in the active [Arming Mode](#arming-mode) (`is_armed(camera_id, at=t)` in `backend/services/arming.py`). Every camera is armed by default in `home`, `away`, and `night` unless listed in that mode's exclusions (`arming_mode_exclusions`); no camera is armed in `disarmed`. An unarmed camera still records and analyses events, and raises an alert only when the effective severity is `critical` (marked [Raised While Unarmed](#raised-while-unarmed)).
+
+### Arming Mode
+
+One of the four household security modes (`home`, `away`, `night`, or `disarmed`, stored in `arming_state` and logged in `arming_changes` by `backend/services/arming.py`). Modes gate [Alert](#alert) creation per camera (`arming_mode_exclusions`) and can be switched from the app (`/api/arming`), inbound webhooks (`/api/webhooks/inbound/{mode,arm,disarm}`), MQTT commands, or the weekly schedule (`arming_schedule`).
+
 ---
 
 ## B
@@ -261,6 +269,10 @@ Reducing a model's precision to shrink its memory footprint. The shipped VLM def
 ---
 
 ## R
+
+### Raised While Unarmed
+
+A flag (`alerts.raised_while_unarmed = true`) recorded on a `critical` [Alert](#alert) that broke through an unarmed camera (`disarmed` mode or a camera excluded from the active [Arming Mode](#arming-mode)).
 
 ### Rate Limiting
 
