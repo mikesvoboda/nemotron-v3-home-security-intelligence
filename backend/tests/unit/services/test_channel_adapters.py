@@ -42,7 +42,7 @@ class TestSignature:
     def test_sign_payload_matches_f246_convention(self) -> None:
         """Same canonicalisation as webhook_service._sign_payload."""
         payload = {"b": 2, "a": 1}
-        secret = "ab" * 32  # hex string
+        secret = "ab" * 32  # nosemgrep: hardcoded-password — a test dummy, never a credential
         expected = hmac.new(
             bytes.fromhex(secret),
             json.dumps(payload, sort_keys=True, separators=(",", ":")).encode("utf-8"),
