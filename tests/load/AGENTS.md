@@ -207,5 +207,5 @@ Use `smoke` profile for CI (quick validation), `stress` for release testing.
 
 - **scripts/load-test.sh**: Runner script with usage examples
 - **tests/load/README.md**: User-facing documentation
-- **backend/tests/AGENTS.md**: Backend test infrastructure
+- **backend/AGENTS.md**: Backend architecture and test conventions
 - **AGENTS.md**: Project testing requirements

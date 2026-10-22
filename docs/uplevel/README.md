@@ -209,6 +209,7 @@ UR-147.
 | B4.4    | backend                 | 4          | Trash purger                                   | heavy         | in progress | #7347 |
 | BB.\*   | backend                 | 4          | Background track                               |               | not started |     |
 | F4.\*   | frontend                | 4          | Feature track, frontend parts                  | design: heavy | not started |     |
+| F4.4    | frontend                | 4          | Timeline filters and detections                |               | in progress | #7352 |
 | FB.\*   | frontend                | 4          | Background track                               |               | not started |     |
 | OB.2    | ops                     | after 1    | CI dedupe                                      |               | done        | #6963 |
 | OB.3    | ops                     | after 1    | Image weight                                   |               | done        | #7307 |
@@ -218,7 +219,7 @@ UR-147.
 | W1.3    | docs                    | 1          | Remove dead references now                     |               | done        | #6915 |
 | W2.1    | docs                    | 2          | The boundary list and the line caps            |               | done        | #6920 |
 | W2.2    | docs                    | 2          | Docs rulings for `R2`                          |               | done        | #6923 |
-| W3.1    | docs                    | 3          | Boundaries only                                |               | in progress | #7331 |
+| W3.1    | docs                    | 3          | Boundaries only                                |               | in progress | #7331, #7351, #7353 |
 | W3.2    | docs                    | 3          | Rewrite the boundary files to the standard     |               | not started |     |
 | W3.3    | docs                    | 3          | Living docs truth                              |               | not started |     |
 | W3.4    | docs                    | 3          | Carry out the docs rulings                     |               | done        | #7250 |

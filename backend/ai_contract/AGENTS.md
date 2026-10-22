@@ -16,7 +16,7 @@ One importable package declaring every AI-tier operation the product surface has
 | `operations.py` | **GENERATED - DO NOT EDIT.** The 9-operation registry: id, method, path, per-slot availability, backend client methods, evidence        |
 | `provider.py`   | Hand-written support types: `ProviderId` slots, `Operation` dataclass, `AIProvider` protocol, `register_provider`, error/derive helpers |
 | `providers.py`  | Provider registrations executed at import: gateway / gateway_light / llamacpp_llm (fake is a SPEC column, deliberately not registered)  |
-| `fake/`         | The deterministic FakeProvider app (see `fake/AGENTS.md`)                                                                               |
+| `fake/`         | Deterministic FakeProvider FastAPI app (`fake/app.py`, `fake/generators.py`, `fake/scenarios.py`, `fake/scenario_fixtures/`)            |
 | `schemas/`      | 15 generated JSON schemas (`<op>.request.json` / `<op>.response.json`) - contract sources for golden snapshots and the fake generator   |
 
 ## Patterns and Gotchas
@@ -26,9 +26,9 @@ One importable package declaring every AI-tier operation the product surface has
 - **Three matrix states:** an op can be absent from a slot, NOT-WIRED (registered but no bound client method - calling raises), or wired. NOT-WIRED is a real third state, not a skip.
 - **Provider callables are the bound backend client methods** (`DetectorClient` and `VlmClient` under `backend/services/`), resolved lazily via `_CLIENT_MODULES`; never import those clients at `providers.py` top level (settings/redis singletons would initialize before test fixtures).
 - The `fake` availability column is a conformance SPEC: `fake/app.py` mounts one route per registry operation, so the fake covers every declared op and the count is always the registry's, never a pinned number.
+- **`fake/` determinism & scenario book:** Every generator response is seeded from `sha256(op_id | path | profile)` via `json.dumps(sort_keys=True)` (no wall-clock, `id()`, or set order). `fake/app.py` also serves llama.cpp's wire (`/props`, `/v1/chat/completions`, `/health`, `/yolo26/health`) and `fake/scenarios.py` hashes received image bytes against `fake/scenario_fixtures/scenarios.json` (`fake/scenario_fixtures/harness-smoke.jpg` is reserved for `scripts/feature-check.sh`'s smoke check so the 300s file-watcher dedupe never swallows golden-path fixtures).
 
 ## Related
 
-- `backend/ai_contract/fake/AGENTS.md` - the deterministic FakeProvider
-- `backend/tests/contracts/ai_providers/AGENTS.md` - the conformance suite that consumes this package
-- `backend/tests/AGENTS.md` - test infrastructure
+- `backend/AGENTS.md` - backend architecture overview
+- `docs/developer/testing.md` - testing and fake-stack guide

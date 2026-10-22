@@ -1008,26 +1008,21 @@ The backend provides three health endpoints for different use cases:
 
 ### Backend Subdirectories
 
-| Path                                | Purpose                                          |
-| ----------------------------------- | ------------------------------------------------ |
-| `/backend/ai_contract/AGENTS.md`    | AI-tier operation registry (generated)           |
-| `/backend/api/AGENTS.md`            | API layer overview                               |
-| `/backend/api/routes/AGENTS.md`     | API endpoints (60 routes)                        |
-| `/backend/api/schemas/AGENTS.md`    | Pydantic schemas (86 modules)                    |
-| `/backend/api/middleware/AGENTS.md` | Middleware components (23 modules)               |
-| `/backend/api/utils/AGENTS.md`      | API utility modules                              |
-| `/backend/core/AGENTS.md`           | Core infrastructure (54 modules)                 |
-| `/backend/config/AGENTS.md`         | Prompt A/B rollout and experiments               |
-| `/backend/core/websocket/AGENTS.md` | WebSocket event infrastructure                   |
-| `/backend/evaluation/AGENTS.md`     | VLM verdict-path evaluation and replay           |
-| `/backend/jobs/AGENTS.md`           | Background job modules                           |
-| `/backend/models/AGENTS.md`         | Database models (54 models)                      |
-| `/backend/repositories/AGENTS.md`   | Repository pattern (base + 7 repos)              |
-| `/backend/services/AGENTS.md`       | Service layer (177 modules)                      |
-| `/backend/tests/AGENTS.md`          | Test infrastructure                              |
-| `/backend/examples/AGENTS.md`       | Example scripts (Redis usage)                    |
-| `/backend/scripts/AGENTS.md`        | Utility scripts (VRAM benchmarking)              |
-| `/backend/data/`                    | Runtime data directory (no AGENTS.md - data dir) |
+| Path                             | Purpose                                                                                                                            |
+| -------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------- |
+| `/backend/ai_contract/AGENTS.md` | AI-tier operation registry (generated) and deterministic `ai_contract/fake/` provider                                              |
+| `/backend/api/AGENTS.md`         | API layer overview (`api/middleware/`, `api/utils/`)                                                                               |
+| `/backend/api/routes/AGENTS.md`  | API endpoints (60 routes)                                                                                                          |
+| `/backend/api/schemas/AGENTS.md` | Pydantic schemas (86 modules)                                                                                                      |
+| `/backend/core/AGENTS.md`        | Core infrastructure (`core/websocket/`)                                                                                            |
+| `/backend/models/AGENTS.md`      | Database models (54 models)                                                                                                        |
+| `/backend/services/AGENTS.md`    | Service layer (`services/orchestrator/` shared models & `ServiceRegistry`)                                                         |
+| `/backend/migrations/`           | Recorded SQL upgrades (`migrations/registry.py`, `migrations/checks.py`, `migrations/runner.py`): never edit a shipped `.sql` file |
+| `/backend/evaluation/`           | VLM verdict-path evaluation & replay (`evaluation/eval_store.py`, `evaluation/vlm_replay.py`): uses stored specialist outputs      |
+| `/backend/repositories/`         | Repository pattern (base + domain repositories)                                                                                    |
+| `/backend/jobs/`                 | Background job tracking and state transitions                                                                                      |
+| `/backend/tests/`                | Unit, integration, contract, golden, and benchmark test suites                                                                     |
+| `/backend/data/`                 | Runtime data directory (no AGENTS.md - data dir)                                                                                   |
 
 ### Project-Level Documentation
 
