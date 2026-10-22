@@ -6,7 +6,12 @@
  */
 
 import { createInfiniteQueryHook, type BaseInfiniteQueryOptions } from './useCursorPaginatedQuery';
-import { fetchEvents, type EventsQueryParams, type EventVerdictFilter } from '../services/api';
+import {
+  fetchEvents,
+  type EventMinConfidenceFilter,
+  type EventsQueryParams,
+  type EventVerdictFilter,
+} from '../services/api';
 
 import type { EventListResponse } from '../types/generated';
 
@@ -19,6 +24,12 @@ export interface EventFilters {
    * fetchFn below, so the vocabulary is shared with the generated schema.
    */
   verdict?: EventVerdictFilter;
+  /**
+   * Minimum detector-confidence floor (F4.4): the event matches when any of
+   * its detections is at or above it; 0 means "has at least one detection".
+   * Spread straight into EventsQueryParams by the fetchFn below.
+   */
+  min_confidence?: EventMinConfidenceFilter;
   start_date?: string;
   end_date?: string;
   reviewed?: boolean;

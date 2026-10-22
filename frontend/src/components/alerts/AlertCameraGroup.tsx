@@ -7,7 +7,6 @@ import { getRiskLevel, type RiskLevel } from '../../utils/risk';
 import EventCard from '../events/EventCard';
 
 import type { Event } from '../../services/api';
-import type { Detection } from '../events/EventCard';
 
 export interface AlertCameraGroupProps {
   /** Camera ID */
@@ -103,8 +102,6 @@ export default function AlertCameraGroup({
 
   // Convert Event to EventCard props
   const getEventCardProps = (event: Event) => {
-    const detections: Detection[] = [];
-
     return {
       id: String(event.id),
       timestamp: event.started_at,
@@ -112,7 +109,6 @@ export default function AlertCameraGroup({
       risk_score: event.risk_score || 0,
       risk_label: event.risk_level || getRiskLevel(event.risk_score || 0),
       summary: event.summary || 'No summary available',
-      detections,
       started_at: event.started_at,
       ended_at: event.ended_at,
       thumbnail_url: event.thumbnail_url ?? undefined,

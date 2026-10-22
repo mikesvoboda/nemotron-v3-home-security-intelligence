@@ -212,7 +212,7 @@ UR-147.
 | B4.11   | backend                 | 4          | System status (expand)                         | heavy · owner | in progress | #7366 |
 | BB.\*   | backend                 | 4          | Background track                               |               | not started |     |
 | F4.\*   | frontend                | 4          | Feature track, frontend parts                  | design: heavy | not started |     |
-| F4.4    | frontend                | 4          | Timeline filters and detections                |               | in progress | #7352 |
+| F4.4    | frontend                | 4          | Timeline filters and detections                |               | awaiting real tier | #7352, #7362 |
 | FB.\*   | frontend                | 4          | Background track                               |               | not started |     |
 | OB.2    | ops                     | after 1    | CI dedupe                                      |               | done        | #6963 |
 | OB.3    | ops                     | after 1    | Image weight                                   |               | done        | #7307 |

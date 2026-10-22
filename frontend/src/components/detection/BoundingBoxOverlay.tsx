@@ -112,10 +112,14 @@ const BoundingBoxOverlayComponent: React.FC<BoundingBoxOverlayProps> = ({
   }
 
   return (
+    // Letterbox like the <img> does (object-contain): "none" stretched the
+    // viewBox to the container, so boxes drifted off their objects whenever
+    // the container's aspect ratio differed from the image's. "meet" makes
+    // the SVG adopt the same fit math and the two stay aligned.
     <svg
       className="pointer-events-none absolute inset-0 h-full w-full"
       viewBox={`0 0 ${imageWidth} ${imageHeight}`}
-      preserveAspectRatio="none"
+      preserveAspectRatio="xMidYMid meet"
       style={{ zIndex: 10 }}
     >
       {filteredBoxes.map((box, index) => {

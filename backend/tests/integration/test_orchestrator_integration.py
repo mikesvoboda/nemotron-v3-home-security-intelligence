@@ -92,6 +92,13 @@ TEST_CONTAINER_PREFIX = "test-orchestrator-"
 TEST_IMAGE = "alpine:latest"
 TEST_COMMAND = "sleep infinity"
 
+# API-route tests never touch the container object: every docker call they
+# exercise is mocked at the DockerClient method level and the response only
+# slices container_id into a 12-char string. A plain id string stands in for
+# the real container, so these tests don't pay the alpine pull/run in setup
+# (ruling 318: that fixture chain was the CI breach, not a route wait).
+FAKE_CONTAINER_ID = "test-container-0123456789abcdef"
+
 
 # =============================================================================
 # Fixtures
@@ -606,7 +613,6 @@ async def test_disabled_status_persists(
 async def test_api_list_services(
     integration_db: str,
     docker_client: DockerClient,
-    test_container: DockerContainer,
     real_redis_client: RedisClient,
     test_settings: OrchestratorSettings,
     mock_broadcast_fn: AsyncMock,
@@ -633,7 +639,7 @@ async def test_api_list_services(
     service = ManagedService(
         name="ai-yolo26",
         display_name="Test AI Detector",
-        container_id=test_container.id,
+        container_id=FAKE_CONTAINER_ID,
         image=TEST_IMAGE,
         port=8095,
         health_endpoint=None,
@@ -685,7 +691,6 @@ async def test_api_list_services(
 async def test_api_restart_service(
     integration_db: str,
     docker_client: DockerClient,
-    test_container: DockerContainer,
     real_redis_client: RedisClient,
     test_settings: OrchestratorSettings,
     mock_broadcast_fn: AsyncMock,
@@ -715,7 +720,7 @@ async def test_api_restart_service(
     service = ManagedService(
         name="ai-yolo26",
         display_name="Test AI Detector",
-        container_id=test_container.id,
+        container_id=FAKE_CONTAINER_ID,
         image=TEST_IMAGE,
         port=8095,
         health_endpoint=None,
@@ -752,7 +757,7 @@ async def test_api_restart_service(
             assert data["service"]["name"] == "ai-yolo26"
 
             # Verify Docker restart was called (mocked)
-            docker_client.restart_container.assert_called_once_with(test_container.id)
+            docker_client.restart_container.assert_called_once_with(FAKE_CONTAINER_ID)
 
 
 @pytest.mark.integration
@@ -760,7 +765,6 @@ async def test_api_restart_service(
 async def test_api_enable_disabled_service(
     integration_db: str,
     docker_client: DockerClient,
-    test_container: DockerContainer,
     real_redis_client: RedisClient,
     test_settings: OrchestratorSettings,
     mock_broadcast_fn: AsyncMock,
@@ -787,7 +791,7 @@ async def test_api_enable_disabled_service(
     service = ManagedService(
         name="ai-yolo26",
         display_name="Test AI Detector",
-        container_id=test_container.id,
+        container_id=FAKE_CONTAINER_ID,
         image=TEST_IMAGE,
         port=8095,
         health_endpoint=None,
@@ -830,7 +834,6 @@ async def test_api_enable_disabled_service(
 async def test_api_disable_service(
     integration_db: str,
     docker_client: DockerClient,
-    test_container: DockerContainer,
     real_redis_client: RedisClient,
     test_settings: OrchestratorSettings,
     mock_broadcast_fn: AsyncMock,
@@ -857,7 +860,7 @@ async def test_api_disable_service(
     service = ManagedService(
         name="ai-yolo26",
         display_name="Test AI Detector",
-        container_id=test_container.id,
+        container_id=FAKE_CONTAINER_ID,
         image=TEST_IMAGE,
         port=8095,
         health_endpoint=None,
@@ -898,7 +901,6 @@ async def test_api_disable_service(
 async def test_api_start_stopped_service(
     integration_db: str,
     docker_client: DockerClient,
-    test_container: DockerContainer,
     real_redis_client: RedisClient,
     test_settings: OrchestratorSettings,
     mock_broadcast_fn: AsyncMock,
@@ -928,7 +930,7 @@ async def test_api_start_stopped_service(
     service = ManagedService(
         name="ai-yolo26",
         display_name="Test AI Detector",
-        container_id=test_container.id,
+        container_id=FAKE_CONTAINER_ID,
         image=TEST_IMAGE,
         port=8095,
         health_endpoint=None,
@@ -964,7 +966,7 @@ async def test_api_start_stopped_service(
             assert data["service"]["name"] == "ai-yolo26"
 
             # Verify Docker start was called (mocked)
-            docker_client.start_container.assert_called_once_with(test_container.id)
+            docker_client.start_container.assert_called_once_with(FAKE_CONTAINER_ID)
 
 
 @pytest.mark.integration

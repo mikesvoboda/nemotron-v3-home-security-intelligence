@@ -3333,7 +3333,7 @@ export async function deleteAlertRuleIfPresent(api: AuthedFetch, ruleId: string)
  * for 300 s (backend/services/dedupe.py). Consequences baked in below:
  *
  * - Fixture choice is a shared resource AND a semantic choice. The book
- *   (backend/ai_contract/fake/scenario_fixtures/scenarios.json) ships five
+ *   (backend/ai_contract/fake/scenario_fixtures/scenarios.json) ships seven
  *   images, each encoding a different outcome:
  *     person-at-door  — claimed by F2.1's dashboard-drop.spec.ts; a second drop
  *                       of the same bytes inside 300 s dedupes and reddens it.
@@ -3355,6 +3355,13 @@ export async function deleteAlertRuleIfPresent(api: AuthedFetch, ruleId: string)
  *     car-in-driveway — nobody claims it, no reply delay, verdict `uncertain`,
  *                       risk 45 → `medium` (backend/services/severity.py tiering
  *                       against the settings defaults 29/59/84).
+ *     f4.4-gold-high    — [F4.4] verdict confirmed, risk 52 → `medium`; TWO
+ *                       person detections (0.90 / 0.78), the book's only
+ *                       multi-detection scenario. Claimed by
+ *                       ./timeline/confidence-filter.spec.ts.
+ *     f4.4-gold-rejected — [F4.4] verdict rejected, risk 12 → `low`; one cat
+ *                       detection at 0.75 (the book's lowest above the 0.70
+ *                       medium band). Claimed by the same spec.
  *   DO-1 claims car-in-driveway. Its tier is the point: /alerts pages only
  *   `high` and `critical` (useAlertsQuery), so this drop is the NEGATIVE case
  *   that proves the band filter end to end, and its detection is the positive
