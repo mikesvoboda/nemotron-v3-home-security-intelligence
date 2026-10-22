@@ -1994,6 +1994,37 @@ def playwright_image(lock_path: Path) -> str:
     return f"{PLAYWRIGHT_IMAGE_REPOSITORY}:v{version}-{PLAYWRIGHT_IMAGE_VARIANT}"
 
 
+# [r297] The fake-shard warm-up's opt-in. [r282]'s manifest route set the idiom:
+# one variable the harness reads, the workflow carrying it as one env entry, so
+# the cut reaches CI as an append to an existing list (UR-121) and every other
+# caller -- the operator, --real, maui -- stays byte-identical because the
+# variable is simply absent on them.
+WARM_PULL_ENV = "FEATURE_CHECK_WARM_PLAYWRIGHT"
+
+
+def _start_warm_pull(command: Sequence[str], **kwargs: Any) -> subprocess.Popen[str] | None:
+    """Start the warm-up fetch as a detached child, and return it.
+
+    The module-level seam the pins monkeypatch (not subprocess.Popen: a stand-in
+    on the real class would leak into every other pin). The caller is Run.up, so
+    the env is the compose one -- the pull needs DOCKER_HOST and friends, nothing
+    else the boot needed -- and the deadline is NOT ours to set here: golden()
+    joins the child under its own accounting, and the finally reaps it, so the
+    parent's 1800 s contract lives where it always did.
+    """
+    try:
+        return subprocess.Popen(
+            list(command),
+            env=dict(kwargs.get("env") or compose_environment(os.environ)),
+            stdout=subprocess.PIPE,
+            stderr=subprocess.PIPE,
+            text=True,
+        )
+    except OSError as refused:
+        _log(f"warm pull did not start: {refused}")
+        return None
+
+
 def golden_container_command(
     *,
     engine: str,
@@ -2219,6 +2250,10 @@ class Run:
             # when unset, so today's records byte-match today's.
             self.summary["golden_specs"] = list(golden_specs)
         self.started = False
+        # [r297] The warm-up child, armed in up() when the opt-in says so and
+        # joined in golden(). None is "no warmer" -- every run that never armed
+        # one reads it, so today's callers see nothing new.
+        self._prepull: subprocess.Popen[str] | None = None
 
     # -- processes -----------------------------------------------------------
 
@@ -2724,6 +2759,32 @@ python3 /app/gateway/export/export_reid.py --model-path /models/zoo/osnet-ain-x1
         # runs build `hsi-fake-ai` themselves at `up`, and `--no-build` there
         # strands them with `No such image` (measured on #7298).
         build_flag = ["--no-build"] if self.prod_shape else []
+        # [r297] The warm-up: the Playwright image's fetch starts beside the boot
+        # instead of after it, so the pull's wall clock hides inside the ~95 s of
+        # boot+seed+smoke the Measure box tabulated. Arming is gated on the three
+        # facts the inline pull itself is: the opt-in env (OFF is today), the run's
+        # shape (a prod-shape boot carries agent-gpu admission between up and the
+        # reach check; arming a fetch in its middle would couple the registry's
+        # reachability to a boot ruling 189 already budgets separately), and the
+        # engine's own `image inspect` -- a host that HAS the tag pays no registry
+        # round-trip, the same rule `test_a_present_image_is_never_pulled` holds
+        # for the inline pull. A lock that cannot yield a tag arms nothing: that
+        # failure stays golden()'s accounted "no image tag", byte for byte.
+        prepull_tag: str | None = None
+        if os.environ.get(WARM_PULL_ENV) and not self.prod_shape and self.compose_file.exists():
+            try:
+                prepull_tag = playwright_image(PACKAGE_LOCK)
+            except HarnessError:
+                prepull_tag = None  # golden() accounts this shape as "no image tag"
+            if prepull_tag and (
+                self._run(
+                    [self.engine, "image", "inspect", prepull_tag],
+                    check=False,
+                    echo=False,
+                ).returncode
+                != 0
+            ):
+                self._prepull = _start_warm_pull([self.engine, "pull", prepull_tag])
         try:
             self.deployment(
                 "up", "-d", *build_flag, "--wait", "--wait-timeout", "900", timeout=1500
@@ -3289,12 +3350,19 @@ asyncio.run(main())
                 self.summary["results"]["golden"] = results
                 return problems
             results["playwright_image"] = image
-            have = self._run([self.engine, "image", "inspect", image], check=False, echo=False)
-            available = have.returncode == 0
-            if available:
-                results["playwright_image_pull"] = "present"
-            else:
-                pull = self._run([self.engine, "pull", image], check=False, timeout=1800)
+            # [r297] The warm-up: with the boot-side fetch armed (up(), under the
+            # opt-in), golden() joins THAT child instead of inspecting and
+            # pulling again -- one fetch, whoever started it, and its outcome is
+            # the accounting, read through the SAME vocabulary as the inline
+            # route below (`pulled`, the firewall clause, "image unavailable").
+            # A host whose inspect would say `present` pays nothing here either,
+            # because up()'s own gate already refused to arm when the image was
+            # present. No warmer: the block below is today's code, byte for byte.
+            warm = self._warm_for(image)
+            available = False
+            pull: subprocess.CompletedProcess[str] | None = None
+            if warm is not None:
+                pull = self._join_prepull(warm)
                 available = pull.returncode == 0
                 results["playwright_image_pull"] = (
                     "pulled" if available else f"exit {_exit_word(pull)}"
@@ -3306,6 +3374,24 @@ asyncio.run(main())
                         f"harness does not work around a block): "
                         f"{(pull.stderr or pull.stdout).strip()[-400:]}"
                     )
+            else:
+                have = self._run([self.engine, "image", "inspect", image], check=False, echo=False)
+                available = have.returncode == 0
+                if available:
+                    results["playwright_image_pull"] = "present"
+                else:
+                    pull = self._run([self.engine, "pull", image], check=False, timeout=1800)
+                    available = pull.returncode == 0
+                    results["playwright_image_pull"] = (
+                        "pulled" if available else f"exit {_exit_word(pull)}"
+                    )
+                    if not available:
+                        problems.append(
+                            f"golden: {self.engine} pull of {image} exited {pull.returncode} "
+                            f"(registry: {PLAYWRIGHT_IMAGE_REGISTRY} — the host to allow; the "
+                            f"harness does not work around a block): "
+                            f"{(pull.stderr or pull.stdout).strip()[-400:]}"
+                        )
             if not available:
                 # The leg cannot run and no image means no specs: that is exactly
                 # the evidential hole ruling 114 exists for, so it is reported as
@@ -3596,6 +3682,66 @@ asyncio.run(main())
         for image in leaked:
             _log(f"FAIL prod-shape image still in the engine, not removed: {image}")
         return EXIT_FAILED if (leaked or stalled) else EXIT_OK
+
+    def _warm_for(self, image: str) -> subprocess.Popen[str] | None:
+        """The warm-up child fetching THIS image, if one was armed.
+
+        The argv's tail is the tag (``<engine> pull <tag>``), matched against
+        golden()'s own lock-derived tag so a warmer can only ever answer for the
+        image it was started for -- golden() then skips its own inspect+pull
+        because the warmer's outcome IS the fetch's accounting."""
+        child = self._prepull
+        if child is not None and list(getattr(child, "args", []) or [])[-1:] == [image]:
+            return child
+        return None
+
+    def _join_prepull(self, warm: subprocess.Popen[str]) -> subprocess.CompletedProcess[str]:
+        """The warm-up's outcome, in the same shape the inline pull answers in.
+
+        golden() joins through ``communicate(timeout=...)``, not a bare
+        ``wait``: a real ``docker pull`` writes far past the 64 KiB pipe buffer,
+        so a wait that never reads could leave the child blocked on a full pipe
+        and the run hung on it -- communicate drains while it waits. The
+        deadline is the pull's own 1800 s, unchanged from the inline fetch (the
+        parent's deadline, not a second one). A step past its deadline reads
+        exactly like a stalled inline pull (rc 124, the note in stderr), so ONE
+        accounting vocabulary covers both routes; the child is NOT killed here,
+        the reaper ends it at teardown.
+        """
+        try:
+            out, err = warm.communicate(timeout=1800)
+        except subprocess.TimeoutExpired as expired:
+            return _stalled_result(expired)
+        # warm.args is typed Any (typeshed), so the list() is spelled out where
+        # the CompletedProcess constructor wants a sequence it can copy.
+        argv: list[str] = [str(part) for part in getattr(warm, "args", []) or []]
+        return subprocess.CompletedProcess(argv, warm.returncode, out or "", err or "")
+
+    def reap_warm_pull(self) -> list[str]:
+        """The run's finally-path account of the warm-up child, one line if one
+        was armed.
+
+        The fetch must not outlive the run: the teardown has judged the machine
+        clean by the time this runs, and an image materialising in the engine
+        afterwards would be a change the postflight never saw. A warmer still
+        running is killed -- and NOT waited on, because waiting would turn
+        "ended it" into "waited on it", which is not the account the postflight
+        should read (the Popen's own finalizer reaps the killed child when this
+        slot goes out of scope). An already-finished one is joined, so no zombie
+        is left behind, and accounted by name: its outcome was golden()'s to
+        judge, the join is bookkeeping. The returned lines name the command --
+        the caller logs them -- and the slot is cleared so a second call is a
+        no-op."""
+        child = self._prepull
+        if child is None:
+            return []
+        self._prepull = None
+        argv = " ".join(str(part) for part in getattr(child, "args", []) or [])
+        if child.poll() is None:
+            child.kill()
+            return [f"killed {argv}"]
+        child.wait()
+        return [argv]
 
     def _write(self, name: str, data: Any) -> None:
         (self.artifacts / name).write_text(json.dumps(data, indent=2) + "\n", encoding="utf-8")
@@ -4032,6 +4178,13 @@ def run_check(args: argparse.Namespace, *, mode: str) -> int:
             # build has already left images in the engine. Gating this on
             # `run.started` would skip exactly the failure path that leaks.
             status = max(status, _cleanup_images(run))
+            # [r297] The warm-up child is ended here, after the teardown's own
+            # judgment, so a fetch cannot write into the engine's image store
+            # once the postflight has seen the machine. The account names what
+            # was ended -- a fetch that outlived the stack is exactly the leak
+            # the teardown just said was absent.
+            for reaped in run.reap_warm_pull():
+                _log(f"FAIL warm pull outlived the run: {reaped}")
             if vlm is not None and vlm.started:
                 status = max(status, _finish_vlm(vlm))
             run.summary["exit"] = status

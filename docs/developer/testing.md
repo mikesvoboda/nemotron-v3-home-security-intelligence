@@ -578,6 +578,21 @@ timeout (`subprocess.run` raises `TimeoutExpired` whatever `check` says), so
 out`, and `_exit_word` prints that word where a number would go, so summary.json
 never reads a stall as a refusal the owner should answer with an allow.
 
+[r297] The fetch can also start EARLY: with `FEATURE_CHECK_WARM_PLAYWRIGHT=1`
+(the fake-shard workflow's opt-in, one env entry) `up()` arms a background
+`<engine> pull <tag>` beside the boot — gated on the same three facts the
+inline pull is (the opt-in, the run's shape, and an `image inspect` that says
+the tag is absent, so a present image starts nothing) — and `golden()` joins
+that child instead of fetching again: one pull total, the pull's own 1800 s
+deadline unchanged, and the SAME `playwright_image_pull` vocabulary, with the
+join going through `communicate(timeout=...)` (a bare `wait` never reads the
+pipe a pull fills, and the child would hang on it). The wall clock the cut buys
+is the ~29 s registry round-trip hiding inside boot+seed+smoke instead of
+appending to it. Nothing is left behind: `run_check`'s finally ends a warmer
+still running (logged as `killed <engine> pull <tag>`) and accounts an
+already-finished one by name — a fetch that outlives the stack would be writing
+into the engine's image store after the postflight judged the machine clean.
+
 **The leg's own deadline follows its measured time (ruling 189).** The golden
 `docker run` carried `timeout=1800` because that was the number on hand, not a
 measurement, and a full suite grew into it: #7114's leg died at exit 124 with the
