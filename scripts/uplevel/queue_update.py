@@ -12,13 +12,16 @@ status comment on the ruling issue, ``main``'s tip and the newest completed ``CI
    does nothing this fire.
 3. **Red ``main``**: when ``main``'s newest completed ``CI`` run failed, only a ``!`` entry
    acts; every other entry is left to the coordinator (UR-111).
-4. **Skips** an entry that is merged, closed or a draft, or whose UR-106 own-diff hash at its
-   head differs from the hash at the listed SHA -- ``coordinator_snapshot.ur106_diff_hash``,
-   so an author commit drops the entry and an update merge keeps it.
+4. **Skips** an entry that is merged, closed or a draft, or whose UR-106 own-diff carry at its
+   head says no -- ``coordinator_snapshot.ur106_diff_hash`` equal-hash short-circuit, else
+   ``ur106_subset_carry`` (ruling 278): update-branch merges only between the heads, the new
+   diff a subset of the approved one, and ``main``'s own change between the merge-bases
+   holding every dropped line. An author commit drops the entry, an update merge keeps it,
+   and a failed read is unknown -- the entry stays queued (UR-154).
 5. **Updates** the first remaining entry that is behind ``main``, and only that one:
    ``PUT repos/<repo>/pulls/<n>/update-branch`` with ``expected_head_sha``, then arms
    auto-merge. A conflicting update falls through to the next entry in the same fire.
-6. **Re-hashes**: an own-diff hash that changed across the update disarms auto-merge and
+6. **Re-judges the carry**: a carry that turned no across the update disarms auto-merge and
    leaves the PR to the coordinator.
 7. **Comments once** on the PR it updated -- old and new head, ``main``'s tip, the two
    own-diff hashes and the run link -- and every fire writes a job summary saying what it
@@ -247,13 +250,20 @@ def _main_tip(run: Runner, repo: str, errors: list[str]) -> str:
 
 def _main_ci_conclusion(run: Runner, repo: str, errors: list[str]) -> str | None:
     """The newest completed ``CI`` run on ``main``: its conclusion, or None while none is
-    completed (in-flight main counts as neither red nor green)."""
+    completed (in-flight main counts as neither red nor green).
+
+    The read is the CI workflow's OWN runs (``actions/workflows/ci.yml/runs``), not the
+    runs listing: REST's ``actions/runs`` endpoint has no ``workflow`` filter, so a
+    ``workflow=CI`` query there returns the newest completed run of ANY workflow (r288:
+    on a red main whose newest run was a green plumbing job, the plan read "success" and
+    the ``!`` filter never fired)."""
     try:
         runs = json.loads(
             _run(
                 run,
                 _rest_path(
-                    repo, "actions/runs?branch=main&workflow=CI&status=completed&per_page=1"
+                    repo,
+                    "actions/workflows/ci.yml/runs?branch=main&status=completed&per_page=1",
                 ),
             )
         )
@@ -342,7 +352,36 @@ def _hash_at(
     files: list[str],
     errors: list[str],
 ) -> str | None:
-    """The UR-106 own-diff hash of one rev, hashed against ITS OWN merge-base with
+    """The UR-106 own-diff hash of one rev (the ruling-278 subset path keeps the diff, so
+    this thin wrapper names the hash-only consumers: _comment_update's rendering)."""
+    got = _diff_at(run, repo, number, rev, root, files, errors)
+    return None if got is None else got.hash
+
+
+@dataclass
+class _RevDiff:
+    """One rev's own-diff read: the UR-106 hash, the diff TEXT the subset rule's line
+    multisets need (the hash throws the lines away), and the rev's merge-base with
+    ``root`` -- the subset condition 3 diffs ``main``'s own change BETWEEN the two
+    merge-bases, so both bases must survive the read. ``rev`` is the expanded full sha
+    (the queue line lists a 9-char prefix git cannot fetch)."""
+
+    hash: str
+    diff: str
+    base: str
+    rev: str
+
+
+def _diff_at(
+    run: Runner,
+    repo: str,
+    number: int,  # named for the caller's shape; the read is rev-keyed
+    rev: str,
+    root: str,
+    files: list[str],
+    errors: list[str],
+) -> _RevDiff | None:
+    """The UR-106 own-diff read of one rev, hashed against ITS OWN merge-base with
     ``root`` (``main``'s fresh tip) -- the _hash_own precedent, per-rev: hashing both revs
     against one shared base would report carry=no for a roll that carries.
 
@@ -357,7 +396,12 @@ def _hash_at(
     ambiguous or missing prefix errors here -- not-a-carry, never a guess). The paths ride
     as ``:(literal)`` pathspecs: a PR-controlled filename like ``:(exclude)**`` would
     otherwise rewrite the diff's pathspec and read as an empty diff -- equal hashes, a
-    false carry (n4; the coordinator's _hash_own carries the same guard)."""
+    false carry (n4; the coordinator's _hash_own carries the same guard).
+
+    Ruling 278: the diff TEXT and the merge-base ride back with the hash so the subset
+    path can decide a carry the hash cannot (an update-branch merge of main between the
+    listed sha and the head that keeps the diff a subset of what was approved); a caller
+    that needs only the hash reads it off ``.hash`` unchanged."""
     try:
         if len(rev) < 40:
             rev = str(json.loads(_run(run, _rest_path(repo, f"commits/{rev}")))["sha"])
@@ -370,7 +414,115 @@ def _hash_at(
     except Exception as exc:
         errors.append(f"own-diff {rev[:9]}: {snap.error_text(exc)}")
         return None
-    return snap.ur106_diff_hash(diff)
+    return _RevDiff(snap.ur106_diff_hash(diff), diff, base, rev)
+
+
+def _chain_between(
+    run: Runner, repo: str, left: str, right: str, errors: list[str]
+) -> list[list[str]] | None:
+    """The first-parent commits after ``left`` up to ``right``, as parent lists, read off
+    the server-side three-dot compare ``compare/<left>...<right>`` (the depth-1 checkout
+    has no graph to walk; the compare's ``commits[]`` names every commit reachable from
+    ``right`` but not ``left``, each with its parents). REST gives no ``--first-parent``,
+    so the chain is RECONSTRUCTED: walk ``parents[0]`` from ``right`` back to ``left``
+    through a sha->commit map -- every commit on that walk is reachable-from-right and
+    not-from-left, so it must sit in the answer; a missing sha (a shallow race or the
+    compare's 250-commit page cap) is a failed read, not a guess. Returns None when the
+    walk cannot complete."""
+    try:
+        answer = json.loads(_run(run, _rest_path(repo, f"compare/{left}...{right}")))
+        by_sha = {str(c.get("sha")): c for c in answer.get("commits") or [] if c.get("sha")}
+        chain: list[list[str]] = []
+        cur = right
+        while cur != left:
+            commit = by_sha.get(cur)
+            if commit is None:
+                raise ValueError(f"the compare answered no commit {cur[:9]} on the walk")
+            chain.append([str(p["sha"]) for p in commit.get("parents") or []])
+            parents = chain[-1]
+            if not parents:
+                raise ValueError(f"the compare answered no parents for {cur[:9]}")
+            cur = parents[0]
+        return chain
+    except Exception as exc:
+        errors.append(f"subset chain: {snap.error_text(exc)}")
+        return None
+
+
+def _subset_carry(
+    run: Runner,
+    repo: str,
+    number: int,
+    left: _RevDiff,
+    right: _RevDiff,
+    root: str,
+    files: list[str],
+    errors: list[str],
+) -> bool | None:
+    """Ruling 278's subset carry over the queue's REST seams, decided by the snapshot's
+    own function (one decision, box 2: the queue's skip and disarm steps use the same
+    rule the snapshot's §3 and §7/§8 verdicts use). ``left`` is the listed/approved rev's
+    read, ``right`` the head's; ``root`` is ``main``'s tip and ``files`` the PR's own-diff
+    files, both already in the caller's hand. The three conditions read through:
+
+    - condition 1 (every commit after the approved head is an update-branch merge of
+      main): the reconstructed first-parent chain, each merge's second parent checked
+      with the two-dot compare ``compare/<p2>...<main tip>`` -- the answered merge base
+      equals ``p2`` iff p2 sits on ``main``. A two-dot compare, not three-dot: the
+      three-dot base IS a merge base, itself an ancestor of the head, so ``status``
+      could never read diverged for the right reason.
+    - condition 2 (N contained in A as a multiset) and condition 3 (every line in A but
+      not in N appears, same file and sign, in main's own change between the two
+      merge-bases): the kept diff texts and per-rev merge-bases feed
+      ``snap.ur106_subset_carry``; the between-bases diff is read with the same
+      sha-args-only contract (``git diff <base>..<base>``), fetched at depth 1 only when
+      the two bases differ.
+
+    Every failed or ambiguous read returns None -- unknown, never yes and never no
+    (UR-154)."""
+    chain = _chain_between(run, repo, left.rev, right.rev, errors)
+    if chain is None:
+        return None
+
+    def on_main(parent: str) -> bool | None:
+        try:
+            answer = json.loads(_run(run, _rest_path(repo, f"compare/{parent}...{root}")))
+            base = str((answer.get("merge_base_commit") or {}).get("sha") or "")
+            if not base:
+                raise ValueError("the compare answered no merge base")
+            return base == parent  # the merge base of p2 and the tip is p2 iff p2 on main
+        except Exception as exc:
+            errors.append(f"on-main {parent[:9]}: {snap.error_text(exc)}")
+            return None
+
+    def main_change() -> str | None:
+        try:
+            if left.base != right.base:
+                run(
+                    ["git", "fetch", "--quiet", "--depth", "1", "origin", left.base, right.base],
+                    "",
+                )
+            return run(
+                [
+                    "git",
+                    "diff",
+                    f"{left.base}..{right.base}",
+                    "--",
+                    *(f":(literal){f}" for f in files),
+                ],
+                "",
+            )
+        except Exception as exc:
+            errors.append(f"main between bases: {snap.error_text(exc)}")
+            return None
+
+    verdict, _lines, _why = snap.ur106_subset_carry(
+        left.diff, right.diff, chain, main_change, on_main
+    )
+    if verdict is None:
+        errors.append("subset carry: a read failed -- unknown, never a fact")
+        return None
+    return bool(verdict)
 
 
 def decide(
@@ -379,7 +531,8 @@ def decide(
     """Steps 2-4: read every entry, then pick the action. At most one entry acts per fire.
 
     The skip ladder, in item 3's order: merged/closed/draft, a None behind-read (unread --
-    not-a-decision), gate failed, own-diff hash changed, not behind. Red ``main`` filters the
+    not-a-decision), gate failed, own-diff carry no (hash mismatch the subset rule confirms,
+    ruling 278), not behind. Red ``main`` filters the
     queue to ``!`` entries before any of it (step 3). A None gate-read also passes the skip
     (not-a-failure), but the update itself re-reads the gate no -- None stays out of the write
     path where a decision is needed.
@@ -406,23 +559,47 @@ def decide(
         files = _own_diff_files(run, repo, st.entry.number, st.errors)
         if files is None:
             continue
-        listed = _hash_at(
+        listed = _diff_at(
             run, repo, st.entry.number, st.entry.sha, plan.main_tip or "", files, st.errors
         )
         if st.head is None:
             continue  # no head, no hash: unhashable, skip (read_entry reports it)
-        head = _hash_at(run, repo, st.entry.number, st.head, plan.main_tip or "", files, st.errors)
+        head = _diff_at(run, repo, st.entry.number, st.head, plan.main_tip or "", files, st.errors)
         if listed is None or head is None:
             continue  # an unhashable diff is not a carry: skip, never guess
-        if listed != head:
-            continue  # an author commit changed the own diff: the entry drops (step 4)
-        plan.action = "update"
-        plan.acted_entry = st.entry.number
-        plan.action_note = (
-            f"updating #{st.entry.number} ({st.entry.sha[:9]} -> main "
-            f"{plan.main_tip[:9] if plan.main_tip else ''})"
+        if listed.hash == head.hash:
+            plan.action = "update"
+            plan.acted_entry = st.entry.number
+            plan.action_note = (
+                f"updating #{st.entry.number} ({st.entry.sha[:9]} -> main "
+                f"{plan.main_tip[:9] if plan.main_tip else ''})"
+            )
+            return plan
+        # the hashes differ (ruling 278): not every hash difference is an author commit.
+        # An update-branch merge of main between the listed sha and the head can carry
+        # the own diff as a subset of what was approved -- the subset rule decides, and
+        # unknown (a failed read) keeps the entry queued, never dropped on a guess.
+        carried = _subset_carry(
+            run,
+            repo,
+            st.entry.number,
+            listed,
+            head,
+            plan.main_tip or "",
+            files,
+            st.errors,
         )
-        return plan
+        if carried is True:
+            plan.action = "update"
+            plan.acted_entry = st.entry.number
+            plan.action_note = (
+                f"updating #{st.entry.number} ({st.entry.sha[:9]} -> main "
+                f"{plan.main_tip[:9] if plan.main_tip else ''}; subset carry)"
+            )
+            return plan
+        if carried is None:
+            continue  # unknown: not-a-decision, the entry stays queued
+        continue  # carried is False: an author commit changed the own diff; the entry drops
     if plan.queue_entries:
         plan.action = "no-op"
     return plan
@@ -476,7 +653,7 @@ def act(
     else:
         plan.action_note = (
             f"#{n} updated {st.entry.sha[:9]} -> {new_head[:9] if new_head else '?'}; "
-            f"auto-merge armed; carry: {carried}"
+            f"auto-merge armed; carry: {'yes' if carried else 'unread'}"
         )
     # Step 7 comments once on the PR it updated -- after an update, either way. Item 6 makes
     # this comment the own-diff comparison UR-106's condition 1 asks the coordinator to
@@ -565,20 +742,25 @@ def _pr_id(run: Runner, repo: str, n: int) -> str:
 def _carry_check(
     run: Runner, repo: str, st: EntryState, new_head: str | None, main_tip: str
 ) -> bool | None:
-    """Step 6's re-hash: the listed sha's hash vs the new head's, over the PR's own files.
-    A carry holds only when both hashes read and agree; None (a failed read) is not a carry.
-    Both revs hash against ``main``'s tip (the _hash_own per-rev merge-base semantics: the
-    root is the same for every rev in one fire, each rev's merge-base with it differs)."""
+    """Step 6's re-check: the listed sha's own diff against the new head's, over the PR's
+    own files -- the hash comparison first, and when the hashes differ, ruling 278's
+    subset rule (an update merge of main can carry the diff the hash cannot). A carry
+    holds only when both revs read and the decision says yes; None (a failed read, or a
+    subset read that could not decide) is not a carry. Both revs hash against ``main``'s
+    tip (the _hash_own per-rev merge-base semantics: the root is the same for every rev
+    in one fire, each rev's merge-base with it differs)."""
     if new_head is None:
         return None
     files = _own_diff_files(run, repo, st.entry.number, st.errors)
     if files is None:
         return None
-    listed = _hash_at(run, repo, st.entry.number, st.entry.sha, main_tip, files, st.errors)
-    head = _hash_at(run, repo, st.entry.number, new_head, main_tip, files, st.errors)
+    listed = _diff_at(run, repo, st.entry.number, st.entry.sha, main_tip, files, st.errors)
+    head = _diff_at(run, repo, st.entry.number, new_head, main_tip, files, st.errors)
     if listed is None or head is None:
         return None
-    return listed == head
+    if listed.hash == head.hash:
+        return True
+    return _subset_carry(run, repo, st.entry.number, listed, head, main_tip, files, st.errors)
 
 
 def _comment_update(
@@ -594,7 +776,8 @@ def _comment_update(
     """Step 7's one comment: old and new head, ``main``'s tip, the two own-diff hashes and
     the run link. Ruling 272 item 6 makes this comment the own-diff comparison UR-106's
     condition 1 asks the coordinator to quote. Both revs hash against ``main``'s tip (the
-    _hash_own per-rev semantics)."""
+    _hash_own per-rev semantics); the carry line names the verdict the two hashes or the
+    ruling-278 subset rule reached."""
     try:
         files = _own_diff_files(run, repo, n, st.errors)
         listed = _hash_at(run, repo, n, st.entry.sha, main_tip or "", files or [], st.errors)

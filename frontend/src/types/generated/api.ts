@@ -5548,7 +5548,11 @@ export interface paths {
         get: operations["events_list_deleted_events"];
         put?: never;
         post?: never;
-        delete?: never;
+        /**
+         * Empty trash (permanently purge all soft-deleted events)
+         * @description Permanently purge all soft-deleted events currently in Trash (B4.4).
+         */
+        delete: operations["events_empty_trash"];
         options?: never;
         head?: never;
         patch?: never;
@@ -5772,20 +5776,8 @@ export interface paths {
         put?: never;
         post?: never;
         /**
-         * Soft delete a single event
-         * @description Soft delete a single event with optional cascade to related detections.
-         *
-         *     By default, cascade=True soft deletes all related detections using the same
-         *     timestamp as the event. This enables cascade restore by matching timestamps.
-         *
-         *     Args:
-         *         event_id: ID of the event to delete
-         *         cascade: If True, cascade soft delete to related detections
-         *         db: Database session
-         *         cache: Cache service for invalidation
-         *
-         *     Raises:
-         *         HTTPException: 404 if event not found, 409 if already deleted
+         * Soft delete or permanently purge a single event
+         * @description Soft delete a live event or permanently purge a trashed event (`?permanent=true`).
          */
         delete: operations["events_delete_event"];
         options?: never;
@@ -8585,10 +8577,6 @@ export interface paths {
          *
          *     Returns the active prompt/configuration for each supported model:
          *     - nemotron: System prompt for risk analysis
-         *     - florence2: Scene analysis queries
-         *     - yolo_world: Custom object classes and confidence threshold
-         *     - xclip: Action recognition classes
-         *     - fashion_clip: Clothing categories
          */
         get: operations["prompts_get_all_prompts"];
         put?: never;
@@ -12140,10 +12128,13 @@ export interface components {
     schemas: {
         /**
          * AIModelEnum
-         * @description Supported AI models for prompt configuration.
+         * @description AI models for prompt configuration.
+         *
+         *     B3.3 box 4 (R2a row 27): florence2, yolo_world, xclip and fashion_clip retired with
+         *     the R8 S2/S3 serving sweep; nemotron is the only model a deployment boots.
          * @enum {string}
          */
-        AIModelEnum: "nemotron" | "florence2" | "yolo_world" | "xclip" | "fashion_clip";
+        AIModelEnum: "nemotron";
         /**
          * AIServiceCircuitState
          * @description Circuit breaker state for an AI service.
@@ -13055,6 +13046,21 @@ export interface components {
              */
             id: string;
             /**
+             * Last Event Id
+             * @description ID of latest folded event
+             */
+            last_event_id?: number | null;
+            /**
+             * Last Seen At
+             * @description Timestamp of latest folded event
+             */
+            last_seen_at?: string | null;
+            /**
+             * Match Count
+             * @description Number of folded event matches
+             */
+            match_count?: number | null;
+            /**
              * Metadata
              * @description Additional context
              */
@@ -13076,6 +13082,11 @@ export interface components {
              * @description Last update timestamp
              */
             updated_at: string;
+            /**
+             * Verdict Source
+             * @description Verdict source (local, cloud, detector)
+             */
+            verdict_source?: string | null;
             /**
              * Version Id
              * @description Optimistic locking version. Include in updates to prevent concurrent modification conflicts.
@@ -13174,6 +13185,11 @@ export interface components {
          */
         AlertRuleCreate: {
             /**
+             * Alert On Rejected
+             * @description Alert even if the AI verdict is rejected
+             */
+            alert_on_rejected?: boolean | null;
+            /**
              * Camera Ids
              * @description Camera IDs to apply rule to (empty = all cameras)
              */
@@ -13225,6 +13241,11 @@ export interface components {
              * @default false
              */
             exclude_household_members: boolean;
+            /**
+             * Excluded Camera Ids
+             * @description Camera IDs excluded from this rule
+             */
+            excluded_camera_ids?: string[] | null;
             /**
              * Min Confidence
              * @description Minimum detection confidence (0.0-1.0)
@@ -13359,6 +13380,11 @@ export interface components {
          */
         AlertRuleResponse: {
             /**
+             * Alert On Rejected
+             * @description Alert even if the AI verdict is rejected
+             */
+            alert_on_rejected?: boolean | null;
+            /**
              * Camera Ids
              * @description Camera IDs to apply to
              */
@@ -13413,6 +13439,11 @@ export interface components {
              * @default false
              */
             exclude_household_members: boolean;
+            /**
+             * Excluded Camera Ids
+             * @description Camera IDs excluded from this rule
+             */
+            excluded_camera_ids?: string[] | null;
             /**
              * Id
              * @description Alert rule UUID
@@ -13536,6 +13567,11 @@ export interface components {
          */
         AlertRuleUpdate: {
             /**
+             * Alert On Rejected
+             * @description Alert even if the AI verdict is rejected
+             */
+            alert_on_rejected?: boolean | null;
+            /**
              * Camera Ids
              * @description Camera IDs to apply rule to
              */
@@ -13582,6 +13618,11 @@ export interface components {
              * @description Whether to exclude household members from dwell time alerts
              */
             exclude_household_members?: boolean | null;
+            /**
+             * Excluded Camera Ids
+             * @description Camera IDs excluded from this rule
+             */
+            excluded_camera_ids?: string[] | null;
             /**
              * Min Confidence
              * @description Minimum detection confidence
@@ -13807,6 +13848,21 @@ export interface components {
              */
             id: string;
             /**
+             * Last Event Id
+             * @description ID of latest folded event
+             */
+            last_event_id?: number | null;
+            /**
+             * Last Seen At
+             * @description Timestamp of latest folded event
+             */
+            last_seen_at?: string | null;
+            /**
+             * Match Count
+             * @description Number of folded event matches
+             */
+            match_count?: number | null;
+            /**
              * Metadata
              * @description Additional context metadata
              */
@@ -13828,6 +13884,11 @@ export interface components {
              * @description Last update timestamp
              */
             updated_at: string;
+            /**
+             * Verdict Source
+             * @description Verdict source (local, cloud, detector)
+             */
+            verdict_source?: string | null;
         };
         /**
          * AlertServiceUpdateRequest
@@ -13871,7 +13932,7 @@ export interface components {
          * @description Alert status values.
          * @enum {string}
          */
-        AlertStatus: "pending" | "delivered" | "acknowledged" | "dismissed";
+        AlertStatus: "open" | "pending" | "delivered" | "acknowledged" | "dismissed";
         /**
          * AlertmanagerAlert
          * @description Schema for a single alert in Alertmanager webhook payload.
@@ -14178,12 +14239,6 @@ export interface components {
          * @example {
          *       "exported_at": "2026-01-03T10:30:00Z",
          *       "prompts": {
-         *         "florence2": {
-         *           "vqa_queries": [
-         *             "What is this person wearing?",
-         *             "Is this person carrying anything?"
-         *           ]
-         *         },
          *         "nemotron": {
          *           "max_tokens": 2048,
          *           "system_prompt": "You are a home security AI assistant...",
@@ -15161,9 +15216,6 @@ export interface components {
         /**
          * BackupContentInfo
          * @description Information about a single backup content type.
-         *
-         *     Stored inside the backup manifest to track what data is included
-         *     and verify integrity via checksum.
          */
         BackupContentInfo: {
             /**
@@ -15180,18 +15232,12 @@ export interface components {
         /**
          * BackupJobCreate
          * @description Schema for creating a backup job (no parameters needed for full backup).
-         *
-         *     Full system backups export all data without filters. Simply POST
-         *     to the endpoint to create a new backup job.
          * @example {}
          */
         BackupJobCreate: Record<string, never>;
         /**
          * BackupJobProgress
          * @description Progress information for a backup job.
-         *
-         *     Tracks how many tables have been exported and the overall
-         *     progress percentage.
          */
         BackupJobProgress: {
             /**
@@ -15214,16 +15260,13 @@ export interface components {
             /**
              * Total Tables
              * @description Total tables to export
-             * @default 8
+             * @default 12
              */
             total_tables: number;
         };
         /**
          * BackupJobResponse
          * @description Full status response for a backup job.
-         *
-         *     Complete status information for a backup job, including progress,
-         *     timing, result, and any error information.
          */
         BackupJobResponse: {
             /**
@@ -15271,9 +15314,6 @@ export interface components {
         /**
          * BackupJobStartResponse
          * @description Response when creating a backup job.
-         *
-         *     Returns the job ID that can be used to track progress via
-         *     GET /api/backup/{job_id}.
          * @example {
          *       "job_id": "019478a1-b2c3-7def-8901-234567890abc",
          *       "message": "Backup job created. Use GET /api/backup/{job_id} to track progress.",
@@ -15306,8 +15346,6 @@ export interface components {
         /**
          * BackupListItem
          * @description Summary item for backup list.
-         *
-         *     Lightweight representation of a backup for list views.
          */
         BackupListItem: {
             /**
@@ -15331,6 +15369,11 @@ export interface components {
              * @description Backup ID
              */
             id: string;
+            /**
+             * Label
+             * @description Optional label (e.g. safety backup note)
+             */
+            label?: string | null;
             /** @description Job status */
             status: components["schemas"]["BackupJobStatus"];
         };
@@ -15351,10 +15394,6 @@ export interface components {
         /**
          * BackupManifest
          * @description Manifest file stored inside backup ZIP.
-         *
-         *     The manifest is written as manifest.json at the root of the backup
-         *     archive. It contains metadata about the backup and checksums for
-         *     all included data files.
          */
         BackupManifest: {
             /**
@@ -15369,7 +15408,7 @@ export interface components {
             backup_id: string;
             /**
              * Contents
-             * @description Map of content type to info (events, alerts, cameras, etc.)
+             * @description Map of content type to info
              */
             contents?: {
                 [key: string]: components["schemas"]["BackupContentInfo"];
@@ -15381,8 +15420,18 @@ export interface components {
              */
             created_at: string;
             /**
+             * Installation Id
+             * @description Identifier of the installation that created the backup
+             */
+            installation_id?: string | null;
+            /**
+             * Label
+             * @description Optional label (e.g. 'before restore of <backup> at <time>')
+             */
+            label?: string | null;
+            /**
              * Version
-             * @description Backup format version (e.g., '1.0')
+             * @description Backup format version (e.g., '1.1')
              */
             version: string;
         };
@@ -18130,6 +18179,7 @@ export interface components {
          *       "grafana_url": "/grafana",
          *       "log_retention_days": 7,
          *       "retention_days": 30,
+         *       "trash_retention_days": 30,
          *       "version": "0.1.0"
          *     }
          */
@@ -18186,6 +18236,11 @@ export interface components {
              */
             retention_days: number;
             /**
+             * Trash Retention Days
+             * @description Number of days to keep soft-deleted events in Trash before purging (0 disables the Trash clock)
+             */
+            trash_retention_days?: number;
+            /**
              * Version
              * @description Application version
              */
@@ -18234,6 +18289,11 @@ export interface components {
              * @description Number of days to retain events and detections
              */
             retention_days?: number | null;
+            /**
+             * Trash Retention Days
+             * @description Number of days to keep soft-deleted events in Trash before purging (0 disables the Trash clock)
+             */
+            trash_retention_days?: number | null;
         };
         /**
          * ContainerMetrics
@@ -20104,6 +20164,50 @@ export interface components {
              * @description ID of the polygon zone
              */
             zone_id: number;
+        };
+        /**
+         * EmptyTrashResponse
+         * @description Response schema for DELETE /api/events/deleted (Empty Trash, B4.4).
+         */
+        EmptyTrashResponse: {
+            /**
+             * Deleted Count
+             * @description Alias for purged_count (number of events permanently deleted)
+             */
+            deleted_count: number;
+            /**
+             * Detections Removed
+             * @description Number of detection rows deleted
+             * @default 0
+             */
+            detections_removed: number;
+            /**
+             * Files Deleted
+             * @description Number of media files deleted
+             * @default 0
+             */
+            files_deleted: number;
+            /**
+             * Files Failed
+             * @description Number of media files that failed to delete
+             * @default 0
+             */
+            files_failed: number;
+            /**
+             * Kept
+             * @description Event IDs kept in Trash because a file deletion failed
+             */
+            kept?: number[];
+            /**
+             * Purged
+             * @description Event IDs permanently purged from Trash
+             */
+            purged?: number[];
+            /**
+             * Purged Count
+             * @description Number of trashed events permanently purged
+             */
+            purged_count: number;
         };
         /**
          * EnrichmentModelInfo
@@ -24691,7 +24795,7 @@ export interface components {
             memory_used?: number | null;
             /**
              * Pcie Link Gen
-             * @description PCIe link generation (1-4)
+             * @description PCIe link generation (1+; Gen 6 devices report 6)
              */
             pcie_link_gen?: number | null;
             /**
@@ -24827,7 +24931,7 @@ export interface components {
             memory_used?: number | null;
             /**
              * Pcie Link Gen
-             * @description PCIe link generation
+             * @description PCIe link generation (1+)
              */
             pcie_link_gen?: number | null;
             /**
@@ -33095,23 +33199,10 @@ export interface components {
          * @example {
          *       "exported_at": "2026-01-03T10:30:00Z",
          *       "prompts": {
-         *         "florence2": {
-         *           "vqa_queries": [
-         *             "What is this person wearing?"
-         *           ]
-         *         },
          *         "nemotron": {
          *           "max_tokens": 2048,
          *           "system_prompt": "You are a home security AI assistant...",
          *           "temperature": 0.7
-         *         },
-         *         "yolo_world": {
-         *           "confidence_threshold": 0.35,
-         *           "object_classes": [
-         *             "person",
-         *             "car",
-         *             "truck"
-         *           ]
          *         }
          *       },
          *       "version": "1.0"
@@ -33237,11 +33328,6 @@ export interface components {
          * @description Request to import prompt configurations.
          * @example {
          *       "prompts": {
-         *         "florence2": {
-         *           "vqa_queries": [
-         *             "What is this person wearing?"
-         *           ]
-         *         },
          *         "nemotron": {
          *           "max_tokens": 2048,
          *           "system_prompt": "You are a home security AI assistant...",
@@ -33273,17 +33359,13 @@ export interface components {
          * @description Response after importing prompt configurations.
          * @example {
          *       "imported_models": [
-         *         "nemotron",
-         *         "florence2"
+         *         "nemotron"
          *       ],
-         *       "message": "Successfully imported 2 prompt configurations, skipped 1",
+         *       "message": "Successfully imported 1 prompt configuration",
          *       "new_versions": {
-         *         "florence2": 2,
          *         "nemotron": 4
          *       },
-         *       "skipped_models": [
-         *         "yolo_world"
-         *       ]
+         *       "skipped_models": []
          *     }
          */
         PromptsImportResponse: {
@@ -34745,9 +34827,6 @@ export interface components {
         /**
          * RestoreJobProgress
          * @description Progress information for a restore job.
-         *
-         *     Tracks how many tables have been restored and the overall
-         *     progress percentage.
          */
         RestoreJobProgress: {
             /**
@@ -34770,18 +34849,22 @@ export interface components {
             /**
              * Total Tables
              * @description Total tables to restore
-             * @default 8
+             * @default 12
              */
             total_tables: number;
         };
         /**
          * RestoreJobResponse
          * @description Full status response for a restore job.
-         *
-         *     Complete status information for a restore job, including progress,
-         *     source backup info, timing, result, and any error information.
          */
         RestoreJobResponse: {
+            /**
+             * Added Rows
+             * @description Added rows by name per table
+             */
+            added_rows?: {
+                [key: string]: string[];
+            } | null;
             /**
              * Backup Created At
              * @description When source backup was created
@@ -34792,6 +34875,11 @@ export interface components {
              * @description Source backup ID from manifest
              */
             backup_id?: string | null;
+            /**
+             * Cleared Known Person Links
+             * @description Household member names whose known-person links were cleared
+             */
+            cleared_known_person_links?: string[] | null;
             /**
              * Completed At
              * @description Job completion timestamp
@@ -34822,19 +34910,38 @@ export interface components {
             } | null;
             progress?: components["schemas"]["RestoreJobProgress"];
             /**
+             * Safety Backup Id
+             * @description Automatic safety backup job ID created before restore
+             */
+            safety_backup_id?: string | null;
+            /**
+             * Same Installation
+             * @description Whether the restored archive came from this installation
+             */
+            same_installation?: boolean | null;
+            /**
+             * Skipped Tables
+             * @description Tables skipped by version adapter (e.g. events, alerts on 1.0 archives)
+             */
+            skipped_tables?: string[] | null;
+            /**
              * Started At
              * @description Job start timestamp
              */
             started_at?: string | null;
             /** @description Current job status */
             status: components["schemas"]["RestoreJobStatus"];
+            /**
+             * Tables
+             * @description Per-table restore breakdown (updated, inserted, replaced, kept)
+             */
+            tables?: {
+                [key: string]: components["schemas"]["TableRestoreSummary"];
+            } | null;
         };
         /**
          * RestoreJobStartResponse
          * @description Response when starting a restore job.
-         *
-         *     Returns the job ID that can be used to track progress via
-         *     GET /api/backup/restore/{job_id}.
          */
         RestoreJobStartResponse: {
             /**
@@ -37199,6 +37306,36 @@ export interface components {
              * @description Application uptime in seconds
              */
             uptime_seconds: number;
+        };
+        /**
+         * TableRestoreSummary
+         * @description Per-table restore statistics.
+         */
+        TableRestoreSummary: {
+            /**
+             * Inserted
+             * @description Rows added
+             * @default 0
+             */
+            inserted: number;
+            /**
+             * Kept
+             * @description Existing rows not in the backup and kept
+             * @default 0
+             */
+            kept: number;
+            /**
+             * Replaced
+             * @description Rows replaced (e.g. baselines)
+             * @default 0
+             */
+            replaced: number;
+            /**
+             * Updated
+             * @description Rows updated in place
+             * @default 0
+             */
+            updated: number;
         };
         /**
          * TargetHealth
@@ -48253,6 +48390,26 @@ export interface operations {
             };
         };
     };
+    events_empty_trash: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Trash emptied */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["EmptyTrashResponse"];
+                };
+            };
+        };
+    };
     events_export_events: {
         parameters: {
             query?: {
@@ -48504,6 +48661,8 @@ export interface operations {
     events_delete_event: {
         parameters: {
             query?: {
+                /** @description If True, permanently purge a soft-deleted event from Trash */
+                permanent?: boolean;
                 /** @description Cascade soft delete to related detections */
                 cascade?: boolean;
             };
@@ -48529,7 +48688,7 @@ export interface operations {
                 };
                 content?: never;
             };
-            /** @description Event already deleted */
+            /** @description Event already deleted or not in Trash for permanent delete */
             409: {
                 headers: {
                     [name: string]: unknown;

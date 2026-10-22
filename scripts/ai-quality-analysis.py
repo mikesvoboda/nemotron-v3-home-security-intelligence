@@ -211,7 +211,7 @@ async def fetch_sample_reasoning(limit: int = 10) -> list[dict]:
                 continue
 
             # Parse raw_response if it's a string
-            raw_response = interaction.raw_response
+            raw_response: Any = interaction.raw_response
             if isinstance(raw_response, str):
                 try:
                     raw_response = json.loads(raw_response)
@@ -497,7 +497,8 @@ def load_baseline() -> dict[str, Any] | None:
         return None
 
     with BASELINE_FILE.open() as f:
-        return yaml.safe_load(f)
+        data: dict[str, Any] | None = yaml.safe_load(f)
+        return data
 
 
 def compare_with_baseline(report: QualityReport, tolerance: float = 0.05) -> ComparisonReport:
@@ -542,7 +543,7 @@ def compare_with_baseline(report: QualityReport, tolerance: float = 0.05) -> Com
         try:
             baseline_val = baseline[parts[0]][parts[1]]
             current_val = current[parts[0]][parts[1]]
-        except KeyError, TypeError:
+        except (KeyError, TypeError):
             continue
 
         # Skip non-numeric values

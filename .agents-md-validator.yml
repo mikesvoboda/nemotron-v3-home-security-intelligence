@@ -123,11 +123,10 @@ exclude_reference_patterns:
 # pinned by test_substitution_does_not_green_a_total. ALL FIVE KEYS ARE REQUIRED: the
 # run exits 2 without any one of them (absent is neither 0 nor unchecked).
 retired_name_baseline:
-  florence: 93 # retired ai/florence path (W1.3 drained its dead-reference citations
-  # without adding florence mentions — the count is unchanged by design)
-  nemotron: 143 # the retired model family (the repo's own name string)
-  enrichment: 153 # retired ai/enrichment component (W1.3 drained six dead-citing mentions)
-  xclip: 10 # retired clip pipeline
+  florence: 70 # retired ai/florence path (W3.1 backend PR: 93 -> 78; W3.1 frontend PR: 78 -> 70)
+  nemotron: 81 # the retired model family (W3.1 PR 1: 143 -> 135; backend PR: 135 -> 107; frontend PR: 107 -> 81)
+  enrichment: 106 # retired ai/enrichment component (W1.3: 159 -> 153; W3.1 PR 1: 153 -> 144; backend PR: 144 -> 107; frontend PR: 107 -> 106)
+  xclip: 7 # retired clip pipeline (W3.1 backend PR: 10 -> 9; frontend PR: 9 -> 7)
   demographics: 2
 
 # W2.1 boundary list (UR-21): the directories that keep an AGENTS.md when W3.1 prunes the
@@ -183,31 +182,23 @@ boundary_list:
   - path: .github/codeql/custom-queries
     reason: "the custom CodeQL queries the security-scan gate runs \u2014 CI-blocking by construction"
   - path: ai/gateway/export
-    reason: "model export scripts; the Triton model cache they write is GENERATED \u2014 the source-vs-cache trap"
-  - path: backend/api/middleware
-    reason: "cross-cutting HTTP middleware (auth, preflight, content-type) \u2014 registration order is load-bearing"
+    reason: 'model export scripts; the Triton model cache they write is GENERATED — the source-vs-cache trap'
   - path: backend/api/routes
-    reason: "HTTP endpoint handlers \u2014 one of the two largest backend packages"
+    reason: 'HTTP endpoint handlers — one of the two largest backend packages'
   - path: backend/api/schemas
     reason: 'Pydantic request/response models; feeds docs/openapi.json regeneration (hot file)'
-  - path: frontend/src/contexts
-    reason: 'React context providers (global state outside the stores)'
   - path: frontend/src/hooks
     reason: "WebSocket/event/polling hooks \u2014 the realtime data plane (the tree's largest package)"
   - path: frontend/src/pages
     reason: 'top-level route-destination page components'
   - path: frontend/src/services
     reason: "the typed REST client + logging \u2014 the frontend's only path to the backend"
-  - path: frontend/src/stores
-    reason: "Zustand stores \u2014 app state that lives outside the React tree"
   - path: frontend/src/types
     reason: 'frontend type definitions; types/generated nests under it (regenerate, never hand-merge)'
   - path: frontend/src/utils
     reason: 'shared risk/confidence/time formatting utilities'
   - path: frontend/src/components/ai
     reason: 'AI Performance and AI Audit pages: model health, pipeline health, prompt quality'
-  - path: frontend/src/components/alerts
-    reason: 'high/critical alert views and alert-rule configuration'
   - path: frontend/src/components/analytics
     reason: 'analytics page: baselines, anomalies, pipeline latency, scene change'
   - path: frontend/src/components/common
@@ -216,8 +207,6 @@ boundary_list:
     reason: 'main dashboard: risk visualization, camera status, GPU and pipeline status'
   - path: frontend/src/components/developer-tools
     reason: 'dev tools page: config inspector, profiler, request recorder, log levels'
-  - path: frontend/src/components/entities
-    reason: 'cross-camera entity tracking UI (ReID embeddings at a pinned cosine threshold)'
   - path: frontend/src/components/events
     reason: 'event list/detail UI: AI summaries, detection overlays, export'
   - path: frontend/src/components/face-recognition
@@ -237,7 +226,7 @@ boundary_list:
 # outside the list are W3.1 deletions, and capping a file scheduled to disappear is
 # noise, not a ratchet. The standard that sets these numbers has its single home at
 # docs/developer/agents-md-standard.md (packages/docs.md points there). Measured at
-# adoption (PR #6920, this head): root 505 — inside its cap; lane roots 41..1334,
+# PR #6920's merge (396df715c): root 504 — inside its cap; lane roots 41..1334,
 # 4 of the 7 over; boundary packages up to 3164; 29 of the 42 boundary files over
 # cap. The live set is the report's ratchet.line_caps.over (or the run's console
 # summary), not this comment — the comment is the reason the caps exist, the

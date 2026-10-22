@@ -262,6 +262,7 @@ def _vlm_contract_schemas() -> tuple[dict[str, Any], dict[str, Any]]:
         module.VlmAssessRequest.model_json_schema(),
     )
 
+
 # R8 S3 (2026-09-29): PHANTOM_OPS -- the WP7.3 Tier-A fourth source -- is gone
 # (model_status, model_preload, model_unload, object_distance). All four were
 # schema'd by AST-extraction from ai/enrichment/model.py, which this slice
@@ -313,7 +314,6 @@ CLIENT_OP_MAP: dict[str, str | None] = {
     # deleted class is a map pointing at nothing (the same reasoning S2 applied
     # to EnrichmentClient, and unlike S2 there is no deployed route left behind
     # for the ops to stay in the NOT-WIRED state: their models are pruned).
-
     # R8 S2 (2026-09-29): EnrichmentClient retired with the legacy tier.
     # The map entries are GONE (the drift gate at :737 proves every mapped op
     # still exists - it never proves the class still does, so entries naming a
@@ -513,6 +513,7 @@ _BARE_DICT_OPS = {
 
 # R8 S3: server_model_schema (AST-extraction from ai/enrichment/model.py)
 # retired with its only source file and its four callers below.
+
 
 def _attach_missing_response_schemas(ops: dict[str, dict[str, Any]]) -> None:
     """Annotate the bare-dict yolo26 routes.
@@ -826,7 +827,7 @@ def _type_token(node: dict) -> str:
         return f"array<{_type_token(items)}>" if items else "array"
     if t == "object" and "contentEncoding" in node:
         return "binary"
-    return t
+    return str(t)
 
 
 def render_goldens() -> dict[str, str]:

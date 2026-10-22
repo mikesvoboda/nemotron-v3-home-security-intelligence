@@ -2,13 +2,9 @@
   "components": {
     "schemas": {
       "AIModelEnum": {
-        "description": "Supported AI models for prompt configuration.",
+        "description": "AI models for prompt configuration.\n\nB3.3 box 4 (R2a row 27): florence2, yolo_world, xclip and fashion_clip retired with\nthe R8 S2/S3 serving sweep; nemotron is the only model a deployment boots.",
         "enum": [
-          "nemotron",
-          "florence2",
-          "yolo_world",
-          "xclip",
-          "fashion_clip"
+          "nemotron"
         ],
         "title": "AIModelEnum",
         "type": "string"
@@ -1238,6 +1234,43 @@
             "title": "Id",
             "type": "string"
           },
+          "last_event_id": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "ID of latest folded event",
+            "title": "Last Event Id"
+          },
+          "last_seen_at": {
+            "anyOf": [
+              {
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Timestamp of latest folded event",
+            "title": "Last Seen At"
+          },
+          "match_count": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Number of folded event matches",
+            "title": "Match Count"
+          },
           "metadata": {
             "anyOf": [
               {
@@ -1276,6 +1309,18 @@
             "format": "date-time",
             "title": "Updated At",
             "type": "string"
+          },
+          "verdict_source": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Verdict source (local, cloud, detector)",
+            "title": "Verdict Source"
           },
           "version_id": {
             "default": 1,
@@ -1417,6 +1462,18 @@
           "severity": "critical"
         },
         "properties": {
+          "alert_on_rejected": {
+            "anyOf": [
+              {
+                "type": "boolean"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Alert even if the AI verdict is rejected",
+            "title": "Alert On Rejected"
+          },
           "camera_ids": {
             "anyOf": [
               {
@@ -1507,6 +1564,21 @@
             "description": "Whether to exclude household members from dwell time alerts",
             "title": "Exclude Household Members",
             "type": "boolean"
+          },
+          "excluded_camera_ids": {
+            "anyOf": [
+              {
+                "items": {
+                  "type": "string"
+                },
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Camera IDs excluded from this rule",
+            "title": "Excluded Camera Ids"
           },
           "min_confidence": {
             "anyOf": [
@@ -1730,6 +1802,18 @@
           "updated_at": "2025-12-28T12:00:00Z"
         },
         "properties": {
+          "alert_on_rejected": {
+            "anyOf": [
+              {
+                "type": "boolean"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Alert even if the AI verdict is rejected",
+            "title": "Alert On Rejected"
+          },
           "camera_ids": {
             "anyOf": [
               {
@@ -1820,6 +1904,21 @@
             "description": "Exclude household members from dwell time alerts",
             "title": "Exclude Household Members",
             "type": "boolean"
+          },
+          "excluded_camera_ids": {
+            "anyOf": [
+              {
+                "items": {
+                  "type": "string"
+                },
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Camera IDs excluded from this rule",
+            "title": "Excluded Camera Ids"
           },
           "id": {
             "description": "Alert rule UUID",
@@ -2040,6 +2139,18 @@
           "risk_threshold": 80
         },
         "properties": {
+          "alert_on_rejected": {
+            "anyOf": [
+              {
+                "type": "boolean"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Alert even if the AI verdict is rejected",
+            "title": "Alert On Rejected"
+          },
           "camera_ids": {
             "anyOf": [
               {
@@ -2167,6 +2278,21 @@
             ],
             "description": "Whether to exclude household members from dwell time alerts",
             "title": "Exclude Household Members"
+          },
+          "excluded_camera_ids": {
+            "anyOf": [
+              {
+                "items": {
+                  "type": "string"
+                },
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Camera IDs excluded from this rule",
+            "title": "Excluded Camera Ids"
           },
           "min_confidence": {
             "anyOf": [
@@ -2536,6 +2662,43 @@
             "title": "Id",
             "type": "string"
           },
+          "last_event_id": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "ID of latest folded event",
+            "title": "Last Event Id"
+          },
+          "last_seen_at": {
+            "anyOf": [
+              {
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Timestamp of latest folded event",
+            "title": "Last Seen At"
+          },
+          "match_count": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Number of folded event matches",
+            "title": "Match Count"
+          },
           "metadata": {
             "anyOf": [
               {
@@ -2574,6 +2737,18 @@
             "format": "date-time",
             "title": "Updated At",
             "type": "string"
+          },
+          "verdict_source": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Verdict source (local, cloud, detector)",
+            "title": "Verdict Source"
           }
         },
         "required": [
@@ -2666,6 +2841,7 @@
       "AlertStatus": {
         "description": "Alert status values.",
         "enum": [
+          "open",
           "pending",
           "delivered",
           "acknowledged",
@@ -3050,12 +3226,6 @@
         "example": {
           "exported_at": "2026-01-03T10:30:00Z",
           "prompts": {
-            "florence2": {
-              "vqa_queries": [
-                "What is this person wearing?",
-                "Is this person carrying anything?"
-              ]
-            },
             "nemotron": {
               "max_tokens": 2048,
               "system_prompt": "You are a home security AI assistant...",
@@ -4455,7 +4625,7 @@
         "type": "object"
       },
       "BackupContentInfo": {
-        "description": "Information about a single backup content type.\n\nStored inside the backup manifest to track what data is included\nand verify integrity via checksum.",
+        "description": "Information about a single backup content type.",
         "properties": {
           "checksum": {
             "description": "SHA256 checksum of the JSON file",
@@ -4476,14 +4646,14 @@
         "type": "object"
       },
       "BackupJobCreate": {
-        "description": "Schema for creating a backup job (no parameters needed for full backup).\n\nFull system backups export all data without filters. Simply POST\nto the endpoint to create a new backup job.",
+        "description": "Schema for creating a backup job (no parameters needed for full backup).",
         "example": {},
         "properties": {},
         "title": "BackupJobCreate",
         "type": "object"
       },
       "BackupJobProgress": {
-        "description": "Progress information for a backup job.\n\nTracks how many tables have been exported and the overall\nprogress percentage.",
+        "description": "Progress information for a backup job.",
         "properties": {
           "completed_tables": {
             "default": 0,
@@ -4512,7 +4682,7 @@
             "type": "integer"
           },
           "total_tables": {
-            "default": 8,
+            "default": 12,
             "description": "Total tables to export",
             "title": "Total Tables",
             "type": "integer"
@@ -4522,7 +4692,7 @@
         "type": "object"
       },
       "BackupJobResponse": {
-        "description": "Full status response for a backup job.\n\nComplete status information for a backup job, including progress,\ntiming, result, and any error information.",
+        "description": "Full status response for a backup job.",
         "properties": {
           "completed_at": {
             "anyOf": [
@@ -4625,7 +4795,7 @@
         "type": "object"
       },
       "BackupJobStartResponse": {
-        "description": "Response when creating a backup job.\n\nReturns the job ID that can be used to track progress via\nGET /api/backup/{job_id}.",
+        "description": "Response when creating a backup job.",
         "example": {
           "job_id": "019478a1-b2c3-7def-8901-234567890abc",
           "message": "Backup job created. Use GET /api/backup/{job_id} to track progress.",
@@ -4667,7 +4837,7 @@
         "type": "string"
       },
       "BackupListItem": {
-        "description": "Summary item for backup list.\n\nLightweight representation of a backup for list views.",
+        "description": "Summary item for backup list.",
         "properties": {
           "created_at": {
             "description": "Creation timestamp",
@@ -4696,6 +4866,18 @@
             "description": "Backup ID",
             "title": "Id",
             "type": "string"
+          },
+          "label": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Optional label (e.g. safety backup note)",
+            "title": "Label"
           },
           "status": {
             "$ref": "#/components/schemas/BackupJobStatus",
@@ -4732,7 +4914,7 @@
         "type": "object"
       },
       "BackupManifest": {
-        "description": "Manifest file stored inside backup ZIP.\n\nThe manifest is written as manifest.json at the root of the backup\narchive. It contains metadata about the backup and checksums for\nall included data files.",
+        "description": "Manifest file stored inside backup ZIP.",
         "properties": {
           "app_version": {
             "anyOf": [
@@ -4755,7 +4937,7 @@
             "additionalProperties": {
               "$ref": "#/components/schemas/BackupContentInfo"
             },
-            "description": "Map of content type to info (events, alerts, cameras, etc.)",
+            "description": "Map of content type to info",
             "title": "Contents",
             "type": "object"
           },
@@ -4765,8 +4947,32 @@
             "title": "Created At",
             "type": "string"
           },
+          "installation_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Identifier of the installation that created the backup",
+            "title": "Installation Id"
+          },
+          "label": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Optional label (e.g. 'before restore of <backup> at <time>')",
+            "title": "Label"
+          },
           "version": {
-            "description": "Backup format version (e.g., '1.0')",
+            "description": "Backup format version (e.g., '1.1')",
             "title": "Version",
             "type": "string"
           }
@@ -8592,6 +8798,7 @@
           "grafana_url": "/grafana",
           "log_retention_days": 7,
           "retention_days": 30,
+          "trash_retention_days": 30,
           "version": "0.1.0"
         },
         "properties": {
@@ -8654,6 +8861,13 @@
             "maximum": 365.0,
             "minimum": 1.0,
             "title": "Retention Days",
+            "type": "integer"
+          },
+          "trash_retention_days": {
+            "description": "Number of days to keep soft-deleted events in Trash before purging (0 disables the Trash clock)",
+            "maximum": 365.0,
+            "minimum": 0.0,
+            "title": "Trash Retention Days",
             "type": "integer"
           },
           "version": {
@@ -8775,6 +8989,20 @@
             ],
             "description": "Number of days to retain events and detections",
             "title": "Retention Days"
+          },
+          "trash_retention_days": {
+            "anyOf": [
+              {
+                "maximum": 365.0,
+                "minimum": 0.0,
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Number of days to keep soft-deleted events in Trash before purging (0 disables the Trash clock)",
+            "title": "Trash Retention Days"
           }
         },
         "title": "ConfigUpdateRequest",
@@ -11390,6 +11618,66 @@
           "triggered_alert"
         ],
         "title": "DwellTimeRecordResponse",
+        "type": "object"
+      },
+      "EmptyTrashResponse": {
+        "description": "Response schema for DELETE /api/events/deleted (Empty Trash, B4.4).",
+        "properties": {
+          "deleted_count": {
+            "description": "Alias for purged_count (number of events permanently deleted)",
+            "minimum": 0.0,
+            "title": "Deleted Count",
+            "type": "integer"
+          },
+          "detections_removed": {
+            "default": 0,
+            "description": "Number of detection rows deleted",
+            "minimum": 0.0,
+            "title": "Detections Removed",
+            "type": "integer"
+          },
+          "files_deleted": {
+            "default": 0,
+            "description": "Number of media files deleted",
+            "minimum": 0.0,
+            "title": "Files Deleted",
+            "type": "integer"
+          },
+          "files_failed": {
+            "default": 0,
+            "description": "Number of media files that failed to delete",
+            "minimum": 0.0,
+            "title": "Files Failed",
+            "type": "integer"
+          },
+          "kept": {
+            "description": "Event IDs kept in Trash because a file deletion failed",
+            "items": {
+              "type": "integer"
+            },
+            "title": "Kept",
+            "type": "array"
+          },
+          "purged": {
+            "description": "Event IDs permanently purged from Trash",
+            "items": {
+              "type": "integer"
+            },
+            "title": "Purged",
+            "type": "array"
+          },
+          "purged_count": {
+            "description": "Number of trashed events permanently purged",
+            "minimum": 0.0,
+            "title": "Purged Count",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "purged_count",
+          "deleted_count"
+        ],
+        "title": "EmptyTrashResponse",
         "type": "object"
       },
       "EnrichmentModelInfo": {
@@ -17708,7 +17996,6 @@
           "pcie_link_gen": {
             "anyOf": [
               {
-                "maximum": 5.0,
                 "minimum": 1.0,
                 "type": "integer"
               },
@@ -17716,7 +18003,7 @@
                 "type": "null"
               }
             ],
-            "description": "PCIe link generation (1-4)",
+            "description": "PCIe link generation (1+; Gen 6 devices report 6)",
             "title": "Pcie Link Gen"
           },
           "pcie_link_width": {
@@ -18057,7 +18344,6 @@
           "pcie_link_gen": {
             "anyOf": [
               {
-                "maximum": 5.0,
                 "minimum": 1.0,
                 "type": "integer"
               },
@@ -18065,7 +18351,7 @@
                 "type": "null"
               }
             ],
-            "description": "PCIe link generation",
+            "description": "PCIe link generation (1+)",
             "title": "Pcie Link Gen"
           },
           "pcie_link_width": {
@@ -29834,23 +30120,10 @@
         "example": {
           "exported_at": "2026-01-03T10:30:00Z",
           "prompts": {
-            "florence2": {
-              "vqa_queries": [
-                "What is this person wearing?"
-              ]
-            },
             "nemotron": {
               "max_tokens": 2048,
               "system_prompt": "You are a home security AI assistant...",
               "temperature": 0.7
-            },
-            "yolo_world": {
-              "confidence_threshold": 0.35,
-              "object_classes": [
-                "person",
-                "car",
-                "truck"
-              ]
             }
           },
           "version": "1.0"
@@ -29999,11 +30272,6 @@
         "description": "Request to import prompt configurations.",
         "example": {
           "prompts": {
-            "florence2": {
-              "vqa_queries": [
-                "What is this person wearing?"
-              ]
-            },
             "nemotron": {
               "max_tokens": 2048,
               "system_prompt": "You are a home security AI assistant...",
@@ -30039,17 +30307,13 @@
         "description": "Response after importing prompt configurations.",
         "example": {
           "imported_models": [
-            "nemotron",
-            "florence2"
+            "nemotron"
           ],
-          "message": "Successfully imported 2 prompt configurations, skipped 1",
+          "message": "Successfully imported 1 prompt configuration",
           "new_versions": {
-            "florence2": 2,
             "nemotron": 4
           },
-          "skipped_models": [
-            "yolo_world"
-          ]
+          "skipped_models": []
         },
         "properties": {
           "imported_models": {
@@ -32159,7 +32423,7 @@
         "type": "object"
       },
       "RestoreJobProgress": {
-        "description": "Progress information for a restore job.\n\nTracks how many tables have been restored and the overall\nprogress percentage.",
+        "description": "Progress information for a restore job.",
         "properties": {
           "completed_tables": {
             "default": 0,
@@ -32188,7 +32452,7 @@
             "type": "integer"
           },
           "total_tables": {
-            "default": 8,
+            "default": 12,
             "description": "Total tables to restore",
             "title": "Total Tables",
             "type": "integer"
@@ -32198,8 +32462,26 @@
         "type": "object"
       },
       "RestoreJobResponse": {
-        "description": "Full status response for a restore job.\n\nComplete status information for a restore job, including progress,\nsource backup info, timing, result, and any error information.",
+        "description": "Full status response for a restore job.",
         "properties": {
+          "added_rows": {
+            "anyOf": [
+              {
+                "additionalProperties": {
+                  "items": {
+                    "type": "string"
+                  },
+                  "type": "array"
+                },
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Added rows by name per table",
+            "title": "Added Rows"
+          },
           "backup_created_at": {
             "anyOf": [
               {
@@ -32224,6 +32506,21 @@
             ],
             "description": "Source backup ID from manifest",
             "title": "Backup Id"
+          },
+          "cleared_known_person_links": {
+            "anyOf": [
+              {
+                "items": {
+                  "type": "string"
+                },
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Household member names whose known-person links were cleared",
+            "title": "Cleared Known Person Links"
           },
           "completed_at": {
             "anyOf": [
@@ -32279,6 +32576,45 @@
           "progress": {
             "$ref": "#/components/schemas/RestoreJobProgress"
           },
+          "safety_backup_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Automatic safety backup job ID created before restore",
+            "title": "Safety Backup Id"
+          },
+          "same_installation": {
+            "anyOf": [
+              {
+                "type": "boolean"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Whether the restored archive came from this installation",
+            "title": "Same Installation"
+          },
+          "skipped_tables": {
+            "anyOf": [
+              {
+                "items": {
+                  "type": "string"
+                },
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Tables skipped by version adapter (e.g. events, alerts on 1.0 archives)",
+            "title": "Skipped Tables"
+          },
           "started_at": {
             "anyOf": [
               {
@@ -32295,6 +32631,21 @@
           "status": {
             "$ref": "#/components/schemas/RestoreJobStatus",
             "description": "Current job status"
+          },
+          "tables": {
+            "anyOf": [
+              {
+                "additionalProperties": {
+                  "$ref": "#/components/schemas/TableRestoreSummary"
+                },
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Per-table restore breakdown (updated, inserted, replaced, kept)",
+            "title": "Tables"
           }
         },
         "required": [
@@ -32306,7 +32657,7 @@
         "type": "object"
       },
       "RestoreJobStartResponse": {
-        "description": "Response when starting a restore job.\n\nReturns the job ID that can be used to track progress via\nGET /api/backup/restore/{job_id}.",
+        "description": "Response when starting a restore job.",
         "properties": {
           "job_id": {
             "description": "Unique restore job identifier",
@@ -35494,6 +35845,37 @@
           "uptime_seconds"
         ],
         "title": "SystemStatsResponse",
+        "type": "object"
+      },
+      "TableRestoreSummary": {
+        "description": "Per-table restore statistics.",
+        "properties": {
+          "inserted": {
+            "default": 0,
+            "description": "Rows added",
+            "title": "Inserted",
+            "type": "integer"
+          },
+          "kept": {
+            "default": 0,
+            "description": "Existing rows not in the backup and kept",
+            "title": "Kept",
+            "type": "integer"
+          },
+          "replaced": {
+            "default": 0,
+            "description": "Rows replaced (e.g. baselines)",
+            "title": "Replaced",
+            "type": "integer"
+          },
+          "updated": {
+            "default": 0,
+            "description": "Rows updated in place",
+            "title": "Updated",
+            "type": "integer"
+          }
+        },
+        "title": "TableRestoreSummary",
         "type": "object"
       },
       "TargetHealth": {
@@ -50440,6 +50822,26 @@
       }
     },
     "/api/events/deleted": {
+      "delete": {
+        "description": "Permanently purge all soft-deleted events currently in Trash (B4.4).",
+        "operationId": "events_empty_trash",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/EmptyTrashResponse"
+                }
+              }
+            },
+            "description": "Trash emptied"
+          }
+        },
+        "summary": "Empty trash (permanently purge all soft-deleted events)",
+        "tags": [
+          "events"
+        ]
+      },
       "get": {
         "description": "List all soft-deleted events for trash view.\n\nReturns events that have been soft-deleted (deleted_at is not null),\nordered by deleted_at descending (most recently deleted first).\n\nThis endpoint enables a \"trash\" view where users can see deleted events\nand optionally restore them.\n\nArgs:\n    db: Database session\n\nReturns:\n    DeletedEventsListResponse containing list of deleted events and count",
         "operationId": "events_list_deleted_events",
@@ -51073,7 +51475,7 @@
     },
     "/api/events/{event_id}": {
       "delete": {
-        "description": "Soft delete a single event with optional cascade to related detections.\n\nBy default, cascade=True soft deletes all related detections using the same\ntimestamp as the event. This enables cascade restore by matching timestamps.\n\nArgs:\n    event_id: ID of the event to delete\n    cascade: If True, cascade soft delete to related detections\n    db: Database session\n    cache: Cache service for invalidation\n\nRaises:\n    HTTPException: 404 if event not found, 409 if already deleted",
+        "description": "Soft delete a live event or permanently purge a trashed event (`?permanent=true`).",
         "operationId": "events_delete_event",
         "parameters": [
           {
@@ -51083,6 +51485,18 @@
             "schema": {
               "title": "Event Id",
               "type": "integer"
+            }
+          },
+          {
+            "description": "If True, permanently purge a soft-deleted event from Trash",
+            "in": "query",
+            "name": "permanent",
+            "required": false,
+            "schema": {
+              "default": false,
+              "description": "If True, permanently purge a soft-deleted event from Trash",
+              "title": "Permanent",
+              "type": "boolean"
             }
           },
           {
@@ -51106,7 +51520,7 @@
             "description": "Event not found"
           },
           "409": {
-            "description": "Event already deleted"
+            "description": "Event already deleted or not in Trash for permanent delete"
           },
           "422": {
             "content": {
@@ -51119,7 +51533,7 @@
             "description": "Validation Error"
           }
         },
-        "summary": "Soft delete a single event",
+        "summary": "Soft delete or permanently purge a single event",
         "tags": [
           "events"
         ]
@@ -57126,7 +57540,7 @@
     },
     "/api/prompts": {
       "get": {
-        "description": "Fetch current prompt configurations for all AI models.\n\nReturns the active prompt/configuration for each supported model:\n- nemotron: System prompt for risk analysis\n- florence2: Scene analysis queries\n- yolo_world: Custom object classes and confidence threshold\n- xclip: Action recognition classes\n- fashion_clip: Clothing categories",
+        "description": "Fetch current prompt configurations for all AI models.\n\nReturns the active prompt/configuration for each supported model:\n- nemotron: System prompt for risk analysis",
         "operationId": "prompts_get_all_prompts",
         "responses": {
           "200": {

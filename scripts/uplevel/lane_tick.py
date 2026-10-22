@@ -33,6 +33,7 @@ import sys
 from collections.abc import Callable, Sequence
 from datetime import timedelta
 from pathlib import Path
+from typing import Any
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 import coordinator_snapshot as snap  # sibling: the shared readers, helpers and the one runner
@@ -64,21 +65,15 @@ GATE_DONE = frozenset(
     {"SUCCESS", "FAILURE", "CANCELLED", "TIMED_OUT", "ACTION_REQUIRED", "NEUTRAL", "SKIPPED",
      "STARTUP_FAILURE", "STALE", "ERROR"}
 )  # fmt: skip
-# A roster row is | agent | tier | queue | review label |, and the label column reads `none` for a
-# cell with no review queue (coordinator, heavy-a, heavy-b, operator) -- a fact, not a missing read.
-ROW = re.compile(r"\|\s*`([\w.-]+)`\s*\|[^|]*\|(.*)\|\s*`?(review:[\w-]+|none)`?\s*\|")
-# A queue entry's token: the BACKTICKED NAME AT THE START of the entry (see ``queue_entries`` -- a
-# backtick anywhere else in the cell is prose referring to some other package, not a slot).
-QUEUE_TOKEN = re.compile(r"\s*`\[?([\w.]+)\]?`")
-# The header wraps: `[r96i11]`'s and a frontend package's `**PR:**` value sits on the NEXT line.
-# Bounded by the blank line after the header, so the value is the field's own continuation.
-PKG_FIELD = re.compile(r"\*\*PR:\*\*([\s\S]*?)(?:\n\s*\n|\Z)", re.I)
-NONE_YET = re.compile(r"[^\n#]*none yet", re.I)
-# The number a package block's `**PR:**` field names. `NONE_YET`'s `[^#]` class is the proof the
-# field's value carries a literal `#`, so the number is read from the same captured text.
-PR_NUMBER = re.compile(r"#(\d+)")
-# The package header line, as it stands AFTER splitting on "### " (the marker is gone).
-BLOCK = re.compile(r"\[?([\w.]+)\]?\s")
+# A roster row is | agent | tier | queue | review label | -- read by `snap.ROSTER_ROW`, shared with
+# the snapshot's balance section so the two cannot drift. The label column reads `none` for a cell
+# with no review queue (coordinator, heavy-a, heavy-b, operator) -- a fact, not a missing read.
+ROW = snap.ROSTER_ROW
+QUEUE_TOKEN = snap.QUEUE_TOKEN
+PKG_FIELD = snap.PKG_FIELD
+NONE_YET = snap.NONE_YET
+PR_NUMBER = snap.PR_NUMBER
+BLOCK = snap.BLOCK
 # A PR title's LEADING token -- the claim identity a PR carries even when no `### [pkg]` block
 # names it yet ([r269]'s block is deferred to the owner's plan PR, ruling 269 item 7; [flaky-census]
 # (#7082) titles a token ops.md has never carried). Same leading rule ``queue_entries`` reads: a
@@ -115,22 +110,22 @@ POINTER_FLOOR = timedelta(hours=2)  # the pointer read starts this far before my
 
 class LaneSnap(snap.Snapshot):
     """The snapshot minus the coordinator's own reads. ``_main`` shrinks to the ``git fetch`` the
-    later sections assume (UR-38's lane CI read is the gate inside ``_prs``); ``_legs`` and the
+    later sections assume (UR-38's lane CI read is the gate inside ``_prs``); ``_merge_state`` and the
     ``_merged_audit`` are the coordinator's update-branch and merge verdicts, never a lane's, and so
     is ``_review`` over EVERY open PR -- ``build`` runs the same read and the same ``judge`` for my
     own ready PRs only, which is all ruling 198's markers need. ``_rollup`` is kept, and each PR's
     rollup is remembered, because ``arm auto-merge`` asks whether the gate's run was a draft run.
     ``_comments`` is kept because it sets ``self.now``, which ``_binding_now``/``_heartbeats`` read."""
 
-    def __init__(self, *args, **kwargs) -> None:
+    def __init__(self, *args: Any, **kwargs: Any) -> None:
         super().__init__(*args, **kwargs)
-        self.rollups: dict[int, list[dict]] = {}
+        self.rollups: dict[int, list[dict[str, Any]]] = {}
 
-    def _review(self, item: dict) -> None:
+    def _review(self, item: dict[str, Any]) -> None:
         """The coordinator's verdict read over every PR; ``build`` reads it for mine (``judge``)."""
 
-    def _rollup(self, pr: dict, errors: list[str]) -> list[dict]:
-        rollup = super()._rollup(pr, errors)
+    def _rollup(self, pr: dict[str, Any], errors: list[str]) -> list[dict[str, Any]]:
+        rollup: list[dict[str, Any]] = super()._rollup(pr, errors)
         self.rollups[pr["number"]] = rollup
         return rollup
 
@@ -141,8 +136,8 @@ class LaneSnap(snap.Snapshot):
         except Exception as exc:  # reported, not fatal
             self.data["main"]["errors"].append(f"fetch origin: {snap.error_text(exc)}")
 
-    def _legs(self, item: dict) -> None:
-        """UR-102's no-update legs are the coordinator's merge decision, not the lane's tick."""
+    def _merge_state(self, item: dict) -> None:
+        """The merge state (ruling 270) is the coordinator's merge decision, not the lane's tick."""
 
     def _merged_audit(self) -> None:
         self.data["merged"] = {"items": [], "errors": []}
@@ -151,7 +146,7 @@ class LaneSnap(snap.Snapshot):
 # --- the lane's own readings -----------------------------------------------------------------
 
 
-def identities(roster: str, sandbox: str) -> dict[str, str]:
+def identities(roster: str, sandbox: str) -> dict[str, Any]:
     """My lane/cell/review-label and my queue, from the roster row keyed by the sandbox name.
 
     Every agent signs with the owner's login (UR-168), so the roster row -- not the author -- is
@@ -221,7 +216,7 @@ def records_for(me: str, binding: list[dict], owner: list[dict]) -> list[str]:
     return out
 
 
-def pointer_window(now, beat):
+def pointer_window(now: Any, beat: Any) -> Any:
     """Where the pointer read starts: ``POINTER_FLOOR`` before my beat (before now, with no beat),
     never further back than a record lives (``BINDING_LIFE``).
 
@@ -237,7 +232,7 @@ def pointer_window(now, beat):
     return max(start, now - snap.BINDING_LIFE)
 
 
-def pointers_for(me: str, comments: list[dict], start) -> list[str]:
+def pointers_for(me: str, comments: list[dict[str, Any]], start: Any) -> list[str]:
     """``for you:`` per owner pointer naming me, posted after ``start`` (``pointer_window``).
 
     GitHub's ``since`` filters by update time, so the posting time is checked here, as
@@ -257,7 +252,7 @@ def pointers_for(me: str, comments: list[dict], start) -> list[str]:
     return out
 
 
-def my_beat(items, sandbox: str) -> dict | None:
+def my_beat(items: Any, sandbox: str) -> dict[str, Any] | None:
     """My heartbeat row among ``items`` (each with ``agent`` and ``updated_at``): freshest, by identity.
 
     Matched by AGENT IDENTITY (``agent_key``), not by the string an agent happened to pass:
@@ -311,8 +306,9 @@ def at_head(s: snap.Snapshot, p: dict, review: dict) -> bool | str:
 
     The newest approval is ``Snapshot.judge``'s own verdict on ``p`` (its ``own_diff`` carry). Any
     other review goes through the same three arms ``judge`` has: the sha it names is the head
-    (identity), names no sha, or names another rev, whose UR-106 own-diff hash either carries to
-    the head or not (``Snapshot._own_diff``, the same reads).
+    (identity), names no sha, or names another rev, whose UR-106 own-diff carry -- hash equality
+    or the ruling-278 subset rule (``Snapshot._own_diff``, the same reads) -- carries to the head
+    or not.
     """
     approval = p.get("approval") or {}
     if review.get("id") == approval.get("id"):
@@ -374,7 +370,7 @@ def review_marker(s: snap.Snapshot, p: dict, reviews: list[dict]) -> str:
     return ""
 
 
-def raises_urgent(record: dict, now) -> bool:
+def raises_urgent(record: dict[str, Any], now: Any) -> bool:
     """A live UR-162 raise on #6854 -- a RAISE, not a close.
 
     Measured live: closes begin ``**URGENT PATH closed — coordinator stale`` and share the first
@@ -427,39 +423,9 @@ def disk(df: str | None, mounts: Sequence[str] = MOUNTS) -> list[str]:
     return out  # fmt: skip
 
 
-def queue_entries(column: str) -> list[str]:
-    """The queue tokens of a roster cell, read as ENTRIES -- not as every backticked word.
-
-    The column is a comma/semicolon-separated list where each entry is a token plus prose, and prose
-    legitimately backticks other packages: ops-b's `F2.3` row says "after `[r157]`'s runner is ready
-    for the owner" (measured on the live digest, which then reported [r157] held twice), and
-    heavy-b's row says "`B2.3` once `O2.4` passes". A ``findall`` over the whole cell turns both of
-    those references into queue slots -- and a reference that becomes a queue entry is a package the
-    digest will OFFER TO CLAIM, including one that belongs to another lane. So: split on top-level
-    separators only (a comma inside `(OP-3, after ...)` separates prose, not entries), then take the
-    FIRST token of each entry, because the prose that follows it can name anything.
-    """
-    entries, depth, cur = [], 0, ""
-    for ch in column:
-        if ch in "([":
-            depth += 1
-        elif ch in ")]":
-            depth = max(0, depth - 1)
-        if ch in ",;" and depth == 0:
-            entries.append(cur)
-            cur = ""
-            continue
-        cur += ch
-    entries.append(cur)
-    out = []
-    for entry in entries:
-        # LEADING token only (measured: every real entry in main's roster starts with its token). An
-        # entry whose backtick appears mid-prose is routing prose -- "`B2.3` once `O2.4` passes" and
-        # "then assigned `heavy` PRs" -- and skipping it can only OMIT a slot, never INVENT one.
-        # That asymmetry is the point: an invented slot gets OFFERED for claim, another lane's work.
-        if m := QUEUE_TOKEN.match(entry):
-            out.append(m.group(1))
-    return out
+# `queue_entries` lives on the snapshot now (ruling 290's balance section reads the same roster
+# rows); the alias keeps this module's name -- and the tests' `tick.queue_entries` -- working.
+queue_entries = snap.queue_entries
 
 
 def held_claims(packages: str, mine: list[dict]) -> list[str]:
@@ -529,7 +495,9 @@ def held_claims(packages: str, mine: list[dict]) -> list[str]:
     return held
 
 
-def next_claimable(packages: str, queue: list[str], mine: list[dict]) -> str | None:
+def next_claimable(
+    packages: str, queue: list[str], mine: list[dict], readme: str = ""
+) -> tuple[str, str | None] | str | None:
     """First package on MY roster queue that carries no PR and that no open PR of mine titles.
 
     Three readings the file's shapes force. (1) The queue, not the file: ``ops.md`` carries ops-a's
@@ -538,9 +506,22 @@ def next_claimable(packages: str, queue: list[str], mine: list[dict]) -> str | N
     claim, so the package would be offered to me while I am mid-flight on it. (3) Only on a tick
     with no open package, which ``held_claims`` enforces in ``build`` -- a claimable line printed
     beside an open package is an invitation to queue-jump, which UR-52 forbids.
+
+    ``readme`` (ruling 290) is the README status table's text, or ``""`` when it was not or could
+    not be read. On ``""`` the multi-PR offer cannot fire: a package whose row reads ``in progress``
+    stays open work only for the agent whose queue holds it when the read says so -- a missing read
+    is never a decision (UR-154's direction). The return stays ``str`` for the none-yet shape; an
+    in-progress offer comes back ``("token", box_text)`` so the digest can NAME the open box.
     """
     titles = " ".join(p.get("title", "") for p in mine)
-    blocks = {m.group(1): b for b in packages.split("### ")[1:] if (m := BLOCK.match(b))}
+    blocks = snap.package_blocks(packages)
+    # Ruling 290: with a README read in hand, a block whose `**PR:**` names a merged PR but whose
+    # README row reads `in progress` is a multi-PR package still carrying open work (rules.md's
+    # contract rule + UR-144). It is offered ONLY when it carries an unticked box (an unticked
+    # post-merge box on a single-PR block -- r172's shape, ruling 283 -- is the owner partner's
+    # tick, not open work), the row actually reads `in progress`, and no open PR of mine titles
+    # the package.
+    rows = snap.readme_rows(readme) if readme else {}
     for token in queue:
         block = blocks.get(token)
         if block is None:
@@ -548,17 +529,22 @@ def next_claimable(packages: str, queue: list[str], mine: list[dict]) -> str | N
         field = PKG_FIELD.search(block)
         if field and NONE_YET.match(field.group(1).lstrip()) and token not in titles:
             return token
+        if rows:
+            numbers = PR_NUMBER.findall(field.group(1)) if field else []
+            if numbers and rows.get(token) == "in progress" and token not in titles:
+                if box := snap.unticked_box(block):
+                    return (token, box)
     return None
 
 
-def behind(run, repo: str, number: int) -> str:
+def behind(run: Any, repo: str, number: int) -> str:
     """Commits ``origin/main`` has that this head lacks -- the number a rebase decision needs.
 
     The reversed range (``head..origin/main``) counts the head's own work ahead of main, which is a
     different number and the wrong one here.
     """
-    return run(
-        ["git", "rev-list", "--count", f"refs/remotes/origin/pr/{number}..origin/main"]
+    return str(
+        run(["git", "rev-list", "--count", f"refs/remotes/origin/pr/{number}..origin/main"])
     ).strip()
 
 
@@ -626,8 +612,9 @@ def build(
             extra.append(f"  ERROR {tag}: {snap.error_text(exc)}")
             return None
 
-    def api(path: str, tag: str) -> list:
-        return snap.parse_json_stream(call(["gh", "api", path, "--paginate"], tag) or "")
+    def api(path: str, tag: str) -> list[Any]:
+        res: list[Any] = snap.parse_json_stream(call(["gh", "api", path, "--paginate"], tag) or "")
+        return res
 
     def show(path: str, tag: str) -> str:
         return call(["git", "show", path], tag) or ""
@@ -657,6 +644,15 @@ def build(
         except Exception as exc:
             extra.append(f"  ERROR packages: {snap.error_text(exc)}")
             return ""
+
+    def readme() -> str:
+        """The README status table, or ``""`` when the read fails (ruling 290's box 2).
+
+        A failed read is not a decision: with ``""``, `next_claimable`'s multi-PR offer cannot
+        fire, so the digest never offers work it did not see resolved. The read is one ``git show``
+        beside the roster's -- the file is small and the failures arrive the same way.
+        """
+        return show("origin/main:docs/uplevel/README.md", "readme")
 
     try:
         # Read directly, not through call(): this is the one failure that ends the report, and a
@@ -706,6 +702,9 @@ def build(
         out.append(f"  coordinator age {coord['age_min']}m{rested}{flag}")
     out += disk(call(["df", "-h", *MOUNTS], "disk"))
     pkgs, maptext = packages(ids["lane"]), show(MAP, "ruling map")
+    # Ruling 290: the README status table feeds the multi-PR offer (an `in progress` row whose
+    # block names a merged PR and carries an unticked box is open work on my queue).
+    read_me = readme()
     out += uncarried(data["binding_now"].get("items", []), maptext)
 
     cmd = ["gh", "pr", "list", "--repo", repo, "--state", "open", "--limit", "300", "--json", HEADJ]  # fmt: skip
@@ -716,7 +715,7 @@ def build(
     def gate(p: dict) -> str:
         """The gate's verdict, named by its in-flight jobs when it is still running."""
         if p["gate"] != "IN_PROGRESS" or not p.get("gate_run"):
-            return p["gate"]
+            return str(p["gate"])
         rows = api(f"repos/{repo}/actions/runs/{p['gate_run']}/jobs?per_page=100", "jobs")
         jobs = rows[0].get("jobs", []) if rows and isinstance(rows[0], dict) else []
         # The gate is a leg of its OWN run, so it is never the thing a lane is waiting on.
@@ -725,7 +724,7 @@ def build(
             for j in jobs
             if j.get("status") != "completed" and j.get("name") != snap.GATE_CHECK
         )
-        return f"IN_PROGRESS({snap.truncate(running, 60)})" if running else p["gate"]
+        return f"IN_PROGRESS({snap.truncate(running, 60)})" if running else str(p["gate"])
 
     def row(p: dict, tail: str = "") -> str:
         errs = "".join(f" ERROR {e}" for e in p.get("errors", []))
@@ -794,21 +793,22 @@ def build(
     # the digest should then offer the next claimable package -- not instead of the hold line, which
     # stays true, but beside it, naming the ruling the way the hold line names UR-52.
     held = held_claims(pkgs, mine)
-    all_waiting = all(
-        waiting_its_turn(s, p, reviews_of.get(p["number"], [])) for p in mine
-    )
+    all_waiting = all(waiting_its_turn(s, p, reviews_of.get(p["number"], [])) for p in mine)
     if held and all_waiting and len(held) < 2:
         names = ", ".join(f"[{t}]" for t in held)
         out.append(f"  holding open claim: {names} (waiting its merge turn, ruling 269)")
-        if nxt := next_claimable(pkgs, ids["queue"], mine):
-            out.append(f"  next claimable: {nxt} (ruling 269: your open PR waits its merge turn)")
+        if nxt := next_claimable(pkgs, ids["queue"], mine, readme=read_me):
+            token, box = nxt if isinstance(nxt, tuple) else (nxt, None)
+            tail = " (ruling 269: your open PR waits its merge turn)"
+            out.append(f"  next claimable: {token}{tail}" + (f" -- open box: {box}" if box else ""))
     elif held:
         names = ", ".join(f"[{t}]" for t in held)
         out.append(
             f"  holding open claim: {names} (UR-52: nothing to claim while a package is open)"
         )
-    elif nxt := next_claimable(pkgs, ids["queue"], mine):
-        out.append(f"  next claimable: {nxt}")
+    elif nxt := next_claimable(pkgs, ids["queue"], mine, readme=read_me):
+        token, box = nxt if isinstance(nxt, tuple) else (nxt, None)
+        out.append(f"  next claimable: {token}" + (f" -- open box: {box}" if box else ""))
     for name in ("cursor", "comments", "binding_now", "main", "heartbeats", "prs"):
         out += [f"  ERROR {name}: {e}" for e in data.get(name, {}).get("errors", [])]
     out += extra

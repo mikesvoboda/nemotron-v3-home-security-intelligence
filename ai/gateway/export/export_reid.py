@@ -730,6 +730,21 @@ DEFAULT_PLAN_TIMEOUT_S = 600
 TRTEXEC_CANDIDATES = ("/usr/src/tensorrt/bin/trtexec", "/usr/local/bin/trtexec")
 
 
+def _trt_major_version() -> int | None:
+    """Return the major TensorRT version from ``TRT_VERSION`` when set.
+
+    The NGC Triton container exports ``TRT_VERSION`` in its image environment
+    (e.g. ``11.3.0.99`` in ``nvcr.io/nvidia/tritonserver:26.09-py3``,
+    ``10.14.1.48+cuda13.0`` in ``26.01-py3``). TensorRT 11 removed weak typing
+    and dropped ``--fp16`` from ``trtexec``.
+    """
+    raw = os.environ.get("TRT_VERSION", "").strip()
+    if not raw:
+        return None
+    head = raw.split(".", 1)[0]
+    return int(head) if head.isdigit() else None
+
+
 def find_trtexec() -> str | None:
     """Locate the TensorRT engine builder, or None if this host has no TensorRT."""
     found = shutil.which("trtexec")
@@ -802,16 +817,18 @@ def build_tensorrt_engine(
         f"--maxShapes=input:{max_batch}x{shape}",
         # ``--memPoolSize=workspace:<MiB>``, NOT the ``--workspace=<MiB>``
         # spelling export_fashion_clip.py carries: that flag was deprecated in
-        # TensorRT 8 and is GONE in TensorRT 10, which is what the serving base
-        # image ships (nvcr.io/nvidia/tritonserver:26.01-py3,
+        # TensorRT 8 and is GONE in TensorRT 10+, which is what the serving base
+        # image ships (nvcr.io/nvidia/tritonserver:26.09-py3,
         # ai/gateway/Dockerfile:1), and trtexec rejects unknown arguments. The
         # fashion_clip helper is never wired into export_all.sh, so no command
         # line in this repo has ever executed either flag — the owner's step 2b
-        # is the first. memPoolSize is accepted by TRT 8 and 10 alike.
+        # is the first. memPoolSize is accepted by TRT 8, 10 and 11 alike.
         f"--memPoolSize=workspace:{workspace_gb * 1024}",
     ]
     if precision == "fp16":
-        cmd.append("--fp16")
+        trt_major = _trt_major_version()
+        if trt_major is None or trt_major < 11:
+            cmd.append("--fp16")
     elif precision != "fp32":
         raise ValueError(f"unknown precision {precision!r} (expected fp16 or fp32)")
 

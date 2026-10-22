@@ -614,18 +614,18 @@ class BatchAuditJobStatusResponse(BaseModel):
 
 
 class ModelName(str):
-    """Supported AI model names for prompt management."""
+    """AI model names for prompt management.
+
+    B3.3 box 4 (R2a row 27): the four vision models retired with the R8 S2/S3 sweep;
+    their prompt surfaces (config classes, history rows, this list) retire with them.
+    """
 
     NEMOTRON = "nemotron"
-    FLORENCE2 = "florence2"
-    YOLO_WORLD = "yolo_world"
-    XCLIP = "xclip"
-    FASHION_CLIP = "fashion_clip"
 
     @classmethod
     def all_models(cls) -> list[str]:
         """Return all supported model names."""
-        return [cls.NEMOTRON, cls.FLORENCE2, cls.YOLO_WORLD, cls.XCLIP, cls.FASHION_CLIP]
+        return [cls.NEMOTRON]
 
 
 class NemotronConfig(BaseModel):
@@ -646,106 +646,6 @@ class NemotronConfig(BaseModel):
     max_tokens: int = Field(2048, ge=100, le=8192, description="Maximum tokens in response")
 
 
-class Florence2Config(BaseModel):
-    """Configuration for Florence-2 VQA model."""
-
-    model_config = ConfigDict(
-        json_schema_extra={
-            "example": {
-                "vqa_queries": [
-                    "What is this person wearing?",
-                    "Is this person carrying anything?",
-                    "What color is the vehicle?",
-                ]
-            }
-        }
-    )
-
-    vqa_queries: list[str] = Field(
-        ...,
-        description="List of visual question-answering queries",
-        min_length=1,
-    )
-
-
-class YoloWorldConfig(BaseModel):
-    """Configuration for YOLO-World object detection."""
-
-    model_config = ConfigDict(
-        json_schema_extra={
-            "example": {
-                "object_classes": ["person", "car", "truck", "bicycle", "dog", "cat"],
-                "confidence_threshold": 0.5,
-            }
-        }
-    )
-
-    object_classes: list[str] = Field(
-        ...,
-        description="List of object classes to detect",
-        min_length=1,
-    )
-    confidence_threshold: float = Field(
-        0.5,
-        ge=0.0,
-        le=1.0,
-        description="Minimum confidence for detections",
-    )
-
-
-class XClipConfig(BaseModel):
-    """Configuration for X-CLIP action recognition."""
-
-    model_config = ConfigDict(
-        json_schema_extra={
-            "example": {
-                "action_classes": [
-                    "walking",
-                    "running",
-                    "standing",
-                    "sitting",
-                    "driving",
-                    "entering",
-                ]
-            }
-        }
-    )
-
-    action_classes: list[str] = Field(
-        ...,
-        description="List of action classes to recognize",
-        min_length=1,
-    )
-
-
-class FashionClipConfig(BaseModel):
-    """Configuration for FashionCLIP clothing analysis."""
-
-    model_config = ConfigDict(
-        json_schema_extra={
-            "example": {
-                "clothing_categories": ["jacket", "shirt", "pants", "shorts", "dress", "hat"],
-                "suspicious_indicators": [
-                    "all black",
-                    "face mask",
-                    "hoodie up",
-                    "gloves at night",
-                ],
-            }
-        }
-    )
-
-    clothing_categories: list[str] = Field(
-        ...,
-        description="List of clothing categories to classify",
-        min_length=1,
-    )
-    suspicious_indicators: list[str] = Field(
-        default_factory=lambda: ["all black", "face mask", "hoodie up", "gloves at night"],
-        description="Clothing patterns that indicate suspicious activity",
-    )
-
-
 class PromptConfigUnion(BaseModel):
     """Union type for model configurations."""
 
@@ -757,19 +657,11 @@ class PromptConfigUnion(BaseModel):
                     "temperature": 0.7,
                     "max_tokens": 2048,
                 },
-                "florence2": None,
-                "yolo_world": None,
-                "xclip": None,
-                "fashion_clip": None,
             }
         }
     )
 
     nemotron: NemotronConfig | None = None
-    florence2: Florence2Config | None = None
-    yolo_world: YoloWorldConfig | None = None
-    xclip: XClipConfig | None = None
-    fashion_clip: FashionClipConfig | None = None
 
 
 class PromptVersionInfo(BaseModel):
@@ -830,12 +722,6 @@ class AllPromptsResponse(BaseModel):
                         "config": {"system_prompt": "...", "temperature": 0.7},
                         "version": 3,
                         "updated_at": "2026-01-03T10:30:00Z",
-                    },
-                    "florence2": {
-                        "model_name": "florence2",
-                        "config": {"vqa_queries": ["What is this?"]},
-                        "version": 1,
-                        "updated_at": "2026-01-01T08:00:00Z",
                     },
                 }
             }
@@ -909,7 +795,7 @@ class PromptTestRequest(BaseModel):
         }
     )
 
-    model: str = Field(..., description="Model name to test (nemotron, florence2, etc.)")
+    model: str = Field(..., description="Model name to test")
     config: dict = Field(..., description="Modified configuration to test")
     event_id: int = Field(..., ge=1, description="Event ID to test against")
 
@@ -1088,9 +974,6 @@ class PromptExportResponse(BaseModel):
                         "system_prompt": "You are a home security AI...",
                         "temperature": 0.7,
                         "max_tokens": 2048,
-                    },
-                    "florence2": {
-                        "vqa_queries": ["What is this person wearing?"],
                     },
                 },
             }

@@ -4,8 +4,8 @@ last_updated: 2026-10-02
 source_refs:
   - pyproject.toml:577
   - backend/tests/conftest.py:459
-  - backend/tests/unit/AGENTS.md:1
-  - backend/tests/integration/AGENTS.md:1
+  - backend/tests/unit/conftest.py:1
+  - backend/tests/integration/conftest.py:1
   - .pre-commit-config.yaml:99
   - .github/workflows/ci.yml:536
 ---
@@ -62,19 +62,19 @@ flowchart TB
 
 ### Test Categories
 
-| Category                      | Location                     | Count                                                                                              | Timeout | Coverage Target          |
-| ----------------------------- | ---------------------------- | -------------------------------------------------------------------------------------------------- | ------- | ------------------------ |
-| **Backend Unit Tests**        | `backend/tests/unit/`        | 28,042 tests                                                                                       | 5s      | see below¹               |
-| **Backend Integration**       | `backend/tests/integration/` | 4,059 tests                                                                                        | 5s      | N/A (combined)           |
-| **Backend E2E Tests**         | `backend/tests/e2e/`         | 2 files                                                                                            | 60s     | -                        |
-| **GPU Tests**                 | `backend/tests/gpu/`         | 1 file                                                                                             | -       | -                        |
-| **Benchmarks**                | `backend/tests/benchmarks/`  | 6 files                                                                                            | -       | -                        |
-| **Chaos Tests**               | `backend/tests/chaos/`       | 5 files                                                                                            | -       | -                        |
-| **Contract Tests**            | `backend/tests/contracts/`   | 3 files                                                                                            | -       | -                        |
-| **Security Tests**            | `backend/tests/security/`    | 5 files                                                                                            | -       | -                        |
-| **Test Utilities**            | `backend/tests/utils/`       | -                                                                                                  | -       | -                        |
-| **Frontend Unit**             | `frontend/src/**/*.test.ts`  | -                                                                                                  | -       | floors 80/74.6/78.4/80.9 |
-| **Frontend E2E (Playwright)** | `frontend/tests/e2e/`        | 960 tests × browser projects (44 spec files; `playwright test --list` 5,993 across all 9 projects) | 15s     | -                        |
+| Category                      | Location                     | Count                                                                                              | Timeout | Coverage Target            |
+| ----------------------------- | ---------------------------- | -------------------------------------------------------------------------------------------------- | ------- | -------------------------- |
+| **Backend Unit Tests**        | `backend/tests/unit/`        | 28,042 tests                                                                                       | 5s      | see below¹                 |
+| **Backend Integration**       | `backend/tests/integration/` | 4,059 tests                                                                                        | 5s      | N/A (combined)             |
+| **Backend E2E Tests**         | `backend/tests/e2e/`         | 2 files                                                                                            | 60s     | -                          |
+| **GPU Tests**                 | `backend/tests/gpu/`         | 1 file                                                                                             | -       | -                          |
+| **Benchmarks**                | `backend/tests/benchmarks/`  | 6 files                                                                                            | -       | -                          |
+| **Chaos Tests**               | `backend/tests/chaos/`       | 5 files                                                                                            | -       | -                          |
+| **Contract Tests**            | `backend/tests/contracts/`   | 3 files                                                                                            | -       | -                          |
+| **Security Tests**            | `backend/tests/security/`    | 5 files                                                                                            | -       | -                          |
+| **Test Utilities**            | `backend/tests/utils/`       | -                                                                                                  | -       | -                          |
+| **Frontend Unit**             | `frontend/src/**/*.test.ts`  | -                                                                                                  | -       | floors 79.5/74.3/77.2/80.5 |
+| **Frontend E2E (Playwright)** | `frontend/tests/e2e/`        | 960 tests × browser projects (44 spec files; `playwright test --list` 5,993 across all 9 projects) | 15s     | -                          |
 
 **Note:** The executed backend floor is **80% on combined unit+integration**
 (`scripts/validate.sh --fail-under=80`, mirrored in `nightly-full-gate.yml`).
@@ -131,7 +131,7 @@ branch / blended to its step summary.
 | ---------------------------------------- | -------------------------------- | ------------------------------------------------------------------------ |
 | Backend unit, absolute                   | 84 (WP2.5 re-measure)            | `unit-tests-coverage-merge`, only when all unit shards passed            |
 | Backend integration, absolute            | 37                               | `integration-coverage-merge`, only when every integration shard passed   |
-| Frontend statements/branches/funcs/lines | 80 / 74.6 / 78.4 / 80.9          | `merge-shard-coverage.mjs --enforce`, only when all Vitest shards passed |
+| Frontend statements/branches/funcs/lines | 79.5 / 74.3 / 77.2 / 80.5        | `merge-shard-coverage.mjs --enforce`, only when all Vitest shards passed |
 | Combined (unit+integration)              | 80 (unchanged)                   | nightly-full-gate + `validate.sh` — now only runs when BOTH tiers passed |
 | PR diff vs main's baseline               | no drop past **0.5pp** (epsilon) | `check-test-coverage-gate.py` — band = post-seed-pin noise (0.03pp ×10)  |
 
@@ -153,7 +153,7 @@ expected both rises "once WP2.1's seed fix reaches measurement").
 Until the first fixed-seed run lands, **the CI figure must not be used as the
 tier's strength** and the local figure must not be called "the CI coverage".
 `scripts/test_coverage_denominator.py` pins this section's claims.
-Frontend thresholds (R-1, measured): 80% statements, 74.6% branches, 78.4% functions, 80.9% lines (see `vite.config.ts` `coverage.thresholds`).
+Frontend thresholds (R-1, measured; re-pinned by owner ruling 261 to run 39161827871's merged totals, then re-measured at the final head 971c98731, and again at the merged head feb591332 (run 39427450180) per the ruling's own final-head mechanism): 79.5% statements, 74.3% branches, 77.2% functions, 80.5% lines (see `vite.config.ts` `coverage.thresholds`).
 
 ## Quick Reference
 
@@ -451,8 +451,9 @@ scripts/feature-check.sh --real --image-tag <sha7>
 
 `--fake` runs these steps in order:
 
-1. Renders `docker-compose.ci.yml` with `docker-compose.fake-ai.yml` and turns
-   the rendering into a **test deployment**.
+1. Renders `docker-compose.ci.yml` with `docker-compose.fake-ai.yml` and
+   `docker-compose.sinks.yml` and turns the rendering into a **test
+   deployment**.
 2. Renders the test deployment again and checks it with the preflight.
 3. Starts it, with one camera folder per scenario of the fake AI's scenario
    book in the watched folder.
@@ -708,7 +709,7 @@ To drop a fixture image into a camera folder, run
 - The backend deduplicates images by content for 300 s, across cameras. So
   dropping the same bytes twice within five minutes yields one event.
 - The scenario image chooses the detections and the verdict
-  (`backend/ai_contract/fake/AGENTS.md`).
+  (`backend/ai_contract/AGENTS.md`).
 
 **`--real`** (owner ruling 66) runs the same test deployment with the real VLM
 in place of the fake one, and keeps the fake detector. It serves the VLM only
@@ -770,6 +771,38 @@ summary carries what the operator posts:
 - the VRAM declared, with `agent-gpu ps` and `agent-gpu status` while serving
   and at the end;
 - each check's result and the exit code.
+
+**The golden shards are balanced by measured duration ([r282]).** The four
+`Feature check (fake AI)` shard jobs no longer split the suite by count
+([r264]'s `--shard=i/N` remains the fallback). `frontend/golden-shards.json`
+assigns every golden spec file to a shard; the harness
+(`scripts/feature_check.py`) reads it when the job opts in with
+`FEATURE_CHECK_SHARD_MANIFEST=1` (set in `ci.yml` only on the shard jobs),
+selects that shard's files, and forwards them to the leg as
+`FEATURE_CHECK_GOLDEN_FILES`; the config's golden project ignores every spec
+outside the selection. Without the opt-in the count split applies byte for
+byte, so local and `--real` runs keep the whole suite on one stack. The
+pack balances per-file median durations (n=5 green runs) by longest-first,
+with the backend golden leg pre-loaded on shard 1 ([r264]'s rule, kept —
+the measurements support it).
+
+**When the manifest is regenerated.** Not in CI: CI's pin
+(`test_the_regen_scripts_output_byte_matches_the_checked_in_manifest`)
+runs the regen script and byte-compares it against the checked-in file, so
+a hand edit or a stale manifest goes red there — but a CI run never rewrites
+the manifest, because a manifest written inside a run would make the union
+unreviewable in the diff. Regenerate by hand, from a tree whose
+`frontend/tests/golden/` matches the tree under review, with
+`uv run python scripts/golden_shard_manifest.py` — its input is the
+checked-in medians (`scripts/golden-shard-durations.json`), not a live
+measurement, so regeneration is byte-stable and needs no CI access. Refresh
+the medians (re-run the measurement over ≥5 recent green runs' golden junit
+artifacts, re-keyed by each artifact's own `artifacts/summary.json`) whenever
+the corpus changes shape: a spec added, removed, renamed, or moved into or
+out of `tests/golden/`. The regen refuses to emit a manifest that misses a
+file on disk (the union pin
+`backend/tests/unit/scripts/test_golden_shard_manifest.py` fails first), so
+a stale manifest is caught before it can silently strand a spec on no shard.
 
 ## Pytest Configuration
 
@@ -990,7 +1023,7 @@ async def test_camera_creation(isolated_db):
 
 Unit tests verify individual components in isolation. All external dependencies (Redis, HTTP, file system) must be mocked.
 
-See [backend/tests/unit/AGENTS.md](https://github.com/mikesvoboda/nemotron-v3-home-security-intelligence/blob/main/backend/tests/unit/AGENTS.md) for complete patterns.
+See [backend/tests/unit/conftest.py](https://github.com/mikesvoboda/nemotron-v3-home-security-intelligence/blob/main/backend/tests/unit/conftest.py) for complete patterns.
 
 ```python
 # Example: Mocking Redis
@@ -1042,7 +1075,7 @@ AsyncMock()`) are fine; a whole invented object shape is not.
 
 Integration tests verify that multiple components work together correctly.
 
-See [backend/tests/integration/AGENTS.md](https://github.com/mikesvoboda/nemotron-v3-home-security-intelligence/blob/main/backend/tests/integration/AGENTS.md) for complete patterns.
+See [backend/tests/integration/conftest.py](https://github.com/mikesvoboda/nemotron-v3-home-security-intelligence/blob/main/backend/tests/integration/conftest.py) for complete patterns.
 
 ```python
 @pytest.mark.asyncio
@@ -1426,6 +1459,6 @@ Snapshots are automatically validated in CI:
 - [Setup Guide](local-setup.md) - Development environment setup
 - [Contributing Guide](contributing/README.md) - PR process and code standards
 - [Code Patterns](patterns-and-conventions.md) - Testing patterns in detail
-- [backend/tests/unit/AGENTS.md](https://github.com/mikesvoboda/nemotron-v3-home-security-intelligence/blob/main/backend/tests/unit/AGENTS.md) - Unit test patterns
-- [backend/tests/integration/AGENTS.md](https://github.com/mikesvoboda/nemotron-v3-home-security-intelligence/blob/main/backend/tests/integration/AGENTS.md) - Integration test patterns
+- [backend/tests/unit/conftest.py](https://github.com/mikesvoboda/nemotron-v3-home-security-intelligence/blob/main/backend/tests/unit/conftest.py) - Unit test fixtures and patterns
+- [backend/tests/integration/conftest.py](https://github.com/mikesvoboda/nemotron-v3-home-security-intelligence/blob/main/backend/tests/integration/conftest.py) - Integration test fixtures and patterns
 - [Mutation Testing Guide](../developer/patterns/mutation-testing.md) - Mutation testing with mutmut and Stryker

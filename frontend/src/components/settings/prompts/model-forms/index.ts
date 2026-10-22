@@ -2,19 +2,11 @@
  * Model-specific configuration forms for Prompt Management
  *
  * @see NEM-2697 - Build Prompt Management page
+ *
+ * B3.3 box 4 (R2a row 27): the Florence-2, YOLO-World, X-CLIP and Fashion-CLIP forms
+ * retired with the models themselves (the R8 S2/S3 serving sweep); nemotron is the
+ * only model a deployment boots, so it is the only editor here.
  */
 
 export { default as NemotronConfigForm } from './NemotronConfigForm';
 export type { NemotronConfigFormProps } from './NemotronConfigForm';
-
-export { default as Florence2ConfigForm } from './Florence2ConfigForm';
-export type { Florence2ConfigFormProps } from './Florence2ConfigForm';
-
-export { default as YoloWorldConfigForm } from './YoloWorldConfigForm';
-export type { YoloWorldConfigFormProps } from './YoloWorldConfigForm';
-
-export { default as XClipConfigForm } from './XClipConfigForm';
-export type { XClipConfigFormProps } from './XClipConfigForm';
-
-export { default as FashionClipConfigForm } from './FashionClipConfigForm';
-export type { FashionClipConfigFormProps } from './FashionClipConfigForm';

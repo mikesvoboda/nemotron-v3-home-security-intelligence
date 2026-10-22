@@ -10,7 +10,7 @@ import json
 import sys
 
 
-def main():
+def main() -> None:
     parser = argparse.ArgumentParser(description="Push metrics to Prometheus Pushgateway")
     parser.add_argument("--gateway", required=True, help="Pushgateway URL (e.g., prometheus:9091)")
     args = parser.parse_args()

@@ -45,21 +45,12 @@ import { AIModelEnum } from '../../../types/promptManagement';
 // ============================================================================
 
 // Model display options
-const MODEL_OPTIONS = [
-  { value: AIModelEnum.NEMOTRON, label: 'Nemotron (Risk Analysis)' },
-  { value: AIModelEnum.FLORENCE2, label: 'Florence-2 (Scene Analysis)' },
-  { value: AIModelEnum.YOLO_WORLD, label: 'YOLO-World (Object Detection)' },
-  { value: AIModelEnum.XCLIP, label: 'X-CLIP (Action Recognition)' },
-  { value: AIModelEnum.FASHION_CLIP, label: 'Fashion-CLIP (Clothing Analysis)' },
-];
+// B3.3 box 4 (R2a row 27): nemotron is the only model a deployment boots.
+const MODEL_OPTIONS = [{ value: AIModelEnum.NEMOTRON, label: 'Nemotron (Risk Analysis)' }];
 
 // Model display names
 const MODEL_NAMES: Record<AIModelEnum, string> = {
   [AIModelEnum.NEMOTRON]: 'Nemotron',
-  [AIModelEnum.FLORENCE2]: 'Florence-2',
-  [AIModelEnum.YOLO_WORLD]: 'YOLO-World',
-  [AIModelEnum.XCLIP]: 'X-CLIP',
-  [AIModelEnum.FASHION_CLIP]: 'Fashion-CLIP',
 };
 
 // ============================================================================

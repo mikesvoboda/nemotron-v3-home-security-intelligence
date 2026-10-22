@@ -43,17 +43,20 @@ from __future__ import annotations
 import argparse
 import json
 import sys
+from dataclasses import dataclass
 from datetime import date, datetime, timedelta
 from pathlib import Path
+from typing import Any
 
 DEFAULT_REGISTRY = ".pip-audit-exemptions.json"
 
 
-def load_audit(path: Path) -> dict:
+def load_audit(path: Path) -> dict[str, Any]:
     """Read a pip-audit `-f json` report; '-' means stdin."""
     raw = sys.stdin.read() if str(path) == "-" else path.read_text()
     try:
-        return json.loads(raw)
+        loaded: dict[str, Any] = json.loads(raw)
+        return loaded
     except json.JSONDecodeError:
         print(
             "pip-audit JSON report is unparsable - the gate fails closed "
@@ -97,9 +100,219 @@ def main() -> int:
     ap.add_argument("--audit-json", default="-", help="pip-audit -f json output (- for stdin)")
     ap.add_argument("--registry", default=DEFAULT_REGISTRY)
     ap.add_argument("--warn-days", type=int, default=14)
+    ap.add_argument(
+        "--base-audit-json",
+        default=None,
+        help="[r291] gate mode: pip-audit -f json for the PR's base tree. "
+        "Given, the checker fails only on a finding the change ADDS - "
+        "unexempted at the head and not unexempted at the base, keyed by "
+        "advisory id (with aliases) and package.",
+    )
+    ap.add_argument("--base-registry", default=None, help="registry snapshot of the base tree")
     args = ap.parse_args()
+    if args.base_audit_json and not args.base_registry:
+        print(
+            "--base-audit-json without --base-registry: the delta adjudicates "
+            "BOTH sides, so the base needs its own registry snapshot",
+            file=sys.stderr,
+        )
+        return 1
 
-    reg_path = Path(args.registry)
+    # full_report = "print today's per-violation report". In full-lockfile
+    # mode that is the ONLY side, so it always reports; in gate mode the head
+    # side stays quiet (its shared-violation chatter is not allowed to fail
+    # the delta) and the base side reports only when it fails closed.
+    if not args.base_audit_json:
+        head = adjudicate(
+            Path(args.audit_json),
+            Path(args.registry),
+            args.warn_days,
+            full_report=True,
+        )
+        return head.rc
+
+    # Gate mode. STRICT COVERAGE on both sides (r291 security pass): a
+    # finding whose ONLY covering entry itself violates today's rules
+    # (expired REVIEW BY, premise broken, mis-attributed) does NOT count as
+    # covered - it lands in `unexempted` like any other finding. Without
+    # this, a PR adding a vulnerable dependency green-lights whenever a
+    # pre-existing dead entry nominally matches its advisory: the delta
+    # compares the two TREES' violation strings, so a PR that never touches
+    # the registry resurrects the entry by making its advisory live again,
+    # and the head side's unexempted set shrinks instead of growing. With
+    # strict coverage on BOTH sides, a pre-existing expired entry plus its
+    # pre-existing finding stays green (the base side carries the same
+    # strict-unexempted key, so the delta sees no addition - package case 5),
+    # while the resurrection shape - no base finding, head finding behind a
+    # dead entry - goes red. The base side's VIOLATIONS still stay green:
+    # entry-level violations are text-diffed separately below and the
+    # pre-existing ones never redden the delta.
+    head = adjudicate(
+        Path(args.audit_json),
+        Path(args.registry),
+        args.warn_days,
+        full_report=False,
+        strict_coverage=True,
+    )
+
+    # The base side adjudicates with today's rules too, but its violations are
+    # NOT the change's fault: a pre-existing expired REVIEW BY or a pre-existing
+    # unexempted finding prints and passes (package case 5). The one base-side
+    # condition that still fails closed is UNADJUDICABLE - an unparsable base
+    # audit or a missing/malformed base registry makes the delta's "was it
+    # already there?" question unanswerable, and an unanswerable delta never
+    # reads as clean (package case 6, "an audit error on either side fails
+    # closed").
+    base = adjudicate(
+        Path(args.base_audit_json),
+        Path(args.base_registry),
+        args.warn_days,
+        full_report=False,
+        strict_coverage=True,
+    )
+    if base.unadjudicable:
+        print(
+            "BASE SIDE of the delta is UNADJUDICABLE (audit unparsable or registry "
+            "missing/malformed) - the gate fails closed:",
+            file=sys.stderr,
+        )
+        return 1
+    if head.unadjudicable:
+        # The head side reports in place: the MISSING/malformed message the
+        # head's adjudicate() already printed IS the violation list.
+        return 1
+
+    # Package case 4 vs 5, keyed by ENTRY (id, package): a registry violation
+    # (expired/malformed/missing REVIEW BY, premise broken, mis-attributed
+    # package, stale) reddens the delta only when the change ADDED or EDITED
+    # that entry - i.e. the violation exists at the head and not at the base.
+    # The same violation standing on both sides is the base's pre-existing
+    # state and stays green in gate mode (full-lockfile mode still reds it on
+    # its own trigger).
+    entry_added = head.violated_entries - base.violated_entries
+    if entry_added:
+        print(
+            f"{len(entry_added)} registry violation(s) on entries this change "
+            f"adds or edits (violation not present at the base):",
+            file=sys.stderr,
+        )
+        for v in sorted(entry_added):
+            print(f"  - {v}", file=sys.stderr)
+        return 1
+
+    # Package cases 1/2/3: findings keyed (canonical advisory id, package),
+    # as counts per key. canonical_keys() resolves a report id through its
+    # aliases to the same key on both trees, so id drift (PYSEC vs CVE vs
+    # GHSA of one advisory) does not invent a delta where the advisory was
+    # already there; the count makes a second advisory collapsing onto the
+    # same key an addition instead of a silent share.
+    canonical_base = canonical_keys(Path(args.base_audit_json), base)
+    canonical_head = canonical_keys(Path(args.audit_json), head)
+    added = {k for k, n in canonical_head.items() if n > canonical_base.get(k, 0)}
+    if added:
+        print(
+            f"{len(added)} pip-audit finding(s) this change ADDS "
+            f"(unexempted at the head, not unexempted at the base):",
+            file=sys.stderr,
+        )
+        for vid, pkg in sorted(added):
+            print(f"  - {vid} on {pkg} is UNEXEMPTED", file=sys.stderr)
+        return 1
+    # r291 security pass, verdict hygiene: the delta's verdict is about what
+    # the change ADDS. Shared pre-existing warnings (an entry expiring soon
+    # on both trees) do not fail the delta - but they are printed in the OK
+    # line, so the log never says "OK" beside a red exit code, and the exit
+    # code is 0 whenever nothing was added (head.rc's full-lockfile semantics
+    # - 2 on warns-only - leaked through here and contradicted this line).
+    warn_note = f", {head.warnings} shared expiry warning(s)" if head.warnings else ""
+    print(
+        f"pip-audit delta OK: {sum(canonical_head.values())} finding(s) shared with the "
+        f"base, none added by the change{warn_note} (full-lockfile mode still "
+        f"audits the lock on main on its own trigger)"
+    )
+    return 0
+
+
+@dataclass
+class Verdict:
+    """One tree's full adjudication, reusable by both modes.
+
+    full_lockfile verdict (today's): exit 1 on ANY violation, 2 on warns-only.
+    Gate mode reads `unexempted` (the id+package keys of findings no active
+    entry covers), `violated_entries` (one key per registry entry that fails
+    today's rules), and `unadjudicable` (the audit could not be parsed or the
+    registry could not be loaded - the delta's "was it already there?"
+    question is unanswerable, so a side in that state fails closed).
+    """
+
+    unexempted: set[tuple[str, str]]
+    violated_entries: set[str]
+    unadjudicable: bool
+    rc: int
+    warnings: int
+
+
+def canonical_keys(audit_path: Path, v: Verdict) -> dict[tuple[str, str], int]:
+    """Collapse `unexempted` to one key per REAL advisory, as a COUNT per
+    key: each reported id becomes (its canonical id-set's representative,
+    package), and two advisories collapsing onto the same representative
+    accumulate. Two trees reporting the same advisory under different ids
+    (PYSEC at base, GHSA at head) must compare equal, so the representative
+    is the sorted-min of the id + its aliases - the same advisory produces
+    the same min on both sides whatever id pip-audit chose to lead with.
+
+    The count is the r291 security pass's key-collapse fix: when one CVE
+    id carries several GHSAs, pip-audit reports each as its own advisory
+    sharing the CVE in aliases - min() alone gives them ONE key, and a head
+    side carrying two of them behind a base side's one would read "shared".
+    Counting per key makes the extra advisory an addition (head count 2 >
+    base count 1) while the id-drift shape (one advisory per side, min
+    equal on both trees) still compares equal.
+    """
+    out: dict[tuple[str, str], int] = {}
+    for vid, pkg in v.unexempted:
+        group = {vid, *advisory_aliases(audit_path).get(vid, set())}
+        key = (min(sorted(group)), pkg)
+        out[key] = out.get(key, 0) + 1
+    return out
+
+
+def advisory_aliases(audit_path: Path) -> dict[str, set[str]]:
+    """id -> {aliases} straight from the recorded audit report. Reads the file
+    a second time (adjudicate already did) because the alias map is per-id and
+    only the delta needs it; the full-lockfile path never calls this."""
+    try:
+        raw = audit_path.read_text()
+        doc = json.loads(raw)
+    except (OSError, json.JSONDecodeError):
+        return {}
+    out: dict[str, set[str]] = {}
+    for dep in doc.get("dependencies") or []:
+        for vuln in dep.get("vulns") or []:
+            vid = vuln.get("id")
+            if vid:
+                out.setdefault(vid, set()).update(vuln.get("aliases") or [])
+    return out
+
+
+def adjudicate(
+    audit_path: Path,
+    reg_path: Path,
+    warn_days: int,
+    full_report: bool,
+    strict_coverage: bool = False,
+) -> Verdict:
+    """Run today's registry rules against one audit report.
+
+    `full_report` prints today's per-violation diagnostics (the full-lockfile
+    mode is always full_report; the delta's head side stays quiet - its
+    shared-violation chatter is not allowed to fail the delta).
+
+    `strict_coverage` (r291 security pass, gate mode only): an entry that
+    violates today's rules does not count as covering its finding - the
+    finding lands in `unexempted`. Full-lockfile mode stays lenient: there
+    the violated entry already reds the run on its own.
+    """
     if not reg_path.is_file():
         print(
             f"MISSING {reg_path}: the gate fails closed without the registry. "
@@ -107,36 +320,50 @@ def main() -> int:
             "owner and a REVIEW BY date) covers it.",
             file=sys.stderr,
         )
-        return 1
+        return Verdict(set(), set(), True, 1, 0)
 
     reg = json.loads(reg_path.read_text())
     exceptions = reg.get("exceptions")
     if not isinstance(exceptions, list):
         print(f"{reg_path}: missing 'exceptions' array", file=sys.stderr)
-        return 1
+        return Verdict(set(), set(), True, 1, 0)
 
-    found = advisories(load_audit(Path(args.audit_json)))
+    found = advisories(load_audit(audit_path))
     today = date.today()
 
     errors: list[str] = []
     warns: list[str] = []
     covered: set[str] = set()
+    covered_pairs: set[tuple[str, str]] = set()
+    unexempted: set[tuple[str, str]] = set()
+    violated_entries: set[str] = set()
+
+    def entry_error(eid: str, msg: str) -> None:
+        """A registry entry failing today's rules. The violation TEXT is the
+        delta key: every message starts with the entry id, so set-difference
+        on the strings is entry-keyed (gate mode reds a violation only when
+        the change added or edited that entry - the same violation standing
+        on both trees is the base's pre-existing state) AND carries the
+        wording for the delta's report."""
+        errors.append(msg)
+        violated_entries.add(msg)
 
     for e in exceptions:
         eid = e.get("id", "?")
         rb = e.get("reviewBy") or e.get("review_by")
         if not rb:
-            errors.append(f"{eid}: missing reviewBy (REVIEW BY) date")
+            entry_error(eid, f"{eid}: missing reviewBy (REVIEW BY) date")
             continue
         try:
             review = datetime.strptime(rb, "%Y-%m-%d").date()
         except ValueError:
-            errors.append(f"{eid}: malformed reviewBy {rb!r} (want YYYY-MM-DD)")
+            entry_error(eid, f"{eid}: malformed reviewBy {rb!r} (want YYYY-MM-DD)")
             continue
+        errors_before = len(errors)
         if review < today:
-            errors.append(f"{eid}: REVIEW BY {rb} has PASSED - re-review, fix, or remove")
-        elif review <= today + timedelta(days=args.warn_days):
-            warns.append(f"{eid}: REVIEW BY {rb} expires within {args.warn_days}d")
+            entry_error(eid, f"{eid}: REVIEW BY {rb} has PASSED - re-review, fix, or remove")
+        elif review <= today + timedelta(days=warn_days):
+            warns.append(f"{eid}: REVIEW BY {rb} expires within {warn_days}d")
 
         ids = {eid, *(e.get("aliases") or [])}
         hit = next((i for i in ids if i in found), None)
@@ -150,24 +377,58 @@ def main() -> int:
             # the package-attribution check below still adjudicates.
             hit = next((vid for vid, a in found.items() if ids & a["aliases"]), None)
         if hit is None:
-            errors.append(
+            entry_error(
+                eid,
                 f"{eid}: registered but NO current pip-audit finding matches - "
-                "stale (the advisory is fixed or no longer reachable); remove it"
+                "stale (the advisory is fixed or no longer reachable); remove it",
             )
             continue
-        covered.add(hit)
-
         a = found[hit]
+        # Strict coverage (r291 security pass): the entry covers its finding
+        # only when the entry itself passed every rule above. An expired or
+        # premise-broken entry leaves the finding unexempted, so the gate
+        # delta cannot be green-lit by a dead entry's nominal match.
+        if not strict_coverage or len(errors) == errors_before:
+            covered.add(hit)
+            # r291 security re-pass, residual A: coverage is per (advisory,
+            # package) in gate mode, not per advisory. An entry whose package
+            # attribution names `pkg` covers the advisory on `pkg` - and on
+            # every other package pip-audit reports the advisory against
+            # ONLY when the entry names no package at all (a bare-id entry
+            # is a whole-advisory carve-out by its own shape). Without the
+            # pair discipline, a PR adding a NEW vulnerable dependency that
+            # reports an already-exempted advisory green-lit: the entry
+            # covered the advisory on packages it never named, so the
+            # head's unexempted set gained nothing and the delta - keyed
+            # (advisory, package) exactly so a package move is visible -
+            # read 'shared'. The base side computes the same pairs, so the
+            # pre-existing shape stays green (package case 5).
+            if strict_coverage:
+                named = e.get("package")
+                matched = (
+                    {p.split("==", 1)[0].lower() for p in a["packages"]}
+                    if named is None
+                    else {
+                        p.split("==", 1)[0].lower()
+                        for p in a["packages"]
+                        if p.split("==", 1)[0].lower() == named.lower()
+                    }
+                )
+                for p in matched:
+                    covered_pairs.add((hit, p))
+
         if a["fix_versions"]:
-            errors.append(
+            entry_error(
+                eid,
                 f"{eid}: exemption premise broken - pip-audit reports fix_versions "
                 f"{a['fix_versions']} (sanctioned premise is 'awaiting upstream "
-                f"fix'); take the bump and drop this entry"
+                f"fix'); take the bump and drop this entry",
             )
         pkg = e.get("package")
         if pkg and not any(p.split("==", 1)[0].lower() == pkg.lower() for p in a["packages"]):
-            errors.append(
-                f"{eid}: registered for {pkg!r}, pip-audit attributes it to {sorted(a['packages'])}"
+            entry_error(
+                eid,
+                f"{eid}: registered for {pkg!r}, pip-audit attributes it to {sorted(a['packages'])}",
             )
 
     for vid, a in found.items():
@@ -176,19 +437,39 @@ def main() -> int:
                 f"{vid}: pip-audit finding on {sorted(a['packages'])} is UNEXEMPTED "
                 f"(fix_versions={a['fix_versions'] or 'none reported'})"
             )
+            for p in a["packages"]:
+                # The delta key: id + each package the advisory is reported
+                # against. Package attribution is how the base/head compare
+                # distinguishes "the advisory moved to another package" from
+                # "the advisory was here all along".
+                unexempted.add((vid, p.split("==", 1)[0].lower()))
+        elif strict_coverage:
+            # r291 security re-pass, residual A: the advisory is covered, but
+            # in gate mode coverage is per (advisory, package) - a package the
+            # entry never named is still an unexempted finding on that
+            # package, so it lands in the delta set with the same message.
+            bare_pkgs = {p.split("==", 1)[0].lower() for p in a["packages"]}
+            for p in sorted(bare_pkgs - {q for (v, q) in covered_pairs if v == hit}):
+                errors.append(
+                    f"{vid}: pip-audit finding on [{p!r}] is UNEXEMPTED "
+                    f"(fix_versions={a['fix_versions'] or 'none reported'})"
+                )
+                unexempted.add((vid, p))
 
-    for w in warns:
-        print(f"WARN: {w}")
-    if errors:
-        print(f"{len(errors)} pip-audit exemption violation(s):", file=sys.stderr)
-        for err in errors:
-            print(f"  - {err}", file=sys.stderr)
-        return 1
-    print(
-        f"pip-audit exemptions OK: {len(exceptions)} active, "
-        f"{len(found)} advisories all covered, no expiry within {args.warn_days}d"
-    )
-    return 2 if warns else 0
+    if full_report:
+        for w in warns:
+            print(f"WARN: {w}")
+        if errors:
+            print(f"{len(errors)} pip-audit exemption violation(s):", file=sys.stderr)
+            for err in errors:
+                print(f"  - {err}", file=sys.stderr)
+        else:
+            print(
+                f"pip-audit exemptions OK: {len(exceptions)} active, "
+                f"{len(found)} advisories all covered, no expiry within {warn_days}d"
+            )
+    rc = 1 if errors else (2 if warns else 0)
+    return Verdict(unexempted, violated_entries, False, rc, len(warns))
 
 
 if __name__ == "__main__":

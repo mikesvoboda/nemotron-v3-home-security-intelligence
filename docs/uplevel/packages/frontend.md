@@ -165,12 +165,12 @@ nothing in `frontend/`.
 ### F3.2 Unreachable files and the knip gate
 
 **Flags:** none. **Depends on:** `R2`.
-**PR:** none yet. (ruling 241)
+**PR:** #7246. (ruling 241)
 
-- [ ] **MEASURE** the unreachable production files (236 files, ~71,800 lines at `d6ba78d5`,
+- [x] **MEASURE** the unreachable production files (236 files, ~71,800 lines at `d6ba78d5`,
       `00 §4.3`). Delete them and the tests that test only them — except files a **complete**
       feature's row claims, which stay and go on knip's ignore list with that row's id.
-- [ ] Remove the dead contexts and stores, the duplicate `Result`, `ModelContributionChart`,
+- [x] Remove the dead contexts and stores, the duplicate `Result`, `ModelContributionChart`,
       `BulkActionBar` and toast implementations, the stale `modulePreload` filter in
       `vite.config.ts`, and `bun.lock` (CI and the Dockerfile run `npm ci`).
 
@@ -183,14 +183,25 @@ that is the baseline `O3.4` pins, so "exits 0" reads relative to it (ruling 257)
 ### F3.3 Quarantined tests
 
 **Flags:** none. **Depends on:** `R2`.
-**PR:** none yet. (ruling 241)
+**PR:** #7325. (ruling 241)
 
-`vite.config.ts` excludes 16 test files; three are empty.
+`vite.config.ts` excluded 13 test files (the R-T7-VITEST set: 62 deterministic
+test-drift failures quarantined 2026-09-12, later shrank to 13 when F3.2 found
+three of the 16 entries named files no longer on disk).
 
-- [ ] Fix or delete each excluded file.
+- [x] Fix or delete each excluded file. All 12 remaining files repaired and
+      green (634 passed | 3 skipped across the 12); one file deleted
+      (`TimeGroupedEvents.simple.test.tsx`, empty scaffold with no suite left to
+      run). The repair also surfaced two production bugs: the local
+      `handleResponse` in `useHouseholdApi.ts` threw bare `Error`s, silently
+      disabling the NEM-1940 smart-retry layer for every household endpoint (now
+      throws `ApiError` so 503 retries and 500 does not), and
+      `EventTimeline.tsx` passed a `snoozedUntil` prop EventCard does not read,
+      so the NEM-3640 SnoozeBadge never rendered from the timeline page (now
+      passes `snooze_until`).
 
 **Done when:** the exclusion list is empty, or every remaining entry carries a reason and an
-inventory row.
+inventory row. The exclusion list is empty; the full unquarantined suite is green.
 
 ## Phase 4 — Complete the product
 
@@ -202,12 +213,8 @@ The frontend parts of each feature package in the backend lane's feature track
 ([`backend.md`](backend.md), `B4.*`), running the same six steps. This lane writes the UI golden
 paths; the inventory row reads **works** once the operator records the real-tier check. Features rulings have already shaped:
 
-- **Trash** (F-087 with R2a's F-088; P1; one package): a Delete action in the event detail modal and
-  a bulk Delete on the timeline, both calling the existing soft-delete routes
-  (`DELETE /api/events/{id}`, `routes/events.py:2726`, and the bulk delete, `:1793`), so deleted
-  events land in `/trash`; no backend change is expected. Golden path: delete an event from the UI,
-  find it in `/trash`, restore it, then delete it permanently; it replaces the spec's API-side
-  seeding (rulings 131, 135).
+- **Trash** (F-087 with R2a's F-088; P1): designed in [`../4n-trash.md`](../4n-trash.md) as two
+  packages, `B4.4` then `F4.3`, each with its own golden path (rulings 131, 135, 308).
 - **Monitoring** (F-102, F-115, F-117, F-164–F-167, F-169, F-174; P3): one Monitoring page with a
   dashboard picker over the provisioned dashboards, built on one shared embed component, replaces
   the eight wrapper pages and their routes (`AIServicesPage`, `PyroscopePage`,
@@ -217,7 +224,156 @@ paths; the inventory row reads **works** once the operator records the real-tier
   on the real stack: Grafana's embedding setting and the frame policy, behind the app's login
   (`O1.11`, UR-33). The golden path drives the picker on the test deployment. The design session
   settles the picker's list, deep links and old-route redirects. Until it is built, Grafana stays
-  reachable directly behind `O1.11`'s login (rulings 128, 135).
+  reachable directly behind `O1.11`'s login (rulings 128, 135). The package removes the zone panels
+  from `monitoring/grafana/dashboards/video-analytics.json`, and F-117's inventory row says why:
+  nothing in the product writes `hsi_zone*` since #7319 deleted `zone_crossing_service.py`, so the
+  panels have never shown data. F-117 stays complete. A future zone feature adds the panels back
+  with a writer, and until then no PR adds a writer for `hsi_zone*` (ruling 301).
+
+**The P1 packages' frontend parts** (ruling 308, record 6326364266), each with its design as step 1.
+**The P2 packages' frontend parts** (ruling 317, record 6347331324) follow them: `F4.8`, `F4.6` and
+`F4.7`.
+
+### F4.4 Timeline filters and detections
+
+**Flags:** none. **Assigned:** frontend, after `[r299]` (ruling 308). **Depends on:** none; its
+small backend part (`min_confidence`) rides in the same PR (UR-9).
+**PR:** #7352. (ruling 308, record 6326364266)
+
+Design: [`../4n-timeline.md`](../4n-timeline.md). Covers F-044, F-055.
+
+- [x] The test-only PR (step 2).
+- [ ] The build PR: `min_confidence` as a correlated `EXISTS`; the Verification select; the
+      modal's detections from its own fetch; boxes on still images through `BoundingBoxOverlay`;
+      `ThreatBoundingBox` retired.
+- [ ] Golden path (Playwright) as the design gives it.
+
+**Done when:** steps 4–6 hold for its rows.
+
+### F4.1 The Alerts page
+
+**Flags:** none. **Assigned:** frontend, after `F4.4` (ruling 308). **Depends on:** `B4.1`
+merged; it runs beside `B4.2`. **PR:** none yet. (ruling 308, record 6326364266)
+
+Design: [`../4n-alerting.md`](../4n-alerting.md), "Packages" row 2, beside `B4.2`. Covers F-078,
+F-079.
+
+- [ ] The test-only PR (step 2).
+- [ ] The build PR: alert rows; Acknowledge, Dismiss, Snooze; the timeline's Snooze moves to
+      activity snoozes; `alerts.spec.ts` and the snooze steps of `event-detail-modal.spec.ts`
+      rewritten.
+- [ ] Golden path (Playwright): the alert appears live, then acknowledge, dismiss, snooze.
+
+**Done when:** steps 4–6 hold for its rows.
+
+### F4.3 The Trash UI
+
+**Flags:** none. **Assigned:** frontend, after `F4.1` (ruling 308). **Depends on:** `B4.4`
+merged. **PR:** none yet. (ruling 308, record 6326364266)
+
+Design: [`../4n-trash.md`](../4n-trash.md), the `F4.3` parts. Covers F-087, F-088 with `B4.4`.
+
+- [ ] The test-only PR (step 2).
+- [ ] The build PR: Delete in `EventDetailModal`, bulk Delete on the timeline, the Undo toast;
+      `permanentlyDeleteEvent` sends `?permanent=true`; Trash shows the deleted and purge dates;
+      the setting under Settings › Data.
+- [ ] Golden path (Playwright) as the design gives it; it replaces the spec's API-side seeding
+      (ruling 135).
+
+**Done when:** steps 4–6 hold for F-087 and F-088.
+
+### F4.2 The rules dialog and Settings › Notifications
+
+**Flags:** none. **Assigned:** frontend, after `F4.3` (ruling 308). **Depends on:** `B4.3`
+merged. **PR:** none yet. (ruling 308, record 6326364266)
+
+Design: [`../4n-alerting.md`](../4n-alerting.md), "Packages" row 4. Covers F-216, F-217, F-231,
+F-232, F-235, F-236.
+
+- [ ] The test-only PR (step 2).
+- [ ] The build PR: as designed, the push subscription included; the channel checks of
+      `alert-rules.spec.ts` and the UI steps of `notify.spec.ts` and `quiet-hours.spec.ts`
+      rewritten; if `F4.5` landed first, the override's "In chosen modes" (ruling 311).
+- [ ] Golden path (Playwright): the cluster's golden path.
+
+**Done when:** steps 4–6 hold for its rows.
+
+### F4.5 Arming in the UI
+
+**Flags:** none. **Assigned:** frontend, after `F4.2` (ruling 311). **Depends on:** `B4.7` and
+`F4.1` merged. **PR:** none yet. (ruling 311, record 6328311780)
+
+Design: [`../4n-arming.md`](../4n-arming.md), "Packages" row `F4.5`. Covers F-290 with `B4.7`.
+
+- [ ] The test-only PR (step 2).
+- [ ] The build PR: the header arming chip; Settings › Arming (cameras per mode, schedule, change
+      history); "raised while unarmed" on the Alerts page's rows; if `F4.2` landed first, the
+      override's "In chosen modes"; if `B4.8` landed first, the MQTT section (enable, status, the
+      TLS warning, the token shown once) and its Playwright step.
+- [ ] Golden path (Playwright) as the design gives it.
+
+**Done when:** steps 4–6 hold for its rows.
+
+### F4.8 System status in the UI (contract)
+
+**Flags:** none. **Assigned:** frontend, after `F4.5` (ruling 317). **Depends on:** `B4.11` merged.
+**PR:** none yet. (ruling 317, record 6347331324)
+
+Design: [`../4n-status.md`](../4n-status.md), "Packages" row `F4.8`. Covers the status rows with
+`B4.11`.
+
+- [ ] The test-only PR (step 2): the hooks and components the design names, with their fixtures.
+- [ ] The build PR: the header badge on `ai_service_status`; the dashboard row, the model cards and
+      the services panel (Restart only, the sign-in prompt, Postgres no longer blocked); the
+      per-model latency chart; the banner's `ai-vlm`; the alert badge on the events socket with its
+      page-open load; the palette and `g y`; Tracing's Tempo link. Its cross-lane part (UR-9):
+      removes the old `nemotron` and `rtdetr` fields, moves the `ai_models` key, regenerates the
+      contract and types, and edits `operations/performance.spec.ts:55` and `:66`; and it retires
+      the enable, disable and `/start` service routes and the worker stop and start routes with
+      their callers (the start, stop, enable and disable mutations in `useServiceMutations` and
+      `useWorkerActions`, their clients and the panels' buttons), each pinned by a 404 test, and
+      clears every persisted `enabled=false` once.
+- [ ] Golden path (Playwright) as the design gives it.
+
+**Done when:** steps 4–6 hold for its rows.
+
+### F4.6 Scene changes in the UI
+
+**Flags:** none. **Assigned:** frontend, after `F4.8` (ruling 317). **Depends on:** `B4.9` and
+`F4.1` merged. **PR:** none yet. (ruling 317, record 6347331324)
+
+Design: [`../4n-scene-changes.md`](../4n-scene-changes.md), "Packages" row `F4.6`. Covers F-008,
+F-030 and F-288, and F-208 and F-287 with `B4.9`.
+
+- [ ] The test-only PR (step 2): `useSceneChangeAlerts`, `useSceneChangeEvents`,
+      `useSceneChangesQuery`, `SceneChangePanel`, `SceneChangesPage` and `SceneChangeIndicator`.
+- [ ] The build PR: the header badge, the dashboard indicator and toasts on open and cleared; the
+      camera modal's incidents with their pictures and "Set as normal"; the Scene changes page on
+      `GET /api/scene-changes` with its filters and state; Acknowledge with "This is the new
+      normal"; the drifted incident's text.
+- [ ] Golden path (Playwright) as the design gives it.
+
+**Done when:** steps 4–6 hold for its rows.
+
+### F4.7 Exports in the UI
+
+**Flags:** none. **Assigned:** frontend, after `F4.6` (ruling 317). **Depends on:** `B4.10` merged.
+**PR:** none yet. (ruling 317, record 6347331324)
+
+Design: [`../4n-exports.md`](../4n-exports.md), "Packages" row `F4.7`. Covers F-051, F-098 and
+F-099 with `B4.10`.
+
+- [ ] The test-only PR (step 2): `ExportButton`, `ExportModal`, `ExportProgress`, `useExportJobs`
+      and Data › Export; the e2e spec that mocks a missing route.
+- [ ] The build PR: the button on `POST /api/exports` and `/download`, with every timeline filter;
+      Events and Alerts in the modal and Data › Export, and the Backups link; Cancel through
+      `DELETE` everywhere; the cancelled and expired states; the two old clients go. Its cross-lane
+      part (UR-9): retires `POST /api/events/export` with its tracker job and
+      `GET /api/events/export`, with their tests, a 404 test, the regenerated contract and types,
+      and the docs that name them.
+- [ ] Golden path (Playwright) as the design gives it.
+
+**Done when:** steps 4–6 hold for its rows.
 
 ### FB.\* Background track
 
@@ -780,3 +936,28 @@ passes, and `yolo26`'s health never reaches `ServiceStatusAlert` or the services
       `yolo26` lights `ServiceStatusAlert`.
 
 **Done when:** the tests above pass in CI at a ready head, and the PR names each emitter's decision.
+
+### [r299] The E2E global setup writes the tour keys under the origin the specs run
+
+**Flags:** none. **Assigned:** frontend, after `F3.3` (ruling 299). **Depends on:** none.
+**PR:** #7349. (ruling 299, record 6321779954; audit item Q-179 of `[r262]`)
+
+`frontend/tests/e2e/global-setup.ts:30` writes the tour-suppression keys under the origin
+`https://localhost:8444`, but the specs run at `http://localhost:8444` (`global-setup.ts:71`,
+`playwright.config.ts:194`). Playwright applies `localStorage` per origin, so the keys never land,
+and the tour overlay opens and blocks clicks. The committed `tests/e2e/.auth/storage-state.json`
+(`playwright.config.ts:213`) carries the right origin, but the setup overwrites it on every
+non-golden run. The specs that don't use the shared fixtures' init script
+(`fixtures/index.ts:53-57`) are exposed: local runs and the nightly visual specs, since the rest
+skip themselves under CI.
+
+- [x] `frontend/tests/e2e/global-setup.ts` writes the storage state under the origin the specs run,
+      derived from the configured base URL (`E2E_BASE_URL` or the Playwright config's `baseURL`),
+      not a literal.
+- [x] **A test pins it, red first (UR-69).** For example, the written state's origin equals the
+      configured base URL, or a spec that opens the app without the fixtures' init script finds no
+      tour overlay.
+- [x] **The PR decides whether `tests/e2e/.auth/storage-state.json` stays committed,** and says why.
+      A file the setup rewrites on every run may leave the tree (ignored instead).
+
+**Done when:** the test passes in CI at a ready head and the UR-89 review approves.

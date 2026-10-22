@@ -41,6 +41,7 @@ class AlertSeverity(StrEnum):
 class AlertStatus(StrEnum):
     """Alert status values."""
 
+    OPEN = "open"
     PENDING = "pending"
     DELIVERED = "delivered"
     ACKNOWLEDGED = "acknowledged"

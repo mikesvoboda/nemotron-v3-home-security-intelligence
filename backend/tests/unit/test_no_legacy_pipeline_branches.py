@@ -65,7 +65,8 @@ def legacy_comparisons(path: Path) -> list[int]:
 def test_shipped_code_is_importable_by_the_scanner() -> None:
     """Guards the guard: if the scan matches nothing, the slice passes for the wrong reason."""
     files = shipped_python()
-    assert len(files) > 500, f"scanner found only {len(files)} files under {BACKEND} — path moved"
+    # B3.2 deleted 94 non-shipping backend modules (502 -> 408 files under backend/).
+    assert len(files) > 350, f"scanner found only {len(files)} files under {BACKEND} — path moved"
 
 
 def test_the_scanner_recognises_a_mode_branch() -> None:

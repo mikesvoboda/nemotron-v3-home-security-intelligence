@@ -21,7 +21,7 @@ from pathlib import Path
 REPO_ROOT = Path(__file__).resolve().parents[2]
 SCRIPT = REPO_ROOT / "scripts" / "audit" / "battery_census.py"
 
-BATTERY = '''\
+BATTERY = """\
 import pytest
 
 
@@ -39,16 +39,16 @@ class TestGpu:
 
 def test_top_level():
     assert True
-'''
+"""
 
-FLAGGED = '''\
+FLAGGED = """\
 import pytest
 
 
 @pytest.mark.parametrize("n", range(4))
 def test_dynamic(n):
     assert n
-'''
+"""
 
 
 def build_tree(root: Path) -> None:
@@ -56,7 +56,9 @@ def build_tree(root: Path) -> None:
     tests.mkdir(parents=True)
     (tests / "test_gpu_monitor_batch28_22.py").write_text(BATTERY, encoding="utf-8")
     (tests / "test_gpu_monitor_batch29.py").write_text(FLAGGED, encoding="utf-8")
-    (tests / "test_gpu_monitor_helpers.py").write_text("def test_plain():\n    assert 1\n", encoding="utf-8")
+    (tests / "test_gpu_monitor_helpers.py").write_text(
+        "def test_plain():\n    assert 1\n", encoding="utf-8"
+    )
     (tests / "test_batchless.py").write_text("def test_b():\n    assert 1\n", encoding="utf-8")
 
 
@@ -96,7 +98,9 @@ def test_letter_suffix_without_separator_is_a_battery(tmp_path: Path):
     tests = tmp_path / "backend" / "tests" / "unit" / "api" / "routes"
     tests.mkdir(parents=True)
     (tests / "test_logs_batch13b.py").write_text(BATTERY, encoding="utf-8")
-    (tests / "test_logs_batched.py").write_text(BATTERY, encoding="utf-8")  # no digits: not a battery
+    (tests / "test_logs_batched.py").write_text(
+        BATTERY, encoding="utf-8"
+    )  # no digits: not a battery
     rc, result, _ = run_script(tmp_path)
     assert rc == 0
     assert result["file_count"] == 1
@@ -112,7 +116,7 @@ def test_real_tree_has_no_unmatched_battery_names():
     the real tree and fails loudly on any contract-glob file the script's own
     regex skips, which is the silent-skip class this census exists to avoid.
     """
-    from battery_census import BATTERY_RE  # noqa: PLC0415 — pin lives with the script
+    from battery_census import BATTERY_RE
 
     skip = {".git", "__pycache__", "node_modules", ".venv", ".pytest_cache", ".mypy_cache"}
     missed = [

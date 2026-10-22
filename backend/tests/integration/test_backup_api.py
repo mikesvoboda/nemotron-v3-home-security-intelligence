@@ -62,22 +62,32 @@ def create_valid_backup_zip() -> bytes:
 
     backup_id = str(uuid4())
     payloads = {
-        "cameras.json": json.dumps([{"id": "cam1"}, {"id": "cam2"}]),
-        "events.json": json.dumps([{"id": f"evt{i}"} for i in range(5)]),
+        "cameras.json": json.dumps(
+            [
+                {
+                    "id": "cam1",
+                    "name": "Backup Camera 1",
+                    "folder_path": "/export/foscam/cam1",
+                    "status": "online",
+                },
+                {
+                    "id": "cam2",
+                    "name": "Backup Camera 2",
+                    "folder_path": "/export/foscam/cam2",
+                    "status": "online",
+                },
+            ]
+        ),
     }
     manifest = {
         "backup_id": backup_id,
-        "version": "1.0",
+        "version": "1.1",
         "created_at": datetime.now(UTC).isoformat(),
         "app_version": "1.0.0",
         "contents": {
             "cameras": {
                 "count": 2,
                 "checksum": hashlib.sha256(payloads["cameras.json"].encode()).hexdigest(),
-            },
-            "events": {
-                "count": 5,
-                "checksum": hashlib.sha256(payloads["events.json"].encode()).hexdigest(),
             },
         },
     }
@@ -87,7 +97,6 @@ def create_valid_backup_zip() -> bytes:
     with zipfile.ZipFile(zip_buffer, "w", zipfile.ZIP_DEFLATED) as zf:
         zf.writestr("manifest.json", json.dumps(manifest))
         zf.writestr("cameras.json", payloads["cameras.json"])
-        zf.writestr("events.json", payloads["events.json"])
 
     return zip_buffer.getvalue()
 
@@ -305,28 +314,21 @@ async def test_backup_with_events_completes_and_keeps_deferred_columns(
         await asyncio.sleep(0.5)
 
     assert status_data.get("status") == "completed", (
-        f"[r129] backup of a populated events table ended "
+        f"[B4.6] backup of a populated events table ended "
         f"{status_data.get('status')!r}: {status_data.get('error_message')!r}"
     )
     manifest = status_data.get("manifest") or {}
-    assert manifest.get("contents", {}).get("events", {}).get("count") == len(seeded_ids), (
-        f"[r129] manifest events count is "
-        f"{manifest.get('contents', {}).get('events')!r}, wanted {len(seeded_ids)}"
-    )
+    assert manifest.get("version") == "1.1"
+    assert manifest.get("installation_id")
+    assert "events" not in manifest.get("contents", {})
+    assert manifest.get("contents", {}).get("cameras", {}).get("count", 0) >= 1
 
     download = await client.get(f"/api/backup/{job_id}/download")
     assert download.status_code == 200, download.text[:300]
     archive = zipfile.ZipFile(io.BytesIO(download.content))
-    events_data = json.loads(archive.read("events.json").decode("utf-8"))
-
-    assert sorted(e["id"] for e in events_data) == sorted(seeded_ids)
-    by_id = {e["id"]: e for e in events_data}
-    for i, event_id in enumerate(seeded_ids):
-        # Values, not just rows: a fix that skipped the deferred columns to
-        # dodge MissingGreenlet would complete with every row present and drop
-        # two columns of every backup ever taken afterwards.
-        assert by_id[event_id]["reasoning"] == f"R129-API-REASONING-{i}"
-        assert by_id[event_id]["llm_prompt"] == f"R129-API-LLMPROMPT-{i}"
+    assert "events.json" not in archive.namelist()
+    cameras_data = json.loads(archive.read("cameras.json").decode("utf-8"))
+    assert any(c["id"] == camera_id for c in cameras_data)
 
 
 # =============================================================================
@@ -453,14 +455,25 @@ async def test_list_backups_excludes_pending_and_failed(
 
 
 @pytest.mark.asyncio
-async def test_get_backup_status_not_found(client: AsyncClient, mock_redis, integration_db):
-    """Test get backup status returns 404 for non-existent job.
-
-    Uses a valid-format UUID: the id column is UUID-typed, so a malformed id
-    fails driver-side parameter encoding (503) before the lookup. 404 is about
-    the job not existing, which a well-formed unknown UUID exercises.
-    """
-    response = await client.get(f"/api/backup/{uuid4()}")
+@pytest.mark.parametrize(
+    ("method", "path_template"),
+    [
+        ("get", "/api/backup/{job_id}"),
+        ("get", "/api/backup/{job_id}/download"),
+        ("delete", "/api/backup/{job_id}"),
+        ("get", "/api/backup/restore/{job_id}"),
+    ],
+)
+async def test_backup_endpoint_not_found(
+    client: AsyncClient,
+    mock_redis,
+    integration_db,
+    method: str,
+    path_template: str,
+):
+    """Test backup/restore endpoints return 404 for a non-existent well-formed UUID."""
+    request_fn = getattr(client, method)
+    response = await request_fn(path_template.format(job_id=uuid4()))
 
     assert response.status_code == 404
     data = response.json()
@@ -539,17 +552,6 @@ async def test_get_backup_status_with_manifest(
 # =============================================================================
 # Backup Download Tests
 # =============================================================================
-
-
-@pytest.mark.asyncio
-async def test_download_backup_not_found(client: AsyncClient, mock_redis, integration_db):
-    """Test downloading non-existent backup returns 404 (valid-format unknown id; see
-    test_get_backup_status_not_found for why a malformed id cannot reach the lookup)."""
-    response = await client.get(f"/api/backup/{uuid4()}/download")
-
-    assert response.status_code == 404
-    data = response.json()
-    assert "detail" in data
 
 
 @pytest.mark.asyncio
@@ -641,16 +643,6 @@ async def test_download_completed_backup_returns_zip(
 # =============================================================================
 # Backup Deletion Tests
 # =============================================================================
-
-
-@pytest.mark.asyncio
-async def test_delete_backup_not_found(client: AsyncClient, mock_redis, integration_db):
-    """Test deleting non-existent backup returns 404."""
-    response = await client.delete(f"/api/backup/{uuid4()}")
-
-    assert response.status_code == 404
-    data = response.json()
-    assert "detail" in data
 
 
 @pytest.mark.asyncio
@@ -844,16 +836,6 @@ async def test_restore_job_progress_tracking(client: AsyncClient, mock_redis, in
 # =============================================================================
 # Restore Status Tests
 # =============================================================================
-
-
-@pytest.mark.asyncio
-async def test_get_restore_status_not_found(client: AsyncClient, mock_redis, integration_db):
-    """Test get restore status returns 404 for non-existent job."""
-    response = await client.get(f"/api/backup/restore/{uuid4()}")
-
-    assert response.status_code == 404
-    data = response.json()
-    assert "detail" in data
 
 
 @pytest.mark.asyncio
@@ -1125,3 +1107,134 @@ async def test_restore_job_without_backup_info(
     data = response.json()
     assert data["backup_id"] is None
     assert data["backup_created_at"] is None
+
+
+@pytest.mark.asyncio
+async def test_restore_job_failure_in_last_table_rolls_back_all_tables_and_keeps_safety_backup(
+    client: AsyncClient, mock_redis, integration_db, db_session: AsyncSession
+):
+    """[B4.6] A failure in the last table (alert_rules) changes nothing even though
+    progress_callback ran after earlier tables, while the Session A safety backup remains committed."""
+    import hashlib
+
+    from sqlalchemy import select
+
+    from backend.models.camera import Camera
+
+    cam_id = f"b46-rollback-cam-{uuid4().hex[:8]}"
+    db_session.add(
+        Camera(
+            id=cam_id,
+            name="Original Camera Before Failed Restore",
+            folder_path=f"/export/foscam/{cam_id}",
+        )
+    )
+    await db_session.commit()
+
+    cameras_json = json.dumps(
+        [
+            {
+                "id": cam_id,
+                "name": "Mutated Camera That Must Roll Back",
+                "folder_path": f"/export/foscam/{cam_id}",
+                "status": "online",
+            }
+        ]
+    )
+    bad_rules_json = json.dumps(
+        [{"id": str(uuid4()), "name": "Bad Last Table Rule", "unknown_field": "boom"}]
+    )
+    manifest = {
+        "backup_id": "last-table-fail-bk",
+        "version": "1.1",
+        "created_at": datetime.now(UTC).isoformat(),
+        "contents": {
+            "cameras": {
+                "count": 1,
+                "checksum": hashlib.sha256(cameras_json.encode()).hexdigest(),
+            },
+            "alert_rules": {
+                "count": 1,
+                "checksum": hashlib.sha256(bad_rules_json.encode()).hexdigest(),
+            },
+        },
+    }
+    buf = io.BytesIO()
+    with zipfile.ZipFile(buf, "w", zipfile.ZIP_DEFLATED) as zf:
+        zf.writestr("manifest.json", json.dumps(manifest))
+        zf.writestr("cameras.json", cameras_json)
+        zf.writestr("alert_rules.json", bad_rules_json)
+
+    response = await client.post(
+        "/api/backup/restore",
+        files={"file": ("bad_last_table.zip", buf.getvalue(), "application/zip")},
+    )
+    assert response.status_code == 202
+    restore_id = response.json()["job_id"]
+
+    status_resp = await client.get(f"/api/backup/restore/{restore_id}")
+    assert status_resp.status_code == 200
+    status_body = status_resp.json()
+    assert status_body["status"] == "failed"
+    assert "alert_rules" in (status_body.get("error_message") or "")
+    assert "record 0" in (status_body.get("error_message") or "")
+
+    # Camera in DB was NOT changed (Session B rolled back all earlier tables)
+    db_session.expire_all()
+    cam_row = (await db_session.execute(select(Camera).where(Camera.id == cam_id))).scalar_one()
+    assert cam_row.name == "Original Camera Before Failed Restore"
+
+    # Safety backup created on Session A before the restore is committed and listed
+    list_resp = await client.get("/api/backup")
+    assert list_resp.status_code == 200
+    backups = list_resp.json()["backups"]
+    assert any(
+        (b.get("label") or "").startswith("before restore of last-table-fail-bk at ")
+        for b in backups
+    )
+
+
+@pytest.mark.asyncio
+async def test_restore_job_stops_when_safety_backup_fails(
+    client: AsyncClient, mock_redis, integration_db, db_session: AsyncSession
+):
+    """[B4.6] If taking the safety backup fails, the restore does not start and no row changes."""
+    from sqlalchemy import select
+
+    from backend.models.camera import Camera
+
+    cam_id = f"b46-safety-fail-{uuid4().hex[:8]}"
+    db_session.add(
+        Camera(
+            id=cam_id,
+            name="Camera Protected By Safety Check",
+            folder_path=f"/export/foscam/{cam_id}",
+        )
+    )
+    await db_session.commit()
+
+    zip_content = create_valid_backup_zip()
+    with patch(
+        "backend.api.routes.backup.BackupService.create_backup",
+        side_effect=OSError("disk full on data volume"),
+        autospec=True,
+    ):
+        response = await client.post(
+            "/api/backup/restore",
+            files={"file": ("backup.zip", zip_content, "application/zip")},
+        )
+        assert response.status_code == 202
+        restore_id = response.json()["job_id"]
+
+    status_resp = await client.get(f"/api/backup/restore/{restore_id}")
+    assert status_resp.status_code == 200
+    status_body = status_resp.json()
+    assert status_body["status"] == "failed"
+    assert "Safety backup failed before restore" in (status_body.get("error_message") or "")
+
+    # Verify the two cameras from zip_content ("cam1", "cam2") were never inserted
+    db_session.expire_all()
+    cam1 = (
+        await db_session.execute(select(Camera).where(Camera.id == "cam1"))
+    ).scalar_one_or_none()
+    assert cam1 is None

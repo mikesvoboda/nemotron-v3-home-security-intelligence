@@ -234,16 +234,16 @@ defined inside `model_zoo.py` itself.
 
 ### Event Services
 
-| Service             | Purpose                                        | Exported via `__init__.py` |
-| ------------------- | ---------------------------------------------- | -------------------------- |
-| `event_service.py`  | Event CRUD with cascade soft delete (NEM-1956) | No (import directly)       |
-| `export_service.py` | CSV/Excel/JSON export generation (NEM-1989)    | No (import directly)       |
+| Service             | Purpose                                                        | Exported via `__init__.py` |
+| ------------------- | -------------------------------------------------------------- | -------------------------- |
+| `event_service.py`  | Event soft delete, alert dismissal, and restore                | No (import directly)       |
+| `event_purger.py`   | Permanent purge of trashed events, detections, files, and rows | No (import directly)       |
+| `export_service.py` | CSV/Excel/JSON export generation (NEM-1989)                    | No (import directly)       |
 
 ### File Services
 
 | Service                     | Purpose                                              | Exported via `__init__.py` |
 | --------------------------- | ---------------------------------------------------- | -------------------------- |
-| `file_service.py`           | Scheduled file deletion with Redis queue (NEM-1988)  | No (import directly)       |
 | `file_cleanup_service.py`   | Cascade file deletion for events (NEM-2384)          | No (import directly)       |
 | `orphan_cleanup_service.py` | Cleanup orphaned files without DB records (NEM-2260) | No (import directly)       |
 | `orphan_scanner_service.py` | Scan for orphaned files on disk (NEM-2387)           | No (import directly)       |
@@ -2265,19 +2265,14 @@ class OsnetLoader(ModelLoaderBase[dict]):  # illustrative shape, not a shipped c
 - Factory functions for template creation
 
 **The module is self-contained: no shipped module imports it.** Its parameter
-registry still names the retired attribute zoo (`florence2`, `yolo_world`,
-`xclip`, `fashion_clip`) alongside the LLM-era `nemotron` key — the key is a
-lookup string, not a claim that a Nemotron service exists.
+registry carries the one surviving model (`nemotron`) — B3.3 box 4 (R2a row 27)
+retired the four vision models' parameter types with their enum values.
 
 **Parameter Types:**
 
-| Type                      | Purpose                        | Required Fields                                  |
-| ------------------------- | ------------------------------ | ------------------------------------------------ |
-| `NemotronPromptParams`    | Nemotron risk analysis         | camera_name, timestamp, day_of_week, time_of_day |
-| `Florence2PromptParams`   | Florence-2 VQA                 | queries                                          |
-| `YoloWorldPromptParams`   | YOLO-World detection           | classes, confidence_threshold                    |
-| `XClipPromptParams`       | X-CLIP action recognition      | action_classes                                   |
-| `FashionClipPromptParams` | Fashion-CLIP clothing analysis | clothing_categories, suspicious_indicators       |
+| Type                   | Purpose                | Required Fields                                  |
+| ---------------------- | ---------------------- | ------------------------------------------------ |
+| `NemotronPromptParams` | Nemotron risk analysis | camera_name, timestamp, day_of_week, time_of_day |
 
 **Public API:**
 

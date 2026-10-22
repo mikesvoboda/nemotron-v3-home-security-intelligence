@@ -25,6 +25,13 @@ and fails when ANY of:
 
 The gate IS this checker; it runs after npm ci (fresh lockfile-faithful tree).
 Exit codes: 0 clean, 1 violations, 2 --warn-days advisory only.
+
+[r313] A failed `npm audit` (its error object: no auditReportVersion, or an
+"error" key) is not an audit with zero findings - run_audit retries it twice
+and then exits 1 (the audit gate fails closed) instead of adjudicating an
+empty found-map, which redded main 2026-10-22 02:57Z with "stale, remove it"
+for every registered entry after a 5m00.45s network timeout, and would have
+let a head-side timeout pass the gate's delta as "none added by the change".
 """
 
 from __future__ import annotations
@@ -34,33 +41,89 @@ import json
 import re
 import subprocess
 import sys
+from dataclasses import dataclass
 from datetime import date, datetime, timedelta
 from pathlib import Path
+from typing import Any
 
 GHSA_RE = re.compile(r"/GHSA-([0-9a-z]{4}-[0-9a-z]{4}-[0-9a-z]{4})$")
 
+# A real audit report always carries auditReportVersion + vulnerabilities +
+# metadata (npm emits them on both exit 0 and exit 1). npm ALSO exits 1 for its
+# own errors, printing an error object instead - e.g. a registry POST that hits
+# its 300000 ms fetch-timeout prints a "message" + "error" object (the exact
+# payload is reproduced in the test suite's TIMEOUT_AUDIT) with no
+# auditReportVersion and no vulnerabilities. Reading that shape as an
+# audit with zero findings redded main on 2026-10-22 02:57Z ("stale, remove
+# it" for every registered entry, 5m00.45s after the step started) and made the
+# gate's delta read "none added by the change" on a head-side timeout - both
+# wrong. This marker, not the exit code, distinguishes the two rc=1 shapes.
+AUDIT_REPORT_MARKER = "auditReportVersion"
+
+# [r313] box 2: retries ride out registry blips - a healthy registry answers
+# in ~2 s, so three attempts cost seconds and the third failure fails closed.
+AUDIT_ATTEMPTS = 3
+
+
+def _audit_failed_shape(loaded: Any) -> bool:
+    """True when the payload is npm's error object, not an audit report."""
+    return not isinstance(loaded, dict) or AUDIT_REPORT_MARKER not in loaded or "error" in loaded
+
 
 def run_audit(frontend: Path) -> dict:
-    r = subprocess.run(
-        ["npm", "audit", "--json"],
-        cwd=frontend,
-        capture_output=True,
-        text=True,
-        check=False,  # exit 1 means findings exist - parsed below, not a crash
+    message = ""
+    for attempt in range(1, AUDIT_ATTEMPTS + 1):
+        r = subprocess.run(
+            ["npm", "audit", "--json"],
+            cwd=frontend,
+            capture_output=True,
+            text=True,
+            check=False,  # exit 1 means findings exist - parsed below, not a crash
+        )
+        # npm exits 1 when vulns exist - that is data, not failure; exit 0
+        # (clean) and 1 (vulns) are both parseable candidates; >=2 is a real
+        # error.
+        if r.returncode not in (0, 1):
+            print(
+                f"npm audit --json failed rc={r.returncode}:\n{r.stderr[-800:]}",
+                file=sys.stderr,
+            )
+            sys.exit(1)
+        try:
+            loaded: Any = json.loads(r.stdout)
+        except json.JSONDecodeError:
+            print("npm audit --json produced unparsable output", file=sys.stderr)
+            sys.exit(1)
+        if not _audit_failed_shape(loaded):
+            return dict(loaded)
+        # rc in {0,1} but the payload is an error object, not a report: the
+        # audit FAILED (network timeout, EAI_AGAIN, ...). npm's message goes
+        # to the log on every attempt; the retry is bounded (box 2) and only
+        # ever re-runs a FAILED audit, never a parsed report.
+        err = loaded.get("error")
+        message = loaded.get("message") or (
+            f"{{summary: {err.get('summary')!r}, detail: {err.get('detail')!r}}}"
+            if isinstance(err, dict)
+            else f"unrecognized payload (exit {r.returncode})"
+        )
+        print(
+            f"npm audit --json failed (attempt {attempt}/{AUDIT_ATTEMPTS}, "
+            f"rc={r.returncode}): {message}",
+            file=sys.stderr,
+        )
+    # Fail closed: a failed audit adjudicates NOTHING. If the registry still
+    # holds entries, every one of them would otherwise read "stale, remove it"
+    # against an empty found-map; in gate mode a head-side failure would read
+    # "none added by the change". The exit makes both sides red instead.
+    print(
+        "npm audit failed after "
+        f"{AUDIT_ATTEMPTS} attempts - the audit gate fails closed: {message}",
+        file=sys.stderr,
     )
-    # npm exits 1 when vulns exist - that is data, not failure; exit 0 (clean)
-    # and 1 (vulns) are both parseable; >=2 is a real error.
-    if r.returncode not in (0, 1):
-        print(f"npm audit --json failed rc={r.returncode}:\n{r.stderr[-800:]}", file=sys.stderr)
-        sys.exit(1)
-    try:
-        return json.loads(r.stdout)
-    except json.JSONDecodeError:
-        print("npm audit --json produced unparsable output", file=sys.stderr)
-        sys.exit(1)
+    sys.exit(1)
 
 
-def _fix_state(fix) -> bool:
+def _fix_state(fix: Any) -> bool:
     """True when npm reports an IN-RANGE (non-major) fix path.
 
     npm puts the actual fix at the vulnerability level (e.g. the braces chain's
@@ -105,23 +168,177 @@ def main() -> int:
     ap.add_argument("--frontend", default="frontend")
     ap.add_argument("--registry", default=None)
     ap.add_argument("--warn-days", type=int, default=14)
+    ap.add_argument(
+        "--base-frontend",
+        default=None,
+        help="[r291] gate mode: the PR's base tree checkout. Given, the checker "
+        "audits BOTH trees in one process (a fake npm on PATH per side) and "
+        "fails only on a finding the change ADDS - unexempted at the head and "
+        "not unexempted at the base, keyed by advisory id and package.",
+    )
+    ap.add_argument("--base-registry", default=None, help="registry snapshot of the base tree")
     args = ap.parse_args()
+    if args.base_frontend and not args.base_registry:
+        print(
+            "--base-frontend without --base-registry: the delta adjudicates "
+            "BOTH sides, so the base needs its own registry snapshot",
+            file=sys.stderr,
+        )
+        return 1
 
-    frontend = Path(args.frontend)
-    reg_path = Path(args.registry) if args.registry else frontend / ".npm-audit-exemptions.json"
+    # full_report = "print today's per-violation report". In full-lockfile
+    # mode that is the ONLY side, so it always reports; in gate mode the head
+    # side stays quiet (its shared-violation chatter is not allowed to fail
+    # the delta) and the base side stays quiet too (its violations are not
+    # the change's fault; only its UNADJUDICABLE state fails the delta).
+    if not args.base_frontend:
+        head = adjudicate_front(
+            Path(args.frontend),
+            args.registry,
+            args.warn_days,
+            full_report=True,
+        )
+        return head.rc
+
+    # Gate mode. STRICT COVERAGE on both sides (r291 security pass): a
+    # finding whose ONLY covering entry itself violates today's rules does
+    # NOT count as covered - it lands in `unexempted`. Without this, a PR
+    # adding a vulnerable dependency green-lights whenever a pre-existing
+    # dead entry (expired REVIEW BY, premise broken) nominally matches its
+    # advisory: the PR never touches the registry, yet the head side's
+    # unexempted set shrinks instead of growing. With strict coverage on
+    # BOTH sides, the same dead entry plus its pre-existing finding on the
+    # base keeps case 5 green (the base carries the same strict-unexempted
+    # key), while the resurrection shape - no base finding, head finding
+    # behind a dead entry - goes red. The base side's VIOLATIONS still stay
+    # green: entry-level violations are text-diffed separately below.
+    head = adjudicate_front(
+        Path(args.frontend),
+        args.registry,
+        args.warn_days,
+        full_report=False,
+        strict_coverage=True,
+    )
+
+    # The base side's violations are NOT the change's fault: a pre-existing
+    # expired REVIEW BY or pre-existing unexempted finding prints and passes
+    # (package case 5). The one base-side condition that still fails closed is
+    # UNADJUDICABLE - an unparsable base audit or a missing/malformed base
+    # registry makes the delta's "was it already there?" question unanswerable
+    # (package case 6, "an audit error on either side fails closed").
+    base = adjudicate_front(
+        Path(args.base_frontend),
+        args.base_registry,
+        args.warn_days,
+        full_report=False,
+        strict_coverage=True,
+    )
+    if base.unadjudicable:
+        print(
+            "BASE SIDE of the delta is UNADJUDICABLE (npm audit failed/unparsable or "
+            "registry missing/malformed) - the gate fails closed:",
+            file=sys.stderr,
+        )
+        return 1
+    if head.unadjudicable:
+        # The head's own diagnostics (MISSING registry / npm failure) already
+        # printed inside its adjudicate_front call.
+        return 1
+
+    # Package case 4 vs 5, keyed by ENTRY: a registry violation reddens the
+    # delta only when the change ADDED or EDITED that entry - the violation
+    # exists at the head and not at the base. The same violation standing on
+    # both sides is the base's pre-existing state and stays green in gate mode
+    # (full-lockfile mode still reds it on its own trigger).
+    entry_added = head.violated_entries - base.violated_entries
+    if entry_added:
+        print(
+            f"{len(entry_added)} registry violation(s) on entries this change "
+            f"adds or edits (violation not present at the base):",
+            file=sys.stderr,
+        )
+        for v in sorted(entry_added):
+            print(f"  - {v}", file=sys.stderr)
+        return 1
+
+    # Package cases 1/2/3: findings keyed (GHSA id, package). npm's audit is
+    # alias-blind (R76: aliases live registry-side only), so the raw GHSA id
+    # IS the canonical key on both sides - no alias collapse needed here.
+    added = head.unexempted - base.unexempted
+    if added:
+        print(
+            f"{len(added)} npm-audit finding(s) this change ADDS "
+            f"(unexempted at the head, not unexempted at the base):",
+            file=sys.stderr,
+        )
+        for gid, pkg in sorted(added):
+            print(f"  - {gid} on {pkg} is UNEXEMPTED", file=sys.stderr)
+        return 1
+    # r291 security pass, verdict hygiene: the delta's verdict is about what
+    # the change ADDS. Shared pre-existing warnings do not fail the delta,
+    # but they print in the OK line so the log never says "OK" beside a red
+    # exit code (head.rc's full-lockfile semantics - 2 on warns-only - used
+    # to leak through here).
+    warn_note = f", {head.warnings} shared expiry warning(s)" if head.warnings else ""
+    print(
+        f"npm-audit delta OK: {len(head.unexempted)} finding(s) shared with the "
+        f"base, none added by the change{warn_note} (full-lockfile mode still "
+        f"audits the lock on main on its own trigger)"
+    )
+    return 0
+
+
+@dataclass
+class Verdict:
+    """One tree's full adjudication, reusable by both modes.
+
+    full_lockfile verdict (today's): exit 1 on ANY violation, 2 on warns-only.
+    Gate mode reads `unexempted` (the id+package keys of findings no active
+    entry covers), `violated_entries` (one text key per registry entry that
+    fails today's rules - the entry id is every message's prefix, so
+    set-difference on the strings is entry-keyed AND carries the wording),
+    and `unadjudicable` (npm audit failed or its JSON did not parse, or the
+    registry was missing/malformed - the delta's "was it already there?"
+    question is unanswerable, so a side in that state fails closed).
+    """
+
+    unexempted: set[tuple[str, str]]
+    violated_entries: set[str]
+    unadjudicable: bool
+    rc: int
+    warnings: int
+
+
+def adjudicate_front(
+    frontend: Path,
+    registry: str | None,
+    warn_days: int,
+    full_report: bool,
+    strict_coverage: bool = False,
+) -> Verdict:
+    """Adjudicate ONE tree: run npm audit there, read its registry, apply
+    today's rules. `registry` None means the frontend's own
+    .npm-audit-exemptions.json, exactly as before this package.
+
+    `strict_coverage` (r291 security pass, gate mode only): an entry that
+    violates today's rules does not count as covering its finding - the
+    finding lands in `unexempted`. Full-lockfile mode stays lenient: there
+    the violated entry already reds the run on its own.
+    """
+    reg_path = Path(registry) if registry else frontend / ".npm-audit-exemptions.json"
     if not reg_path.is_file():
         print(
             f"MISSING {reg_path}: the gate fails closed without the registry. "
             "Any audit finding is a red until an entry here (with REVIEW BY date) covers it.",
             file=sys.stderr,
         )
-        return 1
+        return Verdict(set(), set(), True, 1, 0)
 
     reg = json.loads(reg_path.read_text())
     exceptions = reg.get("exceptions")
     if not isinstance(exceptions, list):
         print(f"{reg_path}: missing 'exceptions' array", file=sys.stderr)
-        return 1
+        return Verdict(set(), set(), True, 1, 0)
 
     audit = run_audit(frontend)
     found = advisories(audit)
@@ -130,23 +347,33 @@ def main() -> int:
     errors: list[str] = []
     warns: list[str] = []
     covered: set[str] = set()
+    covered_pairs: set[tuple[str, str]] = set()
+    unexempted: set[tuple[str, str]] = set()
+    violated_entries: set[str] = set()
+
+    def entry_error(eid: str, msg: str) -> None:
+        """A registry entry failing today's rules. The violation TEXT is the
+        delta key (see Verdict.violated_entries)."""
+        errors.append(msg)
+        violated_entries.add(msg)
 
     for e in exceptions:
         eid = e.get("id", "?")
         gid = e.get("gid", eid)
         rb = e.get("reviewBy") or e.get("review_by")
         if not rb:
-            errors.append(f"{gid}: missing reviewBy (REVIEW BY) date")
+            entry_error(gid, f"{gid}: missing reviewBy (REVIEW BY) date")
             continue
         try:
             review = datetime.strptime(rb, "%Y-%m-%d").date()
         except ValueError:
-            errors.append(f"{gid}: malformed reviewBy {rb!r} (want YYYY-MM-DD)")
+            entry_error(gid, f"{gid}: malformed reviewBy {rb!r} (want YYYY-MM-DD)")
             continue
+        errors_before = len(errors)
         if review < today:
-            errors.append(f"{gid}: REVIEW BY {rb} has PASSED - re-review, fix, or remove")
-        elif review <= today + timedelta(days=args.warn_days):
-            warns.append(f"{gid}: REVIEW BY {rb} expires within {args.warn_days}d")
+            entry_error(gid, f"{gid}: REVIEW BY {rb} has PASSED - re-review, fix, or remove")
+        elif review <= today + timedelta(days=warn_days):
+            warns.append(f"{gid}: REVIEW BY {rb} expires within {warn_days}d")
 
         # R76 (R61's twin): an exemption naming ANY alias of a reported advisory
         # counts as matching it, so id drift (a GHSA reassigned, an advisory
@@ -166,41 +393,84 @@ def main() -> int:
         ids = {gid, *(e.get("aliases") or [])}
         hit = gid if gid in found else next((i for i in sorted(ids) if i in found), None)
         if hit is None:
-            errors.append(
-                f"{gid}: registered but NO current audit finding matches - stale, remove it"
+            entry_error(
+                gid,
+                f"{gid}: registered but NO current audit finding matches - stale, remove it",
             )
             continue
-        covered.add(hit)
         a = found[hit]
+        # Strict coverage (r291 security pass): the entry covers its finding
+        # only when the entry itself passed every rule above. An expired or
+        # premise-broken entry leaves the finding unexempted, so the gate
+        # delta cannot be green-lit by a dead entry's nominal match.
+        if not strict_coverage or len(errors) == errors_before:
+            covered.add(hit)
+            # r291 security re-pass, residual A: coverage is per (gid,
+            # package) in gate mode. npm attributes chain advisories to every
+            # dependent package (the braces advisory is a via on chokidar,
+            # fast-glob, knip ...), so one entry naming `braces` must not
+            # cover the advisory on a NEW package a PR adds - the delta key
+            # is (gid, package) exactly so that addition is visible. A bare
+            # entry naming no package stays a whole-advisory carve-out.
+            if strict_coverage:
+                named = e.get("package")
+                matched = (
+                    set(a["packages"])
+                    if named is None
+                    else {named}
+                    if named in a["packages"]
+                    else set()
+                )
+                for p in matched:
+                    covered_pairs.add((hit, p))
         if a["in_range_fix"]:
-            errors.append(
+            entry_error(
+                gid,
                 f"{gid}: exemption premise broken - npm reports an in-range fix "
                 f"(sanctioned premise is 'the only fix path is a semver-major migration'); "
-                f"apply the fix and drop this entry"
+                f"apply the fix and drop this entry",
             )
         pkg = e.get("package")
         if pkg and pkg not in a["packages"]:
-            errors.append(
-                f"{gid}: registered for {pkg!r}, audit attributes it to {sorted(a['packages'])}"
+            entry_error(
+                gid,
+                f"{gid}: registered for {pkg!r}, audit attributes it to {sorted(a['packages'])}",
             )
 
     for gid, a in found.items():
         if gid not in covered:
             sev = ",".join(sorted(a["severities"]))
             errors.append(f"{gid}: audit finding ({sev}) on {sorted(a['packages'])} is UNEXEMPTED")
+            for pkg in a["packages"]:
+                # The delta key: id + each package the advisory is reported
+                # against. Package attribution is how the base/head compare
+                # distinguishes "the advisory moved to another package" from
+                # "the advisory was here all along".
+                unexempted.add((gid, pkg))
+        elif strict_coverage:
+            # r291 security re-pass, residual A: the advisory is covered, but
+            # in gate mode coverage is per (gid, package) - a package the
+            # entry never named is still an unexempted finding on that
+            # package, so it lands in the delta set with the same message.
+            for pkg in sorted(set(a["packages"]) - {q for (g, q) in covered_pairs if g == hit}):
+                sev = ",".join(sorted(a["severities"]))
+                errors.append(f"{gid}: audit finding ({sev}) on ['{pkg}'] is UNEXEMPTED")
+                unexempted.add((gid, pkg))
 
-    for w in warns:
-        print(f"WARN: {w}")
-    if errors:
-        print(f"{len(errors)} npm-audit exemption violation(s):", file=sys.stderr)
-        for err in errors:
-            print(f"  - {err}", file=sys.stderr)
-        return 1
-    print(
-        f"npm-audit exemptions OK: {len(exceptions)} active, "
-        f"{len(found)} advisories all covered, no expiry within {args.warn_days}d"
-    )
-    return 2 if warns else 0
+    if full_report:
+        for w in warns:
+            print(f"WARN: {w}")
+        if errors:
+            print(f"{len(errors)} npm-audit exemption violation(s):", file=sys.stderr)
+            for err in errors:
+                print(f"  - {err}", file=sys.stderr)
+        else:
+            print(
+                f"npm-audit exemptions OK: {len(exceptions)} active, "
+                f"{len(found)} advisories all covered, no expiry within {warn_days}d"
+            )
+    rc = 1 if errors else (2 if warns else 0)
+    return Verdict(unexempted, violated_entries, False, rc, len(warns))
 
 
 if __name__ == "__main__":

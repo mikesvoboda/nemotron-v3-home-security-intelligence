@@ -206,8 +206,8 @@ def test_harvest_found_a_real_universe():
     assert len(_UNIVERSE) > 20_000, f"harvest returned {len(_UNIVERSE)} pairs"
     # A method pair (test under a top-level class), so the owner logic holds...
     assert (
-        "backend.tests.unit.test_job_progress_reporter.TestJobCompletion",
-        "test_complete_calculates_duration",
+        "backend.tests.unit.services.test_rtsp_test_service.TestRTSPTestService",
+        "test_connection_timeout",
     ) in _UNIVERSE
     # ...AND a module-level pair defined at column 0, which is the arm a lazy
     # `\s*` -> `.+?` regression drops. Both morphologies must be present or the
@@ -224,8 +224,7 @@ def test_the_dead_check_fires_on_a_bogus_pattern():
     assert _dead([bogus], _audit.is_known_slow_test) == [bogus]
     # ...and it does NOT flag a row known to be live.
     assert (
-        _dead([r"test_error_handler.*test_timestamp_auto_generated"], _audit.is_known_slow_test)
-        == []
+        _dead([r"test_rtsp_test_service.*test_connection_timeout"], _audit.is_known_slow_test) == []
     )
 
 

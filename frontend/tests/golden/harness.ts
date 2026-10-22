@@ -1958,18 +1958,17 @@ export async function hardDeleteFixtureRows(
   eventIds: number[]
 ): Promise<void> {
   if (eventIds.length === 0) return;
-  // The route caps a request at 100 ids (schemas/bulk.py:182-187).
-  for (let i = 0; i < eventIds.length; i += 100) {
-    const chunk = eventIds.slice(i, i + 100);
-    // Settle, don't throw: cleanup must not turn a green run red. A failure
-    // here leaks rows into the NEXT run, where the purge above removes them.
-    await fetch(`${h.api}/api/events/bulk`, {
+  for (const id of eventIds) {
+    // B4.4 requires an event to be in Trash before permanent purge: soft-delete
+    // first (no-op 409 if already in Trash), then purge with ?permanent=true.
+    // Using the per-row routes avoids spending the bulk-tier rate-limit budget.
+    await fetch(`${h.api}/api/events/${id}`, {
       method: 'DELETE',
-      headers: {
-        'Content-Type': 'application/json',
-        Cookie: `${session.name}=${session.value}`,
-      },
-      body: JSON.stringify({ event_ids: chunk, soft_delete: false }),
+      headers: { Cookie: `${session.name}=${session.value}` },
+    }).catch(() => undefined);
+    await fetch(`${h.api}/api/events/${id}?permanent=true`, {
+      method: 'DELETE',
+      headers: { Cookie: `${session.name}=${session.value}` },
     }).catch(() => undefined);
   }
 }
@@ -2155,10 +2154,10 @@ export async function createDetailFixture(
 /* readers hide it: search total drops by the victim, and GET /api/events/{id}   */
 /* still 404s. The victim is now the fixture's NEGATIVE control — createSearch-  */
 /* Fixture asserts search EXCLUDES it, and the defect leg's closing line reddens */
-/* if search ever re-lists it. The defect subject moved to a still-shipped cause:*/
-/* search paginates server-side while `filteredEvents` holds only browse's       */
-/* loaded page-1 newest-20, so an older live row on search page 2 is offered by  */
-/* search and unresolvable by the modal (EventTimeline.tsx:1059-1090).          */
+/* if search ever re-lists it. For the page-2 live rows: search paginates        */
+/* server-side while `filteredEvents` holds only browse's loaded page-1          */
+/* newest-20, and post-[r211f] `useEventModalRow` resolves any selected event id */
+/* outside `filteredEvents` by fetching `/api/events/{id}` on miss.              */
 /* -------------------------------------------------------------------------- */
 
 /** FE-3's search camera: distinct from the browse, stats and detail cameras. */
@@ -2194,9 +2193,10 @@ export const SEARCH_VICTIM_SUMMARY = `${SEARCH_QUERY_TOKEN} deleted-but-still-li
  * would land at the BOTTOM — on page 2 — under the live rows, leaving page 1
  * identical to the browse list's page 1. That is what keeps the modal's positive
  * control honest: a page-1 click opens the modal because the row really is in the
- * cached list, not by luck. The defect the leg measures now sits on page 2 of the
- * LIVE rows (`alpha 0`, the oldest live row): search shows it, the browse cache
- * does not, and the modal renders nothing over it ([r211f], ruling 221).
+ * cached list, not by luck. For page 2 of the LIVE rows (`alpha 0`, the oldest
+ * live row): search shows it while the browse cache does not, and post-[r211f]
+ * `useEventModalRow` resolves it by fetching `/api/events/{id}` on miss (ruling
+ * 221).
  */
 export const SEARCH_SEED_ROWS = SEARCH_FIXTURE_SIZE + 1;
 
@@ -2217,8 +2217,8 @@ export interface SearchFixture {
 /**
  * One camera, SEARCH_FIXTURE_SIZE live rows, and one soft-deleted row.
  *
- * `risk_score` alternates 91/45 so `risk_level` alternates high/medium — that is
- * what makes the severity filter leg an ASSERTION (13 of 25 high) instead of a
+ * `risk_score` alternates 72/45 so `risk_level` alternates high/medium — that is
+ * what makes the severity filter leg an ASSERTION (12 of 25 high) instead of a
  * restatement of the fixture. `started_at` is spread one minute apart over 3 h
  * ending now, because search's tie-break is `started_at DESC` (search.py:465, moved
  * from :432 when [r211b] inserted the predicate above it) and

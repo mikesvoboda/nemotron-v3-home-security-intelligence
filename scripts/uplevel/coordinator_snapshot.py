@@ -14,9 +14,9 @@ It reads GitHub through ``gh`` and the tree through ``git``, and prints one comp
 3. prs        - each open PR: head, merge-base, mergeStateStatus, ``CI Gate`` at the head, the
                 newest ``Review: approve`` comment's sha against the head (UR-106), and the
                 UR-106 own-diff hash at the head and at the approved head with ``carry:``;
-4. legs       - UR-102's three no-update-branch legs for each non-draft PR with a green gate,
-                measured from the `main` its gate's run merged the head into (read from that
-                run's checkout log), else from the merge-base, labelled as a fallback;
+4. merge state  - per non-draft PR: whether it is behind `main` (its `base=` is not main's tip),
+                and whether it shows the in-flight sign of `roles/coordinator.md` "Merging a PR"
+                step 1 (base at the tip, the gate not finished, and the approval carries),
 5. main       - tip, CI (UR-111), Deploy, Nightly Full Gate and Flaky Test Detection (UR-116);
 6. heartbeats - every ``<!-- heartbeat:`` comment on #6958, its age and ``paused`` (UR-38, UR-160),
                 flagged when older than 20 minutes (UR-162);
@@ -40,6 +40,7 @@ import json
 import re
 import subprocess
 import sys
+from collections import Counter
 from collections.abc import Callable, Sequence
 from datetime import UTC, datetime, timedelta
 from typing import Any
@@ -73,7 +74,6 @@ COORDINATOR_STALE_HEARTBEAT_MIN = 90
 LANE_LOOP_MIN = 30
 HEAVY_LOOP_MIN = 15
 STALL_MULTIPLIER = 3
-MAX_MERGES_BEHIND = 3
 FIRST_LINE_MAX = 160
 RED_CONCLUSIONS = frozenset({"failure", "timed_out", "startup_failure"})
 
@@ -94,10 +94,6 @@ FIELD_DECORATION = "*_ >#`\t "
 # approval at all, which is worse than noise — it reports a live key as STALE and invites a void.
 REVIEW_HEADLINE = re.compile(r"^Review:\s*[*>_ `\t]*(approve|approved)\b", re.IGNORECASE)
 RUN_ID = re.compile(r"/actions/runs/([0-9]+)(?:/|$)")
-# actions/checkout in a pull_request run prints the merge it tested; the second sha is the
-# `main` the run ran against. The run API's pull_requests[0].base.sha is the PR's stored base,
-# which a later push does not move, so it is not that sha.
-CHECKOUT_MERGE = re.compile(r"HEAD is now at [0-9a-f]+ Merge ([0-9a-f]{40}) into ([0-9a-f]{40})")
 # The sed in UR-106's pipeline: `s/^@@ .* @@/@@/`. Byte-level, because sed and sha256sum are.
 HUNK_HEADER = re.compile(rb"^@@ .* @@", re.MULTILINE)
 # An owner hold in the owner's own voice: UR-45 reserves "RULING" for the owner and UR-40
@@ -116,16 +112,186 @@ BODY_HOLD = re.compile(
 )
 OWNER_PR_REF = re.compile(r"#([0-9]{3,6})\b")
 
+# --- package blocks (the shapes `rules.md` defines and ruling 290's balance section reads) ---
+# Shared with ``lane_tick.py`` (which imports this module), so the digest's claim offers and the
+# snapshot's balance section cannot drift on what a queue entry, a claim field or an open box is.
+
+# A roster row is | agent | tier | queue | review label |, and the label column reads `none` for a
+# cell with no review queue (coordinator, heavy-a, heavy-b, operator) -- a fact, not a missing read.
+ROSTER_ROW = re.compile(r"\|\s*`([\w.-]+)`\s*\|[^|]*\|(.*)\|\s*`?(review:[\w-]+|none)`?\s*\|")
+# A queue entry's token: the BACKTICKED NAME AT THE START of the entry (see ``queue_entries`` -- a
+# backtick anywhere else in the cell is prose referring to some other package, not a slot).
+QUEUE_TOKEN = re.compile(r"\s*`\[?([\w.]+)\]?`")
+# The header wraps: `[r96i11]`'s and a frontend package's `**PR:**` value sits on the NEXT line.
+# Bounded by the blank line after the header, so the value is the field's own continuation.
+PKG_FIELD = re.compile(r"\*\*PR:\*\*([\s\S]*?)(?:\n\s*\n|\Z)", re.I)
+NONE_YET = re.compile(r"[^\n#]*none yet", re.I)
+# The number a package block's `**PR:**` field names. `NONE_YET`'s `[^#]` class is the proof the
+# field's value carries a literal `#`, so the number is read from the same captured text.
+PR_NUMBER = re.compile(r"#(\d+)")
+# The package header line, as it stands AFTER splitting on "### " (the marker is gone).
+BLOCK = re.compile(r"\[?([\w.]+)\]?\s")
+# A dependency NAME's morphology, as `dep_names` reads it: a phase-package token
+# (``O2.4``, ``B2.3``, ``W3.1``) or an r-token, with or without its ``[...]`` wrapper
+# (``r239``/``[r239]``). Backticked prose (``done``, ``main``, ``RESULT: PASS``, a sha)
+# and unbackticked words never name a dependency.
+PACKAGE_TOKEN = re.compile(r"^(?:\[?r\d+[a-z]*\]?|[A-Z]{1,3}\d[\w.]*)$")
+# A PR title's LEADING token -- the claim identity a PR carries even when no `### [pkg]` block
+# names it yet. Same leading rule ``queue_entries`` reads: a token MENTIONED mid-title is prose,
+# and prose can name anything. The hyphen is load-bearing: ``[\w.]+`` (BLOCK's class) cannot hold
+# ``flaky-census``.
+LEADING_TOKEN = re.compile(r"^\s*\[([\w-]+)\]")
+# An unticked box in a package block: the live shape is `- [ ]` at any indent (a continuation line
+# under a wrapped box keeps the text but not the hyphen, so the literal is the discriminator).
+OPEN_BOX = re.compile(r"^\s*-\s\[\s\]", re.M)
+# A README status row: | package | lane | phase | name | flags | status | PR | -- the status field
+# is the sixth column; UR-144's statuses are words, `done` being the only one the balance reads.
+STATUS_ROW = re.compile(
+    r"^\|\s*`?([\w.]+)`?\s*\|[^|]*\|[^|]*\|[^|]*\|[^|]*\|\s*`?([\w ]+?)`?\s*\|", re.M
+)
+
+
+def queue_entries(column: str) -> list[str]:
+    """The queue tokens of a roster cell, read as ENTRIES -- not as every backticked word.
+
+    The column is a comma/semicolon-separated list where each entry is a token plus prose, and prose
+    legitimately backticks other packages: ops-b's `F2.3` row says "after `[r157]`'s runner is ready
+    for the owner" (measured on the live digest, which then reported [r157] held twice), and
+    heavy-b's row says "`B2.3` once `O2.4` passes". A ``findall`` over the whole cell turns both of
+    those references into queue slots -- and a reference that becomes a queue entry is a package the
+    digest will OFFER TO CLAIM, including one that belongs to another lane. So: split on top-level
+    separators only (a comma inside `(OP-3, after ...)` separates prose, not entries), then take the
+    FIRST token of each entry, because the prose that follows it can name anything.
+    """
+    entries, depth, cur = [], 0, ""
+    for ch in column:
+        if ch in "([":
+            depth += 1
+        elif ch in ")]":
+            depth = max(0, depth - 1)
+        if ch in ",;" and depth == 0:
+            entries.append(cur)
+            cur = ""
+            continue
+        cur += ch
+    entries.append(cur)
+    out = []
+    for entry in entries:
+        # LEADING token only (measured: every real entry in main's roster starts with its token). An
+        # entry whose backtick appears mid-prose is routing prose -- "`B2.3` once `O2.4` passes" and
+        # "then assigned `heavy` PRs" -- and skipping it can only OMIT a slot, never INVENT one.
+        # That asymmetry is the point: an invented slot gets OFFERED for claim, another lane's work.
+        if m := QUEUE_TOKEN.match(entry):
+            out.append(m.group(1))
+    return out
+
+
+def package_blocks(packages: str) -> dict[str, str]:
+    """A lane file's `### [pkg]` blocks keyed by their header token, in no guaranteed order."""
+    return {m.group(1): b for b in packages.split("### ")[1:] if (m := BLOCK.match(b))}
+
+
+def unticked_box(block: str) -> str | None:
+    """The first unticked box's text in a package block, or ``None`` when every box is ticked.
+
+    The box's text rides the same and any continuation lines (the live blocks wrap at ~100
+    columns), so the digest can name the work, not just count it.
+    """
+    for m in OPEN_BOX.finditer(block):
+        line = block[m.start() :].splitlines()[0]
+        return line.split("]", 1)[1].strip() if "]" in line else ""
+    return None
+
+
+def readme_rows(readme: str) -> dict[str, str]:
+    """The README status table's ``package -> status`` rows (UR-144's words, lowercased)."""
+    return {m.group(1): m.group(2).strip().lower() for m in STATUS_ROW.finditer(readme)}
+
+
+def dep_names(block: str) -> list[str]:
+    """The package tokens a block's ``**Depends on:**`` field names, ``[]`` when it names none.
+
+    A dependency name is a backticked token of package-token morphology (``O2.4``,
+    ``B2.3``, ``R2``, ``[r239]``) -- the shape every README row and roster queue token
+    carries. Everything else in the field is prose about the dependency's state or the
+    ruling that set it, and prose never becomes a name: the live field
+    ``**Depends on:** ``O2.4` (its `RESULT: PASS` posted).`` names exactly one
+    dependency, and reading its suffix (``its``, ``RESULT``, ``PASS``, ``posted``) as
+    more names made them match no README row, so a block whose dependency's row read
+    ``in progress`` printed ``unread`` where the box's semantics give ``unmet``. A field
+    that starts ``none`` declares no names even when its prose later backticks a token
+    ("none named; it builds on `O2.2`'s" -- the declaration governs). The value also ends
+    at the header's next field marker, not at the line's end: the one-line header shape
+    (``**Flags:** ... **Depends on:** `X`. **PR:** #7`) shares its line with ``**PR:**``,
+    and reading past it turned the marker's own `PR` into a dependency name.
+    """
+    m = re.search(r"\*\*Depends on:\*\*([^*\n]*)", block, re.I)
+    if not m:
+        return []
+    field = m.group(1)
+    if re.match(r"\s*none\b", field):
+        return []
+    return [t for t in re.findall(r"`([^`]+)`", field) if PACKAGE_TOKEN.match(t)]
+
+
+def dependency_verdict(names: list[str], rows: dict[str, str]) -> str:
+    """``met`` / ``unmet`` / ``unread`` for a block's named dependencies against README rows.
+
+    A free-text dependency the table cannot resolve (``R2``, where the rows are ``R2a``/``R2b``)
+    reads ``unread`` and never ``met``: the balance must not count a package claimable on a
+    dependency it cannot see resolved.
+    """
+    if not names:
+        return "met"
+    verdicts = [rows.get(n) for n in names]
+    if any(v is None for v in verdicts):
+        return "unread"
+    if all(v == "done" for v in verdicts):
+        return "met"
+    return "unmet"
+
+
+# The four lanes whose package files `main` carries, as ``lane_tick.packages`` measured them.
+PACKAGED_LANES = ("backend", "frontend", "ops", "docs")
+
+# A block's ``**Flags:**`` field value (the header wraps; bounded by the blank line after it).
+FLAGS_FIELD = re.compile(r"\*\*Flags:\*\*([^\n]*)", re.I)
+
+
+def is_heavy(block: str) -> bool:
+    """UR-24's ``heavy`` flag read from a block's ``**Flags:**`` field, not from its body.
+
+    The measured corpus carries the flag as the backticked token ``**Flags:** ``heavy````, and
+    the house prose in the same field says its opposite -- "``none: not heavy``" (ops.md O2.4's
+    line, live) and "``none: not heavy; not owner-tier at merge``". A substring over the whole
+    block classified all three alike, and the flag then cited UR-24 to route non-heavy work to
+    the strongest agents. Only the backticked token is the flag: a bare word in the field is the
+    prose that negates it, the same leading-rule asymmetry ``queue_entries`` reads.
+    """
+    m = FLAGS_FIELD.search(block)
+    return m is not None and "`heavy`" in m.group(1)
+
+
+def lane_files_blocks(docs: dict[str, str]) -> tuple[dict[str, dict[str, str]], set[str]]:
+    """Every packaged lane's blocks keyed by lane, plus the heavy set read from the Flags fields.
+
+    The heavy set is one pass over the same blocks the claimable scan reads, so the classifier
+    and the scan cannot disagree about a block (two readers of one text is how the substring
+    bug survived a green suite).
+    """
+    lanes = {
+        lane: package_blocks(docs[f"docs/uplevel/packages/{lane}.md"])
+        for lane in PACKAGED_LANES
+        if f"docs/uplevel/packages/{lane}.md" in docs
+    }
+    heavy = {t for blocks in lanes.values() for t, b in blocks.items() if is_heavy(b)}
+    return lanes, heavy
+
 
 # The verdict-shape filter, shared by §3's review read and §8's so the two cannot drift on what
 # counts as a verdict thread.
 REVIEWS_JQ = (
     '[.[] | select(.body | startswith("Review:")) | {id, created_at, user: .user.login, body}]'
-)
-
-CHECKOUT_JOBS_JQ = (
-    '[.jobs[] | select(.conclusion == "success" and any(.steps[]?; .name | test("checkout"; "i")))'
-    " | {id, steps: (.steps | length)}]"
 )
 
 Runner = Callable[[Sequence[str]], str]
@@ -402,6 +568,74 @@ def ur106_diff_hash(diff: str) -> str:
     return hashlib.sha256(HUNK_HEADER.sub(b"@@", b"".join(kept))).hexdigest()
 
 
+def ur106_own_lines(diff: str) -> Counter[tuple[str, str, str]]:
+    """A diff's added and removed lines as a multiset keyed ``(file, sign, content)``.
+
+    UR-106's subset rule (ruling 278) defines _A_ and _N_ as "the added and removed lines
+    (each with its file and sign)" -- context lines are not in the multisets, and neither
+    are the ``index``/``---``/``+++`` metadata rows (a ``+index ...`` line IS an added
+    line: the sign character decides, as the hash's adversarial pins already have it).
+    The file is the ``diff --git`` line's b-side (the post-image path, what ``+++ b/``
+    names too), so a new file's rows key on the real path rather than ``/dev/null``.
+    """
+    lines: Counter[tuple[str, str, str]] = Counter()
+    file = ""
+    for ln in diff.splitlines():
+        if ln.startswith("diff --git "):
+            m = re.match(r"diff --git a/(.*) b/(.*)$", ln)
+            file = m.group(2) if m else ""
+        elif ln.startswith(("---", "+++")):
+            continue
+        elif ln.startswith("+"):
+            lines[(file, "+", ln[1:])] += 1
+        elif ln.startswith("-"):
+            lines[(file, "-", ln[1:])] += 1
+    return lines
+
+
+def ur106_subset_carry(
+    approved_diff: str,
+    head_diff: str,
+    chain: list[list[str]],
+    main_change: Callable[[], str | None],
+    on_main: Callable[[str], bool | None],
+) -> tuple[bool | None, int, str]:
+    """UR-106's subset carry (ruling 278), decided: ``(yes|no|unknown, dropped lines, why)``.
+
+    The rule: the new head carries when (1) every commit after the approved head is an
+    ``update-branch`` merge of ``main``, (2) _N_, the new diff's added and removed lines,
+    is contained in _A_, the approved diff's, as a multiset, and (3) every line in _A_ but
+    not in _N_ appears, with the same file and sign, in ``main``'s own change between the
+    two merge-bases. ``chain`` is the first-parent commits after the approved head, newest
+    first, each as a parent list; ``main_change`` is read lazily -- only when lines are
+    actually dropped -- and ``None`` means the read failed; ``on_main`` answers whether a
+    merge's second parent sits on ``main``. Every ambiguity returns ``unknown``: a failed
+    read is never a fact -- not yes, and not no (UR-106, UR-154).
+    """
+    if not chain:
+        return None, 0, "no commits after the approved head -- the heads are unrelated"
+    for parents in chain:
+        if len(parents) < 2:
+            return False, 0, "an author commit sits between the heads"
+        on = on_main(parents[1])
+        if on is None:
+            return None, 0, "a merge parent's place on main is unread"
+        if not on:
+            return False, 0, "a merge between the heads is not of main"
+    approved_lines, head_lines = ur106_own_lines(approved_diff), ur106_own_lines(head_diff)
+    if head_lines - approved_lines:
+        return False, 0, "the new diff holds a line the approved one does not"
+    dropped = approved_lines - head_lines
+    if not dropped:
+        return True, 0, ""  # hunk noise only: the multisets already agree
+    main_diff = main_change()
+    if main_diff is None:
+        return None, 0, "main's own change between the merge-bases is unread"
+    if not dropped <= ur106_own_lines(main_diff):
+        return False, 0, "main's own change does not hold a dropped line"
+    return True, sum(dropped.values()), ""
+
+
 def approval_sha(body: str) -> str | None:
     """The sha a ``Review: approve`` comment names.
 
@@ -454,6 +688,7 @@ class Snapshot:
         self._prs()
         self._heartbeats(heartbeat_comments)
         self._merged_audit()
+        self._balance()
         return self.data
 
     # 1. cursor -------------------------------------------------------------------------------
@@ -547,7 +782,7 @@ class Snapshot:
             # Stamped here so §2's items and the activity extra-read are judged by the SAME
             # signature rule (§6's signs_agent reads these two, never a re-parse).
             "head_name": head_name(line),
-            "review_lane": review_lane(c.get("body")),
+            "review_lane": review_lane(c.get("body") or ""),
         }
 
     def _binding_now(self) -> None:
@@ -593,7 +828,7 @@ class Snapshot:
             records["newest"] = newest["created_at"]
             records["newest_id"] = newest["id"]
 
-    # 5. main (read before the PRs: UR-102's third leg needs it) -----------------------------
+    # 5. main (read before the PRs: §4's behind read needs main's tip) -----------------------
 
     def _runs(self, workflow: str, limit: int, *extra: str) -> list[dict[str, Any]]:
         out = self.run(
@@ -614,7 +849,8 @@ class Snapshot:
                 "databaseId,status,conclusion,headSha,createdAt,event,url",
             ]
         )
-        return json.loads(out or "[]")
+        loaded: list[dict[str, Any]] = json.loads(out or "[]")
+        return loaded
 
     def _main(self) -> None:
         section: dict[str, Any] = {"errors": []}
@@ -658,7 +894,7 @@ class Snapshot:
             return None
         return last["conclusion"] in RED_CONCLUSIONS
 
-    # 3-4. PRs and merge legs ---------------------------------------------------------------
+    # 3-4. PRs and merge state ---------------------------------------------------------------
 
     def _prs(self) -> None:
         section: dict[str, Any] = {"items": [], "errors": []}
@@ -758,8 +994,8 @@ class Snapshot:
         if item["draft"]:
             return item
         self._review(item)
-        if item["gate"] == "SUCCESS" and item["merge_base"]:
-            self._legs(item)
+        if item["merge_base"]:  # every non-draft PR: behind needs no gate; the sign's
+            self._merge_state(item)  # gate-unfinished factor counts absent as unfinished
         return item
 
     def _review(self, item: dict[str, Any]) -> None:
@@ -849,7 +1085,85 @@ class Snapshot:
             own["error"] = own.get("error") or "a rev needed for the carry is unhashed"
             item["verdict_reason"] = own["error"]
             return
-        own["carry"] = own["head"] == own["approved"]
+        if own["head"] == own["approved"]:
+            own["carry"] = True
+            return
+        own.update(self._subset_carry(item, approved, files, own))
+
+    def _subset_carry(
+        self,
+        item: dict[str, Any],
+        approved: str,
+        files: list[str],
+        own: dict[str, Any],
+    ) -> dict[str, Any]:
+        """The two extra reads the subset path (ruling 278) adds, decided once.
+
+        The hash path already proved the two own diffs differ, so the question is the
+        subset rule: only update-branch merges between the heads (condition 1), N ⊆ A as
+        a multiset (condition 2), and main's own change between the two merge-bases
+        holding every dropped line (condition 3). The approved head's own diff is already
+        hashed at its own base; the head's diff is re-derived here from the hash path's
+        base -- the same ``base..head`` range the hash read, so no extra git read pays
+        for the text this path needs but hashing threw away.
+
+        Every ambiguous read is ``unknown``: the coordinator hand-judges, the watch never
+        disables, and a failed read is never a yes (UR-106, UR-154).
+        """
+        head = item["head"]
+        approved_base, head_base = own.get("approved_base") or "", own.get("head_base") or ""
+        reads: dict[str, Any] = {"carry": None, "subset_lines": 0}
+        try:
+            out = self.git("log", "--first-parent", "--format=%P", f"{approved}..{head}")
+            chain = [line.split() for line in out.splitlines() if line.strip()]
+        except Exception as exc:
+            reads["error"] = f"subset chain: {error_text(exc)}"
+            item["errors"].append(f"subset chain: {error_text(exc)}")
+            return reads
+
+        def main_change() -> str | None:
+            # main's OWN change between the two merge-bases: from the approved head's
+            # merge-base to the head's, over the PR's files -- the third diff condition 3
+            # reads dropped lines against. Both bases came from the hash path's per-rev
+            # merge-base reads, so this costs no extra base lookup.
+            try:
+                return self.run(
+                    [
+                        "git",
+                        "diff",
+                        f"{approved_base}..{head_base}",
+                        "--",
+                        *(f":(literal){f}" for f in files),
+                    ]
+                )
+            except Exception as exc:
+                item["errors"].append(f"main between bases: {error_text(exc)}")
+                return None
+
+        def on_main(parent: str) -> bool | None:
+            return self._on_main(parent, item)
+
+        verdict, lines, why = ur106_subset_carry(
+            own["approved_diff"], own["head_diff"], chain, main_change, on_main
+        )
+        if verdict is True:
+            reads["carry"], reads["subset_lines"] = True, lines
+        elif verdict is False:
+            reads["carry"], reads["error"] = False, why
+        else:
+            reads["error"] = why or "a subset read failed"
+        return reads
+
+    def _on_main(self, parent: str, item: dict[str, Any]) -> bool | None:
+        """Whether ``parent`` sits on ``main``: it holds no commit main's tip lacks, i.e.
+        ``rev-list --count parent --not origin/main`` is 0 (an ancestor of, or is, the
+        tip). A read failure returns ``None`` -- unknown, never a fact (UR-154)."""
+        try:
+            count = int(self.git("rev-list", "--count", parent, "--not", "origin/main"))
+            return count == 0
+        except Exception as exc:
+            item["errors"].append(f"on-main {parent[:9]}: {error_text(exc)}")
+            return None
 
     def _hash_own(
         self,
@@ -873,6 +1187,8 @@ class Snapshot:
             own["reads"] += 1
             return None
         own["reads"] += 1
+        own["head_base" if rev == item["head"] else "approved_base"] = base
+        own[f"{'head' if rev == item['head'] else 'approved'}_diff"] = diff
         return ur106_diff_hash(diff)
 
     def _pr_files(self, number: int, errors: list[str]) -> list[str] | None:
@@ -1051,60 +1367,45 @@ class Snapshot:
         ]
         return "\n".join(lines)
 
-    def run_base(self, run_id: int | None, head: str) -> str:
-        """The `main` sha the gate's run merged the head into, read from a checkout job's log."""
-        if run_id is None:
-            raise ValueError("no run id in the gate's detailsUrl")
-        jobs = self.gh_paginated(
-            f"repos/{self.repo}/actions/runs/{run_id}/jobs?per_page=100", "--jq", CHECKOUT_JOBS_JQ
-        )
-        if not jobs:
-            raise ValueError(f"run {run_id} has no successful checkout job")
-        job = min(jobs, key=lambda j: j["steps"])  # the shortest job has the shortest log
-        log = self.run(["gh", "api", f"repos/{self.repo}/actions/jobs/{job['id']}/logs"])
-        match = CHECKOUT_MERGE.search(log)
-        if not match:
-            raise ValueError(f"job {job['id']} log names no checkout merge")
-        if match.group(1) != head:
-            raise ValueError(f"run {run_id} tested {match.group(1)[:9]}, not the head")
-        return match.group(2)
-
-    def _legs(self, item: dict[str, Any]) -> None:
-        head = item["head"]
-        legs: dict[str, Any] = {}
-        item["legs"] = legs
-        basis: dict[str, Any] = {"run_id": item.get("gate_run"), "merge_base": item["merge_base"]}
-        item["leg_base"] = basis
-        try:
-            basis["run_base"] = self.run_base(item.get("gate_run"), head)
-            basis["used"] = "run"
-        except Exception as exc:  # fall back to the merge-base, and say so
-            basis["run_base"] = None
-            basis["used"] = "merge-base fallback"
-            basis["error"] = error_text(exc)
-        base = basis["run_base"] or item["merge_base"]
-        try:
-            behind = int(self.git("rev-list", "--count", "--first-parent", f"{base}..origin/main"))
-            legs["behind"] = {"merges": behind, "pass": behind <= MAX_MERGES_BEHIND}
-        except Exception as exc:  # reported, not fatal
-            legs["behind"] = {"error": error_text(exc), "pass": False}
-        try:
-            main_files = set(self.git("diff", "--name-only", base, "origin/main").splitlines())
-            # The PR's own files come from its merge-base: a run base newer than the merge-base
-            # is not an ancestor of the head, and a diff from it would add main's changes.
-            own = item["merge_base"]
-            pr_files = set(self.git("diff", "--name-only", own, head).splitlines())
-            shared = sorted(main_files & pr_files)
-            legs["overlap"] = {"paths": shared, "pass": not shared}
-        except Exception as exc:  # reported, not fatal
-            legs["overlap"] = {"error": error_text(exc), "pass": False}
-        red = self.main_red()
-        last = self.data["main"].get("ci_last_completed")
-        legs["main_ci"] = {
-            "conclusion": last["conclusion"] if last else None,
-            "pass": red is False,
+    def _merge_state(self, item: dict[str, Any]) -> None:
+        """§4's two reads per non-draft PR (ruling 270): behind main, and the in-flight sign
+        that `roles/coordinator.md` "Merging a PR" step 1 names — the state an update-branch
+        leaves while the PR's CI runs at the new head."""
+        # Both reads measure §3's `base=` — the merge-base — because that is the line the
+        # coordinator reads: ruling 270 item 2 says "its `base=` is not `main`'s tip" / "its
+        # `base=` is at the tip", and with `strict: true` only §3's `base=` says whether a PR
+        # is behind `main` ("Merging a PR" step 2, via the coordinator's header). The gate
+        # run's merged base was the old legs' basis; step 1/2 decide from the printed base=.
+        base = item["merge_base"]
+        tip = self.data["main"].get("tip")
+        if not tip:
+            item["behind"] = {"error": "main tip unread"}
+        elif not base:
+            item["behind"] = {"error": "no base to compare"}
+        else:
+            try:
+                behind = int(
+                    self.git("rev-list", "--count", "--first-parent", f"{base}..origin/main")
+                )
+                item["behind"] = {"merges": behind, "at_tip": behind == 0}
+            except Exception as exc:  # reported, not fatal
+                item["behind"] = {"error": error_text(exc)}
+        # The in-flight sign: base at the tip, the gate not finished, and the approval carries.
+        # The package's gate list names step 1's three ("absent" until the gate job is queued, then
+        # QUEUED or IN_PROGRESS); PENDING is the StatusContext spelling of in-flight, which a
+        # combined-context rollup can carry for the gate.
+        gate_status = (item.get("gate") or "").upper()  # "absent" is the one lowercase verdict
+        gate_unfinished = gate_status in ("ABSENT", "QUEUED", "IN_PROGRESS", "PENDING")
+        item["in_flight"] = {
+            "base_at_tip": item.get("behind", {}).get("at_tip"),
+            "gate_unfinished": gate_unfinished,
+            "carry": item.get("own_diff", {}).get("carry"),
+            "yes": (
+                item.get("behind", {}).get("at_tip") is True
+                and gate_unfinished
+                and item.get("own_diff", {}).get("carry") is True
+            ),
         }
-        item["merge_without_update"] = all(leg["pass"] for leg in legs.values())
 
     # 6. heartbeats ---------------------------------------------------------------------------
 
@@ -1230,6 +1531,205 @@ class Snapshot:
             h["commit_errors"] = unread
             h["uncellated_prs"] = sorted(unnamed.get(h["lane"], []))
 
+    # 9. package balance (ruling 290) -----------------------------------------------------------
+
+    BALANCE_DOCS = (  # bounded: six git shows, whatever the roster's agent count is
+        "docs/uplevel/roles/lane.md",
+        "docs/uplevel/packages/backend.md",
+        "docs/uplevel/packages/frontend.md",
+        "docs/uplevel/packages/ops.md",
+        "docs/uplevel/packages/docs.md",
+        "docs/uplevel/README.md",
+    )
+
+    def _balance(self) -> None:
+        """Ruling 290's balance section: who is idle with nothing claimable beside a backlogged agent.
+
+        Read from origin/main's tree, not the working tree: the roster and the package files the
+        roster's queues name are merge-state artifacts -- a working tree can carry a half-merged
+        claim edit the coordinator's read would then count. Six bounded ``git show`` reads, the
+        roster and one file per packaged lane (backend/docs/frontend/ops, the four ``main`` carries)
+        plus the README status table; a failed read drops that lane's entries and prints an ERROR,
+        never a guess (UR-154's direction: a failed read is never a yes and never a no).
+        """
+        section: dict[str, Any] = {"items": [], "flag": None, "errors": []}
+        self.data["balance"] = section
+        docs: dict[str, str] = {}
+        for path in self.BALANCE_DOCS:
+            try:
+                docs[path] = self.git("show", f"origin/main:{path}")
+            except Exception as exc:
+                section["errors"].append(f"read {path}: {error_text(exc)}")
+        if "docs/uplevel/roles/lane.md" not in docs:
+            return  # without the roster no agent is keyable; the ERROR above says so
+        roster = docs["docs/uplevel/roles/lane.md"]
+        rows = readme_rows(docs.get("docs/uplevel/README.md", ""))
+        lanes, heavy = lane_files_blocks(docs)
+        # A heavy lane's queue names blocks that live in the OWNING lane's file (UR-59), and a
+        # packaged lane can in principle queue a block packaged elsewhere: every token resolves
+        # against ALL the packaged files, queue order preserved -- plan_lint's documented
+        # UNPACKAGED lookup for the lanes with no file of their own, widened to every queue.
+        anywhere = {
+            token: (lane, block)
+            for lane, blocks in lanes.items()
+            for token, block in blocks.items()
+        }
+        for line in roster.splitlines():
+            m = ROSTER_ROW.search(line)
+            if not m:
+                continue
+            name = m.group(1)
+            lane, cell = agent_key(name)
+            tier = "strongest" if "strongest" in line else "fast"
+            beat = next(
+                (
+                    h
+                    for h in self.data["heartbeats"]["items"]
+                    # Both live marker spellings (`agent-uplevel-ops-a`, `uplevel-ops-a`) and the
+                    # roster's name collapse to one identity through `agent_key` -- the same
+                    # normalization `lane_tick` keys its beat lookup on.
+                    if agent_key(h["agent"]) == (lane, cell)
+                ),
+                None,
+            )
+            # A row for a beatless or paused agent states only what was read: nothing. The scans
+            # below sit inside the beat guard -- they did not run -- so "open package PRs: none",
+            # "not idle" and "claimable: none" would be facts invented out of a missing beat row
+            # (UR-29, UR-154: a failed or unmade read is never a yes and never a no). Such an
+            # agent is also never the flag's idle side: "idle" is a read verdict, not a default.
+            item: dict[str, Any] = {
+                "agent": name,
+                "lane": lane,
+                "cell": cell,
+                "tier": tier,
+                "open_prs": None,
+                "claimable": None,
+                "idle": None,
+            }
+            if beat is not None and not beat["paused"]:
+                status_fields = [
+                    f.strip().strip(FIELD_DECORATION).strip().lower()
+                    for f in (beat["head"] or "").split(HEARTBEAT_FIELD_SEP)
+                ]
+                # THIS agent's own open package PRs: ownership by labels (lane, and the cell when
+                # the lane names cells), the same read the section's open-PR count prints. The
+                # claimable suppression reads these titles only -- `next_claimable`'s semantics,
+                # which the box defines claimable BY -- never the repo's titles, and never a
+                # mid-title mention (LEADING_TOKEN: prose that names a package is not a claim).
+                mine = [
+                    p
+                    for p in self.data["prs"]["items"]
+                    if (own := owner_of_pr(p["labels"])) is not None
+                    and own[0] == lane
+                    and (own[1] == cell or not own[2])
+                ]
+                item["open_prs"] = [p["number"] for p in mine]
+                item["idle"] = not item["open_prs"] and any(f == "idle" for f in status_fields)
+                item["claimable"] = self._balance_claimable(m.group(2), anywhere, rows, mine)
+            section["items"].append(item)
+        self._balance_flag(section, heavy, lanes)
+
+    @staticmethod
+    def _balance_claimable(
+        queue_column: str,
+        anywhere: dict[str, tuple[str, str]],
+        rows: dict[str, str],
+        mine: list[dict],
+    ) -> list[dict[str, Any]]:
+        """The queue's claimable entries, as ``next_claimable`` would offer them (ruling 290).
+
+        The box defines the section's claimable list BY that function, so the predicates here
+        mirror its two shapes -- a ``none yet`` block no open PR of MINE titles, and the
+        multi-PR in-progress shape (rules.md's contract rule + UR-144) with an unticked box --
+        and its one suppression: the agent's own titles, leading-token semantics. The widened
+        lookup (every packaged lane's file) can only find the same blocks ``next_claimable``
+        would in the token's own file; a token packaged on another lane is still the queue
+        holder's open work, so its verdict is read wherever the block lives.
+        """
+        titles = " ".join(p["title"] for p in mine)
+        out: list[dict[str, Any]] = []
+        for token in queue_entries(queue_column):
+            located = anywhere.get(token)
+            if located is None:
+                continue  # a queue entry that is not a package block (a batch, a trigger)
+            _lane, block = located
+            field = PKG_FIELD.search(block)
+            numbers = PR_NUMBER.findall(field.group(1)) if field else []
+            if field and NONE_YET.match(field.group(1).lstrip()) and token not in titles:
+                out.append({"token": token, "deps": dependency_verdict(dep_names(block), rows)})
+                continue
+            if rows and numbers and rows.get(token) == "in progress" and token not in titles:
+                if box := unticked_box(block):
+                    out.append(
+                        {
+                            "token": token,
+                            "deps": dependency_verdict(dep_names(block), rows),
+                            "box": truncate(box, 70),
+                        }
+                    )
+        return out
+
+    def _balance_flag(self, section: dict[str, Any], heavy_all: set[str], lanes: dict) -> None:
+        """The imbalance flag and one candidate move (ruling 290, UR-24 and the cells' file areas).
+
+        An idle agent has NOTHING claimable (the box's words -- an idle agent holding unread-dep
+        claimables has work that may open once its dependencies resolve, and is not the idle side)
+        while another agent holds two or more claimable entries whose dependencies read met; the
+        move keeps UR-24 (a `heavy` package goes only to a strongest-tier agent -- the receiver is
+        then named as a heavy agent) and the cells' file areas: the package stays within the lane
+        whose file owns it, or moves to a heavy agent -- ruling 289's own shape (ops packages to
+        heavy-b, backend's box to backend itself), never a fast-to-fast cross-lane hand-off. The
+        printed why names the real reason. Nothing here acts: the section proposes, the
+        coordinator's step 7 decides.
+        """
+
+        def met(it: dict[str, Any]) -> list[dict[str, Any]]:
+            return [e for e in (it["claimable"] or []) if e["deps"] == "met"]
+
+        idle = [
+            it
+            for it in section["items"]
+            if it["idle"] is True and it["claimable"] is not None and not it["claimable"]
+        ]
+        donors = [it for it in section["items"] if len(met(it)) >= 2]
+        if not idle or not donors:
+            return
+        take, give = idle[0], donors[0]
+        pkg = met(give)[0]
+        pkg_lane = next(
+            (lane for lane, blocks in lanes.items() if pkg["token"] in blocks),
+            None,
+        )
+        heavy_receiver = next(
+            (it for it in section["items"] if it["tier"] == "strongest"),
+            None,
+        )
+        if pkg["token"] in heavy_all and take["tier"] != "strongest":
+            receiver = (heavy_receiver or take)["agent"]
+            why = "heavy package: only a strongest-tier agent may take it (UR-24)"
+        elif pkg_lane is not None and take["lane"] == pkg_lane:
+            receiver = take["agent"]
+            why = f"same lane ({pkg_lane}), the cells' file areas hold"
+        elif heavy_receiver is not None:
+            receiver = heavy_receiver["agent"]
+            why = f"a {pkg_lane or 'cross-lane'} package: the cells' file areas hold within the lane, so a heavy agent takes it"
+        else:
+            # No sanctioned receiver exists (no same-lane idle agent, no heavy agent to name):
+            # the flag still reports the imbalance, with the move it cannot propose.
+            section["flag"] = {
+                "idle": take["agent"],
+                "backlogged": give["agent"],
+                "package": pkg["token"],
+                "move": None,
+            }
+            return
+        section["flag"] = {
+            "idle": take["agent"],
+            "backlogged": give["agent"],
+            "package": pkg["token"],
+            "move": {"from": give["agent"], "to": receiver, "package": pkg["token"], "why": why},
+        }
+
 
 def _run_summary(run: dict[str, Any]) -> dict[str, Any]:
     return {
@@ -1348,36 +1848,46 @@ def render_text(data: dict[str, Any]) -> str:
             head_h, appr_h = own.get("head"), own.get("approved")
             carry = own.get("carry")
             txt = {True: "yes", False: "no", None: "?"}[carry]
+            subset = (
+                f" (subset: {own['subset_lines']} lines main holds)"
+                if carry is True and own.get("subset_lines")
+                else ""
+            )
             out.append(
                 f"      own-diff head={_hash_txt(head_h)} approved={_hash_txt(appr_h)}"
-                f" carry={txt}" + (f" ({own['error']})" if own.get("error") else "")
+                f" carry={txt}{subset}" + (f" ({own['error']})" if own.get("error") else "")
             )
         out += [f"      ERROR prs: {e}" for e in p["errors"]]
     out += _errors("prs", prs)
 
-    out.append("== 4. merge legs (UR-102), non-draft PRs with a green gate")
-    any_legs = False
+    out.append("== 4. merge state (ruling 270), non-draft PRs")
+    any_state = False
     for p in prs["items"]:
-        legs = p.get("legs")
-        if not legs:
+        behind, inflight = p.get("behind"), p.get("in_flight")
+        if behind is None and inflight is None:
             continue
-        any_legs = True
-        b, o, m = legs["behind"], legs["overlap"], legs["main_ci"]
-        b_txt = b.get("error") or f"{b['merges']} merges"
-        basis = p["leg_base"]
-        if basis["used"] == "run":
-            base_txt = f"base: run {basis['run_base'][:9]} (run {basis['run_id']})"
+        any_state = True
+        base = (p.get("merge_base") or "?")[:9]
+        out.append(f"  #{p['number']} base: merge-base {base}")
+        if isinstance(behind, dict) and "error" in behind:
+            b_txt = behind["error"]
         else:
-            base_txt = f"(base: merge-base fallback) run base unread: {basis['error']}"
-        out.append(f"  #{p['number']} {base_txt} · merge-base {(basis['merge_base'] or '?')[:9]}")
-        o_txt = o.get("error") or (", ".join(o["paths"][:5]) or "none")
+            b_txt = f"{behind['merges']} merges behind" + (
+                " (at tip)" if behind.get("at_tip") else ""
+            )
         out.append(
-            f"      behind {'PASS' if b['pass'] else 'FAIL'} ({b_txt}) · "
-            f"overlap {'PASS' if o['pass'] else 'FAIL'} ({o_txt}) · "
-            f"main CI {'PASS' if m['pass'] else 'FAIL'} ({m['conclusion']}) → "
-            f"merge without update-branch: {'yes' if p['merge_without_update'] else 'no'}"
+            f"      behind main: {b_txt}"
+            if "error" in behind
+            else f"      behind main: {'yes' if not behind['at_tip'] else 'no'} ({b_txt})"
         )
-    if not any_legs:
+        if inflight:
+            out.append(
+                f"      in-flight sign: {'yes' if inflight['yes'] else 'no'} "
+                f"(base at tip {'yes' if inflight['base_at_tip'] else 'no'} · "
+                f"gate {p['gate']} · carry "
+                f"{ {True: 'yes', False: 'no', None: '?'}[inflight['carry']] })"
+            )
+    if not any_state:
         out.append("  none")
 
     main = data["main"]
@@ -1460,6 +1970,45 @@ def render_text(data: dict[str, Any]) -> str:
         )
         out += [f"      ERROR merged: {e}" for e in it["errors"]]
     out += _errors("merged", au)
+
+    bal = data.get("balance") or {"items": [], "flag": None, "errors": []}
+    out.append("== 9. package balance (ruling 290)")
+    for it in bal["items"]:
+        if it["open_prs"] is None:
+            # A beatless or paused agent's scans did not run: the row states that, never a
+            # "none"/"not idle"/"idle" verdict the code never read (UR-29, UR-154).
+            open_prs = "not read"
+            state = "not read"
+            claims = "not read"
+        else:
+            open_prs = ", ".join(f"#{n}" for n in it["open_prs"]) or "none"
+            state = "idle" if it["idle"] else "not idle"
+            claims = (
+                ", ".join(
+                    f"{e['token']} (deps {e['deps']})"
+                    + (f" -- open box: {e['box']}" if e.get("box") else "")
+                    for e in it["claimable"]
+                )
+                or "none"
+            )
+        out.append(
+            f"  {it['agent']} ({it['tier']}) · open package PRs: {open_prs} · {state} · claimable: {claims}"
+        )
+    if bal["flag"]:
+        f = bal["flag"]
+        if f["move"]:
+            m = f["move"]
+            out.append(
+                f"  IMBALANCE: {f['idle']} idle with nothing claimable; {f['backlogged']} holds "
+                f"`{f['package']}` -- candidate move: `{f['package']}` from {m['from']} to {m['to']} "
+                f"({m['why']}). Propose only."
+            )
+        else:
+            out.append(
+                f"  IMBALANCE: {f['idle']} idle with nothing claimable; {f['backlogged']} holds "
+                f"`{f['package']}` -- no move the cells' file areas and UR-24 both allow. Propose only."
+            )
+    out += _errors("balance", bal)
     return "\n".join(out) + "\n"
 
 

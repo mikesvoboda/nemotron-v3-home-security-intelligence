@@ -150,12 +150,231 @@ def test_the_test_deployment_keeps_only_the_golden_path_services(
     deployment = fc.as_test_deployment(extra, project=PROJECT, run_dir=RUN_DIR)
     assert sorted(deployment["services"]) == sorted(fc.FAKE_SERVICES)
     assert deployment["name"] == PROJECT
+    # [r308a] The sink services ride the keep-list too (b9 sinks join
+    # FAKE_SERVICES) — pinned as a membership assert, not a count, so the
+    # count pin above stays the cap against unlisted growth.
+    assert {"mail-sink", "webhook-sink", "push-sink"} <= set(deployment["services"])
 
 
 def test_the_test_deployment_refuses_a_missing_service(base: dict[str, Any]) -> None:
     del base["services"]["ai-vlm"]
     with pytest.raises(fc.HarnessError, match="ai-vlm"):
         fc.as_test_deployment(base, project=PROJECT, run_dir=RUN_DIR)
+
+
+# ---------------------------------------------------------------------------
+# [r308a] The notification sinks: three CI services beside FAKE_SERVICES, the
+# golden env the backend leg reads them through, and the on-this-network
+# marking.
+# ---------------------------------------------------------------------------
+
+
+@pytest.mark.parametrize(
+    ("service", "env_key"),
+    [
+        ("mail-sink", "FEATURE_CHECK_SINK_SMTP_URL"),
+        ("mail-sink", "FEATURE_CHECK_SINK_MAIL_HTTP_URL"),
+        ("webhook-sink", "FEATURE_CHECK_SINK_WEBHOOK_URL"),
+        ("push-sink", "FEATURE_CHECK_SINK_PUSH_URL"),
+    ],
+)
+def test_each_sink_publishes_the_url_its_golden_env_names(
+    base: dict[str, Any], deployment: dict[str, Any], service: str, env_key: str
+) -> None:
+    """Every sink env key names a service the fake stack actually starts.
+
+    The env is written by hand in ``_golden``; the mapping here is the
+    discipline that keeps the two sides from drifting — if a sink is renamed
+    or a key stops matching a service, this pair of asserts goes red together.
+    """
+    assert env_key.startswith("FEATURE_CHECK_SINK_"), env_key
+    assert service in deployment["services"], service
+    # The URL a golden spec reads back through must be published on loopback
+    # like every other test-deployment port (the keep-loop's own pin above).
+    ports = deployment["services"][service].get("ports") or []
+    assert ports, f"{service} must publish its read-back port to the host"
+    for port in ports:
+        assert port["host_ip"] == "127.0.0.1", port
+        assert not port.get("published"), port
+
+
+def test_the_backend_env_names_the_sinks(base: dict[str, Any], deployment: dict[str, Any]) -> None:
+    """The backend's CI env carries the addresses the golden specs dial.
+
+    Compose-level (not ``_golden``-level) so the facts live where the stack
+    spells them: the backend reaches the sinks in-network by service DNS name,
+    and the golden env re-derives the host side from the published ports.
+    """
+    env = _env_of(deployment["services"]["backend"])
+    assert env["FEATURE_CHECK_SINKS_MODE"] == "on-this-network"
+    assert env["SMTP_HOST"] == "mail-sink"
+    assert env["SMTP_PORT"] == "8025"
+    assert env["SMTP_USE_TLS"] == "false"
+    assert env["SMTP_FROM_ADDRESS"] == "alerts@nemotron.test"
+    assert env["DEFAULT_EMAIL_RECIPIENTS"] == '["sinks@nemotron.test"]'
+    # The webhook sink is reachable in-network at its DNS name; its marking
+    # (the compose label) is what B4.2's per-channel flag will consume.
+    assert env["FEATURE_CHECK_SINK_WEBHOOK_HOST"] == "webhook-sink:8091"
+    assert env["FEATURE_CHECK_SINK_PUSH_HOST"] == "push-sink:8092"
+
+
+def _env_of(service: dict[str, Any]) -> dict[str, str]:
+    """The service's environment as a mapping, list or dict form alike.
+
+    Compose's render is a mapping here (the CI stack spells ``- KEY=VALUE``
+    list entries, which ``config --format json`` normalizes to an object); a
+    list form is kept because that is what the compose files themselves spell.
+    """
+    out: dict[str, str] = {}
+    raw = service.get("environment") or []
+    if isinstance(raw, dict):
+        return {str(k): str(v) for k, v in raw.items()}
+    for entry in raw:
+        key, _, value = str(entry).partition("=")
+        out[key] = value
+    return out
+
+
+def test_the_webhook_sink_carries_the_on_this_network_marking(base: dict[str, Any]) -> None:
+    """The label the box demands, spelled where the sink is spelled.
+
+    Fail-closed pairing: the harness refuses to render a stack whose
+    ``webhook-sink`` lacks the label (pinned below), and the backend env
+    carries the same string, so a rename on one side reds the other.
+    """
+    assert base["services"]["webhook-sink"]["labels"]["uplevel.r308a/sink"] == "on-this-network"
+
+
+def test_the_render_refuses_a_sink_without_its_marking(base: dict[str, Any]) -> None:
+    """Fail-closed: drop the label and the run refuses rather than unmarked."""
+    base["services"]["webhook-sink"]["labels"] = {}
+    with pytest.raises(fc.HarnessError, match="on-this-network"):
+        fc.as_test_deployment(base, project=PROJECT, run_dir=RUN_DIR)
+
+
+def _backend_leg(
+    calls: list[tuple[list[str], dict[str, Any]]],
+) -> tuple[list[str], dict[str, Any]]:
+    """The ``uv run pytest`` call the golden stage makes for the backend."""
+    for argv, kwargs in calls:
+        if argv[:3] == ["uv", "run", "pytest"]:
+            return argv, kwargs
+    raise AssertionError(f"no backend pytest leg among {len(calls)} recorded calls")
+
+
+def test_the_backend_leg_gets_the_sink_urls_the_harness_published(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """[r308a] The golden env names each sink at the address the run published.
+
+    The harness resolves each sink's read-back port the way it resolves the
+    backend's (``compose port``), and exports it as ``FEATURE_CHECK_SINK_*``.
+    Pinned by construction: the recorded ``env`` carries each name, and its
+    value is exactly what ``_address`` derived from the fixture's canned
+    ``compose port`` answers — not a literal that would pass while the lookup
+    drifted (the fixture's answer table is ``_SINK_PORT_ANSWERS``).
+    """
+    calls: list[tuple[list[str], dict[str, Any]]] = []
+    run = _golden_only_run(tmp_path, monkeypatch, True, calls)
+    # One spec file so the backend leg enters and records its env (the
+    # helper's default BACKEND_GOLDEN target is deliberately empty and
+    # deliberately uncreated — mkdir is ours to make). _golden() spells the
+    # suite as a path RELATIVE to REPO_ROOT, so the relocated directory needs
+    # a REPO_ROOT that contains it — the same move _golden_leg makes; safe
+    # because _run is faked and nothing else in golden() reads REPO_ROOT.
+    monkeypatch.setattr(fc, "REPO_ROOT", tmp_path)
+    golden = tmp_path / "no-backend-golden"
+    golden.mkdir()
+    (golden / "test_one.py").write_text("def test_one():\n", encoding="utf-8")
+    run.golden()
+    _, kwargs = _backend_leg(calls)
+    env = kwargs["env"]
+    for service, target, name in (
+        ("mail-sink", 8025, "FEATURE_CHECK_SINK_SMTP_URL"),
+        ("mail-sink", 8026, "FEATURE_CHECK_SINK_MAIL_HTTP_URL"),
+        ("webhook-sink", 8091, "FEATURE_CHECK_SINK_WEBHOOK_URL"),
+        ("push-sink", 8092, "FEATURE_CHECK_SINK_PUSH_URL"),
+    ):
+        want = fc.Run._address(run, service, target)  # type: ignore[arg-type] - reads the same fixture answers the env did
+        assert env.get(name) == want, (name, env.get(name), want)
+        assert want.startswith("http://127.0.0.1:"), want
+
+
+def test_the_backend_leg_env_carries_the_sink_marking_and_smtp_shape(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """The golden env carries what the sinks' specs need to describe the run.
+
+    ``FEATURE_CHECK_SINKS_MODE`` must read exactly ``on-this-network`` — the
+    box's marking is data the spec asserts on, not a comment — and the SMTP
+    shape must match the backend container's own env (the compose overlay's
+    ``SMTP_USE_TLS=false`` is the pair with the sink's no-STARTTLS surface).
+    """
+    calls: list[tuple[list[str], dict[str, Any]]] = []
+    run = _golden_only_run(tmp_path, monkeypatch, True, calls)
+    # Same REPO_ROOT move as the URL pin above: _golden() spells the suite
+    # relative to REPO_ROOT, and tmp_path is outside the repo.
+    monkeypatch.setattr(fc, "REPO_ROOT", tmp_path)
+    golden = tmp_path / "no-backend-golden"
+    golden.mkdir()
+    (golden / "test_one.py").write_text("def test_one():\n", encoding="utf-8")
+    run.golden()
+    _, kwargs = _backend_leg(calls)
+    env = kwargs["env"]
+    assert env["FEATURE_CHECK_SINKS_MODE"] == "on-this-network"
+    # The SMTP URL's port is the canned compose-port answer's (1825), i.e. the
+    # value is host-side derived, not the in-network 8025 spelling.
+    assert env["FEATURE_CHECK_SINK_SMTP_URL"].endswith(":1825"), env["FEATURE_CHECK_SINK_SMTP_URL"]
+
+
+def test_the_backend_leg_env_carries_the_in_network_webhook_host(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """The golden env's webhook HOST is the backend's own in-network spelling.
+
+    The webhook-create leg dials `http://<FEATURE_CHECK_SINK_WEBHOOK_HOST>` —
+    an address only the backend container can reach — so the env value must be
+    the one the run BOOTS with, read off the rendered compose.json (the helper
+    writes `webhook-sink:8091`, the overlay's spelling), NOT a host-side
+    loopback URL and NOT a literal the harness re-typed: the value here is
+    derived from the same document compose consumes, so renumbering the sink
+    in the overlay flows through without a second pin to remember.
+    """
+    calls: list[tuple[list[str], dict[str, Any]]] = []
+    run = _golden_only_run(tmp_path, monkeypatch, True, calls)
+    monkeypatch.setattr(fc, "REPO_ROOT", tmp_path)
+    golden = tmp_path / "no-backend-golden"
+    golden.mkdir()
+    (golden / "test_one.py").write_text("def test_one():\n", encoding="utf-8")
+    # A second spelling in the document proves the env is READ, not echoed:
+    # the export must follow the file, whatever the file says.
+    _write_rendered_compose(run, webhook_host="webhook-sink:9999")
+    run.golden()
+    _, kwargs = _backend_leg(calls)
+    env = kwargs["env"]
+    assert env["FEATURE_CHECK_SINK_WEBHOOK_HOST"] == "webhook-sink:9999", env
+    assert not env["FEATURE_CHECK_SINK_WEBHOOK_HOST"].startswith("http"), env
+
+
+def test_a_golden_env_with_no_rendered_stack_refuses_the_webhook_host(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """The absence refusal, not a silent fall-back to a hardcoded spelling.
+
+    run_check renders before golden, so production never gets here; a fixture
+    world that reaches golden() unrendered has no backend env to read, and
+    exporting a hardcoded `webhook-sink:8091` would paper over exactly the
+    drift the read-from-the-render exists to prevent — the value the leg sees
+    would stop being the value the backend dials.
+    """
+    calls: list[tuple[list[str], dict[str, Any]]] = []
+    run = _golden_only_run(tmp_path, monkeypatch, True, calls, rendered=False)
+    monkeypatch.setattr(fc, "REPO_ROOT", tmp_path)
+    golden = tmp_path / "no-backend-golden"
+    golden.mkdir()
+    (golden / "test_one.py").write_text("def test_one():\n", encoding="utf-8")
+    with pytest.raises(fc.HarnessError, match=r"no rendered compose\.json"):
+        run.golden()
 
 
 # ---------------------------------------------------------------------------
@@ -672,6 +891,52 @@ def test_the_smoke_check_has_image_bytes_of_its_own() -> None:
         assert (fc.SCENARIO_DIR / scenario["image"]).read_bytes() != smoke_bytes
 
 
+def test_the_scenario_book_outcomes_survive_a_fixture_image_swap() -> None:
+    """[r287 item 8] The photographs replace the drawings; the outcomes do not move.
+
+    The swap changes WHICH bytes hash to WHICH book entry, and nothing else:
+    every name, detection, verdict and reply delay is carried by
+    scenarios.json, and the fake is byte-keyed (scenarios.py hashes the bytes
+    it RECEIVES). These pins are the substance of the ruling-287 clause that
+    lets the swap stand -- "how O2.5's rule that the fake tier stays as it is
+    still holds": the tier's ANSWERS are unchanged, so every ScenarioBook
+    consumer keeps its scenario. One image per scenario (uniqueness) and the
+    smoke bytes distinct from every other scenario's (the dedupe pin above)
+    are re-asserted over the SWAPPED files, so a swap that accidentally
+    aliased two scenarios or split the smoke bytes reds here.
+    """
+    book = json.loads((fc.SCENARIO_DIR / "scenarios.json").read_text(encoding="utf-8"))
+    scenarios = book["scenarios"]
+    assert [s["name"] for s in scenarios] == [
+        "person-at-door",
+        "cat-on-porch",
+        "car-in-driveway",
+        "slow-reply",
+        "harness-smoke",
+    ]
+    # The verdicts the tiers pin: person 82 confirmed, cat 4 rejected, car 45
+    # uncertain (the DO-1 medium band), slow-reply 70 with its 40 s delay, smoke 61.
+    by_name = {s["name"]: s for s in scenarios}
+    assert by_name["person-at-door"]["verdict"]["risk_score"] == 82
+    assert by_name["cat-on-porch"]["verdict"]["risk_score"] == 4
+    assert by_name["car-in-driveway"]["verdict"]["risk_score"] == 45
+    assert by_name["slow-reply"]["verdict"]["risk_score"] == 70
+    assert by_name["slow-reply"]["reply_delay_seconds"] == 40
+    assert by_name["harness-smoke"]["verdict"]["risk_score"] == 61
+    # Routing still works: the book the fake loads at startup resolves every
+    # image, hashes it, and the five digests stay distinct.
+    loaded = (
+        fc._load_scenario_book_for_test() if hasattr(fc, "_load_scenario_book_for_test") else None
+    )
+    if loaded is None:
+        from backend.ai_contract.fake.scenarios import ScenarioBook
+
+        loaded = ScenarioBook.load(fc.SCENARIO_DIR)
+    assert len(loaded) == 5, len(loaded)
+    digests = {s.digest for s in loaded}
+    assert len(digests) == 5, "two scenarios share an image"
+
+
 def test_drop_lands_the_image_in_the_camera_folder(tmp_path: Path) -> None:
     image = fc.SCENARIO_DIR / "person-at-door.jpg"
     landed = fc.drop(image, "front-door", tmp_path)
@@ -891,6 +1156,9 @@ def test_the_real_tier_takes_the_vlm_from_agent_gpu_and_keeps_the_fake_detector(
     # host.docker.internal resolves in the sandbox's Docker on its own; a
     # host-gateway entry would name the sandbox, not the GB300's runner.
     assert "extra_hosts" not in backend
+    # [r308a] the sinks are golden-path services, not AI fakes: --real keeps
+    # them (REAL_SERVICES derives from FAKE_SERVICES, and only ai-vlm drops).
+    assert {"mail-sink", "webhook-sink", "push-sink"} <= set(real_deployment["services"])
 
 
 def test_the_real_test_deployment_reaches_the_host_only_on_the_agent_gpu_port(
@@ -1755,6 +2023,62 @@ def _named_registry(problem: str) -> str:
     return found.group(1)
 
 
+# [r308a] What `docker compose port` answers for the notification sinks in a
+# fixture run: (service, target-port) -> the line compose prints. 127.0.0.1 is
+# what compose prints for a loopback-published port (the overlay pins
+# 127.0.0.1: only), matching the live-run convention at :3521's canned answer;
+# `_address` splits host:published and formats http://<host>:<published>, so
+# these answers yield the loopback URLs the golden env pins assert on.
+_SINK_PORT_ANSWERS = {
+    ("mail-sink", 8025): "127.0.0.1:1825\n",
+    ("mail-sink", 8026): "127.0.0.1:1826\n",
+    ("webhook-sink", 8091): "127.0.0.1:1891\n",
+    ("push-sink", 8092): "127.0.0.1:1892\n",
+}
+
+
+def _write_rendered_compose(run: Any, webhook_host: str = "webhook-sink:8091") -> None:
+    """A rendered compose.json with the backend env the sinks overlay spells.
+
+    The golden env's in-network export reads the rendered backend env (the
+    single spelling lives in the overlay; run_check renders before golden).
+    A golden() fixture never renders, so the helper writes the one document
+    `_sink_webhook_host` reads — into the run's own dir (its project name is
+    a random stamp, so the path comes off the run, not a constant) — in the
+    same list-of-entries shape compose's `config --format json` emits from
+    the CI stack's `KEY=VALUE` list env.
+    """
+    backend_env = [f"FEATURE_CHECK_SINK_WEBHOOK_HOST={webhook_host}"]
+    run.compose_file.write_text(
+        json.dumps({"services": {"backend": {"environment": backend_env}}}) + "\n",
+        encoding="utf-8",
+    )
+
+
+def _canned_port_answer(run: Any, calls: list[tuple[list[str], dict[str, Any]]], fake: Any) -> Any:
+    """Wrap ``fake`` so `compose port` for a sink answers its canned line.
+
+    The backend leg's env pins read what `_address` derived from these
+    answers (pinned by construction, not literals), so a fixture that claims
+    the harness exported sink URLs must be able to answer the lookup.
+    """
+
+    def fake_with_ports(self: Any, command: list[str], **kwargs: Any) -> Any:
+        out = fake(self, command, **kwargs)
+        # compose port's argv ends `port <service> <port>`; match on the verb
+        # so a future "-f ..." tail cannot misplace the check.
+        if (
+            len(command) >= 3
+            and command[-3] == "port"
+            and (command[-2], int(command[-1])) in _SINK_PORT_ANSWERS
+        ):
+            answer = _SINK_PORT_ANSWERS[(command[-2], int(command[-1]))]
+            return subprocess.CompletedProcess(command, 0, answer, "")
+        return out
+
+    return fake_with_ports
+
+
 def _golden_only_run(
     tmp_path: Path,
     monkeypatch: pytest.MonkeyPatch,
@@ -1768,6 +2092,9 @@ def _golden_only_run(
     lock_absent: bool = False,
     run_rc: int = 0,
     shard: tuple[int, int] | None = None,
+    prod_shape: bool = False,
+    golden_specs: tuple[str, ...] | None = None,
+    rendered: bool = True,
 ) -> Any:
     """A Run whose golden() reaches the Playwright branch with every filesystem
     fact pointed at tmp_path, and whose ``_run`` is recorded, not executed.
@@ -1787,11 +2114,25 @@ def _golden_only_run(
     image — ``image_present`` and ``pull_rc`` are the new firewall question.
     """
     run = _run(tmp_path, mode="fake")
+    # [r308a] The golden env's in-network sink export reads the rendered
+    # compose.json (run_check renders before golden); a golden() fixture never
+    # renders, so the helper writes the document — off (`rendered=False`) for
+    # the pin that holds the absence refusal itself.
+    if rendered:
+        _write_rendered_compose(run)
     if shard is not None:
         # [r264] A shard is a shape fact: it goes into the Run at construction
         # so the record written at init already names it.
         run.shard = shard
         run.summary["shard"] = f"{shard[0]}/{shard[1]}"
+    if golden_specs is not None:
+        # [r287] Same discipline as the shard above: the limit is a shape fact
+        # set at construction, so the record written at init already names it.
+        run.golden_specs = golden_specs
+        run.summary["golden_specs"] = list(golden_specs)
+    if prod_shape:
+        run.prod_shape = True
+        run.shape = f"{run.mode}-prod-shape"
     run.api, run.ui = "http://api.invalid", "http://ui.invalid"
     # The password's VALUE is never what the pins read — they only check that the
     # npm call carries no env at all, and that the container argv carries the
@@ -1831,6 +2172,7 @@ def _golden_only_run(
             Path(report).write_text(_RAN_JUNIT, encoding="utf-8")
         return subprocess.CompletedProcess(command, rc, "", "")
 
+    fake = _canned_port_answer(run, calls, fake)
     monkeypatch.setattr(fc.Run, "_run", fake)
     return run
 
@@ -1885,8 +2227,18 @@ def test_the_golden_step_installs_frontend_deps_only_when_absent(
         assert "npm_ci" not in run.summary["results"]["golden"]
     else:
         assert installs == [["npm", "ci"]]
-        assert commands[0] == ["npm", "ci"], "the install must come BEFORE the container leg"
-        install_kwargs = calls[0][1]
+        # "Before the leg" reads off positions, not index 0: the [r308a] sink
+        # env block resolves four `compose port` lookups before anything else
+        # runs, and those are recorded calls too. The leg is identified the
+        # same way _golden_container does.
+        leg = next(
+            i
+            for i, (c, _) in enumerate(calls)
+            if c[1:3] == ["run", "--rm"] and "--project=golden" in " ".join(c)
+        )
+        first_npm = next(i for i, (c, _) in enumerate(calls) if c[:2] == ["npm", "ci"])
+        assert first_npm < leg, "the install must come BEFORE the container leg"
+        install_kwargs = calls[first_npm][1]
         assert install_kwargs["cwd"] == tmp_path / "frontend"
         assert install_kwargs["timeout"] == 1800, "the 300 s default cannot survive a cold install"
         assert "env" not in install_kwargs, "npm must not see the run env (admin password)"
@@ -1994,6 +2346,197 @@ def test_a_shard_record_is_absent_on_an_unsharded_run(
     assert "shard" not in run.summary, run.summary.get("shard")
 
 
+# [r287] The named-spec limit for the prod-shape Playwright leg. Refusals first
+# (a partial suite outside the prod shape is a silent coverage hole, ruling 114's
+# shape), then the argv pin: the inner command carries the named specs as
+# Playwright positionals, the unlimited leg's argv stays byte-identical, and the
+# record names what was witnessed.
+
+
+def test_a_named_spec_limit_is_refused_outside_the_prod_shape(monkeypatch: Any) -> None:
+    """`--golden-spec` is the prod-shape leg's option: on --fake or --real it refuses.
+
+    Ruling 287 asks for the option "under `--prod-shape`", the mirror of the [r264]
+    shard clause ("--shard is the CI fake tier's option"): a partial suite on the CI
+    tier would witness the tier on a subset of its golden specs while the run record
+    looked ordinary -- ruling 114's silent-coverage-hole shape. Refused at parse
+    time, before any engine call, like every other shape mismatch.
+    """
+    booted = _fake_boot(monkeypatch)
+    with pytest.raises(SystemExit):
+        fc.main(["--fake", "--golden-spec", "tests/golden/dashboard/gpu-stats.spec.ts"])
+    assert booted == []
+    with pytest.raises(SystemExit):
+        fc.main(["--real", "--golden-spec", "tests/golden/dashboard/gpu-stats.spec.ts"])
+    assert booted == []
+
+
+def test_a_named_spec_limit_refuses_paths_that_are_not_specs(monkeypatch: Any) -> None:
+    """The option takes paths to .spec.ts files under the repo's golden tree; anything else refuses.
+
+    Five shapes, all refused at parse time: an absolute path, a path that escapes
+    the repo, a name the golden tree does not carry, a file the golden tree
+    carries that is not a spec (the helpers `harness.ts`/`guard.ts` are real
+    files — the is_file check alone would accept them), and a .spec.ts path
+    outside the golden tree (the suffix check alone would accept it). A path
+    outside `tests/golden` — or a carried non-spec file — could never be
+    collected by the `--project=golden` leg, so an accepted misspelling would
+    write a record naming files the leg could not run — a claim the leg did
+    not make.
+    """
+    booted = _fake_boot(monkeypatch)
+    with pytest.raises(SystemExit):
+        fc.main(["--prod-shape", "--golden-spec", "/etc/passwd"])
+    with pytest.raises(SystemExit):
+        fc.main(["--prod-shape", "--golden-spec", "../secrets.env"])
+    with pytest.raises(SystemExit):
+        fc.main(["--prod-shape", "--golden-spec", "tests/golden/no-such-spec.spec.ts"])
+    with pytest.raises(SystemExit):
+        fc.main(["--prod-shape", "--golden-spec", "tests/golden/harness.ts"])
+    with pytest.raises(SystemExit):
+        fc.main(["--prod-shape", "--golden-spec", "tests/e2e/dashboard.spec.ts"])
+    assert booted == []
+
+
+def test_a_named_spec_limit_carries_its_specs_into_the_run(monkeypatch: Any) -> None:
+    """`--prod-shape --golden-spec A --golden-spec B` reaches run_check with both, in order."""
+    seen: dict[str, Any] = {}
+
+    def fake_run_check(args: Any, *, mode: str) -> int:
+        seen["specs"] = args.golden_spec
+        # A throwaway Run, only to see what construction writes into the record:
+        # the same pin shape the [r264] shard tests use.
+        probe = fc.Run(
+            engine="docker",
+            root=Path("/tmp/hsi-feature-check-tests"),  # noqa: S108 - never touched
+            image_tag="t",
+            mode=mode,
+            prod_shape=True,
+            golden_specs=args.golden_spec,
+        )
+        seen["record"] = probe.summary
+        return 0
+
+    monkeypatch.setattr(fc, "run_check", fake_run_check)
+    monkeypatch.setattr(fc, "real_unavailable", lambda _environ: None)
+    argv = [
+        "--prod-shape",
+        "--golden-spec",
+        "tests/golden/dashboard/gpu-stats.spec.ts",
+        "--golden-spec",
+        "tests/golden/timeline/event-detail.spec.ts",
+    ]
+    assert fc.main(argv) == 0
+    assert seen["specs"] == (
+        "tests/golden/dashboard/gpu-stats.spec.ts",
+        "tests/golden/timeline/event-detail.spec.ts",
+    )
+    # The record is written at construction, the same place the [r264] shard
+    # lands: run_check hands the parse-validated specs to Run, and the summary
+    # names them from then on -- a merged judgment reads the record, not argv.
+    assert seen["record"]["golden_specs"] == [
+        "tests/golden/dashboard/gpu-stats.spec.ts",
+        "tests/golden/timeline/event-detail.spec.ts",
+    ], seen["record"]
+
+
+def test_a_run_record_names_its_golden_specs_only_when_they_were_set() -> None:
+    """The `golden_specs` key exists only when a limit was named (absent when unset).
+
+    Same discipline as the shard key: today's records byte-match today's, and a
+    record that named specs the run never took would be a claim it did not make.
+    """
+    limited = fc.Run(
+        engine="docker",
+        root=Path("/tmp/hsi-feature-check-tests"),  # noqa: S108 - never touched
+        image_tag="t",
+        mode="fake",
+        golden_specs=("tests/golden/dashboard/gpu-stats.spec.ts",),
+    )
+    assert limited.summary["golden_specs"] == ["tests/golden/dashboard/gpu-stats.spec.ts"]
+    bare = fc.Run(
+        engine="docker",
+        root=Path("/tmp/hsi-feature-check-tests"),  # noqa: S108 - never touched
+        image_tag="t",
+        mode="fake",
+    )
+    assert "golden_specs" not in bare.summary, bare.summary.get("golden_specs")
+
+
+def test_a_named_spec_limit_limits_the_legs_argv(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """With --golden-spec the inner command names exactly the named specs.
+
+    The specs ride the inner command as Playwright positionals -- the runner's
+    own file filter -- so the leg's junit carries only them and
+    golden_execution_problems keeps judging what actually ran. Paths are
+    shlex-quoted like --output's, into the same shell string. Both specs are
+    real files in this repo's golden tree (the parse-time validation names
+    them); the timeline one is deliberately NOT named, and must not appear.
+    """
+    calls: list[tuple[list[str], dict[str, Any]]] = []
+    run = _golden_only_run(
+        tmp_path,
+        monkeypatch,
+        True,
+        calls,
+        prod_shape=True,
+        golden_specs=("tests/golden/dashboard/gpu-stats.spec.ts",),
+    )
+    problems = run.golden()
+    argv, _kwargs = _golden_container(calls)
+    inner = argv[-1]
+    assert "tests/golden/dashboard/gpu-stats.spec.ts" in inner, inner
+    assert "tests/golden/timeline/event-detail.spec.ts" not in inner, inner
+    assert problems == []
+
+
+def test_the_unlimited_leg_carries_no_spec_paths(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """Without --golden-spec the inner command is exactly today's: no spec positional.
+
+    Absence pin, mirroring test_the_unsharded_leg_carries_no_shard_flag: the
+    whole-suite leg must not gain a filter nobody asked for, and a record that
+    named specs the argv never took would be a claim the leg did not make.
+    """
+    calls: list[tuple[list[str], dict[str, Any]]] = []
+    run = _golden_only_run(tmp_path, monkeypatch, True, calls)
+    assert run.golden() == []
+    _inner = _golden_container(calls)[0][-1]
+    assert ".spec.ts" not in _inner, _inner
+    assert "golden_specs" not in run.summary, run.summary.get("golden_specs")
+
+
+def test_a_named_spec_limit_names_the_specs_in_the_record(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """The run record says what the leg witnessed, in the option's own order.
+
+    A merged judgment (or the operator's post) must be able to say which specs a
+    limited leg ran, not just that it ran something. The limit is a shape fact
+    like the [r264] shard: recorded at construction, absent when unset.
+    """
+    calls: list[tuple[list[str], dict[str, Any]]] = []
+    run = _golden_only_run(
+        tmp_path,
+        monkeypatch,
+        True,
+        calls,
+        prod_shape=True,
+        golden_specs=(
+            "tests/golden/dashboard/gpu-stats.spec.ts",
+            "tests/golden/timeline/event-detail.spec.ts",
+        ),
+    )
+    assert run.golden() == []
+    assert run.summary["golden_specs"] == [
+        "tests/golden/dashboard/gpu-stats.spec.ts",
+        "tests/golden/timeline/event-detail.spec.ts",
+    ], run.summary.get("golden_specs")
+
+
 # [r264] Build box: the backend golden tests run once, in one shard. Shard 1 (or an
 # unsharded run) keeps the pytest leg; every other shard records the skip with the
 # record shape the seeded branch already writes ("skipped on ..."), and carries no
@@ -2063,8 +2606,9 @@ def test_the_feature_check_job_budget_covers_the_new_cap_with_10_minutes_of_marg
     )
 
 
+@pytest.mark.parametrize("prod_shape", [False, True])
 def test_the_container_gets_environment_names_never_values(
-    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, prod_shape: bool
 ) -> None:
     """The run's admin password must not reach the logged argv.
 
@@ -2086,6 +2630,7 @@ def test_the_container_gets_environment_names_never_values(
     """
     calls: list[tuple[list[str], dict[str, Any]]] = []
     run = _golden_only_run(tmp_path, monkeypatch, True, calls)
+    run.prod_shape = prod_shape
     run.golden()
     argv, kwargs = _golden_container(calls)
     password = run.admin["password"]
@@ -2097,6 +2642,7 @@ def test_the_container_gets_environment_names_never_values(
     # writes its report somewhere the harness never reads — a golden section of
     # `{}` that still exits 0, which is ruling 114's hole reopened by a flag.
     assert set(exported) == {
+        "FEATURE_CHECK_PROD_SHAPE",
         "FEATURE_CHECK_API_URL",
         "FEATURE_CHECK_UI_URL",
         "FEATURE_CHECK_CAMERA_ROOT",
@@ -2109,6 +2655,7 @@ def test_the_container_gets_environment_names_never_values(
     }, "every name the spec set needs to reach the browser, and only those"
     assert not any(token.startswith("-e") and len(token) > 2 for token in argv)
     env = kwargs["env"]
+    assert env["FEATURE_CHECK_PROD_SHAPE"] == ("1" if prod_shape else "0")
     assert env["FEATURE_CHECK_ADMIN_PASSWORD"] == password, "and the child still gets it"
     assert env["PLAYWRIGHT_JUNIT_OUTPUT_FILE"] == str(run.artifacts / "golden-playwright.xml")
 
@@ -2251,7 +2798,18 @@ def test_the_leg_runs_on_the_engine_the_harness_runs_on(
     run.engine = engine
     run.golden()
     engine_calls = [c[:2] for c, _ in calls if c[0] in ("docker", "podman")]
-    assert engine_calls == [[engine, "image"], [engine, "pull"], [engine, "run"]], engine_calls
+    # [r308a] The sink read-back ports are resolved by `compose port` before
+    # the leg runs (four lookups, one per exported URL), so the engine sees
+    # them too; the `run` at the tail is the Playwright leg itself.
+    assert engine_calls == [
+        [engine, "compose"],
+        [engine, "compose"],
+        [engine, "compose"],
+        [engine, "compose"],
+        [engine, "image"],
+        [engine, "pull"],
+        [engine, "run"],
+    ], engine_calls
     argv, _ = _golden_container(calls)
     suffix = ",z" if engine == "podman" else ""
     frontend = tmp_path / "frontend"
@@ -2485,13 +3043,17 @@ def test_a_failed_frontend_install_is_a_named_step_not_a_crash(
     # the docstring's claim that check=False lets the run continue, and the
     # third entry is that claim: a failed install still attempts the leg, so it
     # arrives as a named step rather than a crash. A [:2] slice keeps the order
-    # and deletes the evidence. (Measured: exactly these three calls, with the
-    # image already present so no pull sits between them.)
-    assert [c[:2] for c, _ in calls] == [
+    # and deletes the evidence. (Measured: exactly these, with the image
+    # already present so no pull sits between them, plus the [r308a] sink
+    # read-back lookups that now precede the install — each a `compose port`
+    # on the engine.)
+    heads = [c[:2] for c, _ in calls]
+    assert heads[:4] == [["docker", "compose"]] * 4, heads  # the sink lookups
+    assert heads[4:] == [
         ["npm", "ci"],
         ["docker", "image"],
         ["docker", "run"],
-    ]
+    ], heads
     assert run.summary["results"]["golden"]["npm_ci"] == "exit 243"
     assert any("npm ci in frontend/ exited 243" in p for p in problems)
 
@@ -2532,6 +3094,10 @@ def _golden_leg(
     and therefore looks exactly like a golden suite that ran.
     """
     run = _run(tmp_path, mode="fake")
+    # [r308a] The golden env's in-network sink export reads the rendered
+    # compose.json; this helper never renders, so it writes the document the
+    # same way the shared golden helper does.
+    _write_rendered_compose(run)
     run.api, run.ui = "http://api.invalid", "http://ui.invalid"
     # The password's VALUE is never what these pins read — the Playwright leg is
     # the only consumer and it is not asserted on here.
@@ -2579,6 +3145,7 @@ def _golden_leg(
         Path(report).write_text(junit_text, encoding="utf-8")
         return subprocess.CompletedProcess(command, 0, "", "")
 
+    fake = _canned_port_answer(run, [], fake)
     monkeypatch.setattr(fc.Run, "_run", fake)
     return run
 
@@ -2678,7 +3245,12 @@ def test_a_stalled_pull_is_a_named_problem_and_never_starts_the_leg(
     """
     calls: list[tuple[list[str], dict[str, Any]]] = []
     run = _golden_only_run(tmp_path, monkeypatch, False, calls, image_present=False)
-    monkeypatch.setattr(fc.Run, "_run", _stalled_pull_recorder(calls))
+    # The recorder replaces _run wholesale, shedding the helper's canned sink
+    # lookups — so it wraps through the same seam, or the [r308a] env block's
+    # `compose port` answers would raise before the pull ever stalls.
+    monkeypatch.setattr(
+        fc.Run, "_run", _canned_port_answer(run, calls, _stalled_pull_recorder(calls))
+    )
     problems = run.golden()
     golden_results = run.summary["results"]["golden"]
     assert golden_results["playwright_image_pull"] == "exit timed out"
@@ -3719,6 +4291,182 @@ def test_the_prod_shape_render_lifts_the_device_changes_into_the_run_record(
     # and the artifact is still the post-splice, post-limits render the run boots
     landed = json.loads((run.artifacts / "prod-rendered.json").read_text(encoding="utf-8"))
     assert "devices" not in landed["services"]["ai-vlm"]
+
+
+# ---------------------------------------------------------------------------
+# [O2.5 venue fixes, ruling 287] item 4: the Triton cache knobs. The seed is a
+# plain per-run COPY of a host cache into the run dir (the override binds
+# ${PROD_SHAPE_RUN_ROOT}/triton-cache, so the copy is what `up` boots); the
+# export is an opt-in one-off `compose run` against the real gateway image,
+# ordered ONNX-first because export_reid.py's B2.2 provenance rule refuses to
+# compile a plan from an ONNX no record vouches for.
+# ---------------------------------------------------------------------------
+
+
+def test_the_triton_cache_seed_is_copied_per_run_without_sharing_writes(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    # The venue's per-run cache: a shared host seed is COPIED into the run dir,
+    # never bound in place, so one run's plan build cannot poison the next
+    # run's cache (and the seed itself is never written).
+    seed = tmp_path / "seed"
+    seed.mkdir()
+    (seed / "model.plan").write_bytes(b"seed")
+    monkeypatch.setenv("PROD_SHAPE_TRITON_CACHE_SEED", str(seed))
+    run = _prod_run(tmp_path / "a", monkeypatch, socket=_ENGINE_SOCKET)
+    monkeypatch.setattr(fc, "read_subtree_control", lambda: "")
+    _fake_compose(run, _prod_rendered(postgres=_PG_LIMITS))
+    run.render(fc.Snapshot.from_engine([], []))
+    copied = run.dir / "triton-cache" / "model.plan"
+    assert copied.read_bytes() == b"seed"
+    # the copy is the run's own: writing it cannot reach back into the seed
+    copied.write_bytes(b"run-specific")
+    assert (seed / "model.plan").read_bytes() == b"seed"
+
+
+def test_a_triton_cache_seed_that_is_not_a_directory_is_refused_by_path(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    # A mistyped path (a file, or a directory that does not exist) must refuse
+    # the render with the path named, not fail later as a compose mount of
+    # nothing or an empty cache the export then "fixes" silently.
+    monkeypatch.setenv("PROD_SHAPE_TRITON_CACHE_SEED", str(tmp_path / "no-such-dir"))
+    run = _prod_run(tmp_path / "a", monkeypatch, socket=_ENGINE_SOCKET)
+    calls = _fake_compose(run, _prod_rendered(postgres=_PG_LIMITS))
+    with pytest.raises(fc.HarnessError, match="no-such-dir"):
+        run.render(fc.Snapshot.from_engine([], []))
+    assert calls == []
+
+
+@pytest.mark.parametrize("precision", [None, "fp32"])
+def test_the_triton_export_fails_loudly_and_arms_teardown(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, precision: str | None
+) -> None:
+    # PROD_SHAPE_EXPORT_TRITON=1 runs the ONNX-then-plan export as a one-off
+    # `compose run` against the real gateway image, with PROD_SHAPE_REID_PRECISION
+    # validated (fp16 default, fp32 the venue's opt-in -- TensorRT 11 has no
+    # --fp16, diagnostic db7dbe). A failed export must (a) leave the full
+    # output in triton-export.txt, (b) have set started BEFORE the one-off so
+    # its compose-created resources reach the normal down -v teardown, and
+    # (c) name the artifact in the error.
+    run = _prod_run(tmp_path / "a", monkeypatch, socket=_ENGINE_SOCKET)
+    monkeypatch.setenv("PROD_SHAPE_EXPORT_TRITON", "1")
+    if precision is None:
+        monkeypatch.delenv("PROD_SHAPE_REID_PRECISION", raising=False)
+    else:
+        monkeypatch.setenv("PROD_SHAPE_REID_PRECISION", precision)
+    monkeypatch.setattr(fc, "read_subtree_control", lambda: "")
+    _fake_compose(run, _prod_rendered(postgres=_PG_LIMITS))
+    monkeypatch.setattr(run, "prebuild_images", lambda: None)
+
+    def failed_export(*args: Any, **kwargs: Any) -> subprocess.CompletedProcess[str]:
+        return subprocess.CompletedProcess(args, 1, "export stdout", "export failure")
+
+    monkeypatch.setattr(run, "deployment", failed_export)
+    with pytest.raises(fc.HarnessError, match="Triton export failed"):
+        run.render(fc.Snapshot.from_engine([], []))
+    assert run.started is True, "teardown must be armed before the one-off runs"
+    artifact = (run.artifacts / "triton-export.txt").read_text(encoding="utf-8")
+    assert "export stdout" in artifact and "export failure" in artifact
+
+
+def test_the_triton_export_argv_runs_onnx_first_then_the_plan_in_the_gateway(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    # The one-off's shape, pinned at the argv seam: `compose run --rm --no-deps
+    # -T --entrypoint /bin/bash ai-gateway`, a single bash script, and INSIDE it
+    # the ONNX exports precede the reid plan compile -- export_reid.py's B2.2
+    # provenance rule refuses a plan whose sibling ONNX carries no record, so
+    # the other order can only fail on the venue. The precision knob reaches
+    # the plan step, and the yolo26 ONNX --device is cpu (the maui venue's
+    # diagnostic exported ONNX on CPU: a7c96f's plan build, not its ONNX, was
+    # the GPU-bound step).
+    run = _prod_run(tmp_path / "a", monkeypatch, socket=_ENGINE_SOCKET)
+    monkeypatch.setenv("PROD_SHAPE_EXPORT_TRITON", "1")
+    monkeypatch.setenv("PROD_SHAPE_REID_PRECISION", "fp32")
+    monkeypatch.setattr(fc, "read_subtree_control", lambda: "")
+    _fake_compose(run, _prod_rendered(postgres=_PG_LIMITS))
+    monkeypatch.setattr(run, "prebuild_images", lambda: None)
+    calls: list[tuple[Any, Any]] = []
+
+    def record(*args: Any, **kwargs: Any) -> subprocess.CompletedProcess[str]:
+        calls.append((args, kwargs))
+        return subprocess.CompletedProcess(args, 0, "exported", "")
+
+    monkeypatch.setattr(run, "deployment", record)
+    run.render(fc.Snapshot.from_engine([], []))
+    assert len(calls) == 1, calls
+    (argv, kwargs) = calls[0]
+    assert argv[:6] == ("run", "--rm", "--no-deps", "-T", "--entrypoint", "/bin/bash"), argv
+    assert "ai-gateway" in argv
+    script = argv[-1]
+    # ONNX exports before the plan (the provenance rule's order), the plan
+    # carrying the venue's precision choice.
+    assert script.index("export_yolo26.py") < script.index("export_reid.py"), script
+    assert script.index("--output-path /models/cache/reid/1/model.onnx") < script.index(
+        "--output-path /models/cache/reid/1/model.plan"
+    ), script
+    assert "--precision fp32" in script
+    assert "--device cpu" in script
+    assert kwargs["timeout"] >= 1800, "an 83.9s plan build is the FAST case; the cap is not"
+
+
+def test_the_triton_export_is_refused_on_the_sandbox_venue(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    # The sandbox venue's gateway is the FAKE (a uvicorn stub with no Triton,
+    # no exporter, no model repository): an export there would witness a
+    # deployment that cannot happen. The refusal names the venue.
+    run = _prod_run(tmp_path / "a", monkeypatch, socket=_ENGINE_SOCKET)
+    monkeypatch.setenv("PROD_SHAPE_EXPORT_TRITON", "1")
+    monkeypatch.setattr(fc, "read_subtree_control", lambda: "")
+    ci_render = json.dumps(
+        {"services": {"ai-vlm": _fake_vlm_body(), "ai-gateway": _fake_gateway_body()}}
+    )
+
+    def compose_dispatch(files: Any, *args: Any, **kwargs: Any) -> subprocess.CompletedProcess[str]:
+        prod = _prod_rendered(**_ruling256_doc()["services"])
+        body = ci_render if fc.CI_STACK in files else json.dumps(prod)
+        return subprocess.CompletedProcess(["fake"], 0, stdout=body, stderr="")
+
+    run.compose = compose_dispatch  # type: ignore[method-assign]
+    with pytest.raises(fc.HarnessError, match="real-gateway"):
+        run.render(fc.Snapshot.from_engine([], []), vlm=_StubVlm())
+
+
+def test_no_triton_export_runs_when_the_knob_is_absent(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    # Default runs perform no export (ruling 287: "Defaults ... stay unchanged"):
+    # the render with the knob unset never issues a compose run -- and the
+    # invalid-precision refusal cannot fire either, because validation only
+    # exists under the knob.
+    run = _prod_run(tmp_path / "a", monkeypatch, socket=_ENGINE_SOCKET)
+    monkeypatch.delenv("PROD_SHAPE_EXPORT_TRITON", raising=False)
+    monkeypatch.setenv("PROD_SHAPE_REID_PRECISION", "bogus")
+    monkeypatch.setattr(fc, "read_subtree_control", lambda: "")
+    _fake_compose(run, _prod_rendered(postgres=_PG_LIMITS))
+
+    def no_run(*args: Any, **kwargs: Any) -> subprocess.CompletedProcess[str]:
+        raise AssertionError(f"no one-off should run without the knob: {args}")
+
+    monkeypatch.setattr(run, "deployment", no_run)
+    run.render(fc.Snapshot.from_engine([], []))  # must not raise
+
+
+def test_an_invalid_reid_precision_is_refused_under_the_export_knob(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    # The validated knob (ruling 287 item 4): a free-form value must refuse at
+    # render time, not reach the venue's shell as part of a generated script.
+    run = _prod_run(tmp_path / "a", monkeypatch, socket=_ENGINE_SOCKET)
+    monkeypatch.setenv("PROD_SHAPE_EXPORT_TRITON", "1")
+    monkeypatch.setenv("PROD_SHAPE_REID_PRECISION", "int8")
+    monkeypatch.setattr(fc, "read_subtree_control", lambda: "")
+    _fake_compose(run, _prod_rendered(postgres=_PG_LIMITS))
+    monkeypatch.setattr(run, "prebuild_images", lambda: None)
+    with pytest.raises(fc.HarnessError, match="PROD_SHAPE_REID_PRECISION"):
+        run.render(fc.Snapshot.from_engine([], []))
 
 
 def test_the_prod_shape_render_lifts_the_sandbox_device_changes_into_the_run_record(
@@ -4859,9 +5607,15 @@ def _engine_answers(
             )
         if verb == "config":
             return subprocess.CompletedProcess(argv, 0, stdout=json.dumps(rendered), stderr="")
+
+        def build_names(argv: list[str]) -> list[str]:
+            # `--no-cache` rides along under prod_shape (the venue fixes' fresh-build
+            # clause), after the names: the slice stops at the flag.
+            return [part for part in argv[_last(argv, "-f") + 3 :] if part != "--no-cache"]
+
         if verb == "build":
             if build_rc == 0:
-                built = argv[_last(argv, "-f") + 3 :]
+                built = build_names(argv)
                 for name in built:
                     service = (rendered.get("services") or {}).get(name) or {}
                     if not service.get("image"):
@@ -4928,9 +5682,12 @@ def test_the_prod_render_prebuilds_the_build_images_before_up(
     builds = _verb_calls(calls, "build")
     assert len(builds) == 1, builds
     argv = builds[0]
-    named = argv[_last(argv, "-f") + 3 :]
-    # Both build-bearing services by NAME; redis is nobody's build.
+    named = [p for p in argv[_last(argv, "-f") + 3 :] if p != "--no-cache"]
+    # Both build-bearing services by NAME; redis is nobody's build. --no-cache
+    # rides exactly under prod-shape (asserted on the raw slice), and CI's argv
+    # drops it (its own pin).
     assert sorted(named) == ["backend", "grafana"], argv
+    assert "--no-cache" in argv[_last(argv, "-f") + 3 :], argv
     assert run.summary["prebuild"] == {
         "built": ["backend", "grafana"],
         "present": [],
@@ -4953,7 +5710,8 @@ def test_the_prebuild_skips_an_image_the_engine_already_has(
     run.render(fc.Snapshot.from_engine([], []))
 
     (argv, _env) = _the_build(calls)
-    assert argv[_last(argv, "-f") + 3 :] == ["backend"], argv
+    assert [p for p in argv[_last(argv, "-f") + 3 :] if p != "--no-cache"] == ["backend"], argv
+    assert "--no-cache" in argv[_last(argv, "-f") + 3 :], argv
     assert run.summary["prebuild"] == {
         "built": ["backend"],
         "present": ["grafana"],
@@ -5969,6 +6727,10 @@ def test_golden_seeded_runs_golden_seeded_playwright_project(
     """
     run = fc.Run(engine="docker", root=tmp_path / "runs", image_tag="test", mode=mode, seeded=True)
     run.prepare()
+    # [r308a] The golden env's in-network sink export reads the rendered
+    # compose.json; this run never renders, so the fixture writes the document
+    # the same way the shared golden helper does.
+    _write_rendered_compose(run)
     run.api = "http://127.0.0.1:32772"
     run.ui = "http://127.0.0.1:32773"
     run.admin = {"username": "feature-check", "password": "secret"}  # pragma: allowlist secret
@@ -5985,6 +6747,13 @@ def test_golden_seeded_runs_golden_seeded_playwright_project(
     def fake_run(command: list[str], **_kwargs: Any) -> subprocess.CompletedProcess[str]:
         cmd = [str(c) for c in command]
         commands.append(cmd)
+        # [r308a] The sink read-back lookups (`compose port mail-sink 8025` et
+        # al.) precede the leg; answer them from the fixture table or the env
+        # block raises before anything under test runs.
+        if len(cmd) >= 3 and cmd[-3] == "port" and (cmd[-2], int(cmd[-1])) in _SINK_PORT_ANSWERS:
+            return subprocess.CompletedProcess(
+                cmd, 0, _SINK_PORT_ANSWERS[(cmd[-2], int(cmd[-1]))], ""
+            )
         if "playwright" in " ".join(cmd):
             junit = run.artifacts / "golden-playwright.xml"
             junit.write_text(
@@ -6279,3 +7048,1045 @@ def test_a_real_and_seeded_deployment_takes_the_vlm_url_and_the_seeded_shape_tog
 
     # and the combination is still a deployment the in-run check accepts
     assert _preflight(both, live, allowed_host_ports=frozenset({18123})) == []
+
+
+# ---------------------------------------------------------------------------
+# [O2.5 venue fixes] the maui venue's own parameters reach the prod-shape env
+# file, and nothing else from the caller does.
+# ---------------------------------------------------------------------------
+
+
+def test_prod_shape_venue_parameters_do_not_import_other_host_settings(tmp_path: Path) -> None:
+    # The maui venue sets GPU_AI_SERVICES / AI_MODELS_PATH / ADMIN_ENABLED in its
+    # login shell (VENUE-PROFILE.md). The generated env file is the ONLY input the
+    # prod render reads (O2.2), so a venue value that never lands in it silently
+    # renders as prod's own default instead -- the model zoo and admin surface of a
+    # venue the run is not in. But "venue parameters" must stay a closed list: the
+    # caller's shell is still untrusted (POSTGRES_PASSWORD is a host secret, DEBUG
+    # flips the app's boot), so anything outside the three names is dropped.
+    caller = {
+        "PODMAN_SOCKET": _ENGINE_SOCKET,
+        "GPU_AI_SERVICES": "0",
+        "AI_MODELS_PATH": "/venue/models",
+        "ADMIN_ENABLED": "true",
+        "DEBUG": "true",
+        "POSTGRES_PASSWORD": "host-secret",  # pragma: allowlist secret
+    }
+    text = fc.prod_shape_env(run_dir=tmp_path, image_tag="test", caller=caller)
+    assert "GPU_AI_SERVICES=0\n" in text
+    assert "AI_MODELS_PATH=/venue/models\n" in text
+    assert "ADMIN_ENABLED=true\n" in text
+    assert "DEBUG=" not in text, "the closed list must not widen to the whole shell"
+    assert "host-secret" not in text
+    # An env file is one KEY=value per line: a multi-line value would smuggle the
+    # next lines in as new keys (DEBUG=true below) -- the same interpolation the
+    # file's own ${X:?} refusals guard against, now from the caller's side.
+    caller["AI_MODELS_PATH"] = "/venue/models\nDEBUG=true"
+    with pytest.raises(fc.HarnessError, match="single-line"):
+        fc.prod_shape_env(run_dir=tmp_path, image_tag="test", caller=caller)
+
+
+# ---------------------------------------------------------------------------
+# [O2.5 venue fixes] exporter health checks on the maui venue, opt-in.
+# ---------------------------------------------------------------------------
+
+
+def test_exporter_healthchecks_are_real_http_probes_with_readonly_tool_mount(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    # The maui venue's engine reports an empty health status for services without
+    # checks, so `up --wait` cannot hold the boot on the two exporters. The fix is
+    # opt-in (PROD_SHAPE_HEALTHCHECK_BUSYBOX) and doubles as a security gate: the
+    # only thing that crosses the bind is the venue's own busybox, mounted READ-ONLY
+    # at a fixed target, and the probe it runs is wget --spider against the
+    # service's own loopback metrics port. An absent or non-executable tool is
+    # refused at render time, not discovered by a boot that never went healthy.
+    tool = tmp_path / "busybox"
+    tool.write_bytes(b"fixture")
+    tool.chmod(0o755)
+    monkeypatch.setenv("PROD_SHAPE_HEALTHCHECK_BUSYBOX", str(tool))
+    run = _prod_run(tmp_path, monkeypatch, socket=_ENGINE_SOCKET)
+    monkeypatch.setattr(fc, "read_subtree_control", lambda: "")
+    monkeypatch.setattr(run, "prebuild_images", lambda: None)
+    doc = copy.deepcopy(_PREBUILD_DOC)
+    doc["services"]["redis-exporter"] = {"healthcheck": {"disable": True}}
+    doc["services"]["json-exporter"] = {}
+    calls = _fake_compose(run, doc)
+    run.render(fc.Snapshot.from_engine([], []))
+    services = json.loads(run.compose_file.read_text())["services"]
+    for name, port in (("redis-exporter", 9121), ("json-exporter", 7979)):
+        svc = services[name]
+        assert svc["healthcheck"]["test"] == [
+            "CMD",
+            "/busybox",
+            "wget",
+            "-q",
+            "--spider",
+            "-T",
+            "4",
+            f"http://localhost:{port}/metrics",
+        ]
+        assert "disable" not in svc["healthcheck"], "the probe must actually run"
+        assert svc["volumes"][-1] == {
+            "type": "bind",
+            "source": str(tool),
+            "target": "/busybox",
+            "read_only": True,
+        }
+    # the render it bootstraps from is untouched: the authored doc stays as compose
+    # answered it (the transform edits the boot document, never its inputs)
+    assert doc["services"]["redis-exporter"]["healthcheck"] == {"disable": True}
+    assert [list(files) for files, _ in calls] == [
+        [fc.PROD_STACK, fc.PROD_SHAPE_OVERRIDE],
+        [fc.CI_STACK, fc.FAKE_OVERLAY],
+    ]
+
+
+def test_exporter_healthcheck_refuses_an_unusable_busybox(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    # Opt-in must be honest: a path that is not an executable file would produce a
+    # healthcheck that fails every probe and a boot that never turns healthy, with
+    # the cause three layers away from the setting. Refuse at render time.
+    missing = tmp_path / "absent"
+    not_exec = tmp_path / "tool"
+    not_exec.write_bytes(b"not executable")
+    run = fc.Run(
+        engine="podman",
+        root=tmp_path / "runs",
+        image_tag="test",
+        mode="real",
+        prod_shape=True,
+    )
+    run.dir.mkdir(parents=True)
+    run.artifacts.mkdir(parents=True)
+    run.env_file.write_text("IMAGE_TAG=test\n", encoding="utf-8")
+    for bad in (missing, not_exec):
+        with monkeypatch.context() as patch:
+            patch.setenv("PROD_SHAPE_HEALTHCHECK_BUSYBOX", str(bad))
+            with pytest.raises(fc.HarnessError, match="busybox"):
+                fc.as_prod_shape_deployment(
+                    _prod_rendered(
+                        **{
+                            "redis-exporter": {"healthcheck": {"disable": True}},
+                            "json-exporter": {},
+                        }
+                    ),
+                    vlm_url=None,
+                )
+
+
+# ---------------------------------------------------------------------------
+# [O2.5 venue fixes] the fake the prod-shape run builds is THIS run's fake: its
+# image tags are the run's project, its base is the backend this run built, and
+# its build is fresh. The CI path stays exactly as it was.
+# ---------------------------------------------------------------------------
+
+
+def test_prod_shape_builds_a_fresh_fake_after_its_own_backend(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    # The maui venue's fake must never boot from a shared `hsi-fake-ai:latest` --
+    # that name is host-global, so it can carry ANOTHER checkout's fake code (the
+    # tag is `latest` for every project), and its base would be whatever backend
+    # built it, not this run's. The run's own project tag and this run's backend
+    # image are what `build_images` derives for a build service with no image,
+    # so the fake lands where `up --no-build` looks for it -- and the pre-build
+    # builds the backend BEFORE the fakes that FROM it, in one builder pass each.
+    run = _prod_run(tmp_path, monkeypatch, socket=_ENGINE_SOCKET)
+    monkeypatch.setattr(fc, "read_subtree_control", lambda: "")
+    doc = copy.deepcopy(_PREBUILD_DOC)
+    doc["services"]["ai-vlm"] = {
+        "image": "hsi-fake-ai:${IMAGE_TAG:-latest}",
+        "build": {"context": "/repo", "dockerfile": "docker/fake-ai/Dockerfile"},
+    }
+    # prod's REAL gateway: the maui venue keeps it (ruling 256 item 2) and builds
+    # it from prod's own Dockerfile under the project tag -- it is in the FIRST
+    # build group, and nothing here renames it. An image-less build service has
+    # no `image` key in the boot document (compose derives the name at `up`).
+    doc["services"]["ai-gateway"] = {
+        "build": {"context": "/repo", "dockerfile": "ai/gateway/Dockerfile"},
+    }
+    calls = _engine_answers(run, doc, monkeypatch)
+
+    run.render(fc.Snapshot.from_engine([], []))
+    boot = json.loads(run.compose_file.read_text())
+
+    # The spliced fake VLM carries the run's own tags.
+    assert boot["services"]["ai-vlm"]["image"] == f"{run.project}-ai-vlm:latest"
+    assert boot["services"]["ai-vlm"]["build"]["args"]["BACKEND_IMAGE"] == (
+        f"{run.project}-backend:latest"
+    )
+    assert "image" not in boot["services"]["ai-gateway"]
+    assert "args" not in boot["services"]["ai-gateway"]["build"]
+    # the authored doc is untouched: the run does not edit its inputs
+    assert doc["services"]["ai-vlm"]["image"] == "hsi-fake-ai:${IMAGE_TAG:-latest}"
+    # the build came in two passes: backend+grafana first, then the fake,
+    # with --no-cache under prod-shape only
+    builds = _verb_calls(calls, "build")
+    assert len(builds) == 2, builds
+    first, second = (
+        [p for p in argv[_last(argv, "-f") + 3 :] if p != "--no-cache"] for argv in builds
+    )
+    assert sorted(first) == ["ai-gateway", "backend", "grafana"], first
+    assert sorted(second) == ["ai-vlm"], second
+    assert all("--no-cache" in argv for argv in builds), builds
+    # the prebuild record still reads as one story, in build order (alphabetical
+    # within a pass: to_build is sorted)
+    assert run.summary["prebuild"]["built"] == ["ai-gateway", "backend", "grafana", "ai-vlm"]
+
+
+def test_ci_build_and_shared_fake_names_remain_unchanged(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    # The fake tier stays as it is (O2.5's own clause, carried through ruling 287):
+    # CI builds `hsi-fake-ai:latest` at `up`, fake mode never runs the prebuild
+    # (ruling 274's amendment leaves its `up` plain), and nothing on the CI path
+    # renames the fake or gets --no-cache. The shared name is CORRECT on CI --
+    # one checkout, one job, one engine -- so fake_service_bodies leaves it alone.
+    run = fc.Run(
+        engine="podman",
+        root=tmp_path / "runs",
+        image_tag="test",
+        mode="fake",
+        prod_shape=False,
+    )
+    run.dir.mkdir(parents=True)
+    run.artifacts.mkdir(parents=True)
+    run.env_file.write_text("IMAGE_TAG=test\n", encoding="utf-8")
+    rendered = {
+        "services": {
+            "ai-vlm": {
+                "image": "hsi-fake-ai:${IMAGE_TAG:-latest}",
+                "build": {"context": "/repo", "dockerfile": "docker/fake-ai/Dockerfile"},
+            },
+            "ai-gateway": {
+                "image": "hsi-fake-ai:${IMAGE_TAG:-latest}",
+                "build": {"context": "/repo", "dockerfile": "docker/fake-ai/Dockerfile"},
+            },
+        }
+    }
+    monkeypatch.setattr(
+        fc.Run,
+        "compose",
+        # Underscore-prefixed names: the file's lambda idiom where the args are
+        # deliberately unused (the answered render is closed over).
+        lambda _self, _files, *_args, **_kwargs: subprocess.CompletedProcess(
+            ["fake"], 0, stdout=json.dumps(rendered), stderr=""
+        ),
+    )
+
+    bodies = run.fake_service_bodies()
+
+    assert bodies["ai-vlm"]["image"] == "hsi-fake-ai:${IMAGE_TAG:-latest}"
+    assert bodies["ai-gateway"]["image"] == "hsi-fake-ai:${IMAGE_TAG:-latest}"
+    assert "args" not in bodies["ai-vlm"]["build"]
+
+
+def test_prebuild_stops_before_the_fakes_when_the_backend_build_fails(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    # A backend whose build failed cannot base the fakes; a second builder pass
+    # on top of a failed first one would fail confusingly (FROM an absent image)
+    # and overwrite the artifact with a stream that never mentions the cause.
+    run = _prod_run(tmp_path, monkeypatch, socket=_ENGINE_SOCKET)
+    monkeypatch.setattr(fc, "read_subtree_control", lambda: "")
+    doc = copy.deepcopy(_PREBUILD_DOC)
+    doc["services"]["ai-vlm"] = {
+        "image": "hsi-fake-ai:${IMAGE_TAG:-latest}",
+        "build": {"context": "/repo", "dockerfile": "docker/fake-ai/Dockerfile"},
+    }
+    calls = _engine_answers(
+        run, doc, monkeypatch, build_rc=1, build_tail="cgroup configuration: permission denied"
+    )
+
+    with pytest.raises(fc.HarnessError) as raised:
+        run.render(fc.Snapshot.from_engine([], []))
+    builds = _verb_calls(calls, "build")
+    assert len(builds) == 1, builds
+    assert sorted(p for p in builds[0][_last(builds[0], "-f") + 3 :] if p != "--no-cache") == [
+        "backend",
+        "grafana",
+    ]
+    assert "--no-cache" in builds[0], builds[0]
+    assert "cgroup" in str(raised.value), str(raised.value)
+
+
+# ---------------------------------------------------------------------------
+# [O2.5 venue fixes, ruling 287] the remaining opt-in venue transforms, tested
+# at the same two levels as the item-6 probes: the pure boot-document transform
+# where the shape alone decides, and render_prod_shape where the venue (a VLM
+# present or not) decides who may take which knob.
+# ---------------------------------------------------------------------------
+
+
+def _maui_ruling256() -> dict[str, Any]:
+    # The maui venue's prod render, minus the fake-VLM splice: this is the shape
+    # whose ai-gateway keeps production's CDI and whose foscam-init carries the
+    # writable camera bind. Compose keys are HYPHENATED ("foscam-init"), and
+    # _prod_rendered takes service dicts as keyword arguments, so the fixture
+    # service is assigned after the doc is built -- a foscam_init kwarg would
+    # spell an "foscam_init" key no transform ever reads.
+    doc = _prod_rendered(**_ruling256_doc()["services"])
+    doc["services"]["foscam-init"] = {"image": "init:test"}
+    return doc
+
+
+def test_keep_id_userns_lands_on_foscam_init_alone_and_the_default_stays_untouched(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    # Ruling 287 item 11. The venue requirement is "keep-id for foscam-init":
+    # the probe (f4f447) measured the default initializer owning its bind as host
+    # UID 100999 and DENIED the run's writer, while keep-id keeps the caller's
+    # own UID 1000 and the write succeeds. The knob is opt-in and validated, so
+    # an operator's typo must refuse the render rather than boot an initializer
+    # that silently reproduces the original denial under a different name.
+    with monkeypatch.context() as patch:
+        patch.setenv("PROD_SHAPE_INIT_USERNS", "keep-id")
+        out = fc.as_prod_shape_deployment(_maui_ruling256(), vlm_url=None)
+    assert out["services"]["foscam-init"]["userns_mode"] == "keep-id"
+    # foscam-init ONLY: no other service in the whole document changes namespace.
+    for name, service in out["services"].items():
+        if name != "foscam-init":
+            assert "userns_mode" not in service, (name, service.get("userns_mode"))
+    # and with nothing set, the default render carries none: the authored
+    # override's policy (three kinds of key change, ruling 162 item 3) intact.
+    default = fc.as_prod_shape_deployment(_maui_ruling256(), vlm_url=None)
+    assert "userns_mode" not in default["services"]["foscam-init"]
+
+
+def test_a_userns_value_other_than_keep_id_is_refused_by_name(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    # keep-id is the one value the venue requirement names. "host" would put the
+    # initializer in the HOST namespace (the preflight refuses that shape for the
+    # CI stack; the prod shape's in-run check must not inherit it either), and an
+    # unvalidated free-form value lets a future engine spelling boot unnoticed.
+    with monkeypatch.context() as patch:
+        patch.setenv("PROD_SHAPE_INIT_USERNS", "host")
+        with pytest.raises(fc.HarnessError, match="PROD_SHAPE_INIT_USERNS"):
+            fc.as_prod_shape_deployment(_maui_ruling256(), vlm_url=None)
+
+
+def test_a_missing_foscam_init_refuses_the_userns_transform(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    # The knob names one service. A render without it must refuse at render
+    # time with a message that says WHICH key was missing, not KeyError three
+    # frames into the transform.
+    with monkeypatch.context() as patch:
+        patch.setenv("PROD_SHAPE_INIT_USERNS", "keep-id")
+        with pytest.raises(fc.HarnessError, match="foscam-init"):
+            fc.as_prod_shape_deployment(
+                _prod_rendered(**_ruling256_doc()["services"]), vlm_url=None
+            )
+
+
+@pytest.mark.parametrize("failed", [False, True])
+def test_provisional_gpu_history_fixture_restores_only_its_rows_on_any_exit(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, failed: bool
+) -> None:
+    # Ruling 287 item 10's F-182 half. The fixture is PROVISIONAL: golden() only
+    # seeds it under PROD_SHAPE_GPU_HISTORY_FIXTURE=1, and the restore must run
+    # on ANY exit -- a golden leg that raises is exactly when a leak would hide.
+    # Both legs must monkeypatch cleanly (the DB is never touched here) and the
+    # two legs must see the SAME two UUIDs, so "delete exactly those" deletes
+    # what was seeded, not a second pair minted after the leg.
+    run = _prod_run(tmp_path, monkeypatch, socket=_ENGINE_SOCKET)
+    monkeypatch.setenv("PROD_SHAPE_GPU_HISTORY_FIXTURE", "1")
+    calls = []
+
+    def fixture(ids: list[str], *, restore: bool) -> None:
+        calls.append((ids, restore))
+
+    def leg() -> list[str]:
+        if failed:
+            raise fc.HarnessError("golden failed")
+        return []
+
+    monkeypatch.setattr(run, "_gpu_history_fixture", fixture)
+    monkeypatch.setattr(run, "_golden", leg)
+    if failed:
+        with pytest.raises(fc.HarnessError, match="golden failed"):
+            run.golden()
+    else:
+        assert run.golden() == []
+    assert len(calls) == 2
+    assert calls[0][0] == calls[1][0]
+    assert len(set(calls[0][0])) == 2
+    assert [call[1] for call in calls] == [False, True]
+
+
+def test_the_triton_base_argument_reaches_the_real_gateway_build_only_on_maui(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    # Ruling 287 item 7's harness half: the venue overrides the gateway base with
+    # --build-arg TRITON_IMAGE=... (26.09 arm64 by digest, because 26.01's CUDA
+    # code fails on the GB300). The override can only reach a BUILD, and only the
+    # maui venue keeps the real gateway (ruling 256 item 2) -- the sandbox run
+    # splices the fake, whose build is the fake Dockerfile. The maui real gateway
+    # is an IMAGE-LESS build service (docker-compose.prod.yml spells build.context
+    # + build.dockerfile, no image), which is the shape the knob reads.
+    doc = _maui_ruling256()
+    doc["services"]["ai-gateway"] = {
+        "build": {"context": ".", "dockerfile": "ai/gateway/Dockerfile"}
+    }
+    with monkeypatch.context() as patch:
+        patch.setenv("PROD_SHAPE_TRITON_IMAGE", "nvcr.io/nvidia/tritonserver@sha256:abc123")
+        out = fc.as_prod_shape_deployment(doc, vlm_url=None)
+    args = out["services"]["ai-gateway"]["build"]["args"]
+    assert args["TRITON_IMAGE"] == "nvcr.io/nvidia/tritonserver@sha256:abc123"
+    # nothing else gained a build.args entry (the fake splices below carry their
+    # own BACKEND_IMAGE, set in fake_service_bodies, not here)
+    for name, service in out["services"].items():
+        if name != "ai-gateway":
+            assert "args" not in (service.get("build") or {}), name
+
+
+def test_a_triton_base_override_is_refused_on_the_sandbox_venue(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    # The sandbox run replaced the real gateway with the CI fake; a build-arg for
+    # a build that never runs would silently witness the wrong deployment -- the
+    # exact failure shape ruling 256's refusal of cross-venue transforms exists
+    # for. The refusal is at render time, by the venue's own name.
+    with monkeypatch.context() as patch:
+        patch.setenv("PROD_SHAPE_TRITON_IMAGE", "nvcr.io/nvidia/tritonserver@sha256:abc123")
+        with pytest.raises(fc.HarnessError, match="real-gateway"):
+            fc.as_prod_shape_deployment(
+                _maui_ruling256(),
+                vlm_url="http://10.0.0.5:8123",
+                fake_gateway=_fake_gateway_body(),
+            )
+
+
+def test_gpu_ai_services_pins_the_backend_devices_env_only_on_maui(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    # Ruling 287 item 2's last row: Podman's compatibility API may ignore the
+    # deploy DeviceRequests prod carries, so the venue's explicit GPU choice
+    # must ALSO reach the backend as NVIDIA_VISIBLE_DEVICES -- the env the
+    # NVIDIA runtime itself honours. maui-only, like the base override: the
+    # sandbox backend has its reservation stripped and no GPU at all.
+    with monkeypatch.context() as patch:
+        patch.setenv("GPU_AI_SERVICES", "0")
+        out = fc.as_prod_shape_deployment(_maui_ruling256(), vlm_url=None)
+    assert out["services"]["backend"]["environment"]["NVIDIA_VISIBLE_DEVICES"] == "0"
+    # the deploy reservation prod spells stays: the env ADDS the explicit pin,
+    # it does not replace prod's own wiring
+    resources = out["services"]["backend"]["deploy"]["resources"]
+    assert resources["reservations"]["devices"], "the maui reservation must survive"
+
+
+def test_gpu_ai_services_absent_or_empty_leaves_the_backend_untouched(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    # An empty string is "unset" for this knob (the venue shell may export it
+    # blank), and the sandbox venue never takes it: fake_gateway present is
+    # refused for the build-arg knob but the GPU env knob must simply not fire.
+    baseline = fc.as_prod_shape_deployment(_maui_ruling256(), vlm_url=None)
+    with monkeypatch.context() as patch:
+        patch.setenv("GPU_AI_SERVICES", "")
+        out = fc.as_prod_shape_deployment(_maui_ruling256(), vlm_url=None)
+    assert "NVIDIA_VISIBLE_DEVICES" not in out["services"]["backend"]["environment"]
+    assert "NVIDIA_VISIBLE_DEVICES" not in baseline["services"]["backend"]["environment"]
+    # and the sandbox venue: its backend keeps no GPU wiring at all
+    with monkeypatch.context() as patch:
+        patch.setenv("GPU_AI_SERVICES", "0")
+        sandbox = fc.as_prod_shape_deployment(
+            _maui_ruling256(),
+            vlm_url="http://10.0.0.5:8123",
+            fake_gateway=_fake_gateway_body(),
+        )
+    assert "NVIDIA_VISIBLE_DEVICES" not in sandbox["services"]["backend"]["environment"]
+    assert "NVIDIA_VISIBLE_DEVICES" not in baseline["services"]["backend"]["environment"]
+
+
+def test_ci_golden_keeps_the_authored_fake_scenario_book(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    # The CI leg is unchanged (ruling 287: "Defaults ... and CI's behaviour stay
+    # unchanged"). With neither prod-shape knob set, golden() must reach _golden()
+    # untouched: the authored scenario book stays FEATURE_CHECK_SCENARIOS's value.
+    # Item 14's native-capture machinery ([r287b]) is not in this correction, so
+    # there is no golden_scenarios attribute and nothing substitutes the book --
+    # asserted by absence of the attribute, not by a monkeypatched forbidden call
+    # (the method itself is out of scope; asserting on its absence would be
+    # inventing a surface this diff does not ship).
+    run = _prod_run(tmp_path, monkeypatch, socket=_ENGINE_SOCKET)
+    run.prod_shape = False
+    monkeypatch.delenv("PROD_SHAPE_GPU_HISTORY_FIXTURE", raising=False)
+    monkeypatch.setattr(run, "_golden", lambda: ["original CI golden leg"])
+    assert run.golden() == ["original CI golden leg"]
+    assert not hasattr(run, "golden_scenarios")
+
+
+# ---------------------------------------------------------------------------
+# [O2.5 venue fixes, ruling 287] the in-run isolation check on the prod shape:
+# it reuses the render's OWN socket policy (the same engine_socket_mounts the
+# render's UR-134 re-check runs) instead of the CI tier's root-directory ban,
+# which mistakenly flags node-exporter's read-only /:/host:ro observer bind.
+# CI's check keeps its exact behavior (ruling 287 item 12).
+# ---------------------------------------------------------------------------
+
+
+def _inspect_of(*mounts: tuple[str, str, bool]) -> list[dict[str, Any]]:
+    """One container's inspect, as the backend/MAUI stack would answer it."""
+    return [
+        {
+            "Name": f"/{PROJECT}-backend-1",
+            "Id": "fixture",
+            "State": {"Status": "running", "StartedAt": "2026-01-01T00:00:00Z"},
+            "Config": {"Labels": {fc.PROJECT_LABEL: PROJECT}},
+            "NetworkSettings": {"Ports": {}},
+            "Mounts": [
+                {"Type": "bind", "Source": src, "Destination": dst, "RW": rw}
+                for (src, dst, rw) in mounts
+            ],
+        }
+    ]
+
+
+def test_the_prod_shape_in_run_check_uses_the_render_socket_policy() -> None:
+    # node-exporter binds /:/host read-only (docker-compose.prod.yml:1450) and
+    # alloy reads /sys,/proc: the render's UR-134 re-check accepts those (they
+    # name no engine socket and no socket path), so the in-run check must accept
+    # the BOOTS it allowed. is_engine_socket("/" or "/var") is True by design for
+    # the CI preflight -- a writable host root is the whole machine -- so the old
+    # per-mount check here reddened every maui run on an observer bind.
+    containers = _inspect_of(("/", "/host", False), ("/run/user/1000/netns", "/netns", False))
+    assert (
+        fc.in_run_check(
+            containers,
+            orchestrator_enabled=False,
+            services=NO_ORCHESTRATOR,
+            prod_shape_socket=_ENGINE_SOCKET,
+        )
+        == []
+    )
+
+
+def test_the_prod_shape_in_run_check_still_rejects_a_real_engine_socket() -> None:
+    # Item 12 does NOT skip isolation checking: a socket mount whose source is
+    # the caller's PODMAN_SOCKET is refused on the prod shape exactly as the
+    # render refuses one in its boot document, and the conventional targets
+    # (/var/run/podman/podman.sock etc.) stay refused whatever the source is.
+    containers = _inspect_of((_ENGINE_SOCKET, "/var/run/podman/podman.sock", False))
+    _one_problem(
+        fc.in_run_check(
+            containers,
+            orchestrator_enabled=False,
+            services=NO_ORCHESTRATOR,
+            prod_shape_socket=_ENGINE_SOCKET,
+        ),
+        "engine socket",
+    )
+    containers2 = _inspect_of(("/somewhere/else.sock", "/var/run/docker.sock", False))
+    _one_problem(
+        fc.in_run_check(
+            containers2,
+            orchestrator_enabled=False,
+            services=NO_ORCHESTRATOR,
+            prod_shape_socket=_ENGINE_SOCKET,
+        ),
+        "engine socket",
+    )
+
+
+def test_the_prod_shape_in_run_check_rejects_a_writable_host_root() -> None:
+    # The read-only observer is the deliberate shape; a WRITABLE bind of / or
+    # /var is the machine itself -- the check must still name it, on the prod
+    # shape as on CI.
+    containers = _inspect_of(("/", "/host", True))
+    _one_problem(
+        fc.in_run_check(
+            containers,
+            orchestrator_enabled=False,
+            services=NO_ORCHESTRATOR,
+            prod_shape_socket=_ENGINE_SOCKET,
+        ),
+        "engine socket",
+    )
+
+
+def test_the_ci_in_run_check_keeps_its_root_ban_with_no_prod_shape_socket() -> None:
+    # CI behavior retained (ruling 287 item 12): the per-mount check on
+    # is_engine_socket flags / and /var on the CI tier exactly as before -- the
+    # prod-shape policy is opt-in through the new parameter, never a default.
+    containers = _inspect_of(("/", "/host", False))
+    _one_problem(
+        fc.in_run_check(containers, orchestrator_enabled=False, services=NO_ORCHESTRATOR),
+        "engine socket",
+    )
+
+
+def test_the_prod_shape_run_wires_its_socket_into_the_in_run_check(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    # The wiring, not just the policy: check_isolation passes the caller's
+    # PODMAN_SOCKET only under --prod-shape, so a CI run can never take the
+    # prod-shape branch through a leaked variable.
+    seen: dict[str, Any] = {}
+
+    def fake_in_run_check(containers: Any, **kwargs: Any) -> list[str]:
+        seen.update(kwargs)
+        return []
+
+    monkeypatch.setattr(fc, "in_run_check", fake_in_run_check)
+    # check_isolation reads the socket from the environment, so the prod run
+    # needs the variable set -- exactly what _prod_run does for its own tests.
+    monkeypatch.setenv("PODMAN_SOCKET", _ENGINE_SOCKET)
+    monkeypatch.setattr(
+        fc.Run,
+        "_run",
+        lambda *_, **__: subprocess.CompletedProcess([], 0, "", ""),
+    )
+    monkeypatch.setattr(
+        fc.Run, "deployment", lambda *_, **__: subprocess.CompletedProcess([], 0, "False\n", "")
+    )
+    monkeypatch.setattr(fc, "_http", lambda *_, **__: (503, {"detail": fc.ORCHESTRATOR_ABSENT}))
+
+    prod = fc.Run(
+        engine="podman", root=tmp_path / "a", image_tag="test", mode="real", prod_shape=True
+    )
+    # self.api is set by up(); the wiring test drives check_isolation alone.
+    prod.api = "http://127.0.0.1:1"
+    prod.check_isolation()
+    assert seen["prod_shape_socket"] == _ENGINE_SOCKET, seen
+
+    seen.clear()
+    ci = fc.Run(engine="podman", root=tmp_path / "b", image_tag="test", mode="real")
+    ci.api = "http://127.0.0.1:1"
+    ci.check_isolation()
+    assert seen["prod_shape_socket"] is None, seen
+
+
+# [r282] The manifest-selected golden shard: the harness reads the checked-in
+# manifest and hands the shard's files to the leg as env, instead of letting
+# Playwright's count-based --shard split the suite by file count (measured
+# 337/262/494/457 s per shard — a 231 s spread no count split can close).
+# ---------------------------------------------------------------------------
+
+
+_R282_MANIFEST = {
+    "shard_count": 3,
+    "backend_leg_shard": 1,
+    "shards": [
+        ["tests/golden/dashboard-drop.spec.ts"],
+        ["tests/golden/timeline/event-list.spec.ts"],
+        ["tests/golden/analytics-alerts/alerts.spec.ts"],
+    ],
+    "loads_seconds": [0.0, 0.0, 0.0],
+}
+
+
+@pytest.fixture()
+def _r282_manifest(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> Path:
+    """A three-shard manifest the fixture writes where the harness reads it.
+
+    FRONTEND is already monkeypatched to tmp_path/frontend by _golden_only_run;
+    the manifest lives at frontend/golden-shards.json exactly as checked in.
+    The fixture also flips the opt-in the route reads: without
+    $FEATURE_CHECK_SHARD_MANIFEST the harness must keep [r264]'s count-based
+    --shard, so every manifest pin sets it and the no-opt-in pin below deletes
+    it explicitly (an environment leak would invert what the pin measures).
+    """
+    frontend = tmp_path / "frontend"
+    frontend.mkdir(parents=True, exist_ok=True)
+    manifest = frontend / "golden-shards.json"
+    manifest.write_text(json.dumps(_R282_MANIFEST), encoding="utf-8")
+    monkeypatch.setattr(fc, "GOLDEN_SHARDS_MANIFEST", manifest)
+    monkeypatch.setenv("FEATURE_CHECK_SHARD_MANIFEST", "1")
+    return manifest
+
+
+def test_a_manifest_shard_exports_the_selected_files_as_env(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, _r282_manifest: Path
+) -> None:
+    """[r282] Shard 2's leg gets its files as FEATURE_CHECK_GOLDEN_FILES, no --shard flag.
+
+    The harness reads the manifest host-side and selects shard 2's files itself,
+    so the split the run record claims is the split the harness computed — not
+    one a JS config re-derived inside the image where no pin can see it. The
+    count-based --shard append is REPLACED, not composed: a manifest shard that
+    also carried --shard=i/N would let Playwright re-split the manifest's own
+    selection (a second, silent partition).
+    """
+    calls: list[tuple[list[str], dict[str, Any]]] = []
+    run = _golden_only_run(tmp_path, monkeypatch, True, calls, shard=(2, 3))
+    assert run.golden() == []
+    argv, kwargs = _golden_container(calls)
+    inner = argv[-1]
+    assert "--shard=" not in inner, inner
+    assert kwargs["env"]["FEATURE_CHECK_GOLDEN_FILES"] == (
+        "tests/golden/timeline/event-list.spec.ts"
+    )
+    assert run.summary["results"]["golden"]["playwright_specs"], "the leg still ran"
+
+
+def test_a_manifest_shard_ignores_everything_not_selected(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, _r282_manifest: Path
+) -> None:
+    """[r282] The inner command itself carries the file list (testIgnore sees it as env).
+
+    The config's testIgnore function reads FEATURE_CHECK_GOLDEN_FILES; the
+    harness proves the name reaches the container by the same name-only -e
+    rule every other variable uses — the NAME rides the argv, the VALUE rides
+    the env. The value here is the full space-separated list, and the pin
+    holds the argv to it: an argv that exported the value would write the
+    file list into the step log (harmless today, but the whitelist's rule is
+    names only, and the rule's test is the shape, not the content).
+    """
+    calls: list[tuple[list[str], dict[str, Any]]] = []
+    run = _golden_only_run(tmp_path, monkeypatch, True, calls, shard=(1, 3))
+    assert run.golden() == []
+    argv, kwargs = _golden_container(calls)
+    exported = [argv[i + 1] for i, token in enumerate(argv) if token == "-e"]
+    assert "FEATURE_CHECK_GOLDEN_FILES" in exported
+    assert kwargs["env"]["FEATURE_CHECK_GOLDEN_FILES"] == ("tests/golden/dashboard-drop.spec.ts")
+    assert "--shard=" not in argv[-1], argv[-1]
+
+
+def test_a_manifest_shard_record_names_the_selection(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, _r282_manifest: Path
+) -> None:
+    """[r282] The run record names the manifest and the file count it selected.
+
+    A record that said `shard: 2/3` while the leg ran a manifest selection is
+    half a claim: the fan-in merges by shard label, but an auditor asked "what
+    did shard 2 actually run?" needs the answer in the record, not in a file
+    the record does not name. The manifest path is recorded relative to
+    FRONTEND (the manifest is checked in at frontend/golden-shards.json) so the
+    record stays machine-independent.
+    """
+    calls: list[tuple[list[str], dict[str, Any]]] = []
+    run = _golden_only_run(tmp_path, monkeypatch, True, calls, shard=(3, 3))
+    assert run.golden() == []
+    golden = run.summary["results"]["golden"]
+    assert golden["shard_manifest"] == "frontend/golden-shards.json", golden.get("shard_manifest")
+    assert golden["shard_files"] == ["tests/golden/analytics-alerts/alerts.spec.ts"], golden.get(
+        "shard_files"
+    )
+
+
+def test_a_missing_manifest_file_fails_the_selection_closed(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """[r282] Opt-in set, shard named, no manifest: a loud red, not a fall-back.
+
+    The opt-in is CI-only like --shard, and for the same reason: a
+    silently-unsharded run inside a matrix cell that expects a partition would
+    run the WHOLE suite on shard 2 while shards 1/3/4 ran the whole suite too —
+    the fan-in's two-shards-leg check catches it downstream, but the leg that
+    lied about its shape should not run at all. So the selection refuses with
+    HarnessError, which golden() does not catch (a missing manifest is a shape
+    the caller chose, not a leg that went red).
+    """
+    # The constant points at the real repo while FRONTEND is the fixture tree,
+    # so the pin must model absence on the SAME path the run would read: a
+    # checked-in manifest that exists on this machine but not on that head.
+    monkeypatch.setattr(fc, "GOLDEN_SHARDS_MANIFEST", tmp_path / "frontend" / "golden-shards.json")
+    monkeypatch.setenv("FEATURE_CHECK_SHARD_MANIFEST", "1")
+    calls: list[tuple[list[str], dict[str, Any]]] = []
+    run = _golden_only_run(tmp_path, monkeypatch, True, calls, shard=(1, 3))
+    with pytest.raises(fc.HarnessError):
+        run.golden()
+    # The refusal is at the selection, before the leg: earlier setup steps
+    # (npm ci, the image inspect) may have run, but no container run did.
+    assert _container_calls(calls) == [], "no leg ran on a refused selection"
+
+
+def test_without_the_opt_in_a_shard_keeps_r264s_count_split(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, _r282_manifest: Path
+) -> None:
+    """[r282] Env unset + shard named + manifest on disk: [r264]'s --shard, byte for byte.
+
+    The manifest route is OPT-IN: callers that have not asked for it must see
+    today's count-based behavior even though the manifest file itself is
+    checked in and present. The count-based --shard=i/N append survives here
+    (that is [r264]'s contract, its own pins pin it), and no file list rides
+    the env — the manifest's presence alone selects nothing. This is the pin
+    that makes the roll-out a no-op for every existing caller: [r264]'s four
+    shard pins pass unchanged against a tree that also carries the manifest.
+    """
+    monkeypatch.delenv("FEATURE_CHECK_SHARD_MANIFEST", raising=False)
+    calls: list[tuple[list[str], dict[str, Any]]] = []
+    run = _golden_only_run(tmp_path, monkeypatch, True, calls, shard=(2, 3))
+    assert run.golden() == []
+    argv, kwargs = _golden_container(calls)
+    inner = argv[-1]
+    assert "--shard=2/3" in inner, inner
+    assert "FEATURE_CHECK_GOLDEN_FILES" not in argv, argv
+    assert "FEATURE_CHECK_GOLDEN_FILES" not in kwargs["env"]
+    golden = run.summary["results"]["golden"]
+    assert "shard_manifest" not in golden and "shard_files" not in golden, golden
+
+
+def test_the_record_names_only_the_selection(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """[r282] shard_files is the selection this shard RAN, not the whole manifest.
+
+    A record that claimed all three shards' files for one cell would still
+    pass a union check (the files exist) while making the run record unable
+    to witness what the leg actually executed -- the coverage hole the fan-in
+    exists to catch would be invisible in the artifacts too.
+    """
+    manifest = {**_R282_MANIFEST, "shards": [["a/x.spec.ts"], ["b/y.spec.ts"], ["c/z.spec.ts"]]}
+    frontend = tmp_path / "frontend"
+    frontend.mkdir(parents=True, exist_ok=True)
+    path = frontend / "golden-shards.json"
+    path.write_text(json.dumps(manifest), encoding="utf-8")
+    monkeypatch.setattr(fc, "GOLDEN_SHARDS_MANIFEST", path)
+    monkeypatch.setenv("FEATURE_CHECK_SHARD_MANIFEST", "1")
+    calls: list[tuple[list[str], dict[str, Any]]] = []
+    run = _golden_only_run(tmp_path, monkeypatch, True, calls, shard=(2, 3))
+    assert run.golden() == []
+    golden = run.summary["results"]["golden"]
+    assert golden["shard_files"] == ["b/y.spec.ts"], golden.get("shard_files")
+    assert golden["shard_manifest"] == "frontend/golden-shards.json", golden.get("shard_manifest")
+
+
+def test_the_record_names_where_the_manifest_actually_was(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """[r282] The record tracks the manifest it read, not the canonical name.
+
+    shard_manifest is recorded from the constant, relative to the repo root --
+    so if the manifest ever moves or is overridden, the record follows and
+    names the file that was actually read. A hardcoded name would survive
+    every current pin (the constant's definition makes the relative_to a
+    constant in disguise) while quietly lying in the record the first time
+    the path is overridden.
+    """
+    frontend = tmp_path / "frontend"
+    frontend.mkdir(parents=True, exist_ok=True)
+    manifest = frontend / "golden-shards-alt.json"
+    manifest.write_text(json.dumps(_R282_MANIFEST), encoding="utf-8")
+    monkeypatch.setattr(fc, "GOLDEN_SHARDS_MANIFEST", manifest)
+    monkeypatch.setenv("FEATURE_CHECK_SHARD_MANIFEST", "1")
+    calls: list[tuple[list[str], dict[str, Any]]] = []
+    run = _golden_only_run(tmp_path, monkeypatch, True, calls, shard=(2, 3))
+    assert run.golden() == []
+    golden = run.summary["results"]["golden"]
+    assert golden["shard_manifest"] == "frontend/golden-shards-alt.json", golden.get(
+        "shard_manifest"
+    )
+
+
+def test_an_unset_manifest_selection_leaves_the_leg_unchanged(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """[r282] No manifest option, no --shard: today's argv, byte for byte.
+
+    Every existing caller — the real tier, the maui prod-shape run, the local
+    operator — passes no shard at all, and r282 must not move a byte of their
+    leg. The unsharded leg's pins above already pin the shape; this one pins
+    it again WITH the manifest constant and the opt-in present, so the
+    option's mere existence is not the change — only a shard plus the opt-in
+    together are.
+    """
+    monkeypatch.setenv("FEATURE_CHECK_SHARD_MANIFEST", "1")
+    calls: list[tuple[list[str], dict[str, Any]]] = []
+    run = _golden_only_run(tmp_path, monkeypatch, True, calls)
+    run.shard = None
+    assert run.golden() == []
+    argv, kwargs = _golden_container(calls)
+    assert "--shard=" not in argv[-1], argv[-1]
+    assert "FEATURE_CHECK_GOLDEN_FILES" not in argv, argv
+    assert "FEATURE_CHECK_GOLDEN_FILES" not in kwargs["env"]
+
+
+def test_a_manifest_selection_requires_a_shard(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, _r282_manifest: Path
+) -> None:
+    """[r282] The opt-in is the shard's file source, not a standalone filter.
+
+    A $FEATURE_CHECK_SHARD_MANIFEST on an UNSHARDED run would filter the whole
+    unsharded suite to one shard's files while the record said nothing — the
+    silent-coverage-hole shape again, this time from the other direction. So
+    the manifest is consulted only when a shard was named; opt-in without one
+    leaves the leg exactly today's.
+    """
+    calls: list[tuple[list[str], dict[str, Any]]] = []
+    run = _golden_only_run(tmp_path, monkeypatch, True, calls)
+    run.shard = None
+    assert run.golden() == []
+    argv, kwargs = _golden_container(calls)
+    assert "--shard=" not in argv[-1], argv[-1]
+    assert "FEATURE_CHECK_GOLDEN_FILES" not in kwargs["env"]
+
+
+def test_a_manifest_shard_number_outside_the_manifest_is_refused(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, _r282_manifest: Path
+) -> None:
+    """[r282] Shard 7 of a three-shard manifest is a matrix/manifest drift, fail-closed.
+
+    The workflow's matrix and the manifest's shard_count are two files that
+    must agree; the harness is where the disagreement is caught, at the leg,
+    with both numbers named in the error.
+    """
+    calls: list[tuple[list[str], dict[str, Any]]] = []
+    run = _golden_only_run(tmp_path, monkeypatch, True, calls, shard=(7, 8))
+    with pytest.raises(fc.HarnessError) as excinfo:
+        run.golden()
+    message = str(excinfo.value)
+    assert "--shard 7/8" in message and "shard_count 3" in message, message
+    assert _container_calls(calls) == [], "no leg ran on a refused selection"
+
+
+# ---------------------------------------------------------------------------
+# Phase 4 real-tier witness selectors (--pytest-k, --playwright-grep; UR-140)
+# ---------------------------------------------------------------------------
+
+
+@pytest.mark.parametrize(
+    "argv",
+    [
+        ["--fake", "--pytest-k", "test_f100"],
+        ["--prod-shape", "--pytest-k", "test_f100"],
+        ["--real", "--prod-shape", "--pytest-k", "test_f100"],
+        ["--real", "--seeded", "--pytest-k", "test_f100"],
+        ["--real", "--pytest-k", "   "],
+        ["--fake", "--playwright-grep", "F-101"],
+        ["--prod-shape", "--playwright-grep", "F-101"],
+        ["--real", "--prod-shape", "--playwright-grep", "F-101"],
+        ["--real", "--playwright-grep", "   "],
+    ],
+)
+def test_real_tier_selectors_refuse_invalid_modes_or_empty_values(
+    monkeypatch: pytest.MonkeyPatch, argv: list[str]
+) -> None:
+    """--pytest-k and --playwright-grep are real-tier witness selectors only."""
+    booted = _fake_boot(monkeypatch)
+    with pytest.raises(SystemExit):
+        fc.main(argv)
+    assert booted == []
+
+
+def test_real_tier_selectors_carry_into_run_and_record(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """--real --pytest-k ... --playwright-grep ... reaches run_check and summary."""
+    seen: dict[str, Any] = {}
+
+    def fake_run_check(args: Any, *, mode: str) -> int:
+        seen["mode"] = mode
+        seen["pytest_k"] = args.pytest_k
+        seen["playwright_grep"] = args.playwright_grep
+        probe = fc.Run(
+            engine="docker",
+            root=Path("/tmp/hsi-feature-check-tests"),  # noqa: S108 - never touched
+            image_tag="t",
+            mode=mode,
+            pytest_k=args.pytest_k,
+            playwright_grep=args.playwright_grep,
+        )
+        seen["record"] = probe.summary
+        return 0
+
+    monkeypatch.setattr(fc, "run_check", fake_run_check)
+    monkeypatch.setattr(fc, "real_unavailable", lambda _environ: None)
+    assert (
+        fc.main(
+            [
+                "--real",
+                "--pytest-k",
+                "test_f100 or test_f101",
+                "--playwright-grep",
+                "F-101",
+            ]
+        )
+        == 0
+    )
+    assert seen["mode"] == "real"
+    assert seen["pytest_k"] == "test_f100 or test_f101"
+    assert seen["playwright_grep"] == "F-101"
+    assert seen["record"]["pytest_k"] == "test_f100 or test_f101"
+    assert seen["record"]["playwright_grep"] == "F-101"
+
+
+def test_pytest_k_alone_runs_backend_with_k_and_skips_playwright(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """A backend-only witness (e.g. B4.1) runs pytest -k and skips Playwright."""
+    run = _golden_leg(tmp_path, monkeypatch, "backend", _RAN_JUNIT)
+    # Enable PLAYWRIGHT_CONFIG too to prove the skip guard suppresses Playwright.
+    config = tmp_path / "playwright.config.ts"
+    config.write_text("{ name: 'golden', testDir: './tests/golden' }\n", encoding="utf-8")
+    monkeypatch.setattr(fc, "PLAYWRIGHT_CONFIG", config)
+    recorded_argvs: list[list[str]] = []
+    orig_run = run._run
+
+    def spy_run(command: list[str], **kwargs: Any) -> subprocess.CompletedProcess[str]:
+        recorded_argvs.append(list(command))
+        return orig_run(command, **kwargs)
+
+    monkeypatch.setattr(run, "_run", spy_run)
+    run.pytest_k = "test_f216_f217 or test_f050_f079"
+    assert run.golden() == []
+    golden = run.summary["results"]["golden"]
+    assert golden["backend"] == "ok"
+    assert golden["pytest_k"] == "test_f216_f217 or test_f050_f079"
+    assert golden["playwright"] == "skipped on pytest-k"
+    pytest_calls = [c for c in recorded_argvs if c[:3] == ["uv", "run", "pytest"]]
+    assert len(pytest_calls) == 1
+    assert pytest_calls[0][-2:] == ["-k", "test_f216_f217 or test_f050_f079"]
+
+
+def test_playwright_grep_alone_skips_backend_and_passes_grep_to_playwright(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """A Playwright-only witness skips the backend pytest leg and passes --grep."""
+    calls: list[tuple[list[str], dict[str, Any]]] = []
+    run = _golden_only_run(tmp_path, monkeypatch, True, calls)
+    monkeypatch.setattr(fc, "REPO_ROOT", tmp_path)
+    backend_dir = tmp_path / "no-backend-golden"
+    backend_dir.mkdir()
+    (backend_dir / "test_one.py").write_text("def test_one():\n", encoding="utf-8")
+    run.playwright_grep = "F-101"
+    assert run.golden() == []
+    golden = run.summary["results"]["golden"]
+    assert golden["backend"] == "skipped on playwright-grep"
+    assert golden["playwright"] == "ok"
+    assert golden["playwright_grep"] == "F-101"
+    assert not any(c[:3] == ["uv", "run", "pytest"] for c, _ in calls)
+    argv, _ = _golden_container(calls)
+    assert "--grep F-101" in argv[-1], argv[-1]
+
+
+def test_both_selectors_run_both_legs_with_their_filters(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """When both --pytest-k and --playwright-grep are passed (e.g. B4.6), both legs run."""
+    calls: list[tuple[list[str], dict[str, Any]]] = []
+    run = _golden_only_run(tmp_path, monkeypatch, True, calls)
+    monkeypatch.setattr(fc, "REPO_ROOT", tmp_path)
+    backend_dir = tmp_path / "no-backend-golden"
+    backend_dir.mkdir()
+    (backend_dir / "test_backup.py").write_text("def test_f101():\n", encoding="utf-8")
+    orig_fake = fc.Run._run
+
+    def fake_with_backend_junit(
+        self: Any, command: list[str], **kwargs: Any
+    ) -> subprocess.CompletedProcess[str]:
+        res = orig_fake(self, command, **kwargs)
+        for token in command:
+            if str(token).startswith("--junitxml="):
+                Path(str(token).split("=", 1)[1]).write_text(_RAN_JUNIT, encoding="utf-8")
+        return res
+
+    monkeypatch.setattr(fc.Run, "_run", fake_with_backend_junit)
+    run.pytest_k = "test_f100 or test_f101"
+    run.playwright_grep = "F-101"
+    assert run.golden() == []
+    golden = run.summary["results"]["golden"]
+    assert golden["backend"] == "ok"
+    assert golden["pytest_k"] == "test_f100 or test_f101"
+    assert golden["playwright"] == "ok"
+    assert golden["playwright_grep"] == "F-101"
+    pytest_calls = [c for c, _ in calls if c[:3] == ["uv", "run", "pytest"]]
+    assert len(pytest_calls) == 1
+    assert pytest_calls[0][-2:] == ["-k", "test_f100 or test_f101"]
+    argv, _ = _golden_container(calls)
+    assert "--grep F-101" in argv[-1], argv[-1]

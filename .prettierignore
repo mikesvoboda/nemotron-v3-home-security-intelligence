@@ -35,3 +35,11 @@ synthbench/generate/comfy/object_info.v0.37.0.json
 # provenance claim in test_smoke_test_ci_stack_contract.py — same class as the
 # generated snapshot above: data captured by a tool, not prose to be reflowed.
 backend/tests/unit/scripts/data/*.json
+
+# [r282] Machine-written byte-pinned data: scripts/golden_shard_manifest.py writes
+# both with json.dumps(indent=2, sort_keys=True) and a repo pin byte-compares the
+# regen output against the checked-in file. Prettier collapsing the arrays would
+# break that pin on every commit (the regen writes 2-space-indented arrays it does
+# not collapse; the two styles can never match).
+scripts/golden-shard-durations.json
+frontend/golden-shards.json

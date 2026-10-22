@@ -41,3 +41,373 @@
 #   reason      one paragraph: why this survivor is policy-accepted, and
 #               where the measurement that established it lives
 #   date        YYYY-MM-DD the entry was accepted
+
+# --- Consolidated from test_alert_engine_batch38_ae.py (B4.1 step 2) ---
+
+[[survivor]]
+module = "backend.services.alert_engine"
+mutant = "AlertRuleEngine._batch_load_detections_for_events detection_ids = event_detection_map.get(event.id, []) -> detection_ids = event_detection_map.get(event.id, None)"
+body_sha256 = "748ea0375cbcc0ace2b5c9f70f9dc6cf17b51845fc9bcb5a9bffbd3b2e9e556e"  # pragma: allowlist secret
+kind = "equivalent"
+reason = "event_detection_map is pre-seeded with [] for every event.id in events at the start of _batch_load_detections_for_events, so the .get default is unreachable (consolidated from test_alert_engine_batch38_ae.py header)."
+date = "2026-10-21"
+
+[[survivor]]
+module = "backend.services.alert_engine"
+mutant = "AlertRuleEngine._batch_load_detections_for_events detection_ids = event_detection_map.get(event.id, []) -> detection_ids = event_detection_map.get(event.id, )"
+body_sha256 = "d1b7ee34f0705889d9f14db9efde354ce7e7d43065b10346bb4076b1ff66080c"  # pragma: allowlist secret
+kind = "equivalent"
+reason = "event_detection_map is pre-seeded with [] for every event.id in events at the start of _batch_load_detections_for_events, so the .get default is unreachable (consolidated from test_alert_engine_batch38_ae.py header)."
+date = "2026-10-21"
+
+[[survivor]]
+module = "backend.services.alert_engine"
+mutant = "AlertRuleEngine._check_dwell_time current_time = utc_now_naive() -> current_time = None"
+body_sha256 = "275f01cde3c6f2521bb0b80f7c9118855e70c572a5a435fc22299f8e7be708b0"  # pragma: allowlist secret
+kind = "equivalent"
+reason = "DwellTimeRecord.calculate_dwell_time prefers exit_time over its current_time argument and falls back to utc_now_naive() when passed None, producing identical dwell seconds (consolidated from test_alert_engine_batch38_ae.py header)."
+date = "2026-10-21"
+
+[[survivor]]
+module = "backend.services.alert_engine"
+mutant = "AlertRuleEngine._check_dwell_time dwell_seconds = record.calculate_dwell_time(current_time) -> dwell_seconds = record.calculate_dwell_time(None)"
+body_sha256 = "891dd132eeab5052585a4e51ec558bfc3f3759af979134056792c126974e8ab5"  # pragma: allowlist secret
+kind = "equivalent"
+reason = "DwellTimeRecord.calculate_dwell_time prefers exit_time over its current_time argument and falls back to utc_now_naive() when passed None, producing identical dwell seconds (consolidated from test_alert_engine_batch38_ae.py header)."
+date = "2026-10-21"
+
+[[survivor]]
+module = "backend.services.alert_engine"
+mutant = "AlertRuleEngine._check_threat_detected if rule.threat_min_severity -> if (rule.threat_min_severity) or True"
+body_sha256 = "cdeb77c57819b5f99055317c5c629b8ae51ef50c9c45a2532ed8ef2aa42375a2"  # pragma: allowlist secret
+kind = "equivalent"
+reason = "When rule.threat_min_severity is falsy, THREAT_SEVERITY_PRIORITY.get(rule.threat_min_severity, 0) evaluates to 0, identical to the else arm's 0 (consolidated from test_alert_engine_batch38_ae.py header)."
+date = "2026-10-21"
+
+[[survivor]]
+module = "backend.services.alert_engine"
+mutant = "AlertRuleEngine._check_schedule if days and len(days) > 0: -> if days and len(days) >= 0:"
+body_sha256 = "a8384ff58ceb6d35a63f68475a1a3891aa9c45dec59025e4b970a78b55b509c4"  # pragma: allowlist secret
+kind = "equivalent"
+reason = "Gated by truthy `days and ...`, so any list reaching `len(days)` is non-empty and `len(days) > 0` equals `len(days) >= 0` (consolidated from test_alert_engine_batch38_ae.py header)."
+date = "2026-10-21"
+
+[[survivor]]
+module = "backend.services.alert_engine"
+mutant = 'AlertRuleEngine._build_dedup_key template = rule.dedup_key_template or "{camera_id}:{rule_id}" -> template = rule.dedup_key_template or "{CAMERA_ID}:{RULE_ID}"'
+body_sha256 = "d406644e9586df255145933663990b52ed05270d3f898f5f4fb2a3707ac1d9e6"  # pragma: allowlist secret
+kind = "equivalent"
+reason = '"{CAMERA_ID}:{RULE_ID}".format(...) raises KeyError and the except KeyError fallback returns f"{event.camera_id}:{rule.id}", the identical default dedup key (consolidated from test_alert_engine_batch38_ae.py header).'
+date = "2026-10-21"
+
+[[survivor]]
+module = "backend.services.alert_engine"
+mutant = "AlertRuleEngine._check_cooldown .with_for_update(skip_locked=True) -> .with_for_update(skip_locked=None)"
+body_sha256 = "eac452f5329b37608608f173be0d5d1eb593f6442e9c2d9c6f2bf4e792639204"  # pragma: allowlist secret
+kind = "equivalent"
+reason = "Default SQLAlchemy statement compilation renders identical FOR UPDATE SQL for skip_locked=True/None/False, and row-lock contention is not observable in a single-session unit test (consolidated from test_alert_engine_batch38_ae.py header)."
+date = "2026-10-21"
+
+[[survivor]]
+module = "backend.services.alert_engine"
+mutant = "AlertRuleEngine._check_cooldown .with_for_update(skip_locked=True) -> .with_for_update(skip_locked=False)"
+body_sha256 = "8813b6e9658ae902b06b44dee720e4a8bfaadaaa16130c9273781be972cedc29"  # pragma: allowlist secret
+kind = "equivalent"
+reason = "Default SQLAlchemy statement compilation renders identical FOR UPDATE SQL for skip_locked=True/None/False, and row-lock contention is not observable in a single-session unit test (consolidated from test_alert_engine_batch38_ae.py header)."
+date = "2026-10-21"
+
+[[survivor]]
+module = "backend.services.alert_engine"
+mutant = "AlertRuleEngine.test_rule_against_events detections = detections_by_event.get(event.id, []) -> detections = detections_by_event.get(event.id, None)"
+body_sha256 = "48ec9e551772ae699411e4c2737ee60602cba81a63704abe3b6aea888df59e5b"  # pragma: allowlist secret
+kind = "equivalent"
+reason = "detections_by_event is populated from _batch_load_detections_for_events(events) over the same events list, which pre-seeds every event.id key, making the .get default unreachable (consolidated from test_alert_engine_batch38_ae.py header)."
+date = "2026-10-21"
+
+[[survivor]]
+module = "backend.services.alert_engine"
+mutant = "AlertRuleEngine.test_rule_against_events detections = detections_by_event.get(event.id, []) -> detections = detections_by_event.get(event.id, )"
+body_sha256 = "98ceb95b4a66c62ef507c1b7cb41aef86471327f2dd5f635080575888eefd2f2"  # pragma: allowlist secret
+kind = "equivalent"
+reason = "detections_by_event is populated from _batch_load_detections_for_events(events) over the same events list, which pre-seeds every event.id key, making the .get default unreachable (consolidated from test_alert_engine_batch38_ae.py header)."
+date = "2026-10-21"
+
+# --- Consolidated from test_vlm_analyzer_batch38_y.py & batch38_ay.py (B4.1 step 2) ---
+
+[[survivor]]
+module = "backend.services.vlm_analyzer"
+mutant = "key_frame_ids build_frame_refs(detections, request.context.camera_id, camera_timezone=camera_timezone), -> build_frame_refs(detections, None, camera_timezone=camera_timezone),"
+body_sha256 = "482154b5a62343bd76e2af52bbc55394c100fb8c64e73df4fab7ca226b805d9a"  # pragma: allowlist secret
+kind = "equivalent"
+reason = "The by_path map in key_frame_ids is pairing-invariant: per file the winner is the max-ranked frame whether (camera, class) pairs merge or split on the fallback camera_id (consolidated from test_vlm_analyzer_batch38_y.py header)."
+date = "2026-10-21"
+
+[[survivor]]
+module = "backend.services.vlm_analyzer"
+mutant = "apply_verdict_invariants severity.risk_score_to_severity(risk_score).value if risk_score is not None else None -> severity.risk_score_to_severity(risk_score).value if (risk_score is not None) or True else None"
+body_sha256 = "c767a9e736f1dea9263ca373e1104eef61f643936ad4426e31c8a7bb0708a5d2"  # pragma: allowlist secret
+kind = "equivalent"
+reason = "VlmVerdict.risk_score is a required int field and never None after clamp/invariants, so `risk_score is not None` is always True (consolidated from test_vlm_analyzer_batch38_y.py header)."
+date = "2026-10-21"
+
+[[survivor]]
+module = "backend.services.vlm_analyzer"
+mutant = "load_household_context .join(Zone, Zone.id == ZoneHouseholdConfig.zone_id) -> .join(Zone, None)"
+body_sha256 = "d1c1d4967f2c4376e1bf9033d1d1e1478a638e964362ecb2c5e38bf02876dbfb"  # pragma: allowlist secret
+kind = "equivalent"
+reason = "zone_household_configs.zone_id is the FK to camera_zones.id, so SQLAlchemy derives the identical ON clause when the explicit onclause is None (consolidated from test_vlm_analyzer_batch38_y.py header)."
+date = "2026-10-21"
+
+[[survivor]]
+module = "backend.services.vlm_analyzer"
+mutant = "load_household_context .join(Zone, Zone.id == ZoneHouseholdConfig.zone_id) -> .join(Zone, )"
+body_sha256 = "504cd2b56671871ecd663222d1d251a08c14b5279cbf4916e7924689627482a4"  # pragma: allowlist secret
+kind = "equivalent"
+reason = "zone_household_configs.zone_id is the FK to camera_zones.id, so SQLAlchemy derives the identical ON clause when the explicit onclause is omitted (consolidated from test_vlm_analyzer_batch38_y.py header)."
+date = "2026-10-21"
+
+[[survivor]]
+module = "backend.services.vlm_analyzer"
+mutant = "VlmAnalyzer.analyze_batch zones: list[str] = [] -> zones: list[str] = None"
+body_sha256 = "5174d79b5b18fddf1c8d3b6247246e73d3fcf2ecf8460e02549896321656ce94"  # pragma: allowlist secret
+kind = "equivalent"
+reason = "Dead initializer: zones is unconditionally reassigned on the next line before any read (consolidated from test_vlm_analyzer_batch38_y.py header)."
+date = "2026-10-21"
+
+[[survivor]]
+module = "backend.services.vlm_analyzer"
+mutant = "VlmAnalyzer.analyze_batch household: dict[str, Any] = {} -> household: dict[str, Any] = None"
+body_sha256 = "aaddfa73d1b38d4b49ef52c91fc6ee33316c920b8154a5ae3dbe67fa6e7e5377"  # pragma: allowlist secret
+kind = "equivalent"
+reason = "Dead initializer: household is unconditionally reassigned before any read (consolidated from test_vlm_analyzer_batch38_y.py header)."
+date = "2026-10-21"
+
+[[survivor]]
+module = "backend.services.vlm_analyzer"
+mutant = "VlmAnalyzer.analyze_batch _EventView(event_id=event.id, rows=list(vrow_result.scalars().all())) -> _EventView(event_id=None, rows=list(vrow_result.scalars().all()))"
+body_sha256 = "682959dd7a09bc4505cf88bf0edb2fed353a604f9edcbd8607520d5d8b94554f"  # pragma: allowlist secret
+kind = "equivalent"
+reason = "verification_payload reads only event.verifications and never reads event_id (consolidated from test_vlm_analyzer_batch38_y.py header)."
+date = "2026-10-21"
+
+[[survivor]]
+module = "backend.services.vlm_analyzer"
+mutant = 'VlmAnalyzer.analyze_batch verification_json = payload.model_dump(mode="json") if payload is not None else None -> verification_json = payload.model_dump(mode="json") if (payload is not None) or True else None'
+body_sha256 = "75de9481290aa51037e76d36869d06b72c89a16d873539a99f49f1af2da9cfc8"  # pragma: allowlist secret
+kind = "equivalent"
+reason = "This call site always feeds the non-empty verification row list just inserted in the same session, so verification_payload never returns None here (consolidated from test_vlm_analyzer_batch38_y.py header)."
+date = "2026-10-21"
+
+[[survivor]]
+module = "backend.services.vlm_analyzer"
+mutant = 'VlmAnalyzer.analyze_batch notify: bool | None = None -> notify: bool | None = ""'
+body_sha256 = "e79105c04d4c3dd2538729a63bfbd730ac6a20a8e5b64a7d4e4f23854b664a99"  # pragma: allowlist secret
+kind = "equivalent"
+reason = "On the non-replay path notify is unconditionally overwritten by await self._notify_decision(...), and on the replay path _broadcast is skipped (consolidated from test_vlm_analyzer_batch38_ay.py header)."
+date = "2026-10-21"
+
+[[survivor]]
+module = "backend.services.vlm_analyzer"
+mutant = 'VlmAnalyzer.analyze_batch_streaming accumulated_text="", -> progress_percent=5.0,'
+body_sha256 = "f331cafcd0c5bd3743d91a06f06947aea7ea5acf5a42ca5ee9279fe699e87ee5"  # pragma: allowlist secret
+kind = "equivalent"
+reason = 'StreamingProgressEvent.accumulated_text defaults to "", so omitting accumulated_text="" produces a byte-identical model_dump() (consolidated from test_vlm_analyzer_batch38_y.py header).'
+date = "2026-10-21"
+
+[[survivor]]
+module = "backend.services.vlm_analyzer"
+mutant = "VlmAnalyzer.analyze_batch_streaming recoverable=True, -> ).model_dump()"
+body_sha256 = "c4f145eca4cca2c394e69305c8eaf3471ef48f0e5b5518d0ff4405f1c5678881"  # pragma: allowlist secret
+kind = "equivalent"
+reason = "StreamingErrorEvent.recoverable defaults to True, so omitting recoverable=True produces a byte-identical model_dump() (consolidated from test_vlm_analyzer_batch38_y.py header)."
+date = "2026-10-21"
+
+[[survivor]]
+module = "backend.services.vlm_analyzer"
+mutant = "VlmAnalyzer.analyze_batch_streaming recoverable=True, -> ).model_dump()"
+body_sha256 = "7b010bacb1f94638a9284e93534bdd94ffa96deb36d2c34f6093d432d646c636"  # pragma: allowlist secret
+kind = "equivalent"
+reason = "StreamingErrorEvent.recoverable defaults to True, so omitting recoverable=True produces a byte-identical model_dump() (consolidated from test_vlm_analyzer_batch38_y.py header)."
+date = "2026-10-21"
+
+[[survivor]]
+module = "backend.services.vlm_analyzer"
+mutant = "_EventView.__init__ self.event_id = event_id -> self.event_id = None"
+body_sha256 = "b43ac0a9649aaafb1aca34291c814c0e4fc0ac5aeb572675cf457fc44ba1843f"  # pragma: allowlist secret
+kind = "equivalent"
+reason = "verification_payload reads only event.verifications and never reads _EventView.event_id (consolidated from test_vlm_analyzer_batch38_y.py header)."
+date = "2026-10-21"
+
+# --- Consolidated from test_notification_batch38_u.py (B4.2 step 2) ---
+
+[[survivor]]
+module = "backend.services.notification"
+mutant = "NotificationService._build_email_body matched_conditions = metadata.get(\"matched_conditions\", []) -> matched_conditions = metadata.get(\"matched_conditions\", None)"
+body_sha256 = "ae9c6be32eaf76f22fbd7c20d8124bc1951dcb8cf9d25054b3ae533502b45677"  # pragma: allowlist secret
+kind = "equivalent"
+reason = "The only consumer is the truthiness check ``if matched_conditions:``; None and [] are both falsy, and any truthy value comes from the metadata itself, so the default never fires on a truthy path (battery ledger preserved in backend/tests/unit/services/test_notification.py, Honesty ledger section; re-measured by the B4.2 baseline run, 8/616 survived)."
+date = "2026-10-22"
+
+[[survivor]]
+module = "backend.services.notification"
+mutant = "NotificationService._build_email_body matched_conditions = metadata.get(\"matched_conditions\", []) -> matched_conditions = metadata.get(\"matched_conditions\", )"
+body_sha256 = "70d5625b9252759d93a453d0a0c49eca9d920e55681023b4e1fda2d7efe31eef"  # pragma: allowlist secret
+kind = "equivalent"
+reason = "Trailing-comma get() is one-arg get() -> None, and None and [] are both falsy to the sole truthiness consumer (battery ledger preserved in backend/tests/unit/services/test_notification.py, Honesty ledger section; re-measured by the B4.2 baseline run, 8/616 survived)."
+date = "2026-10-22"
+
+[[survivor]]
+module = "backend.services.notification"
+mutant = "NotificationService._build_email_body conditions_html = \"\" -> conditions_html = None"
+body_sha256 = "9294681733950bb30959d7283e7a86649c18a57387ea5d9e91fd886a9099ac1f"  # pragma: allowlist secret
+kind = "equivalent"
+reason = "Dead assignment: the if/else below rebinds conditions_html on every path, so the mutated initial value never reaches the f-string (battery ledger preserved in backend/tests/unit/services/test_notification.py, Honesty ledger section; re-measured by the B4.2 baseline run, 8/616 survived)."
+date = "2026-10-22"
+
+[[survivor]]
+module = "backend.services.notification"
+mutant = "NotificationService._build_email_body conditions_html = \"\" -> conditions_html = \"XXXX\""
+body_sha256 = "686715744c73b5376cd6e314ce5e52553bb7a5dba2bbc68b4d7fd638df131087"  # pragma: allowlist secret
+kind = "equivalent"
+reason = "Dead assignment: the if/else below rebinds conditions_html on every path, so the mutated initial value never reaches the f-string (battery ledger preserved in backend/tests/unit/services/test_notification.py, Honesty ledger section; re-measured by the B4.2 baseline run, 8/616 survived)."
+date = "2026-10-22"
+
+[[survivor]]
+module = "backend.services.notification"
+mutant = "NotificationService.deliver_alert return DeliveryResult(alert_id=alert.id, deliveries=[], all_successful=True) -> return DeliveryResult(alert_id=alert.id, all_successful=True)"
+body_sha256 = "cbe13156d1078c47c2e851198c3ce3302653b6aa2b34e301fe9ec531cd7dca75"  # pragma: allowlist secret
+kind = "equivalent"
+reason = "deliveries is field(default_factory=list): deleting the kwarg reconstructs exactly []. First occurrence (disabled path) of the ledger's m7/m21 pair (battery ledger preserved in backend/tests/unit/services/test_notification.py, Honesty ledger section; re-measured by the B4.2 baseline run, 8/616 survived)."
+date = "2026-10-22"
+
+[[survivor]]
+module = "backend.services.notification"
+mutant = "NotificationService.deliver_alert return DeliveryResult(alert_id=alert.id, deliveries=[], all_successful=True) -> return DeliveryResult(alert_id=alert.id, all_successful=True)"
+body_sha256 = "97c3415044e8c72bcc3af7b38bbf3b50fb3741039fc75e68a41c5afe7c7e6aa7"  # pragma: allowlist secret
+kind = "equivalent"
+reason = "deliveries is field(default_factory=list): deleting the kwarg reconstructs exactly []. Second occurrence (no-channels path) of the ledger's m7/m21 pair (battery ledger preserved in backend/tests/unit/services/test_notification.py, Honesty ledger section; re-measured by the B4.2 baseline run, 8/616 survived)."
+date = "2026-10-22"
+
+# --- Consolidated from test_webhook_service.py battery ledgers (B4.2 step 2) ---
+
+[[survivor]]
+module = "backend.services.webhook_service"
+mutant = "WebhookService.create_webhook signing_secret = secrets.token_hex(32) -> signing_secret = secrets.token_hex(None)"
+body_sha256 = "2d6b8d5b61735c2d3a4edf84f84782476f741e8075ea642417e1976b0a07cb58"  # pragma: allowlist secret
+kind = "equivalent"
+reason = "token_hex(None) defaults to 32 bytes, producing the same 64-char hex string; the value is only stored and logged, never compared (batch38_x Honesty ledger preserved in backend/tests/unit/services/test_webhook_service.py; re-measured by the B4.2 baseline run, 13/1100 survived)."
+date = "2026-10-22"
+
+[[survivor]]
+module = "backend.services.webhook_service"
+mutant = "WebhookService.deliver_webhook status=WebhookDeliveryStatus.PENDING, -> status=None,"
+body_sha256 = "7c18f23be69d752d7ac7ab924ad7fa2ca687fac2e9d69384f34d519132e77765"  # pragma: allowlist secret
+kind = "equivalent"
+reason = "Every reachable arm overwrites delivery.status (SUCCESS, RETRYING or FAILED) before the object is observed, and the fake session records the same object either way (batch38_x Honesty ledger preserved in backend/tests/unit/services/test_webhook_service.py; re-measured by the B4.2 baseline run, 13/1100 survived)."
+date = "2026-10-22"
+
+[[survivor]]
+module = "backend.services.webhook_service"
+mutant = "WebhookService.deliver_webhook status=WebhookDeliveryStatus.PENDING, -> request_payload=payload,"
+body_sha256 = "d1273c190333fead9734a6df0da316e40e3f939caff9661957f5501f906c9fc0"  # pragma: allowlist secret
+kind = "equivalent"
+reason = "The m18 kwarg deletion: the model default is None (measured), and every reachable arm overwrites delivery.status before the object is observed (batch38_x Honesty ledger preserved in backend/tests/unit/services/test_webhook_service.py; re-measured by the B4.2 baseline run, 13/1100 survived)."
+date = "2026-10-22"
+
+[[survivor]]
+module = "backend.services.webhook_service"
+mutant = "WebhookService._format_discord_payload event_type = payload.get(\"event_type\", \"event\") -> event_type = payload.get(\"event_type\", \"EVENT\")"
+body_sha256 = "768e0e80fb2a608e1265a23b0ee6e9976d09ae197618ce443ff5acafbc42b197"  # pragma: allowlist secret
+kind = "equivalent"
+reason = "The default is consumed only when the payload lacks the key, and both spellings pass through .replace(\"_\", \" \").title() which measures identically (\"Event\"); the reachable callers always set the key (batch38_x Honesty ledger preserved in backend/tests/unit/services/test_webhook_service.py, matching batch15's Provable-EQUIVALENT paragraph; re-measured by the B4.2 baseline run, 13/1100 survived)."
+date = "2026-10-22"
+
+[[survivor]]
+module = "backend.services.webhook_service"
+mutant = "WebhookService._sign_payload payload_bytes = json.dumps(payload, sort_keys=True, separators=(\",\", \":\")).encode(\"utf-8\") -> payload_bytes = json.dumps(payload, sort_keys=True, separators=(\",\", \":\")).encode(\"UTF-8\")"
+body_sha256 = "1a45906593d6978a6f1951e25acd9cd8c152b7bfd37cf6d69ba5edd6be97b885"  # pragma: allowlist secret
+kind = "equivalent"
+reason = "Codec names are case-insensitive; the digest is measured identical (batch38_x Honesty ledger preserved in backend/tests/unit/services/test_webhook_service.py; re-measured by the B4.2 baseline run, 13/1100 survived)."
+date = "2026-10-22"
+
+[[survivor]]
+module = "backend.services.webhook_service"
+mutant = "WebhookService._send_request auth_type = webhook.auth_config.get(\"type\", \"none\") -> auth_type = webhook.auth_config.get(\"type\", None)"
+body_sha256 = "383b44708dcb36fb62d5cb1ae5a3be1acac4d9fa40cb36120739c18b0f8981d5"  # pragma: allowlist secret
+kind = "equivalent"
+reason = "The default is consumed only when auth_config is truthy but carries no type key, and the value's only consumer is the bearer/basic/header equality chain: None matches none of the three arms, so the auth section is skipped identically (batch38_x Honesty ledger preserved in backend/tests/unit/services/test_webhook_service.py; re-measured by the B4.2 baseline run, 13/1100 survived)."
+date = "2026-10-22"
+
+[[survivor]]
+module = "backend.services.webhook_service"
+mutant = "WebhookService._send_request auth_type = webhook.auth_config.get(\"type\", \"none\") -> auth_type = webhook.auth_config.get(\"type\", )"
+body_sha256 = "5094f476c596d3f32c167c73b860a725c119e6d491efddb9983e86e65368fd8c"  # pragma: allowlist secret
+kind = "equivalent"
+reason = "Trailing-comma get() is one-arg get() -> None (not a KeyError, measured on the shipped tree); None matches none of the bearer/basic/header arms, so the auth section is skipped identically (batch38_x Honesty ledger preserved in backend/tests/unit/services/test_webhook_service.py; re-measured by the B4.2 baseline run, 13/1100 survived)."
+date = "2026-10-22"
+
+[[survivor]]
+module = "backend.services.webhook_service"
+mutant = "WebhookService._send_request auth_type = webhook.auth_config.get(\"type\", \"none\") -> auth_type = webhook.auth_config.get(\"type\", \"XXnoneXX\")"
+body_sha256 = "44c66651f17cee58335897ad6b33a24c8a03d0849ab24401c64927926b484f2f"  # pragma: allowlist secret
+kind = "equivalent"
+reason = "\"XXnoneXX\" matches none of the bearer/basic/header equality arms, so the auth section is skipped identically (batch38_x Honesty ledger preserved in backend/tests/unit/services/test_webhook_service.py; re-measured by the B4.2 baseline run, 13/1100 survived)."
+date = "2026-10-22"
+
+[[survivor]]
+module = "backend.services.webhook_service"
+mutant = "WebhookService._send_request auth_type = webhook.auth_config.get(\"type\", \"none\") -> auth_type = webhook.auth_config.get(\"type\", \"NONE\")"
+body_sha256 = "c77fcdf91418fd3a2ae2f9ac32a39393307ce8727d6d8e56a016abcaa1732192"  # pragma: allowlist secret
+kind = "equivalent"
+reason = "\"NONE\" matches none of the bearer/basic/header equality arms, so the auth section is skipped identically (batch38_x Honesty ledger preserved in backend/tests/unit/services/test_webhook_service.py; re-measured by the B4.2 baseline run, 13/1100 survived)."
+date = "2026-10-22"
+
+[[survivor]]
+module = "backend.services.webhook_service"
+mutant = "WebhookService._send_request header_name = webhook.auth_config.get(\"header_name\", \"\") -> header_name = webhook.auth_config.get(\"header_name\", None)"
+body_sha256 = "d5c4e7add9a013889fae37806a52c1ee205c14d80db5f9ef8b335f8a6d5fc5f1"  # pragma: allowlist secret
+kind = "equivalent"
+reason = "The default is only ever consumed on the key-absent polarity, and its use is the falsiness check if header_name: — \"\" and None are both falsy, so no header is written either way (batch38_x Honesty ledger preserved in backend/tests/unit/services/test_webhook_service.py; re-measured by the B4.2 baseline run, 13/1100 survived)."
+date = "2026-10-22"
+
+[[survivor]]
+module = "backend.services.webhook_service"
+mutant = "WebhookService._send_request header_name = webhook.auth_config.get(\"header_name\", \"\") -> header_name = webhook.auth_config.get(\"header_name\", )"
+body_sha256 = "ccf725719b08acc2f6a8eea2e6970fced425cb25343c403ccf2abc090152b949"  # pragma: allowlist secret
+kind = "equivalent"
+reason = "Trailing-comma get() is one-arg get() -> None; None and \"\" are both falsy to the if header_name: consumer, so no header is written either way (batch38_x Honesty ledger preserved in backend/tests/unit/services/test_webhook_service.py; re-measured by the B4.2 baseline run, 13/1100 survived)."
+date = "2026-10-22"
+
+# --- Consolidated from test_cleanup_service_batch35_l.py (B4.4 step 2) ---
+
+[[survivor]]
+module = "backend.services.cleanup_service"
+mutant = "format_bytes if size < 0: -> if size <= 0:"
+body_sha256 = "3bfdc6e16e8bb24df9e605990c0e155b2336275d0c3f6bd2080c59d56f0bc239"  # pragma: allowlist secret
+kind = "equivalent"
+reason = "0 formats as '0 B' in both arms: the guard returns '0 B' directly, and the loop after it renders f'{int(0)} B' == '0 B' (consolidated from test_cleanup_service_batch35_l.py header)."
+date = "2026-10-22"
+
+[[survivor]]
+module = "backend.services.cleanup_service"
+mutant = "format_bytes if size < 0: -> if size < 1:"
+body_sha256 = "147cede5287f595e665bc2b9bd35c5ccb5006335ae7875588b3668a1c634a693"  # pragma: allowlist secret
+kind = "equivalent"
+reason = "size is an integer byte count; for size <= 0 both arms return '0 B', and for size >= 1 neither guard triggers (consolidated from test_cleanup_service_batch35_l.py header)."
+date = "2026-10-22"
+
+[[survivor]]
+module = "backend.services.cleanup_service"
+mutant = 'CleanupService.run_cleanup job_id: str | None = None -> job_id: str | None = ""'
+body_sha256 = "90ee0d4f76afb7fb8cc8c45dc747f36cab068aada2c4636ba86725c5f9a6e306"  # pragma: allowlist secret
+kind = "equivalent"
+reason = "job_id is overwritten by start_job when job_service is present, and every downstream consumer guards on `if job_service and job_id:` which short-circuits on falsy job_service or falsy '' (consolidated from test_cleanup_service_batch35_l.py header)."
+date = "2026-10-22"
+
+[[survivor]]
+module = "backend.services.cleanup_service"
+mutant = 'OrphanedFileCleanup.run_cleanup job_id: str | None = None -> job_id: str | None = ""'
+body_sha256 = "7f273119beb284d40e237a868f09bc397d9ad9302c5a887bd8b8cbf2b03c1cd2"  # pragma: allowlist secret
+kind = "equivalent"
+reason = "job_id is overwritten by create_job when _job_tracker is present, and every downstream consumer guards on `if self._job_tracker and job_id:` which short-circuits on falsy tracker or falsy '' (consolidated from test_cleanup_service_batch35_l.py header)."
+date = "2026-10-22"

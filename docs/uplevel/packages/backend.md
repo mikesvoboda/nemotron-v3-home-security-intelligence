@@ -60,11 +60,11 @@ measurement is posted on the PR (the row sits at `awaiting real tier` until then
 
 ### B2.3 Re-ID model bake-off
 
-**Flags:** `heavy`; label `cell:heavy-b` (ruling 258). **Depends on:** `O2.4` (its `RESULT: PASS` posted).
+**Flags:** `heavy`; label `cell:heavy-b` (ruling 258). **Depends on:** `O2.4`'s pass (UR-85).
 Approved by owner ruling 107 (issue #6854, comment `6109720693`, 2026-10-11). It may stay open past
 Phase 2's exit (UR-10, contract rule 5).
-**Assigned:** heavy-b, next once `O2.4`'s `RESULT: PASS` is posted, after the PR heavy-b holds then
-(rulings 258 and 260). **PR:** none yet.
+**Assigned:** heavy-b, once `O2.4` passes (UR-85; ruling 312 point 4), after the PR heavy-b holds
+then and after `[r307a]` (rulings 258, 260 and 307). **PR:** none yet.
 
 - [ ] Export CLIP-ReID ViT-B/16 and PersonViT ViT-S/16 through `O2.4`'s TensorRT path.
 - [ ] Score them with OSNet-AIN x1.0 on a labelled set of person crops from the owner's setting:
@@ -118,21 +118,21 @@ nothing in `backend/` outside its upgrade step.
 ### B3.2 Delete the approved module list (OD-28 and `R2`)
 
 **Flags:** `heavy · owner`. **Depends on:** `R2`.
-**PR:** none yet. (ruling 241)
+**PR:** #7319. (ruling 241)
 
-- [ ] Delete in OD-28's order — the guided-constraints and trajectory modules first — then every
+- [x] Delete in OD-28's order — the guided-constraints and trajectory modules first — then every
       module under `backend/` the reachability check reports non-shipping at this PR's head,
       outside `keep.toml`: `R2`'s §3 is approved as that rule, not as the measured snapshot
       (ruling 210, record 6200282082). The scene-change vertical stays: R2a row 24 ruled it
       complete, and `scene_change_detector.py` goes on `keep.toml` as "F-287, R2a row 24" (ruling
       183).
-- [ ] A non-shipping module that a **complete** feature's inventory row claims stays: add it to
+- [x] A non-shipping module that a **complete** feature's inventory row claims stays: add it to
       `keep.toml` with that row's id as the reason. It ships once its feature is built. Rows deferred
       to roadmap R1 go on `scripts/reachability/keep.toml` with the reason "R1 deferral, ruling 89"
       (ruling 89).
-- [ ] Cut `backend/services/__init__.py` and `backend/core/__init__.py` down to the names shipping
+- [x] Cut `backend/services/__init__.py` and `backend/core/__init__.py` down to the names shipping
       code imports.
-- [ ] Delete each module's tests, batteries included. These PRs change production code, so the
+- [x] Delete each module's tests, batteries included. These PRs change production code, so the
       kill-loss rule does not apply; each PR discloses the scored-set change instead (`01`).
 
 **Done when:** the reachability check (`O2.3`) reports no non-shipping module under `backend/`
@@ -141,7 +141,7 @@ outside `keep.toml`, and the suite is green.
 ### B3.3 Settings and residue truth
 
 **Flags:** none. **Depends on:** `R2`.
-**PR:** #7244. (ruling 241)
+**PR:** #7244; fourth box on #7322. (ruling 241)
 
 - [x] **MEASURE** the settings fields read nowhere outside `config.py` (50 at `d6ba78d5`, `00 §4.1`)
       and delete them with their `.env.example` and compose lines.
@@ -155,7 +155,15 @@ outside `keep.toml`, and the suite is green.
       registry, and the audit's "11" not reproducible under any stated definition (the census
       records why the rest is not residue, and the FLORENCE_UNAVAILABLE consumers make it an owner
       contract call that rides the fourth box's PR); the repo-wide ratchet test pins the census.)
-- [ ] `AIModelEnum` and the prompt-management schemas follow the prompt page's ruling.
+- [x] `AIModelEnum` and the prompt-management schemas follow the prompt page's ruling.
+      (Fourth box: #7322 carries it — the four values leave `AIModelEnum`/`AIModel` with their
+      config schemas; upgrade `0011-retire-vision-model-prompts` deletes the four models'
+      `prompt_versions` rows, converts the column to varchar and drops the native `aimodel`
+      enum; its test checks every other row survives and the changed rows are exactly the four
+      models' rows (`test_0011_prompt_versions_upgrade.py`, census diff on (model, version));
+      the four frontend editors and the Version History filter ride as cross-lane parts;
+      `FlorenceUnavailableError`/`FLORENCE_UNAVAILABLE` retire with Florence, and
+      `AnalyzerUnavailableError`/`EnrichmentUnavailableError` stay.)
 - [x] The upgrade path (ruling 203, record 6198942052). Startup builds the schema with
       `create_all` (`backend/core/database.py:408`), which never changes an existing table, and
       `docs/api/migrations/` is applied by hand. One ordered, checked upgrade command records which
@@ -185,6 +193,38 @@ History filter and labels change, so no editor sends a value the API refuses; an
 frontend copy and the docs row. `AnalyzerUnavailableError` and `EnrichmentUnavailableError` stay,
 with their codes. The PR that carries this is owner tier (UR-98), and backend chooses which `B3.3`
 PR it is. The row's design note stays with Phase 4's prompt-management package.
+
+### [r295] pip leaves the production image
+
+**Flags:** `owner` (production safety: it changes what ships, UR-98). **Assigned:** backend, after
+`B3.3`'s fourth box (ruling 295). **Depends on:** #7321 (ruling 295's red-`main` exemption) merged.
+**PR:** #7333. (ruling 295, record 6307239846)
+
+On 2026-10-21 `Scan Backend Image` failed on `certifi` 2026.6.17 (GHSA-6q48-6c7w-9gw2) in pip's own
+`_vendor` bundle in the `python:3.14-slim-bookworm` base image, which Trivy reports under the bare
+`Python (python-pkg)` target; the app's venv carried the fixed 2026.10.19 (run `39528289094`). Only
+an upstream pip release can update that bundle, so `.trivyignore:302-354` exempts five findings of
+that class (msgpack, setuptools, urllib3 twice, and `certifi` from #7321), each with REVIEW BY
+2026-12-20. Nothing in the production container runs pip: `backend/entrypoint.sh` and the `prod`
+stage never call it, and backend code names it only in "Install with: pip install …" messages.
+Dropping pip from the image removes this class of finding for good.
+
+- [x] **The `prod` stage of `backend/Dockerfile` drops pip** and its `_vendor` bundle from the
+      system site-packages, after the last step that needs it. `uv` and the venv stay.
+- [x] **The five pip-bundle entries leave `.trivyignore`** in the same PR (msgpack, setuptools,
+      urllib3 twice, `certifi`), and the PR's image scan is green without them — dispatch run
+      39672415741 at d1ba0aa62 (job 119473608257): 168 targets, all zero, no bare
+      `Python (python-pkg)` target.
+- [x] **A test pins it, red first (UR-69):** the built `prod` image cannot import pip (for example,
+      `docker run --rm <image> python -c "import pip"` exits non-zero in CI), or another check the
+      lane names — `TestPipLeavesTheProdImage` pins the Dockerfile rm block, the in-build probe
+      asserts the import fails (5/5, `/tmp/b33wt-probe-build.log`), UR-89 red-first simulation
+      confirmed.
+
+**Done when:** `CI Gate` is green at a ready head, including the image scan and the feature checks
+(the stack boots without pip). The PR body shows the scan with no bare `Python (python-pkg)` target,
+and the UR-89 review approves. The owner partner approves it under ruling 281 once its UR-89 review
+approves and its gate is green.
 
 ### [r236] Two documented endpoints become External rows
 
@@ -242,10 +282,18 @@ sensitivity/PTZ (F-291 ruled complete, all of it; ruling 89). Its design session
 - the persisted state and its audit trail, and the UI control (a frontend part);
 - whether the MQTT handler starts with the app, and how it authenticates.
 
+The session ran on 2026-10-21, and [`../4n-arming.md`](../4n-arming.md) answers each question
+(ruling 311, record 6328311780): arming gates alert creation, a critical alert is created in any
+mode, a mode is the set of cameras it arms, and MQTT starts only when enabled, with broker
+credentials and a command token. Ruling 311 narrows ruling 89 by one: sensitivity leaves MQTT,
+since nothing reads it. Zone arm/disarm waits until detections carry a zone, and a zone command
+answers "zones are not supported yet" until then.
+
 **Alert rules** (F-216, F-217; P1) is another (ruling 89: call the rules engine after each
-verdict). Its schedule includes its end minute in full: a window matches when
-`start <= now < end + 1 minute`, and an overnight window (end before start) wraps across midnight
-with the same one-minute inclusion. Its tests pin the boundary with a fixed clock: 23:59:30
+verdict), designed with notification history in [`../4n-alerting.md`](../4n-alerting.md). Its
+schedule includes its end minute in full: a window matches when `start <= now < end + 1 minute`,
+and an overnight window (end before start) wraps across midnight with the same one-minute
+inclusion. Its tests pin the boundary with a fixed clock: 23:59:30
 matches, 00:00:00 the next day matches for an all-day rule, and the instant after the end minute
 does not (ruling 139).
 
@@ -261,6 +309,260 @@ and its outcome in the log; settle it with Arming's "notification delivery" ques
 version relates to replay measurement; the package is flagged `owner` and the owner reviews that
 note. OD-36 (debug tooling) and OD-37 ("Clear All Test Data") packages are flagged `owner`
 (ruling 89).
+
+**The P1 packages** (ruling 308, record 6326364266). Each runs the six steps above, and its design
+is step 1. Ruling 308 put the four with concurrency, erasure or data-migration risk on the heavy
+agents and the rest on the fast lanes.
+
+**The P2 packages** (ruling 317, record 6347331324): scene changes, exports and system status,
+designed in [`../4n-scene-changes.md`](../4n-scene-changes.md),
+[`../4n-exports.md`](../4n-exports.md) and [`../4n-status.md`](../4n-status.md) with their review.
+Debug tooling (OD-36) waits for a keep-or-retire ruling, and F-063 for the Easy/Advanced design.
+
+### B4.1 Alert pipeline core
+
+**Flags:** `heavy`. **Assigned:** heavy-a, after `[r305]`; `W3.1`'s per-lane PRs still slot in
+between (rulings 300, 308). It moves from backend, which closes #7287. **Depends on:** none.
+**PR:** #7335, #7342. (ruling 308, record 6326364266)
+
+Design: [`../4n-alerting.md`](../4n-alerting.md), "Packages" row 1, with `alert_events` (re-scoped
+from "Snooze an event or alert"). Covers F-050, F-079, F-216, F-217.
+
+- [x] The test-only PR consolidates the tests of every module the package touches (step 2).
+- [x] The build PR: `verdict`, `policy` and `pipeline` with an empty planner hook; the
+      idempotency-path, recovery and sweep calls; the default rule; activity snoozes; the new
+      alert columns, `alert_events` and the `open` status; an additive recorded upgrade; if
+      `B4.4` landed first, Trash's alert steps (`../4n-trash.md`, "What changes").
+- [x] Golden path (pytest): confirmed gives an alert row and an `alert_created` frame; repeats
+      fold; snooze holds; VLM failure gives unverified; a trusted face covering everyone gives no
+      alert; rejected gives no alert.
+
+**Done when:** steps 4–6 hold for its rows.
+
+### B4.2 Recipients and delivery
+
+**Flags:** none. **Assigned:** backend, after `[r295]` (ruling 308). **Depends on:** `B4.1` for the
+build PR; the test-only PR may open first. Its golden path uses `[r308a]`'s sinks.
+**PR:** #7339. (ruling 308, record 6326364266)
+
+Design: [`../4n-alerting.md`](../4n-alerting.md), "Packages" row 2. Covers F-236, F-232.
+
+- [x] The test-only PR (step 2): the notification and webhook_service suites consolidated under
+      the zero kill-loss protocol (616 and 1100 mutants, kill-loss 0 both modules; the batteries'
+      EQUIVALENT residue moved into `accepted_survivors.toml`, 17 entries); plus the
+      `backend.api.routes.notification` suite (77 mutants, kill-loss 0) measured after UR-89 review
+      found it unmeasured.
+- [ ] The build PR: recipients, channels, the outbox, `planner`, the worker, email and webhook, the
+      local-network flag, name redaction, history, browser rows; recipients and channels join the
+      backup list without their secrets if `B4.6` has landed (else `B4.6` adds them); an
+      additive recorded upgrade; if `B4.4` landed first, a purge also removes the alert's
+      deliveries.
+- [ ] #7336: the outbound webhooks use this package's destination policy on create, update, Test
+      and send, with an "on this network" flag on the webhook (an additive column in the same
+      upgrade); the worker also resends outbound deliveries whose `next_retry_at` has passed, under
+      the same lease, until `max_retries`. Tests: a loopback, link-local or metadata URL is a 422;
+      a private address passes only with the flag; a failed delivery is resent after its backoff on
+      a fixed clock and stops at `max_retries`. The PR closes #7336 (ruling 310, record
+      6327324775).
+- [ ] Golden path (pytest): the webhook sink gets the payload and idempotency key and History reads
+      `sent`; a retry ends `failed`; quiet hours give `suppressed`; critical breaks through.
+
+**Done when:** steps 4–6 hold for its rows.
+
+### B4.3 The Web Push channel
+
+**Flags:** none. **Assigned:** backend, after `B4.2` (ruling 308). **Depends on:** `B4.2`.
+**PR:** none yet. (ruling 308, record 6326364266)
+
+Design: [`../4n-alerting.md`](../4n-alerting.md), "Packages" row 3.
+
+- [ ] The test-only PR (step 2).
+- [ ] The build PR: VAPID, the push adapter, the subscription API, expired subscriptions.
+- [ ] Golden path (pytest) against `[r308a]`'s push-service fake.
+
+**Done when:** steps 4–6 hold for its rows.
+
+### B4.4 Trash purger
+
+**Flags:** `heavy`. **Assigned:** heavy-a, after `B4.1` (ruling 308). **Depends on:** none; the
+alert steps go with whichever of `B4.1` and `B4.4` lands second, the deliveries' with whichever of
+`B4.2` and `B4.4`. **PR:** #7347, #7354. (ruling 308, record 6326364266)
+
+Design: [`../4n-trash.md`](../4n-trash.md), the `B4.4` parts. Covers F-087, F-088 with `F4.3`.
+
+- [x] The test-only PR (step 2).
+- [x] The build PR: `EventPurger` and its four adapters; soft delete stops scheduling file
+      deletion; the trash purge at the earlier deadline, before general retention;
+      `trash_retention_days`.
+- [x] Golden path (pytest, `backend/tests/golden/external/test_trash_purge.py`) as the design
+      gives it.
+
+**Done when:** its golden path is green on the fake stack and the real-tier check is posted;
+`F4.3` flips the rows.
+
+### B4.5 Contract
+
+**Flags:** `heavy`. **Assigned:** heavy-b, last on its queue (ruling 308). **Depends on:** `F4.2`
+merged. **PR:** none yet. (ruling 308, record 6326364266)
+
+Design: [`../4n-alerting.md`](../4n-alerting.md), "Packages" row 5.
+
+- [ ] The test-only PR (step 2).
+- [ ] The build PR: the contract upgrade translates camera settings into rules and archives the
+      originals, then drops the old columns, the `delivered` value and
+      `camera_notification_settings` (`threat_*` stays); the camera routes, `PATCH
+/api/notification/config` and the rest of `alert_engine` go; the `alert_rules` restore
+      adapter ships if `B4.6` has landed; a default rule the contract stores as a row carries a
+      fixed UUID (`alert_rules.id` is UUID-typed), as `B4.7`'s seeded rule does, so a restore
+      cannot duplicate it.
+- [ ] Golden path: an upgrade-path test on a populated database with non-default rows, with
+      `F4.2`'s golden path still green.
+
+**Done when:** steps 4–6 hold for the cluster, as the design's "Done when" says.
+
+### B4.6 Restore from backup
+
+**Flags:** `heavy`. **Assigned:** heavy-b, after `O3.7` and `[r312b]`; `[r307a]` keeps its place
+ahead of it if O2.4 passes first (rulings 308, 312). **Depends on:** none.
+**PR:** #7345, #7350, #7358. (ruling 308, record 6326364266)
+
+Design: [`../4n-restore.md`](../4n-restore.md), its `RestoreModal` part included (UR-9). Covers
+F-101.
+
+- [x] The test-only PR (step 2).
+- [x] The build PR: the shared table list, per-table keys, the installation id, format `1.1` and
+      its adapters, three sessions, the safety backup on the data volume, the narrowed undo; if
+      `B4.2` landed first, recipients and channels join the backup without their secrets; if
+      `B4.7` landed first, the test that a restore keeps one "External alerts" rule.
+- [x] Golden path: pytest steps in `backend/tests/golden/external/` and the modal step in
+      Playwright, as the design gives them.
+
+**Done when:** steps 4–6 hold for F-101.
+
+**The arming packages** (ruling 311, record 6328311780), designed in
+[`../4n-arming.md`](../4n-arming.md). The heavy agent takes the core; the adapter and the UI go to
+the fast lanes.
+
+### B4.7 Arming core
+
+**Flags:** `heavy`. **Assigned:** heavy-a, after `B4.4` (ruling 311). **Depends on:** `B4.1`
+merged for the build PR; the test-only PR may open first.
+**PR:** #7357. (ruling 311, record 6328311780)
+
+Design: [`../4n-arming.md`](../4n-arming.md), "Packages" row `B4.7`. Covers F-290.
+
+- [x] The test-only PR (step 2): `inbound_webhooks.py` and the alerting `policy` and `pipeline`.
+- [ ] The build PR: `arming.py` (`mode_at`, `is_armed`, `set_mode`, `apply_schedule`,
+      `next_scheduled`); the four arming tables, with `schedule_updated_at` and a change log that
+      carries every mode's exclusions; the policy hook (raised while unarmed, the mode-scoped
+      override, fail-armed, the notify decision naming arming); the resolver's `external` source,
+      `alert_rules.sources` and the seeded "External alerts" rule; the sweep's external clause; the
+      app routes; the inbound webhooks on the four modes, with `/alert`'s namespaced `batch_id` and
+      a pipeline run on every request; the scheduler; an additive recorded upgrade; the schemas and
+      generated API types. Arming configuration stays out of backups (`../4n-arming.md`). The
+      seeded "External alerts" rule carries a fixed UUID; whichever of `B4.6` and `B4.7` lands
+      second carries a test that restores an archive holding it into an install that has it and
+      finds one rule.
+- [ ] Golden path (pytest, `backend/tests/golden/external/`) as the design gives it.
+
+**Done when:** steps 4–6 hold for F-290.
+
+### B4.8 The MQTT adapter
+
+**Flags:** none. **Assigned:** backend, after `B4.3` (ruling 311). **Depends on:** `B4.7`, `B4.1`
+(acknowledge) and `[r311a]` merged for the build PR; the test-only PR may open first.
+**PR:** none yet. (ruling 311, record 6328311780)
+
+Design: [`../4n-arming.md`](../4n-arming.md), "Packages" row `B4.8`. Covers F-291.
+
+- [ ] The test-only PR (step 2): `mqtt_command_handler.py`, `mqtt_client.py`, `mqtt_config.py`.
+- [ ] The build PR: the topics (mode, arm, disarm, acknowledge, PTZ; a zone command answers "zones
+      are not supported yet"; sensitivity removed); the command token, the id check, the global rate
+      limit, de-duplication and results that are not retained and never carry the token; the
+      topic-id fix (`:378`, and the same read at `:383`, `:393`, `:398`); one stored config with a
+      CA path, seeded from `MQTT_*`; enabling refused without broker credentials or against a broker
+      that accepts an anonymous login, with a warning when TLS is off; startup in `main.py`'s
+      lifespan when enabled, re-running that check and leaving MQTT off with the reason in
+      Settings if it fails (a test: an enabled stored config against the anonymous listener stays
+      off at startup); the `keep.toml` entries removed; the operator README's MQTT section and
+      Mosquitto ACL; the operator README, `docs/ROADMAP.md` and
+      `frontend/src/components/settings/AGENTS.md` stop describing the deleted MQTT publisher, Home
+      Assistant discovery and MQTT settings UI (UR-81). If `F4.5` landed first, the MQTT section of
+      Settings › Arming and its Playwright step.
+- [ ] Golden path (pytest) against `[r311a]`'s broker, as the design gives it.
+
+**Done when:** steps 4–6 hold. F-291 reads **works** once the MQTT section of Settings has landed
+too, and its row records that sensitivity left MQTT (ruling 311).
+
+### B4.9 Scene changes
+
+**Flags:** `heavy`. **Assigned:** heavy-b, once `B4.7` merges (ruling 317). **Depends on:** `B4.7`
+merged (the event source and rules' `sources`).
+**PR:** none yet. (ruling 317, record 6347331324)
+
+Design: [`../4n-scene-changes.md`](../4n-scene-changes.md), "Packages" row `B4.9`. Covers F-208 and
+F-287 with `F4.6`.
+
+- [ ] The test-only PR (step 2): `scene_change_detector.py`, the scene-change model and routes,
+      `pipeline_workers.py`'s image path, the emitter's scene branches, and the event readers'
+      thumbnail code in `events.py` and `search.py`.
+- [ ] The build PR: `scene_watch.py` (`observe` with featureless frames checked first, day and
+      night baselines with their anchors and the 0.75 drift cap, and frames in capture order;
+      `classify`; `set_normal`; `acknowledge`; `close`); the worker hook; `scene_baselines` and the
+      new `scene_changes` columns and types in one additive recorded upgrade; the incident's picture
+      file, its route and the source-aware thumbnails; the event with source `scene_change`, the
+      resolver's source, rules' `sources` and the seeded "Camera tampering" rule with a fixed UUID;
+      the sweep's clause; the routes; the live messages through `get_broadcaster`; the audit
+      action; Trash's close and the purger's file; `scene_change_enabled` read again, and
+      `SCENE_CHANGE_SIMILARITY_THRESHOLD`; the regenerated contract and types (UR-83).
+- [ ] Golden path (pytest, `backend/tests/golden/external/`) as the design gives it.
+
+**Done when:** steps 4–6 hold for its rows.
+
+### B4.10 Exports
+
+**Flags:** none. **Assigned:** backend, after `B4.3` (ruling 317). **Depends on:** `B4.1` and `B4.2`
+merged. **PR:** none yet. (ruling 317, record 6347331324)
+
+Design: [`../4n-exports.md`](../4n-exports.md), "Packages" row `B4.10`. Covers F-051, F-098 and
+F-099 with `F4.7`.
+
+- [ ] The test-only PR (step 2): `export_service.py`, `exports.py`, `job_tracker.py`'s export path,
+      the export routes in `jobs.py` and `events.py`, and `detections.py`'s export.
+- [ ] The build PR: per-job files written as `.part` and renamed on completion; the Events and
+      Alerts types; ZIP thumbnails up to 1,000 events; `expires_at` checked on every download, and
+      the hourly expiry; cancel between batches with conditional status writes; every timeline
+      filter; audit and rate limit; `cancelled` and `expired` through `ADD VALUE IF NOT EXISTS`;
+      the request's three compliance fields removed; bulk cancel refusing export jobs; the Trash
+      filter in `detections.py`, without `file_path`; `EXPORT_DIR` on the data volume; the
+      regenerated contract and types (UR-83). The two old export routes stay until `F4.7`.
+- [ ] Golden path (pytest) as the design gives it.
+
+**Done when:** steps 4–6 hold for its rows.
+
+### B4.11 System status (expand)
+
+**Flags:** `heavy`, `owner` (it changes an auth check and host-privileged tooling, UR-98); label
+`cell:heavy-b`. **Assigned:** heavy-b, now (ruling 317). **Depends on:** none.
+**PR:** none yet. (ruling 317, record 6347331324)
+
+Design: [`../4n-status.md`](../4n-status.md), "Packages" row `B4.11`. Covers the status rows with
+`F4.8`.
+
+- [ ] The test-only PR (step 2): the six AI-health producers and their routes, `services.py`,
+      `container_orchestrator.py` and its health loop, the worker routes, `webhooks.py`,
+      `alertmanager.py` and `admin.py`'s flush.
+- [ ] The build PR: `ai_health.py` and its readers; the VLM client's call record and
+      `VLM_SLEEP_IDLE_SECONDS`; the never-probed set for `ai-vlm`; the new fields beside the old
+      (expand, with the `ai_models` key unmoved); the latency histograms; restart under
+      `get_current_admin_user` for the four services, its two-step audit, the disabled check gone;
+      the routes `F4.8` retires, and worker restart, under the same guard; the infrastructure-alerts
+      proxy; `alertmanager.py` and `prometheus_alerts` retired by a recorded upgrade; the mode-aware
+      flush; the regenerated contract and types.
+- [ ] Golden path (pytest, `backend/tests/golden/external/`) as the design gives it.
+
+**Done when:** steps 4–6 hold for its rows. F-140's real-tier check is the owner's witnessed restart
+on the live install (ruling 317). F-293's row reads **retired**.
 
 ### BB.\* Background track
 
@@ -772,39 +1074,48 @@ PR #7306)
 ### [r285] Four backend bugs the maui production-shape run found
 
 **Flags:** none. **Assigned:** backend, first on its queue (ruling 285). **Depends on:** none.
-**PR:** none yet. (ruling 285, record 6300916398; amendments 6301639831 and 6302995876)
+**PR:** #7318. (ruling 285, record 6300916398; amendments 6301639831 and 6302995876)
 
 The owner's maui discovery for `O2.5` item 2 ran production's compose shape on real hardware and
-found four product bugs CI cannot see. Its handoff carries reference diffs and red-and-green
+found four product bugs CI cannot see. The PR auto-merged with UR-89 approval at 82179a652 — the
+second approval, after the bookkeeping commit 827eb5dba reset the first per UR-106 (comments
+6307756549 and 6308312236). Its handoff carries reference diffs and red-and-green
 evidence for three of them; this package writes each fix fresh on `main`, each with its own
 failing-first test (UR-69), and ops-a's `O2.5` venue fixes leave them out (ruling 287 item 4).
 
-- [ ] **F-182's Compare.** `GET /api/system/gpu-config/history/diff` is registered after
+- [x] **F-182's Compare.** `GET /api/system/gpu-config/history/diff` is registered after
       `GET /api/system/gpu-config/history/{version_id}` in `backend/api/routes/gpu_config.py`, so
       `diff` is matched as a version id. Register `diff` first; handler bodies and the API contract
       are unchanged, and `docs/openapi.json` changes only if route order shows in it. The test calls
       `/api/system/gpu-config/history/diff?from_version=…&to_version=…` through the mounted router.
       F-182's row in `docs/reference/feature-inventory.md` replaces its Compare break note with the
       fix, and its ruling cell reads "ruling 285: as ruling 182 for F-176 and F-178"
-      (`feature-inventory-cite-drift.mjs` reports `DRIFT: 0`).
-- [ ] **PCIe Gen 6** (amendment 6301639831). `GPUStatsResponse.pcie_link_gen` and
+      (`feature-inventory-cite-drift.mjs` reports `DRIFT: 0`). — green at b6d61c5c0, run
+      39538063327; UR-89 approved (comment 6307756549).
+- [x] **PCIe Gen 6** (amendment 6301639831). `GPUStatsResponse.pcie_link_gen` and
       `GPUStatsSample.pcie_link_gen` (`backend/api/schemas/system.py`) are bounded `ge=1, le=5`,
       so a Gen 6 link fails the GPU stats schema. Drop the upper bound and keep `ge=1`, as
       `pcie_link_width` has; correct the "(1-4)" descriptions and comments
       (`backend/services/gpu_monitor.py`, `backend/models/gpu_stats.py`); regenerate
       `docs/openapi.json` and `frontend/src/types/generated/api.ts`. The test has both schemas
-      accept `pcie_link_gen=6` (or `GET /api/system/gpu` returns a Gen 6 sample).
-- [ ] **The webhook retry commits before it answers** (amendment 6302995876). `retry_delivery`
+      accept `pcie_link_gen=6` (or `GET /api/system/gpu` returns a Gen 6 sample). — green at
+      b6d61c5c0, run 39538063327; UR-89 approved (comment 6307756549).
+- [x] **The webhook retry commits before it answers** (amendment 6302995876). `retry_delivery`
       (`backend/api/routes/outbound_webhooks.py`) takes `Depends(get_db)`, and `get_db` commits
       after its `yield`, which under FastAPI 0.143's default dependency scope ran after the 200 was
       sent: an immediate history read saw the old count. Fix the route (for example
       `Depends(get_db, scope="function")`, or an explicit commit before returning), with red-first
-      tests for the stale read and for a success sent before a failed commit.
-- [ ] **The other routes that answer before they commit are counted, not fixed.** The PR body lists
+      tests for the stale read and for a success sent before a failed commit. — green at
+      b6d61c5c0, run 39538063327; UR-89 approved (comment 6307756549).
+- [x] **The other routes that answer before they commit are counted, not fixed.** The PR body lists
       every route handler that leaves its commit to `get_db`'s teardown, read route by route with
       the services it calls, says for each whether a client can observe the gap, and ends with a
-      recommendation for a fix across that surface, which waits for the owner's ruling.
-- [ ] **A degraded batch's message is delivered** (amendment 6302995876).
+      recommendation for a fix across that surface, which waits for the owner's ruling. — the
+      census and no-gap classifications were verified by the UR-89 reviewer on every surface
+      spot-checked (flush-only services confirmed); two narrative attributions corrected in the
+      follow-up notes (heatmap commit lives in `heatmap_service.py:514`, mqtt's
+      `_save_mqtt_config` at `backend/api/routes/mqtt_config.py:154`).
+- [x] **A degraded batch's message is delivered** (amendment 6302995876).
       `WebSocketBatchAnalysisCompletedData.risk_score` (`backend/api/schemas/websocket.py`) is
       `int`, while the event payload accepts `int | None`; a degraded VLM batch publishes `None`,
       so `broadcast_batch_analysis_completed` (`backend/services/event_broadcaster.py`) fails
@@ -812,7 +1123,118 @@ failing-first test (UR-69), and ops-a's `O2.5` venue fixes leave them out (rulin
       matching the event payload, or the PR says why another shape is right. The PR names what the
       frontend's `batch_analysis_completed` consumer does with a null score; if it cannot handle
       one, the smallest frontend fix rides along and frontend reviews that part. A red-first test
-      shows a degraded batch's message is sent.
+      shows a degraded batch's message is sent. — green at b6d61c5c0, run 39538063327; UR-89
+      approved (comment 6307756549); frontend ride-along reviewed by the reviewer (chip guard
+      distinguishes absent from scored-0, `BatchProcessingIndicator.tsx:170-180`).
 
 **Done when:** each fix's test was committed red ahead of it, `CI Gate` is green at a ready head,
 and the UR-89 review approves. `[r285]` is one PR.
+
+### [r303] Detector bake-off
+
+**Flags:** `heavy`. **Assigned:** heavy-b, after `B2.3` and ahead of `B4.5`; the operator runs
+its GPU measurement (ruling 309). **Depends on:** `[r309]`'s labelled file.
+**PR:** none yet. (rulings 303, 309; records 6323705837, 6327202214)
+
+Phase 4. Nothing about the detector changes before this test. `yolo26m` came in through #4403 and
+#4431 (2026-01), replacing RT-DETRv2, and was never compared. RF-DETR leads on COCO at the same
+speed (its README: T4, TensorRT FP16, batch 1): RF-DETR-M 54.7 AP at 4.4 ms and RF-DETR-L 56.5 AP
+at 6.8 ms (704 px input), against YOLO26-M at 52.5 AP and 4.4 ms on the same table (Ultralytics'
+own: 53.1 AP and 4.7 ms). The licences differ: YOLO26's code and weights are AGPL-3.0 or a paid
+Ultralytics Enterprise licence, and this repo is Apache-2.0; RF-DETR's N, S, M and L are Apache-2.0
+(its XL, 2XL and smallest sizes are PML 1.0). The R2 sheet records the same open question for the
+`threat` model (`r2-sheet.md:269`). COCO is not home-camera footage: night IR and small, distant
+people decide this, and no published number measures them.
+
+- [x] **First question to the owner:** the labelled frame set (source, who labels, size), as `B2.3`
+      settles its crops. Ruling 309 answers it: about 400 stills from the owner's cameras,
+      stratified into day, night/IR and distant subjects (at least 100 with a person or vehicle in
+      each), pre-boxed by OWLv2 or Grounding DINO and corrected by the owner, prepared by
+      `[r309]`. The frames and labels stay on the host, and PRs post counts only. Synthbench's
+      verified stills score as a second table.
+- [ ] Export YOLO26-M, RF-DETR-M and RF-DETR-L to TensorRT and serve each under Triton (UR-86), on a
+      desktop RTX card with the VLM resident.
+- [ ] Measure per model: AP on the product's classes (people and vehicles first), split by day,
+      night/IR and distant subjects; latency per frame; GPU memory; and the licence of code and
+      weights.
+
+**Done when:** the PR posts a recommendation with these numbers for an owner ruling. Nothing in
+production changes: no `models.yml` swap, no switch flip.
+
+### [r306a] Re-ID's default becomes the gateway
+
+**Flags:** `owner` (it changes production's model path). **Assigned:** backend, next on its queue
+(ruling 306). **Depends on:** O2.4's pass (ruling 306 item 1): `[r252]`'s run was spent without one,
+and `[r312a]`'s second run, reading every plan stage at or above 0.999 on all 36 crops on the image
+`main` serves, is O2.4's evidence (ruling 312 point 4).
+**PR:** none yet. (ruling 306, record 6323748868)
+
+`REID_BACKEND` (`backend/core/config.py:1445`) picks between the backend's resident OSNet copy
+(`local`, CPU-only torch wheels, `pyproject.toml:984-994`) and the gateway's GPU `reid`
+(`gateway`), "the same network and weights" (`config.py:1449`), under one model ID
+(`osnet-ain-x1-0@osnet_ain_x1_0_msmt17@8a07e8da3894`, #7002 `6154659954`). Stored person vectors
+stay valid across the flip once parity holds. When O2.4 passes (UR-85), `O2.4` goes to `done` and
+`B2.3` is unblocked (rulings 107, 312).
+
+- [ ] `REID_BACKEND`'s default becomes `gateway` in `backend/core/config.py` and in every compose
+      or env file that sets it.
+- [ ] A test pins the default, red first (UR-69).
+- [ ] The PR cites the PASS run.
+
+**Done when:** `CI Gate` is green at a ready head and the UR-89 review approves.
+
+### [r306b] The backend's CPU copy of OSNet leaves
+
+**Flags:** none. **Assigned:** backend, after `[r306a]` merges (ruling 306). **Depends on:**
+`[r306a]` merged. **PR:** none yet. (ruling 306, record 6323748868)
+
+UR-85 lets a proven GPU path stand without a CPU fallback.
+
+- [ ] Remove the `local` path: `backend/services/osnet_loader.py` and its callers' CPU branch,
+      `torchreid`, and `torch` from the backend only if no other kept import needs it. The PR
+      reports the import trace.
+
+**Done when:** `CI Gate` is green at a ready head, the import trace is in the PR body, and the UR-89
+review approves.
+
+### [r307c] fast-alpr leaves the tree
+
+**Flags:** `owner` (a deletion). **Assigned:** backend, after `B3.3` (ruling 307). **Depends on:**
+none. **PR:** none yet. (ruling 307, record 6323846997)
+
+fast-alpr never runs in production. The backend image installs only the `face` extra
+(`backend/Dockerfile:150`), so `collect_plate_text` (`backend/services/vlm_specialists.py:553-589`)
+always returns its "unavailable" line. F-268's ruled reader decision compares PaddleOCR with a
+YOLO11 plate detector against the VLM reading crops; fast-alpr is not a candidate. At `bc89bf68a` a
+grep also finds `scripts/download-model-zoo.py:88` and a docstring in
+`backend/services/alpr_service.py:541`; the Done when covers them.
+
+- [ ] Delete `backend/services/fast_alpr_loader.py` and its tests, the `alpr` extra and its lock
+      entries, the `fast-alpr` row in `models.yml` and `model_zoo`'s loader entry
+      (`backend/services/model_zoo.py:51`, `:355`), the suppression-registry entry, and the mentions
+      in `README.md`, `ai/AGENTS.md`, `ai/download_models.sh` and the backend `AGENTS.md` files
+      (UR-81).
+- [ ] `collect_plate_text` keeps returning its "unavailable" line, now without importing a reader,
+      so production's prompt does not change. The plate-reads tables and routes stay (F-268 is
+      complete); F-268's reader decision is unchanged, and its candidates run on Triton (UR-86).
+
+**Done when:** nothing in the tree imports or installs fast-alpr, the kept-feature check finds no
+lost writer, and the UR-89 review approves.
+
+### [r307b] The face leg calls the gateway
+
+**Flags:** `owner` (production's face path changes). **Assigned:** backend, after `[r307a]` passes
+(ruling 307). **Depends on:** `[r307a]`'s `RESULT: PASS`.
+**PR:** none yet. (ruling 307, record 6323846997)
+
+The face leg is CPU-only by an earlier choice, not a limit:
+`backend/services/face_recognizer_loader.py:19` and `:152` force `CPUExecutionProvider` to keep it
+out of the VRAM budget.
+
+- [ ] The face leg calls the gateway's SCRFD and ArcFace routes (`[r307a]`). Stored face embeddings
+      keep their model IDs.
+- [ ] A test pins the gateway path, red first (UR-69).
+- [ ] The CPU path (`face_recognizer_loader.py`'s ONNX sessions, the `face` extra, and
+      `onnxruntime` if no other kept import needs it) is removed in this PR or a follow-up it names.
+
+**Done when:** `CI Gate` is green at a ready head and the UR-89 review approves.

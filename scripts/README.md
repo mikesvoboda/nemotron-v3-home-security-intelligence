@@ -18,12 +18,6 @@ generates `.env` from `.env.example`, and installs pre-commit hooks when you
 pass `--dev`. The former `scripts/setup.sh` was removed in the setup
 consolidation (commit 84188795).
 
-**Windows extras:**
-
-```powershell
-.\scripts\setup.ps1      # npm prerequisites + frontend deps on Windows
-```
-
 Useful `setup.py` flags (`python setup.py --help` for the full list):
 
 ```bash
@@ -46,18 +40,17 @@ npm ci                     # CI uses npm; bun.lock is also kept in sync
 | Script             | Platform    | Purpose                                                                                              |
 | ------------------ | ----------- | ---------------------------------------------------------------------------------------------------- |
 | (root) `setup.py`  | All         | Cross-platform dev environment setup (the entry point this README used to attribute to a `setup.sh`) |
-| `setup.ps1`        | Windows     | Windows dev environment extras (npm/prereq checks, frontend deps)                                    |
 | `setup-hooks.sh`   | Linux/macOS | Pre-commit / commit-msg / pre-push git hook setup                                                    |
 | `setup-systemd.sh` | Linux       | Install backend as a systemd service                                                                 |
 | `setup-launchd.sh` | macOS       | Install backend as a launchd service                                                                 |
 
 ### Testing
 
-| Script           | Purpose                                                                     |
-| ---------------- | --------------------------------------------------------------------------- |
-| `test-runner.sh` | Optional local full-suite runner (no CI gate; see its header)               |
-| `validate.sh`    | Validation the CI mirrors (lint, types, tests, 80% combined coverage floor) |
-| `smoke-test.sh`  | E2E smoke test for MVP pipeline validation                                  |
+| Script             | Purpose                                                                     |
+| ------------------ | --------------------------------------------------------------------------- |
+| `test-runner.sh`   | Optional local full-suite runner (no CI gate; see its header)               |
+| `validate.sh`      | Validation the CI mirrors (lint, types, tests, 80% combined coverage floor) |
+| `ci-smoke-test.sh` | CI smoke test for deployment health verification                            |
 
 ### Development Tools
 
@@ -98,23 +91,11 @@ uv run uvicorn backend.main:app --host 0.0.0.0 --port 8000 --reload
 uv run pytest backend/tests/unit/test_feature.py -v
 ```
 
-### Running E2E Smoke Test
+### Running CI Smoke Test
 
 ```bash
-# Basic smoke test (after starting services)
-./scripts/smoke-test.sh
-
-# With verbose output for debugging
-./scripts/smoke-test.sh --verbose
-
-# Keep test artifacts for inspection
-./scripts/smoke-test.sh --skip-cleanup
-
-# Custom API URL and timeout
-./scripts/smoke-test.sh --api-url http://192.168.1.100:8000 --timeout 180
-
-# Show help
-./scripts/smoke-test.sh --help
+# Quick health smoke test against a running stack
+./scripts/ci-smoke-test.sh --backend-url http://localhost:8000 --frontend-url http://localhost:3000
 ```
 
 ### Seeding Test Data
@@ -166,14 +147,6 @@ chmod +x scripts/*.sh
 python setup.py
 ```
 
-**Windows:**
-
-```powershell
-# Run PowerShell as Administrator if needed
-Set-ExecutionPolicy RemoteSigned -Scope CurrentUser
-.\scripts\setup.ps1
-```
-
 ### Python version issues
 
 ```bash
@@ -202,14 +175,6 @@ nvm use 24
 ```bash
 # Make scripts executable
 chmod +x scripts/*.sh
-```
-
-**Windows:**
-
-```powershell
-# Run PowerShell as Administrator
-# Then run setup script
-.\scripts\setup.ps1
 ```
 
 ### Pre-commit hook issues

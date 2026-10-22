@@ -143,7 +143,6 @@ EXPECTED_BOUNDARY_PATHS = {
     "backend",
     "backend/ai_contract",
     "backend/api",
-    "backend/api/middleware",
     "backend/api/routes",
     "backend/api/schemas",
     "backend/core",
@@ -152,23 +151,19 @@ EXPECTED_BOUNDARY_PATHS = {
     "frontend",
     "frontend/src",
     "frontend/src/components/ai",
-    "frontend/src/components/alerts",
     "frontend/src/components/analytics",
     "frontend/src/components/common",
     "frontend/src/components/dashboard",
     "frontend/src/components/developer-tools",
-    "frontend/src/components/entities",
     "frontend/src/components/events",
     "frontend/src/components/face-recognition",
     "frontend/src/components/jobs",
     "frontend/src/components/settings",
     "frontend/src/components/system",
     "frontend/src/components/zones",
-    "frontend/src/contexts",
     "frontend/src/hooks",
     "frontend/src/pages",
     "frontend/src/services",
-    "frontend/src/stores",
     "frontend/src/types",
     "frontend/src/utils",
     "monitoring",
@@ -478,16 +473,64 @@ def test_sibling_readme_is_not_scanned(tmp_path):
     assert r.returncode == 0, r.stderr
 
 
-def test_missing_agents_md_stays_reporting_only(tmp_path):
-    """Scope pin: missing_agents_md is NOT one of the package's three failure
-    conditions — wiring it is W3.1's Phase-3 job. The issue must still be
-    REPORTED (linear_sync keeps filing its tickets) while the gate stays
-    green."""
+def test_non_boundary_code_dir_does_not_require_agents_md(tmp_path):
+    """W3.1 (ruling 300 item 2): the validator no longer requires an AGENTS.md
+    in every directory with >= 2 code files; only boundary_list directories
+    require one."""
     root = build(tmp_path, files={"src/a.py": "", "src/b.py": "", "src/c.py": ""})
     r = run_validator(root)
     assert r.returncode == 0, r.stderr
     types = [i["type"] for i in report_of(root)["issues"]]
-    assert "missing_agents_md" in types
+    assert "missing_agents_md" not in types
+
+
+def test_missing_boundary_agents_md_fails(tmp_path):
+    """W3.1 (ruling 300 item 2): the validator requires an AGENTS.md at each
+    boundary_list directory, failing when one is missing."""
+    root = build(
+        tmp_path,
+        boundary=[
+            {"path": ".", "reason": "root"},
+            {"path": "backend", "reason": "lane root"},
+        ],
+    )
+    r = run_validator(root)
+    assert r.returncode == 1
+    report = report_of(root)
+    missing = [i for i in report["issues"] if i["type"] == "missing_agents_md"]
+    assert len(missing) == 1
+    assert missing[0]["directory"] == "backend/"
+    assert any("backend/" in v for v in report["ratchet"]["violations"])
+    assert "backend/" in r.stderr
+
+
+def test_outside_boundary_agents_md_is_reported_without_failing(tmp_path):
+    """W3.1 (ruling 300 item 2): the validator reports, without failing, every
+    AGENTS.md outside boundary_list until the last lane's W3.1 PR switches it
+    to failing."""
+    root = build(
+        tmp_path,
+        files={"docs/sub/AGENTS.md": "# Sub\n", "backend/sub/AGENTS.md": "# Sub2\n"},
+        boundary=[{"path": ".", "reason": "root"}],
+    )
+    r = run_validator(root)
+    assert r.returncode == 0, r.stderr
+    report = report_of(root)
+    outside = report["ratchet"]["outside_boundaries"]
+    assert outside["failing"] is False
+    assert outside["count"] == 2
+    assert outside["files"] == ["backend/sub/AGENTS.md", "docs/sub/AGENTS.md"]
+    assert report["ratchet"]["violations"] == []
+
+    r_loud = subprocess.run(
+        [sys.executable, str(VALIDATOR), "--root", str(root)],
+        capture_output=True,
+        text=True,
+        check=False,
+    )
+    assert r_loud.returncode == 0
+    assert "[outside-boundary] docs/sub/AGENTS.md" in r_loud.stderr
+    assert "[outside-boundary] backend/sub/AGENTS.md" in r_loud.stderr
 
 
 # --------------------------------------------------------------------------
@@ -639,7 +682,9 @@ def test_report_shape_is_pinned(tmp_path):
         "violations",
         "unbalanced_fences",
         "line_caps",
+        "outside_boundaries",
     }
+    assert ratchet["outside_boundaries"] == {"count": 0, "files": [], "failing": False}
 
 
 def test_line_caps_report_every_tier_and_never_fail(tmp_path):
@@ -650,27 +695,25 @@ def test_line_caps_report_every_tier_and_never_fail(tmp_path):
 
     A cap that failed on adoption would redden every PR touching a file that
     is itself scheduled to be rewritten (measured in PR #6920: 29 of the 42
-    committed boundary files are over cap today, backend/services by 2864
-    lines). Green-on-caps is therefore the pinned behaviour, not an oversight
+    then-listed boundary files were over cap). Green-on-caps is therefore the pinned behaviour, not an oversight
     — and `failing: False` is pinned False so W3.2's flip is a reviewed edit
     to the validator, not a silent drift.
 
     The `backend/models` fixture entry is the case the real tree cannot supply:
     a file whose line count EQUALS its cap, which must NOT be reported (a cap is
     a maximum, not a trigger). No committed boundary file sits at one — the
-    smallest |lines - cap| anywhere on the real tree is 18
-    (frontend/src/components/developer-tools, 318 against the 300 cap), and
-    shifting every cap by ±5 leaves the over-set at 29 — so a `>` slipping to
-    `>=` is invisible to every real-tree assertion in this file. Confirmed by
-    mutation, not inference: flipping the comparison reddens THIS test and leaves
-    all five real-tree tests green. That is the pair-sides rule's untested
-    direction, pinned here instead."""
+    smallest |lines - cap| on the real tree is 8
+    (frontend/src/components/jobs, 308 against the 300 cap; developer-tools is
+    318), and shifting every cap by ±5 leaves the over-set unchanged — so a `>`
+    slipping to `>=` is invisible to every real-tree assertion in this file.
+    Confirmed by mutation, not inference: flipping the comparison reddens THIS
+    test and leaves all five real-tree tests green. That is the pair-sides
+    rule's untested direction, pinned here instead."""
     boundary = [
         {"path": ".", "reason": "root"},
         {"path": "backend", "reason": "lane root"},
         {"path": "ai/gateway", "reason": "package"},
         {"path": "scripts", "reason": "lane root, under cap"},
-        {"path": "synthbench/contract", "reason": "boundary with no AGENTS.md"},
         {"path": "backend/models", "reason": "package, exactly at cap"},
     ]
     long_enough = "# Fixture\n\n" + "body\n" * 20
@@ -693,8 +736,8 @@ def test_line_caps_report_every_tier_and_never_fail(tmp_path):
     report = report_of(root)
     block = report["ratchet"]["line_caps"]
     assert block["failing"] is False
-    assert block["boundaries"] == 6
-    assert block["measured"] == 5  # the sixth has no AGENTS.md to measure
+    assert block["boundaries"] == 5
+    assert block["measured"] == 5
     over = {e["path"]: e for e in block["over"]}
     assert over["AGENTS.md"]["tier"] == "root"
     assert over["backend/AGENTS.md"]["tier"] == "lane_root"
@@ -708,14 +751,27 @@ def test_line_caps_report_every_tier_and_never_fail(tmp_path):
         "a file whose line count equals its cap was reported over — the "
         "comparison is `> cap` (a maximum), not `>= cap` (a trigger)"
     )
-    # The missing-file arm is REPORTED, not skipped: a boundary the scan never
-    # saw is a hole in the prune map, and skipping it would shrink the map
-    # silently (the vacuous-comparison failure mode).
-    hole = over["synthbench/contract/AGENTS.md"]
-    assert hole["measured"] is None
-    assert hole["tier"] == "package"
     # Reporting-only in the strongest sense: the gate's own verdict field.
     assert report["ratchet"]["violations"] == []
+
+    # A boundary with no AGENTS.md is recorded in line_caps["over"] with
+    # measured=None AND fails the run under W3.1's boundary requirement.
+    write_config(
+        root,
+        boundary=[
+            *boundary,
+            {"path": "synthbench/contract", "reason": "boundary with no AGENTS.md"},
+        ],
+        caps={"root": 3, "lane_root": 10, "package": 10},
+    )
+    r_hole = run_validator(root)
+    assert r_hole.returncode == 1
+    hole_block = report_of(root)["ratchet"]["line_caps"]
+    assert hole_block["boundaries"] == 6
+    assert hole_block["measured"] == 5
+    hole = {e["path"]: e for e in hole_block["over"]}["synthbench/contract/AGENTS.md"]
+    assert hole["measured"] is None
+    assert hole["tier"] == "package"
 
 
 def test_caps_apply_to_boundary_files_only(tmp_path):
@@ -864,29 +920,37 @@ def test_committed_boundary_list_covers_the_rule():
     supports, including the part that refutes the argument the first version of
     this docstring made. The plan says "Expect 30 to 50 entries"; that band is a
     WEAK filter here, not a selector — measured over thresholds 1..60 at this
-    tree, thresholds 11 through 46 ALL land inside it (36 of the 60 values), so
-    the band rules out >= 10 (52 entries) and >= 47 (29) and says nothing at all
-    about 20 vs 15. It is kept as a coarse guard: a rule edit that puts a
+    tree (post-#7246: the cut shrank the frontend, moving the band's edges),
+    thresholds 10 through 39 ALL land inside it (30 of the 60 values), so the
+    band rules out <= 9 (53 entries) and >= 40 (28 entries) and says nothing at
+    all about 20 vs 15. It is kept as a coarse guard: a rule edit that puts a
     threshold's output outside the band is selecting the wrong thing.
 
     What does discriminate 20 is structural, and it is a keep-argument rather
     than a cut-argument: the committed set is a PLATEAU, equal at thresholds
-    18, 19 and 20, so the exact number inside the plateau is not load-bearing —
+    19 and 20, so the exact number inside the plateau is not load-bearing —
     what is load-bearing is the plateau's two edges, and both are asserted
     below.
 
     - Its top edge: >= 21 drops setup_lib, which has exactly 20 code files and
       NO kept ancestor at all — it is a top-level package, so at >= 21 the tree
       carries a real package that no boundary file covers. Every other entry a
-      tighter cut drops (frontend/src/stores at 21; components/alerts and
-      src/contexts at 22) is a satellite that folds into frontend/src.
+      tighter cut drops is a satellite that folds into frontend/src (at the
+      F3.2 tree these were all frontend dirs already under the plateau — the
+      cut of #7246 dropped stores/alerts/contexts/entities from 20-23 files to
+      6-18 and removed them from the list entirely; their AGENTS.md files left
+      with the dirs' last loads, re-derived below like everything else).
       setup_lib is also, measured, the ONLY entry the size rule keeps with no
-      proper kept ancestor: the other 26 have one. So "20" is "the largest
+      proper kept ancestor: the other 21 have one. So "20" is "the largest
       threshold that still covers the one orphan package".
     - Its bottom edge: every entry a looser cut adds is a parent-split —
-      >= 17 and >= 16 add exactly one dir, components/settings/prompts (17 code
-      files, under the listed components/settings); >= 15 adds audit,
-      common/skeletons and src/schemas, all under frontend/src. The standard's
+      >= 18 adds exactly one dir, entities (18 code files, under the listed
+      frontend/src); >= 17 adds components/settings/prompts (17, under the
+      listed components/settings); >= 16 adds backend/api/middleware (16,
+      under the listed backend/api); >= 15 adds frontend audit and
+      common/skeletons (B3.3 box 4 retired the vision-model forms, dropping
+      model-forms out of the kept set and moving every marginal dir's
+      threshold down one). The standard's
       doctrine is that a satellite folds into its nearest kept ancestor, so no
       threshold below the plateau can be defended on the rule's own terms. (A
       previous draft of this paragraph claimed the marginal additions were "all
@@ -934,11 +998,13 @@ def test_committed_boundary_list_covers_the_rule():
     roots = EXPECTED_LANE_ROOTS | {"."}
 
     def derive(threshold: int) -> set[str]:
-        """The rule as the config comment states it, at one threshold."""
+        """The rule as the config comment states it, at one threshold (W3.2 box 4:
+        the 20-code-file membership rule with RULE_EXCEPTION_NOT_LISTED as its
+        one pinned exception)."""
         kept = {
             d
             for d, n in counts.items()
-            if n >= threshold and not self_indexed(d) and (REPO_ROOT / d / "AGENTS.md").is_file()
+            if n >= threshold and not self_indexed(d) and d not in RULE_EXCEPTION_NOT_LISTED
         }
         return kept | roots | EXPECTED_RULE_EXCEPTIONS
 
@@ -967,7 +1033,9 @@ def test_committed_boundary_list_covers_the_rule():
     # The named/contract arm is not vacuous either: none of it would survive
     # the >= 20 rule on its own.
     assert EXPECTED_RULE_EXCEPTIONS - rule_kept - roots == EXPECTED_RULE_EXCEPTIONS
-    assert len(big) >= 40 and committed - big, "the rule is doing nothing"
+    # B3.2 (2026-10-21) deleted 94 backend modules and 116 test files, taking
+    # the >=20-file directory count (`big`) to 38.
+    assert len(big) >= 35 and committed - big, "the rule is doing nothing"
     # setup_lib's softer exception, spelled out because it is the only entry
     # the two lists disagree about: no_agents_md_required says the file is not
     # REQUIRED, boundary_list says it is KEPT (its config reason says so).
@@ -988,13 +1056,20 @@ def test_committed_boundary_list_covers_the_rule():
         assert (REPO_ROOT / d / "AGENTS.md").is_file(), f"{d} has no AGENTS.md"
         assert entry["reason"].strip(), d
     assert 30 <= len(committed) <= 50, f"outside the plan's 30-50 band: {len(committed)}"
-    # The band as a COARSE guard only — see the docstring: thresholds 11..46 all
+    # The band as a COARSE guard only — see the docstring: thresholds 10..39 all
     # land inside it at this tree, so being in-band is not the argument for 20.
     # Only the looser side is asserted, because that is the side that stays true
     # as the tree grows (more dirs -> bigger lists); asserting the tight side
-    # (>= 47 falls out at 29 today) would redden a green rule for an unrelated
-    # package gaining files.
-    assert len(derive(5)) > 50 and len(derive(10)) > 50, "a looser threshold now fits the band"
+    # (>= 40 falls out at 28 today) would redden a green rule for an unrelated
+    # package gaining files. F3.2's cut moved the loose edge from threshold 10
+    # (52 entries, outside) to 9 (53 entries, still outside) — derive(10) is 49
+    # now, inside the band; the pin follows the tree per the docstring's
+    # re-derivation clause. B3.3 box 4 (#7322) retired the four vision-model
+    # forms, dropping model-forms from 11 to 3 code files and out of the kept
+    # set: the whole curve moved down ~2 entries — derive(9) is 50 now, at the
+    # band's top edge and INSIDE, so the loose edge moves to 8 (54, outside),
+    # and derive(10) is 47.
+    assert len(derive(5)) > 50 and len(derive(8)) > 50, "a looser threshold now fits the band"
 
     def proper_ancestors(candidate: str, base: set[str]) -> list[str]:
         """Kept directories that STRICTLY contain `candidate`. `.` is out — it is
@@ -1068,9 +1143,9 @@ def test_committed_boundary_list_and_caps_are_pinned():
       lane roots from cap 500 to cap 300, moves the over-cap set, and reddens
       nothing here because derive() rebuilt `roots` from the same edited set.
       That is the review-blind edit the docstring above is about.
-    - The tier CENSUS of the committed list. The report's `measured == 42` says
-      every listed path resolved to a file; it does not say the 42 still SORT
-      1/7/34. A lane root that loses its AGENTS.md, or a boundary renamed out of
+    - The tier CENSUS of the committed list. The report's `measured == 38`
+      says every listed path resolved to a file; it does not say the 38 still SORT
+      1/7/30. A lane root that loses its AGENTS.md, or a boundary renamed out of
       a lane root, silently moves files between caps.
     - The census is asserted against boundary_tier(), the module's own
       classifier, which is the right way round for a pin: the literals fix HOW
@@ -1097,8 +1172,8 @@ def test_committed_boundary_list_and_caps_are_pinned():
     census = collections.Counter(v.boundary_tier(p) for p in committed)
     assert census["root"] == 1, census
     assert census["lane_root"] == len(EXPECTED_LANE_ROOTS) == 7, census
-    assert census["package"] == len(EXPECTED_BOUNDARY_PATHS) - 1 - 7 == 34, census
-    assert sum(census.values()) == len(EXPECTED_BOUNDARY_PATHS) == 42, (
+    assert census["package"] == len(EXPECTED_BOUNDARY_PATHS) - 1 - 7 == 29, census
+    assert sum(census.values()) == len(EXPECTED_BOUNDARY_PATHS) == 37, (
         f"boundary_tier() returned a tier outside the three capped ones: {census}"
     )
 
@@ -1155,20 +1230,19 @@ def test_real_tree_scanned_count_floor(real_run):
     143 -> 83 and florence 93 -> 70 with no baseline edit). The dead-reference
     arm at least reacts under anchored resolution — the same edit reports 138
     stale references — but a shrunk denominator is invisible without this
-    floor. A FLOOR, not equality: W3.1 may legitimately add AGENTS.md files;
-    if the set SHRINKS, someone widened an exclusion — update the floor and
-    say why in the same PR.
+    floor.
 
-    245 -> 243 (O1.5, UR-19, 2026-10-09): `git rm -r archive docs/archive`
-    removed 2 AGENTS.md files.
-    243 -> 236 (O3.1, ruling 210, 2026-10-18): pruning non-shipping ai/ and
-    synthbench/spikes/ directories removed the 8 AGENTS.md files inside
-    ai/common/, ai/common/tests/, ai/shared/, ai/triton/tests/,
-    ai/yolo26/tests/, synthbench/spikes/, synthbench/spikes/p1_bakeoff/ and
-    backend/tests/unit/synthbench/spikes/ (244 - 8 = 236)."""
+    W3.1 (ruling 300 item 2): the floor is now the boundary_list count (37),
+    and every scanned file is accounted for as either a boundary file or a
+    reported outside-boundary file, so no later W3.1 deletion of non-boundary
+    AGENTS.md files can fail this gate."""
     rc, report, _stderr = real_run
     assert rc == 0
-    assert report["total_agents_md_files"] >= 236
+    outside = report["ratchet"]["outside_boundaries"]
+    assert outside["failing"] is False
+    assert report["total_agents_md_files"] >= len(EXPECTED_BOUNDARY_PATHS) == 37
+    assert report["total_agents_md_files"] == len(EXPECTED_BOUNDARY_PATHS) + outside["count"]
+    assert report["summary"]["missing_agents_md"] == 0
 
 
 @pytest.mark.timeout(180)
@@ -1177,8 +1251,8 @@ def test_real_tree_caps_arm_denominator(real_run):
     fixtures. test_line_caps_report_every_tier_and_never_fail proves the arm
     works on a built tree; nothing until here proves it is measuring THIS one.
     The three numbers are the non-vacuity claim the PR body makes — "measured ==
-    boundaries == 42 is what makes the list non-vacuous" — and a report that
-    quietly measured 30 of 42 would have said so here instead of in review.
+    boundaries == 38 is what makes the list non-vacuous" — and a report that
+    quietly measured 30 of 38 would have said so here instead of in review.
 
     What is asserted is the arm's ARITHMETIC on the real tree, recomputed here
     from the filesystem — not its SIZE. The over-cap count (29 at adoption) is
@@ -1197,7 +1271,7 @@ def test_real_tree_caps_arm_denominator(real_run):
     a change in HOW lines are counted; it is aimed at the join — config path ->
     scanned file -> tier -> cap -> over — which is where a rename, a mis-tiered
     directory, or an off-by-one comparison would hide, and which no fixture
-    covers because a fixture cannot be the real 42 files.
+    covers because a fixture cannot be the real 38 files.
 
     The expected tier below is spelled out from the LITERALS, not from
     v.boundary_tier(). The first draft of this test called the module for it, and
@@ -1211,7 +1285,7 @@ def test_real_tree_caps_arm_denominator(real_run):
     rc, report, stderr = real_run
     assert rc == 0, stderr
     caps = report["ratchet"]["line_caps"]
-    assert caps["boundaries"] == len(EXPECTED_BOUNDARY_PATHS) == 42, caps["boundaries"]
+    assert caps["boundaries"] == len(EXPECTED_BOUNDARY_PATHS) == 37, caps["boundaries"]
     assert caps["measured"] == caps["boundaries"], (
         f"a listed boundary resolved to no scanned AGENTS.md: measured "
         f"{caps['measured']} of {caps['boundaries']} — the denominator is a hole, "

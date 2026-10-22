@@ -366,12 +366,13 @@ sudo nvidia-ctk cdi generate --output=/etc/cdi/nvidia.yaml
 
 ## Compose Files
 
-| File                         | Purpose                            | AI Services         | Use Case                                                                                          |
-| ---------------------------- | ---------------------------------- | ------------------- | ------------------------------------------------------------------------------------------------- |
-| `docker-compose.prod.yml`    | Production                         | Containerized       | Full deployment with GPU                                                                          |
-| `docker-compose.test.yml`    | Test DB/cache                      | None                | Local Postgres/Redis on ports 5433/6380                                                           |
-| `docker-compose.ci.yml`      | CI smoke                           | Mocked              | GitHub Actions runners (no GPU)                                                                   |
-| `docker-compose.fake-ai.yml` | Overlay on `docker-compose.ci.yml` | Deterministic fakes | A stack with no GPU that scores events (`-f docker-compose.ci.yml -f docker-compose.fake-ai.yml`) |
+| File                         | Purpose                            | AI Services         | Use Case                                                                                                                                            |
+| ---------------------------- | ---------------------------------- | ------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `docker-compose.prod.yml`    | Production                         | Containerized       | Full deployment with GPU                                                                                                                            |
+| `docker-compose.test.yml`    | Test DB/cache                      | None                | Local Postgres/Redis on ports 5433/6380                                                                                                             |
+| `docker-compose.ci.yml`      | CI smoke                           | Mocked              | GitHub Actions runners (no GPU)                                                                                                                     |
+| `docker-compose.fake-ai.yml` | Overlay on `docker-compose.ci.yml` | Deterministic fakes | A stack with no GPU that scores events (`-f docker-compose.ci.yml -f docker-compose.fake-ai.yml`)                                                   |
+| `docker-compose.sinks.yml`   | Overlay on `docker-compose.ci.yml` | None                | The notification sinks for the golden smoke (`-f docker-compose.ci.yml -f docker-compose.fake-ai.yml -f docker-compose.sinks.yml`), never a default |
 
 There is no `docker-compose.yml` in the repository. For development you run the
 backend natively (`uv run uvicorn …`) against the containers you need, or against
@@ -906,9 +907,11 @@ consequences:
 
 `alloy`'s socket mount is NOT affected by this change — alloy uses the socket for
 container discovery, log scraping and profiling targets, not orchestration, and stays
-unconditional per owner ruling 186. Because alloy precedes `backend` in the prod file,
-an unset `PODMAN_SOCKET` fails the render naming `services.alloy.volumes` in BOTH
-states; the message does not tell you the orchestrator flag is what you were testing.
+unconditional per owner ruling 186. Compose reports every service whose interpolation
+fails, in alphabetical service order, so an unset `PODMAN_SOCKET` fails the render
+naming `services.alloy.volumes` and `services.backend.volumes` in BOTH states
+regardless of file order — `alloy` heads the list only because the names sort that
+way; the message does not tell you the orchestrator flag is what you were testing.
 
 **CLI versions this was verified on**: `docker compose v5.5.1` and
 `podman-compose 1.6.0`, plus `docker compose v2.38.2` (the `ubuntu-24.04` runner's

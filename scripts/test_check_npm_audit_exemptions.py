@@ -15,6 +15,7 @@ from __future__ import annotations
 import json
 import subprocess
 import sys
+from datetime import date, timedelta
 from pathlib import Path
 
 import pytest
@@ -23,9 +24,24 @@ REPO = Path(__file__).resolve().parent
 CHECKER = REPO / "check-npm-audit-exemptions.py"
 
 FAKE_NPM = """#!/usr/bin/env bash
+if [ -n "$NPM_AUDIT_CALLS" ]; then echo x >> "$NPM_AUDIT_CALLS"; fi
 cat "$NPM_AUDIT_JSON"
 exit ${NPM_AUDIT_RC:-1}
 """
+
+# [r313] What `npm audit --json` actually prints when the registry POST times
+# out: rc=1 (npm's failure code for errors too, not just "findings exist") and
+# an error object on stdout - NO auditReportVersion, NO vulnerabilities. This
+# is the byte-exact payload reproduced with `npm audit --json
+# --fetch-timeout=1 --fetch-retries=0` (npm 11.21.1 / node 22.22.1) against the
+# same tree that CI audited green minutes before and after.
+TIMEOUT_AUDIT = json.dumps(
+    {
+        "message": "network timeout at: "
+        "https://registry.npmjs.org/-/npm/v1/security/advisories/bulk",
+        "error": {"summary": "", "detail": ""},
+    }
+)
 
 
 def audit_doc(advisories: list[dict]) -> str:
@@ -90,19 +106,30 @@ class Harness:
         registry: dict | None,
         registry_exists: bool = True,
         seed: int | None = None,
+        rc: str | None = None,
+        extra_env: dict[str, str] | None = None,
     ):
         reg = self.frontend / ".npm-audit-exemptions.json"
         if registry_exists:
             reg.write_text(json.dumps(registry if registry is not None else {"exceptions": []}))
         doc = self.tmp / "audit.json"
         doc.write_text(audit_json)
+        if rc is None:
+            # Findings (npm exit 1) vs clean (exit 0); an error-shaped payload
+            # (no metadata - [r313] TIMEOUT_AUDIT) cannot ride this heuristic,
+            # so its tests pass rc explicitly.
+            rc = "1"
+            try:
+                rc = "1" if json.loads(audit_json)["metadata"]["vulnerabilities"]["total"] else "0"
+            except (KeyError, TypeError, json.JSONDecodeError):
+                pass
         env = {
             "PATH": f"{self.bin}:{'/usr/bin:/bin'}",
             "NPM_AUDIT_JSON": str(doc),
-            "NPM_AUDIT_RC": "1"
-            if json.loads(audit_json)["metadata"]["vulnerabilities"]["total"]
-            else "0",
+            "NPM_AUDIT_RC": rc,
         }
+        if extra_env:
+            env.update(extra_env)
         if seed is not None:
             # Fix str-hash order for this child; without it each run randomizes.
             env["PYTHONHASHSEED"] = str(seed)
@@ -205,6 +232,67 @@ def test_not_fixable_per_npm_keeps_exemption_valid(tmp_path: Path) -> None:
     nope = [{"pkg": "braces", "gid": G1, "sev": "high", "fix": None}]
     r = h.run(audit_doc(nope), {"exceptions": [entry(G1, "braces")]})
     assert r.returncode == 0, r.stderr
+
+
+# --- [r313] a FAILED audit must fail closed, never read as an empty one -------
+#
+# npm exits 1 both for "findings exist" AND for its own errors; on a network
+# error (2026-10-22 02:57Z red: 5m00.45s = npm's 300000 ms fetch-timeout) it
+# prints an error object with no auditReportVersion and no vulnerabilities.
+# run_audit accepted rc=1 and parsed that error object as an audit with zero
+# findings, so every registered exemption read "stale, remove it" (full mode
+# failed closed-but-WRONG) and the gate's delta read "none added by the
+# change" (head side failed OPEN). The ruling's tests feed the reproduced
+# payload through all three paths and require "audit failed", never "stale"
+# and never "OK".
+
+
+def _assert_audit_failed(r: subprocess.CompletedProcess) -> None:
+    assert r.returncode == 1, r.stdout + r.stderr
+    blob = r.stdout + r.stderr
+    assert "audit failed" in blob
+    assert "stale" not in blob
+    assert "delta OK" not in blob
+    assert "exemptions OK" not in blob
+
+
+def test_full_registry_check_timeout_payload_fails_closed(tmp_path: Path) -> None:
+    """The 02:57Z red's exact shape on the full registry check: the timeout
+    error object must exit 1 with 'audit failed', not adjudicate a registry
+    entry against an empty found-map ('stale, remove it')."""
+    h = Harness(tmp_path)
+    r = h.run(TIMEOUT_AUDIT, {"exceptions": [entry(G1, "braces")]}, rc="1")
+    _assert_audit_failed(r)
+    assert G1 not in r.stdout  # no stale-entry verdict lines at all
+
+
+def test_retry_runs_exactly_three_attempts_on_failed_shape(tmp_path: Path) -> None:
+    """[r313] box 2: a failed-audit payload gets up to TWO retries (three
+    attempts total) - counted at the fake npm - and never on a parsed report:
+    a healthy audit runs npm exactly once."""
+    h = Harness(tmp_path)
+    calls = tmp_path / "calls"
+    r = h.run(
+        TIMEOUT_AUDIT,
+        {"exceptions": [entry(G1, "braces")]},
+        rc="1",
+        extra_env={"NPM_AUDIT_CALLS": str(calls)},
+    )
+    _assert_audit_failed(r)
+    assert calls.read_text().count("x") == 3
+
+    healthy = tmp_path / "healthy"
+    healthy.mkdir()
+    h2 = Harness(healthy)
+    calls2 = tmp_path / "calls2"
+    r2 = h2.run(
+        audit_doc(BRACES),
+        {"exceptions": [entry(G1, "braces")]},
+        rc="1",
+        extra_env={"NPM_AUDIT_CALLS": str(calls2)},
+    )
+    assert r2.returncode == 0, r2.stdout + r2.stderr
+    assert calls2.read_text().count("x") == 1
 
 
 def test_major_fix_at_vuln_level_keeps_exemption_valid(tmp_path: Path) -> None:
@@ -426,3 +514,362 @@ def test_alias_hit_fallback_adjudicates_deterministically(tmp_path: Path) -> Non
     assert f"{G4}" in err and "UNEXEMPTED" in err and "lodash" in err
     assert "registered for" not in err  # G3 hit on braces: attribution clean
     assert "stale" not in err  # G1's absence prints nothing - G3 is its alias
+
+
+# --- [r291] gate mode: fail a change only on a finding it adds ----------------
+#
+# --base-frontend turns the checker into a DELTA: the same adjudication runs
+# on the base tree (a second fake npm + its own registry) and the head tree,
+# and only a finding unexempted at the head that is not an unexempted finding
+# at the base reddens. Everything below is the package block's named cases on
+# recorded JSON.
+
+
+class DeltaHarness:
+    """Two frontends, two fake npms, two registries - one checker invocation.
+
+    The single-tree Harness scrubs env per subprocess, so both sides' fake
+    npm binaries must carry their own NPM_AUDIT_JSON target. The fake npm
+    reads its audit from a per-side env var set inside the per-side script.
+    """
+
+    def __init__(self, tmp_path: Path) -> None:
+        self.tmp = tmp_path
+        self.bin = tmp_path / "bin"
+        self.bin.mkdir()
+        for side in ("base", "head"):
+            script = self.bin / f"npm-{side}"
+            script.write_text(
+                f'#!/usr/bin/env bash\ncat "$NPM_AUDIT_JSON_{side.upper()}"\n'
+                f"exit ${{NPM_AUDIT_RC_{side.upper()}:-1}}\n"
+            )
+            script.chmod(0o755)
+        self.base_fe = tmp_path / "frontend-base"
+        self.head_fe = tmp_path / "frontend-head"
+        self.base_fe.mkdir()
+        self.head_fe.mkdir()
+
+    def run(
+        self,
+        base_audit: str,
+        head_audit: str,
+        base_reg: dict | None,
+        head_reg: dict | None,
+        base_rc: str = "1",
+        head_rc: str = "1",
+    ):
+        if base_reg is not None:
+            (self.base_fe / ".npm-audit-exemptions.json").write_text(json.dumps(base_reg))
+        if head_reg is not None:
+            (self.head_fe / ".npm-audit-exemptions.json").write_text(json.dumps(head_reg))
+        base_doc = self.tmp / "base-audit.json"
+        head_doc = self.tmp / "head-audit.json"
+        base_doc.write_text(base_audit)
+        head_doc.write_text(head_audit)
+        # A shim npm dispatches on an env var the checker's two passes set:
+        # --base-frontend's subprocess must find the BASE audit. Since the
+        # checker runs ONE process (not two), the fake npm is called once per
+        # side inside it; the shim picks the audit by the cwd it was invoked
+        # from - the checker's run_audit(cwd=frontend).
+        shim = self.bin / "npm"
+        shim.write_text(
+            "#!/usr/bin/env bash\n"
+            'case "$(pwd)" in\n'
+            '  *frontend-head) cat "$NPM_AUDIT_JSON_head"; exit ${NPM_AUDIT_RC_head:-1} ;;\n'
+            '  *) cat "$NPM_AUDIT_JSON_base"; exit ${NPM_AUDIT_RC_base:-1} ;;\n'
+            "esac\n"
+        )
+        shim.chmod(0o755)
+        env = {
+            "PATH": f"{self.bin}:/usr/bin:/bin",
+            "NPM_AUDIT_JSON_base": str(base_doc),
+            "NPM_AUDIT_JSON_head": str(head_doc),
+            "NPM_AUDIT_RC_base": base_rc,
+            "NPM_AUDIT_RC_head": head_rc,
+        }
+        return subprocess.run(  # noqa: PLW1510 - the whole point is checking rc
+            [
+                sys.executable,
+                str(CHECKER),
+                "--frontend",
+                str(self.head_fe),
+                "--base-frontend",
+                str(self.base_fe),
+                "--base-registry",
+                str(self.base_fe / ".npm-audit-exemptions.json"),
+                "--warn-days",
+                "14",
+            ],
+            capture_output=True,
+            text=True,
+            env=env,
+        )
+
+
+def test_gate_finding_shared_by_base_and_head_passes(tmp_path: Path) -> None:
+    """Package case 1: the advisory fires on BOTH trees, unexempted on both -
+    the change did not add it, the gate is green."""
+    d = DeltaHarness(tmp_path)
+    r = d.run(audit_doc(BRACES), audit_doc(BRACES), {"exceptions": []}, {"exceptions": []})
+    assert r.returncode == 0, r.stdout + r.stderr
+
+
+def test_gate_head_adds_vulnerable_package_fails(tmp_path: Path) -> None:
+    """Package case 2: the head's audit reports a finding the base's does not."""
+    d = DeltaHarness(tmp_path)
+    r = d.run(audit_doc([]), audit_doc(BRACES), {"exceptions": []}, {"exceptions": []})
+    assert r.returncode == 1
+    assert G1 in r.stderr
+    assert "UNEXEMPTED" in r.stderr
+
+
+def test_gate_removed_exemption_with_surviving_finding_fails(tmp_path: Path) -> None:
+    """Package case 3: base exempts a surviving finding, head drops the entry -
+    removing the exemption counts as ADDING that finding."""
+    d = DeltaHarness(tmp_path)
+    r = d.run(
+        audit_doc(BRACES),
+        audit_doc(BRACES),
+        {"exceptions": [entry(G1, "braces")]},
+        {"exceptions": []},
+    )
+    assert r.returncode == 1
+    assert G1 in r.stderr
+    assert "UNEXEMPTED" in r.stderr
+
+
+def test_gate_added_exemption_past_review_by_fails(tmp_path: Path) -> None:
+    """Package case 4: the head's registry ADDS an entry whose REVIEW BY has
+    passed - an entry the change adds must pass today's registry rules."""
+    d = DeltaHarness(tmp_path)
+    r = d.run(
+        audit_doc(BRACES),
+        audit_doc(BRACES),
+        {"exceptions": []},
+        {"exceptions": [entry(G1, "braces", "2020-01-01")]},
+    )
+    assert r.returncode == 1
+    assert "PASSED" in r.stderr
+
+
+def test_gate_base_expired_review_by_untouched_passes_gate_fails_full_lockfile(
+    tmp_path: Path,
+) -> None:
+    """Package case 5: the base's registry has an entry past its REVIEW BY the
+    change does not touch. The gate is green; the same pair adjudicated in
+    full-lockfile mode (no --base-frontend) must stay red - today's behavior
+    pinned by test_expired_review_by_is_red."""
+    d = DeltaHarness(tmp_path)
+    r = d.run(
+        audit_doc(BRACES),
+        audit_doc(BRACES),
+        {"exceptions": [entry(G1, "braces", "2020-01-01")]},
+        {"exceptions": [entry(G1, "braces", "2020-01-01")]},
+    )
+    assert r.returncode == 0, r.stdout + r.stderr
+    # The full-lockfile leg of the same pair is NOT green: run today's
+    # checker on a FRESH tree (the delta harness owns tmp_path/bin).
+    (tmp_path / "single").mkdir()
+    h = Harness(tmp_path / "single")
+    single = h.run(audit_doc(BRACES), {"exceptions": [entry(G1, "braces", "2020-01-01")]})
+    assert single.returncode == 1
+    assert "PASSED" in single.stderr
+
+
+def test_gate_npm_audit_error_on_base_fails_closed(tmp_path: Path) -> None:
+    """Package case 6: npm audit rc>=2 on the base side - the delta cannot
+    enumerate the base's findings, so it must fail closed, never green."""
+    d = DeltaHarness(tmp_path)
+    r = d.run(
+        audit_doc([]),
+        audit_doc([]),
+        {"exceptions": []},
+        {"exceptions": []},
+        base_rc="2",
+    )
+    assert r.returncode == 1
+
+
+def test_gate_timeout_payload_on_head_fails_closed(tmp_path: Path) -> None:
+    """[r313] THE FAIL-OPEN BUG, pinned: the head's audit times out (rc=1 +
+    the reproduced error object) and the delta read 'none added by the
+    change' - a change that ADDS an unexempted advisory would pass. The head
+    side must fail closed with 'audit failed' instead."""
+    d = DeltaHarness(tmp_path)
+    r = d.run(
+        audit_doc([]),
+        TIMEOUT_AUDIT,
+        {"exceptions": []},
+        {"exceptions": []},
+        head_rc="1",
+    )
+    _assert_audit_failed(r)
+
+
+def test_gate_timeout_payload_on_base_fails_closed(tmp_path: Path) -> None:
+    """[r313] Same payload on the base side: the delta's 'was it already
+    there?' question is unanswerable, so it must fail closed (the existing
+    UNADJUDICABLE path now reached by the rc=1 error shape too)."""
+    d = DeltaHarness(tmp_path)
+    r = d.run(
+        TIMEOUT_AUDIT,
+        audit_doc([]),
+        {"exceptions": []},
+        {"exceptions": []},
+        base_rc="1",
+    )
+    _assert_audit_failed(r)
+
+
+def test_gate_timeout_on_both_sides_fails_closed(tmp_path: Path) -> None:
+    """[r313] Both sides timing out (a registry outage mid-gate) must never
+    produce the OK line: two empty audits would agree and read as a clean
+    zero-delta."""
+    d = DeltaHarness(tmp_path)
+    r = d.run(TIMEOUT_AUDIT, TIMEOUT_AUDIT, {"exceptions": []}, {"exceptions": []})
+    _assert_audit_failed(r)
+
+
+def test_gate_timeout_payload_cannot_green_a_real_addition(tmp_path: Path) -> None:
+    """[r313] The composite the fail-open bug would have hidden: the head's
+    audit TIMES OUT and the change adds a real unexempted advisory the base
+    reports too. The timeout must not read as 'nothing to adjudicate'."""
+    d = DeltaHarness(tmp_path)
+    r = d.run(
+        audit_doc(BRACES),
+        TIMEOUT_AUDIT,
+        {"exceptions": []},
+        {"exceptions": []},
+        head_rc="1",
+    )
+    _assert_audit_failed(r)
+
+
+def test_gate_missing_base_registry_fails_closed(tmp_path: Path) -> None:
+    d = DeltaHarness(tmp_path)
+    r = d.run(audit_doc([]), audit_doc([]), None, {"exceptions": []})
+    assert r.returncode == 1
+    assert "MISSING" in r.stderr
+
+
+def test_gate_exemption_added_at_head_covers_new_finding(tmp_path: Path) -> None:
+    """The flip side of case 3: the head adds BOTH the finding and a valid
+    exemption - the registry stays the allowlist, so the delta is green."""
+    d = DeltaHarness(tmp_path)
+    r = d.run(
+        audit_doc([]),
+        audit_doc(BRACES),
+        {"exceptions": []},
+        {"exceptions": [entry(G1, "braces")]},
+    )
+    assert r.returncode == 0, r.stdout + r.stderr
+
+
+def test_gate_finding_moving_to_another_package_is_red(tmp_path: Path) -> None:
+    """The delta key is (id, package): the advisory at base on braces, at head
+    on micromatch, is a finding the change adds (moved), not shared."""
+    moved = [
+        {
+            "pkg": "micromatch",
+            "gid": G1,
+            "sev": "high",
+            "fix": {"name": "tailwindcss", "version": "4.3.3", "isSemVerMajor": True},
+        }
+    ]
+    d = DeltaHarness(tmp_path)
+    r = d.run(
+        audit_doc(BRACES),
+        audit_doc(moved),
+        {"exceptions": [entry(G1, "braces")]},
+        {"exceptions": [entry(G1, "braces")]},
+    )
+    assert r.returncode == 1
+
+
+def test_gate_resurrected_advisory_behind_dead_entry_fails(tmp_path: Path) -> None:
+    """r291 security pass: the base's audit does NOT report the advisory, the
+    head's does, and both registries carry an entry for it whose REVIEW BY
+    has passed. The PR touches no registry file - the finding resurrects the
+    dead entry by making its advisory live again. Strict coverage: a
+    violating entry does not cover the head's finding, so the delta is red,
+    not '0 finding(s) shared ... none added'."""
+    d = DeltaHarness(tmp_path)
+    r = d.run(
+        audit_doc([]),
+        audit_doc(BRACES),
+        {"exceptions": [entry(G1, "braces", "2020-01-01")]},
+        {"exceptions": [entry(G1, "braces", "2020-01-01")]},
+    )
+    assert r.returncode == 1
+    assert G1 in r.stderr
+    assert "UNEXEMPTED" in r.stderr
+
+
+def test_gate_premise_broken_entry_does_not_cover_new_finding(tmp_path: Path) -> None:
+    """The other strict-coverage shape: the head's audit reports an in-range
+    fix, so the pre-existing entry (present, unexpired, on both trees) is
+    premise-BROKEN at the head and stale at the base - the violation texts
+    differ, so the entry branch reds the delta even before strict coverage
+    gets a word in. Pinned red because a PR that resurrects a dead entry
+    must not read 'delta OK' through either branch."""
+    d = DeltaHarness(tmp_path)
+    r = d.run(
+        audit_doc([]),
+        audit_doc(
+            [
+                {
+                    "pkg": "braces",
+                    "gid": G1,
+                    "sev": "high",
+                    "fix": {"name": "braces", "version": "1.8.9", "isSemVerMajor": False},
+                }
+            ]
+        ),
+        {"exceptions": [entry(G1, "braces")]},
+        {"exceptions": [entry(G1, "braces")]},
+    )
+    assert r.returncode == 1
+
+
+def test_gate_shared_warn_keeps_delta_green_with_warning_note(tmp_path: Path) -> None:
+    """r291 security pass, verdict hygiene: a pre-existing entry expiring
+    within warn-days on BOTH trees (finding shared too) must not fail the
+    delta - and the OK line carries the warning count, so the log never
+    reads 'delta OK' beside a nonzero exit code."""
+    soon = (date.today() + timedelta(days=5)).isoformat()
+    d = DeltaHarness(tmp_path)
+    r = d.run(
+        audit_doc(BRACES),
+        audit_doc(BRACES),
+        {"exceptions": [entry(G1, "braces", soon)]},
+        {"exceptions": [entry(G1, "braces", soon)]},
+    )
+    assert r.returncode == 0, r.stdout + r.stderr
+    assert "shared expiry warning(s)" in r.stdout
+
+
+def test_gate_new_package_hit_by_already_exempted_advisory_fails(tmp_path: Path) -> None:
+    """r291 security re-pass, residual A: the base reports the advisory on
+    the package the valid entry names; the head reports the SAME advisory
+    on a NEW package too (npm attributes chain advisories to every
+    dependent - the braces advisory shows up on chokidar/fast-glob/knip).
+    Coverage was per-gid, so one entry covered the advisory on every
+    package it touched and a PR adding a vulnerable dependency green-lit
+    without touching the registry. The delta key is (gid, package): the
+    head's (gid, new-pkg) is an addition and the delta is red."""
+    head = [
+        *BRACES,
+        {
+            "pkg": "fast-glob",
+            "gid": G1,
+            "sev": "high",
+            "fix": {"name": "tailwindcss", "version": "4.3.3", "isSemVerMajor": True},
+        },
+    ]
+    reg = {"exceptions": [entry(G1, "braces")]}
+    d = DeltaHarness(tmp_path)
+    r = d.run(audit_doc(BRACES), audit_doc(head), reg, reg)
+    assert r.returncode == 1
+    assert "fast-glob" in r.stderr
+    assert G1 in r.stderr
+    assert "UNEXEMPTED" in r.stderr

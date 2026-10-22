@@ -150,7 +150,12 @@ class TestWalkOnRealData(_CiYml):
         # (rulings 127, 187): ruling 187 item 3 orders a separate CI job for the
         # seeded golden project so `Feature check (fake AI)` is not lengthened,
         # and WP0.6 requires the direct `needs:` + `check_job` edge on `ci-gate`.
-        assert len(direct) <= 33, f"ci-gate has {len(direct)} direct needs — review"
+        # 33 -> 34 adjudicated here, in the [O3.4] commit that causes it: O3.4
+        # orders a CI job failing on new non-shipping Python modules and new
+        # `knip --production` unused files/exports, and UR-121 + WP0.6 require
+        # its own job (`reachability-gates`) with a direct `needs:` + `check_job`
+        # edge on `ci-gate`.
+        assert len(direct) <= 34, f"ci-gate has {len(direct)} direct needs — review"
 
 
 class TestRunStepCommentSwallow(_CiYml):
@@ -186,6 +191,8 @@ class TestRunStepCommentSwallow(_CiYml):
             # in this suite — dropping it from the step silently un-teeths
             # the gate (agents-md.yml itself gates nothing).
             "scripts/test_agents_md_validator.py",
+            # O3.4: the Python + Knip reachability gate's own suite.
+            "scripts/test_reachability_gate.py",
         ):
             assert suite in joined, f"{suite} dropped from the anti-rot CI step"
 
@@ -463,7 +470,7 @@ class TestFanInReplacesTheFakeJob(_CiYml):
         )
 
     def test_the_shard_setup_uv_tolerates_a_job_that_never_calls_uv(self) -> None:
-        # [r264] backend-once left shards 2–4 with no uv invocation, and
+        # [r264] backend-once left shards 2-4 with no uv invocation, and
         # setup-uv's post step (default ignore-nothing-to-cache: false) fails
         # "Cache path ... does not exist on disk" when nothing materialized the
         # cache dir — run 39209710736: three red jobs, every test leg green.
@@ -479,7 +486,7 @@ class TestFanInReplacesTheFakeJob(_CiYml):
         assert len(setup_uv) == 1, "the shard job carries more than one setup-uv"
         assert setup_uv[0].get("with", {}).get("ignore-nothing-to-cache") is True, (
             "the shard job's setup-uv errors in its post step when the job "
-            "never invokes uv (shards 2–4: nothing to cache)"
+            "never invokes uv (shards 2-4: nothing to cache)"
         )
 
     def test_the_reference_derivation_exports_an_absolute_scenario_path(self) -> None:
@@ -488,8 +495,7 @@ class TestFanInReplacesTheFakeJob(_CiYml):
         # repo-relative value dies as frontend/backend/... and
         # event-detail-modal's module-scope constants crash collection past
         # their own test.skip guard (run 39209710736: the fan-in reddened on
-        # "Cannot read properties of undefined (reading 'verdict')",
-        # event-detail-modal.spec.ts:377). feature_check.py:2349 exports an
+        # undefined verdict at event-detail-modal.spec.ts:377). feature_check.py:2349 exports an
         # ABSOLUTE path to the real leg, so the derivation must mirror that
         # shape — pinned by consequence: the value must start at the
         # workspace, and the relative literal must be gone.
@@ -583,4 +589,35 @@ class TestStepNamedSuitesStillWired(_CiYml):
             f"{self.CENSUS_PATH} dropped from collection-sanity's "
             f"{self.ANTIROT_STEP!r} step — it matches no testpaths entry, so "
             "outside that argv it runs nowhere."
+        )
+
+
+class TestReachabilityGatesJobWired(_CiYml):
+    """O3.4 (ruling 257, UR-121, WP0.6): Reachability Gates (O3.4) runs in its
+    own CI job (`reachability-gates`), wired into `ci-gate` via direct `needs:`
+    and a `check_job` line."""
+
+    JOB = "reachability-gates"
+    LEG = "Reachability Gates (O3.4)"
+    MOD = "scripts.reachability_gate"
+
+    def test_the_job_exists_and_runs_reachability_gate(self) -> None:
+        job = self.jobs.get(self.JOB)
+        assert job is not None, f"{self.JOB} is missing from ci.yml"
+        argv = " ".join(str(step.get("run", "")) for step in job.get("steps", []) or [])
+        assert self.MOD in argv, f"{self.MOD!r} not invoked by {self.JOB}"
+        assert job.get("name") == self.LEG
+
+    def test_ci_gate_needs_it_and_reads_its_result(self) -> None:
+        assert self.JOB in _needs_of(self.jobs["ci-gate"]), f"ci-gate does not need {self.JOB}"
+        gate_run = "\n".join(
+            step.get("run", "") for step in self.jobs["ci-gate"]["steps"] if step.get("run")
+        )
+        assert f"needs.{self.JOB}.result" in gate_run, (
+            f"ci-gate needs {self.JOB} but never reads its result"
+        )
+        line = next((ln for ln in gate_run.splitlines() if f"needs.{self.JOB}.result" in ln), "")
+        assert f'"{self.LEG}"' in line, (
+            f"ci-gate's check_job line for {self.JOB} does not print its "
+            f"`name:` ({self.LEG!r}): {line.strip()}"
         )

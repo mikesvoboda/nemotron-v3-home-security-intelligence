@@ -64,7 +64,6 @@ Components are organized by feature area. Each component directory contains:
 | `components/events/`          | Event list and detail components       |
 | `components/exports/`         | Export modal and progress components   |
 | `components/feedback/`        | User feedback collection components    |
-| `components/forms/`           | Reusable form field components         |
 | `components/jobs/`            | Background jobs management page        |
 | `components/layout/`          | Layout, header, and sidebar            |
 | `components/logs/`            | Application logs viewer                |
@@ -567,16 +566,11 @@ Zone management and visualization:
 
 Global state management via React Context:
 
-| File                      | Purpose                    |
-| ------------------------- | -------------------------- |
-| `AnnouncementContext.tsx` | System announcements       |
-| `CameraContext.tsx`       | Camera state and selection |
-| `DebugModeContext.tsx`    | Debug mode toggle          |
-| `HealthContext.tsx`       | System health state        |
-| `MetricsContext.tsx`      | Metrics data context       |
-| `SystemDataContext.tsx`   | System-wide data context   |
-| `ToastContext.tsx`        | Toast notification context |
-| `index.ts`                | Barrel export              |
+| File                      | Purpose              |
+| ------------------------- | -------------------- |
+| `AnnouncementContext.tsx` | System announcements |
+| `DebugModeContext.tsx`    | Debug mode toggle    |
+| `index.ts`                | Barrel export        |
 
 Each context has a co-located test file (named `*.test.tsx`).
 
@@ -607,12 +601,10 @@ Each page has a co-located test file (named `*.test.tsx`).
 
 Zod schemas for runtime validation:
 
-| File           | Purpose                       |
-| -------------- | ----------------------------- |
-| `alert.ts`     | Alert data schemas            |
-| `alertRule.ts` | Alert rule validation schemas |
-| `camera.ts`    | Camera data schemas           |
-| `index.ts`     | Barrel export                 |
+| File        | Purpose             |
+| ----------- | ------------------- |
+| `camera.ts` | Camera data schemas |
+| `index.ts`  | Barrel export       |
 
 ### `/stores/` - State Stores
 
@@ -620,12 +612,10 @@ Zustand stores for global state management:
 
 | File                        | Purpose                            |
 | --------------------------- | ---------------------------------- |
-| `dashboardConfig.ts`        | Dashboard configuration store      |
 | `dashboard-config-store.ts` | Dashboard config store (alternate) |
 | `middleware.ts`             | Zustand middleware utilities       |
 | `prometheus-alert-store.ts` | Prometheus alert state             |
 | `rate-limit-store.ts`       | Rate limiting state                |
-| `realtime-metrics-store.ts` | Real-time metrics state            |
 | `storage-status-store.ts`   | Storage status state               |
 | `worker-status-store.ts`    | Worker status state                |
 
@@ -648,13 +638,10 @@ Each store has a co-located test file (named `*.test.ts`).
 | `useEventStream.ts`            | Event stream subscription for `/ws/events`          | Yes      |
 | `useSystemStatus.ts`           | System status monitoring via `/ws/system`           | Yes      |
 | `useGpuHistory.ts`             | GPU metrics history with polling                    | Yes      |
-| `useHealthStatus.ts`           | Health status polling                               | Yes      |
 | `usePerformanceMetrics.ts`     | Performance metrics collection and tracking         | Yes      |
 | `useAIMetrics.ts`              | AI performance metrics from multiple endpoints      | Yes      |
 | `useDetectionEnrichment.ts`    | Detection enrichment data fetching                  | Yes      |
-| `useModelZooStatus.ts`         | Model Zoo status with VRAM stats                    | Yes      |
 | `useSavedSearches.ts`          | Saved searches in localStorage                      | Yes      |
-| `useStorageStats.ts`           | Storage/disk usage polling with cleanup preview     | No       |
 | `useServiceStatus.ts`          | Service health status tracking                      | No       |
 | `useSidebarContext.ts`         | Context hook for mobile sidebar state               | No       |
 | `webSocketManager.ts`          | Singleton WebSocket connection manager              | No       |
@@ -667,10 +654,8 @@ Each hook has a co-located test file (named `*.test.ts`).
 | File                     | Purpose                                   |
 | ------------------------ | ----------------------------------------- |
 | `api.ts`                 | REST API client with typed fetch wrappers |
-| `aiAuditApi.ts`          | AI audit API client                       |
 | `auditApi.ts`            | AI pipeline audit API client              |
 | `promptManagementApi.ts` | Prompt management API client              |
-| `abTestService.ts`       | A/B testing service                       |
 | `queryClient.ts`         | React Query client configuration          |
 | `interceptors.ts`        | Request/response interceptors             |
 | `logger.ts`              | Client-side structured logging            |
@@ -679,8 +664,6 @@ Each hook has a co-located test file (named `*.test.ts`).
 | `rum.ts`                 | Real User Monitoring (RUM) service        |
 | `errorReporting.ts`      | Error reporting service                   |
 | `gpuConfigApi.ts`        | GPU configuration API client              |
-| `optimisticUpdates.ts`   | Optimistic update utilities               |
-| `performanceTracker.ts`  | Performance tracking service              |
 | `queryPersistence.ts`    | Query persistence utilities               |
 | `routePrefetching.ts`    | Route prefetching service                 |
 
@@ -695,7 +678,6 @@ Each hook has a co-located test file (named `*.test.ts`).
 | `api.missing-coverage.test.ts` | Coverage gap tests          |
 | `auditApi.test.ts`             | Audit API client tests      |
 | `promptManagementApi.test.ts`  | Prompt management API tests |
-| `abTestService.test.ts`        | A/B test service tests      |
 | `queryClient.test.ts`          | Query client tests          |
 | `interceptors.test.ts`         | Interceptor tests           |
 | `logger.test.ts`               | Logger tests                |
@@ -778,7 +760,6 @@ Note: Tests are co-located with type files (e.g., `*.test.ts`).
 | `severityCalculator.ts`   | Severity calculation utilities                                               |
 | `severityColors.ts`       | Severity color utilities                                                     |
 | `summaryParser.ts`        | Summary parsing utilities                                                    |
-| `tryCatch.ts`             | Try-catch utility wrapper                                                    |
 | `validation.ts`           | Validation utilities                                                         |
 | `websocketCompression.ts` | WebSocket compression utilities                                              |
 
@@ -801,7 +782,6 @@ Import test utilities from `../test-utils` in test files.
 - `lighthouserc.test.ts` - Lighthouse CI configuration tests
 - `matchers.ts` - Custom test matchers
 - `matchers.test.ts` - Tests for custom matchers
-- `AGENTS.md` - Test directory documentation
 
 ## Application Routes
 

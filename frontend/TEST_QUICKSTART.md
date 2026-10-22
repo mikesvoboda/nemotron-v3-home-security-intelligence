@@ -59,14 +59,16 @@ npm test -- src/components/dashboard/
 ## Coverage Floors
 
 `vite.config.ts` sets coverage thresholds at the measured values (R-1 ruling:
-a floor that has never held is not a floor):
+a floor that has never held is not a floor; re-pinned by owner ruling 261 to
+run 39161827871's merged totals, then re-measured at the final head
+971c98731 per the ruling's own final-head mechanism):
 
 | Metric     | Floor |
 | ---------- | ----- |
-| statements | 80    |
-| branches   | 74.6  |
-| functions  | 78.4  |
-| lines      | 80.9  |
+| statements | 79.5  |
+| branches   | 74.3  |
+| functions  | 77.2  |
+| lines      | 80.5  |
 
 CI enforces these on the **merged** shard data (`merge-shard-coverage.mjs
 --enforce`), only when every Vitest shard passed. Locally

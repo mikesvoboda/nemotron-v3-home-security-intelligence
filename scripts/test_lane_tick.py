@@ -241,8 +241,14 @@ class Fake:
         self.map = over.get("map", MAP)
         self.packages = over.get("packages", PKG)
         self.roster = over.get("roster", ROSTER)
+        # ruling 290: `""` is the seam's no-read default -- the in-progress offer cannot fire
+        # without a README read, so a test that never passes one exercises the safe arm.
+        self.readme = over.get("readme", "")
         self.behind = over.get("behind", "3")
         self.commits = over.get("commits", "")
+        # the subset chain's per-commit parents lines (ruling 278): one author commit between
+        # the heads reads "<sha>", one update-branch merge reads "<parent1> <parent2>"
+        self.parents = over.get("parents", "")
         self.jobs = over.get("jobs", [])
         self.rollup_reread = over.get("rollup_reread", {})
 
@@ -273,8 +279,13 @@ class Fake:
             # this arm once did: a fourth `git show` added to the tool would have read as an EMPTY
             # file and every section keyed off it would have passed while reading nothing.
             doc = cmd[-1].rsplit("/", 1)[-1]
-            docs = {"ruling-map.md": self.map, "lane.md": self.roster, "ops.md": self.packages}
-            if doc not in docs:
+            docs = {
+                "ruling-map.md": self.map,
+                "lane.md": self.roster,
+                "ops.md": self.packages,
+                "README.md": self.readme,
+            }
+            if doc not in docs or (doc == "README.md" and not self.readme):
                 raise AssertionError(f"unscripted git show: {cmd[-1]}")
             return docs[doc]
         if cmd[:2] == ["git", "branch"]:
@@ -285,6 +296,11 @@ class Fake:
             return BASE + "\n"
         if cmd[:2] == ["git", "fetch"]:
             return ""
+        if cmd[:2] == ["git", "log"] and "--first-parent" in cmd:
+            # ruling 278's subset chain read: `git log --first-parent --format=%P approved..head`,
+            # one line per first-parent commit between the heads, parents newest-first. Default
+            # "" (no commits between the heads) keeps every existing fixture's carry verdict.
+            return self.parents
         if cmd[:2] == ["git", "log"]:
             return self.commits
         if cmd[:2] == ["git", "diff"]:
@@ -1063,6 +1079,11 @@ def test_an_approve_of_an_old_head_the_author_changed_is_not_for_this_head():
         **ready(),
         pr_comments={7158: [review(46, approve_of(OLD_HEAD), minutes=-1)]},
         diffs={OLD_HEAD[:9]: SAME_DIFF.replace("+b", "+c")},
+        parents="\n".join(
+            [  # one author commit between the heads: the subset rule says no
+                "a" * 40,
+            ]
+        ),
     )
     line = row(out, 7158)
     assert "arm auto-merge" not in line and "— needs your review" in line
@@ -1441,7 +1462,9 @@ def test_a_blockless_title_token_is_still_a_hold_and_a_mention_is_not():
     leading = [{"number": 7290, "title": "[r269] offer the next claimable package on the digest"}]
     assert tick.held_claims(PKG, leading) == ["r269"]
     # hyphenated tokens are real tokens ([flaky-census] is live, #7082) even with no block
-    hyphen = [{"number": 7082, "title": "[flaky-census] claim: golden's flaky census (UR-48 lane work)"}]
+    hyphen = [
+        {"number": 7082, "title": "[flaky-census] claim: golden's flaky census (UR-48 lane work)"}
+    ]
     assert tick.held_claims(PKG, hyphen) == ["flaky-census"]  # fmt: skip
     # a mid-title mention is prose, not a claim -- measured on the live 7158 title's shape
     mention = [{"number": 7158, "title": "an [r151] follow-up"}]
@@ -1555,6 +1578,7 @@ def test_an_approval_not_of_the_head_nor_a_carry_of_it_is_not_waiting():
         **waiting(),
         pr_comments={7164: [held_review(73, approve_of(OLD_HEAD), minutes=-1)]},
         diffs={OLD_HEAD[:9]: SAME_DIFF.replace("+b", "+c")},  # an author change: no carry
+        parents="a" * 40,  # the author commit the carry must answer no to
     )
     assert "next claimable" not in out
     assert fake.asked("git diff")  # the carry was actually read, the judge's way
@@ -1578,7 +1602,9 @@ def test_an_unanswered_owner_question_still_offers_no_package():
     # Item 1(d): "no unanswered owner question". An owner-tier PR also needs the owner's approval
     # in force (item 1's owner clause), and that approval is recorded on #6854 -- outside what the
     # digest can read per PR -- so the `owner` label (UR-147's trigger) blocks the offer.
-    out = text(**waiting(labels=("lane:ops", "cell:b", "owner")), pr_comments={7164: [held_review(76)]})
+    out = text(
+        **waiting(labels=("lane:ops", "cell:b", "owner")), pr_comments={7164: [held_review(76)]}
+    )
     assert "next claimable" not in out
 
 
@@ -1624,11 +1650,20 @@ def test_a_waiting_pr_titling_a_blockless_token_is_a_hold_not_a_plain_offer():
     # itself titled a token with no block on main. The cure: the leading title token IS the
     # claim identity, so the PR holds -- and since it waits its merge turn (an approval naming
     # its head, a green gate, not a draft), the ruling-269 offer still prints beside the hold.
-    ready151 = dict(
-        prs=[pr(7158, labels=["lane:ops", "cell:b"], head=MINE2_HEAD, draft=False, title=MINE2,
-                merge="BLOCKED", rollup=[gate(), job()])],  # fmt: skip
-        heads=[head_row(7158, OTHER_BRANCH, MINE2)],
-    )
+    ready151 = {
+        "prs": [
+            pr(
+                7158,
+                labels=["lane:ops", "cell:b"],
+                head=MINE2_HEAD,
+                draft=False,
+                title=MINE2,
+                merge="BLOCKED",
+                rollup=[gate(), job()],
+            )
+        ],
+        "heads": [head_row(7158, OTHER_BRANCH, MINE2)],
+    }
     out = text(**ready151, pr_comments={7158: [review(84)]})
     assert "holding open claim: [r151]" in out
     assert "next claimable: r181" in out
@@ -1643,14 +1678,26 @@ def test_a_waiting_ur48_fix_takes_the_plain_offer_with_no_hold_line():
     # with EMPTY names and a ruling-tagged offer -- a digest line no lane can act on. This also
     # pins the UR-48 exemption in its waiting shape: a defect fix neither freezes the queue
     # (the hold test) nor needs ruling 269's exception (there is no hold to lift).
-    defect = dict(
-        prs=[pr(7151, labels=["lane:ops", "cell:b"], head=MY_HEAD, draft=False,
-                title="[UR-48] fix: re-anchor a panel leg", merge="BLOCKED",
-                rollup=[gate(), job()])],  # fmt: skip
-        heads=[head_row(7151, MY_BRANCH, "[UR-48] fix: re-anchor a panel leg")],
+    defect = {
+        "prs": [
+            pr(
+                7151,
+                labels=["lane:ops", "cell:b"],
+                head=MY_HEAD,
+                draft=False,
+                title="[UR-48] fix: re-anchor a panel leg",
+                merge="BLOCKED",
+                rollup=[gate(), job()],
+            )
+        ],
+        "heads": [head_row(7151, MY_BRANCH, "[UR-48] fix: re-anchor a panel leg")],
+    }
+    out = text(
+        **defect,
+        pr_comments={
+            7151: [comment(86, 7151, approve_of(MY_HEAD), t(timedelta(minutes=-10)), pr=True)]
+        },
     )
-    out = text(**defect, pr_comments={7151: [comment(86, 7151, approve_of(MY_HEAD),
-                                                      t(timedelta(minutes=-10)), pr=True)]})
     assert "holding open claim" not in out
     assert "next claimable: r181" in out
     assert "(ruling 269" not in has(out, "next claimable")[0]
@@ -1665,23 +1712,38 @@ def test_two_open_packages_leave_no_offer():
         "`[r172]`. **PR:** none yet. (ruling 178)\n\n- [ ] box\n"
     )
     roster = ROSTER.replace("`[r172]`, `O3.4`", "`[r172]`, `[r178]`, `O3.4`")
-    both = dict(
-        packages=pkg,
-        roster=roster,
-        prs=[
-            pr(7164, labels=["lane:ops", "cell:b"], head=MY_HEAD, draft=False, title=MINE1,
-               merge="BLOCKED", rollup=[gate(), job()]),  # fmt: skip
-            pr(7158, labels=["lane:ops", "cell:b"], head=MINE2_HEAD, draft=False,
-               title="[r172] wrapped and import budget", merge="BLOCKED",
-               rollup=[gate(), job()]),  # fmt: skip
+    both = {
+        "packages": pkg,
+        "roster": roster,
+        "prs": [
+            pr(
+                7164,
+                labels=["lane:ops", "cell:b"],
+                head=MY_HEAD,
+                draft=False,
+                title=MINE1,
+                merge="BLOCKED",
+                rollup=[gate(), job()],
+            ),
+            pr(
+                7158,
+                labels=["lane:ops", "cell:b"],
+                head=MINE2_HEAD,
+                draft=False,
+                title="[r172] wrapped and import budget",
+                merge="BLOCKED",
+                rollup=[gate(), job()],
+            ),
         ],
-        heads=[head_row(7164, MY_BRANCH, MINE1),
-               head_row(7158, OTHER_BRANCH, "[r172] wrapped and import budget")],  # fmt: skip
-        pr_comments={
+        "heads": [
+            head_row(7164, MY_BRANCH, MINE1),
+            head_row(7158, OTHER_BRANCH, "[r172] wrapped and import budget"),
+        ],
+        "pr_comments": {
             7164: [held_review(79)],
             7158: [comment(80, 7158, approve_of(MINE2_HEAD), t(timedelta(minutes=-10)), pr=True)],
         },
-    )
+    }
     # Exactly two hold tokens -- the cap counts PACKAGES, and a stray third token (the old title's
     # blockless leading [r151]) made the <3 mutant indistinguishable from the cap. The cap mutant
     # <2 -> <3 opens the offer here and only here: len(held) must be exactly 2.
@@ -1698,12 +1760,26 @@ def test_a_second_open_pr_mid_flight_blocks_the_offer_until_it_waits():
     # missed offer never is, and the queue stays readable by hand (item 5).
     out = text(
         prs=[
-            pr(7164, labels=["lane:ops", "cell:b"], head=MY_HEAD, draft=False, title=MINE1,
-               merge="BLOCKED", rollup=[gate(), job()]),  # fmt: skip
-            pr(7151, labels=["lane:ops"], head=MINE2_HEAD, title="[UR-48] fix: re-anchor a panel leg"),
+            pr(
+                7164,
+                labels=["lane:ops", "cell:b"],
+                head=MY_HEAD,
+                draft=False,
+                title=MINE1,
+                merge="BLOCKED",
+                rollup=[gate(), job()],
+            ),
+            pr(
+                7151,
+                labels=["lane:ops"],
+                head=MINE2_HEAD,
+                title="[UR-48] fix: re-anchor a panel leg",
+            ),
         ],
-        heads=[head_row(7164, MY_BRANCH, MINE1),
-               head_row(7151, OTHER_BRANCH, "[UR-48] fix: re-anchor a panel leg")],  # fmt: skip
+        heads=[
+            head_row(7164, MY_BRANCH, MINE1),
+            head_row(7151, OTHER_BRANCH, "[UR-48] fix: re-anchor a panel leg"),
+        ],
         pr_comments={7164: [held_review(81)]},
     )
     assert "holding open claim: [r181]" in out
@@ -1715,6 +1791,82 @@ def test_the_offer_names_ruling_269():
     # the hold line names UR-52 -- or a lane acting on it cites nothing.
     out = text(**waiting(), pr_comments={7164: [held_review(82)]})
     assert "ruling 269" in has(out, "next claimable")[0]
+
+
+# --- ruling 290: a merged block whose README row reads `in progress` is offered --------------
+
+
+def test_a_merged_block_with_in_progress_row_and_an_open_box_is_offered_with_its_box():
+    # The [r290] shape, on MY queue with MY PR holding [r181]: a block whose `**PR:**` names a
+    # merged PR (`#7244`, the UR-183 shape), whose README row reads `in progress` (UR-144's
+    # multi-PR package), and which carries one unticked box. `next_claimable` must offer it and
+    # NAME the box (the digest's whole point: the offer the lane can act on), and the offer must
+    # survive the hold gate the same way the none-yet offer does -- this world holds [r181] whose
+    # PR waits its turn, so the offer rides ruling 269.
+    b33 = (
+        "### B3.3 Settings and residue truth\n\n"
+        "**Flags:** none. **Depends on:** `R2`.\n"
+        "**PR:** #7244. (ruling 241)\n\n"
+        "- [x] ticked box\n"
+        "- [ ] `AIModelEnum` and the prompt-management schemas follow the prompt page's ruling.\n"
+    )
+    pkg = PKG + b33
+    # Ahead of `[r172]` on purpose: r172's own none-yet offer would otherwise win in queue order,
+    # and the assertion could never tell the in-progress branch fired at all.
+    queued = ROSTER.replace("`[r181]`, `[r172]`", "`[r181]`, `B3.3`, `[r172]`")
+    _, out = run_tick(
+        **waiting(),
+        packages=pkg,
+        roster=queued,
+        readme=README_ROWS,  # the README read box 2 needs, plumbed through build
+        pr_comments={7164: [held_review(83)]},
+    )
+    line = has(out, "next claimable")[0]
+    assert "B3.3" in line
+    assert "AIModelEnum" in line  # the digest names the box
+
+
+def test_a_merged_single_pr_block_with_an_unticked_post_merge_box_is_not_offered():
+    # r172's shape on main: unticked boxes, `**PR:** #7305` -- a MERGED single-PR block (verified
+    # merged). Ruling 283's read stands: the block is done, its unticked boxes are the owner
+    # partner's post-merge ticks, not open work -- and no README row reads `in progress` for it.
+    # The offer must stay silent even though [r172] sits on my queue behind the hold.
+    r172 = (
+        "### [r172] The import budget\n\n"
+        "**Flags:** none. **PR:** #7305. (ruling 172; issue #7102)\n\n"
+        "- [ ] a box the owner partner still has to tick post-merge\n"
+    )
+    out = text(
+        **waiting(),
+        packages=PKG + r172,
+        readme=README_ROWS,
+        pr_comments={7164: [held_review(84)]},
+    )
+    line = has(out, "next claimable")[0] if "next claimable" in out else ""
+    assert "r172" not in line  # the offer, if any, is the plain none-yet one, never r172
+
+
+def test_the_in_progress_offer_never_fires_without_the_readme_read():
+    # A failed or absent README read is not a decision (UR-154's direction): with `readme` unset
+    # -- the seam's empty default -- the same B3.3 block stays unoffered, so a digest whose
+    # README read failed can never claim open work it did not see. B3.3 must be the ONLY thing
+    # the queue can offer, or the pre-existing none-yet offer hides the branch under test.
+    b33 = (
+        "### B3.3 Settings and residue truth\n\n"
+        "**Flags:** none. **Depends on:** `R2`.\n"
+        "**PR:** #7244. (ruling 241)\n\n"
+        "- [ ] an open box\n"
+    )
+    assert tick.next_claimable(PKG + b33, ["B3.3"], []) is None  # no readme arg at all
+    assert tick.next_claimable(PKG + b33, ["B3.3"], [], readme="") is None
+
+
+README_ROWS = """\
+<!-- prettier-ignore -->
+| package | lane                    | phase      | name                                           | flags         | status      | PR  |
+| ------- | ----------------------- | ---------- | ---------------------------------------------- | ------------- | ----------- | --- |
+| B3.3    | backend                 | 3          | Settings and residue truth                     |               | in progress | #7244 |
+"""  # fmt: skip
 
 
 # --- the error shape the package names ------------------------------------------------------

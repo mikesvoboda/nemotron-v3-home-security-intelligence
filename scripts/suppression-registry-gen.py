@@ -65,8 +65,17 @@ OWNER = "mikesvoboda"
 # the id. Emitting `X: []` is what makes "none right now" a recorded fact:
 # golden_skip is a category [r173] mints that happens to measure zero today
 # (all golden suppression is fixme-form), and it must read as "zero registered,
-# zero allowed", not as "not watched".
-ALWAYS_PRESENT = ("flake_allowlist", "frontend_only", "frontend_todo", "golden_skip")
+# zero allowed", not as "not watched". frontend_quarantine joined them when F3.3
+# (#7325) emptied the quarantine list: the ratchet still needs the key present
+# ("a category may not hide"), and the next quarantined file must register
+# against a recorded zero, not a vague absence.
+ALWAYS_PRESENT = (
+    "flake_allowlist",
+    "frontend_only",
+    "frontend_todo",
+    "golden_skip",
+    "frontend_quarantine",
+)
 
 # WP2.4b per-entry environment adjudications for imperative skips whose
 # guard text names no host machinery (census host_probe=False) but where
@@ -105,6 +114,15 @@ HOST_JUSTIFIED: dict[str, str] = {
     # legitimately can never be removed.
     "backend/tests/golden/external/conftest.py:61": "missing = _missing_env() — FEATURE_CHECK_* harness env absent, host state behind a local alias",
     "backend/tests/golden/external/conftest.py:70": "missing = _missing_env() — FEATURE_CHECK_* harness env absent, host state behind a local alias",
+    # [r308a]'s sink smoke specs (PR #7340): the same two shapes as the rows
+    # above. :73 gates on the sink env built behind a local alias (`missing`
+    # is a comprehension over os.environ reads one statement up, invisible to
+    # the site-line probe) — the conftest.py:61/:70 local-alias shape. :171
+    # needs a real events.id (Alert.event_id is a non-nullable FK) and the
+    # guard is the stack's data state — the test_webhook_deliveries.py:154
+    # data-chain shape.
+    "backend/tests/golden/external/test_notification_sinks.py:74": "missing is a comprehension over os.environ reads — FEATURE_CHECK_SINK_* env absent, host state behind a local alias",
+    "backend/tests/golden/external/test_notification_sinks.py:172": "no events rows on the live stack — DB data chain, not repo content",
     # The golden webhook spec needs a real events.id (Alert.event_id is a
     # non-nullable FK); an empty events table is the stack's data state, the
     # same data-chain shape as test_risk_score_validation.py:199 above.
@@ -124,6 +142,14 @@ HOST_JUSTIFIED: dict[str, str] = {
     # is FileNotFoundError on an off-repo artifact — a data-chain skip, not a
     # repo-file guard. Line numbers move when the battery is re-pinned;
     # the census re-mints the id, this map carries the adjudication forward.
+    # [r285] (PR #7318): the retry-commit tests read TEST_DATABASE_URL /
+    # DATABASE_URL through _base_postgres_url()'s local os.environ.get chain —
+    # the env-var-guard shape test_db_isolation.py:66 above has, which the
+    # guard-text probe can't see through. The tests run the shipped get_db
+    # against real Postgres, so where the env vars are exported (b13 sandbox,
+    # and any runner carrying the compose services) the suite runs; where they
+    # are not, the skip fires and is host state, not repo shape.
+    "backend/tests/unit/api/routes/test_outbound_webhook_retry_commit.py:41": "url is os.environ.get('TEST_DATABASE_URL')/('DATABASE_URL') — env-var guard behind a local alias",
 }
 
 
@@ -307,7 +333,7 @@ def main() -> int:
         # machine-minted here; the census+rules ARE the source of truth.
         try:
             current = yaml.safe_load(REGISTRY.read_text())
-        except OSError, yaml.YAMLError:
+        except (OSError, yaml.YAMLError):
             print(f"{REGISTRY} absent/unparseable", file=sys.stderr)
             return 1
         if current != yaml.safe_load(text):

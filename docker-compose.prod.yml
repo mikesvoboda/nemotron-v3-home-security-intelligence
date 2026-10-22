@@ -596,6 +596,7 @@ services:
       - SESSION_COOKIE_SECURE=${SESSION_COOKIE_SECURE:-true}
       - FAST_PATH_ENABLED=${FAST_PATH_ENABLED:-false}
       - FAST_PATH_CONFIDENCE_THRESHOLD=${FAST_PATH_CONFIDENCE_THRESHOLD:-0.90}
+      - TRASH_RETENTION_DAYS=${TRASH_RETENTION_DAYS:-30}
       # OpenTelemetry distributed tracing (NEM-1629)
       # Enabled by default since monitoring stack is included
       - OTEL_ENABLED=${OTEL_ENABLED:-true}

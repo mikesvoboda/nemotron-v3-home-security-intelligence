@@ -59,7 +59,7 @@ The two hosts the AI images are built for:
 | ------------------ | ---------------------------------------------------------- | ------------------------------ |
 | `ai-vlm` (builder) | `docker.io/nvidia/cuda:13.3.1-devel-ubuntu22.04`           | `ai/vlm/Dockerfile:19`         |
 | `ai-vlm` (runtime) | `docker.io/nvidia/cuda:13.3.1-runtime-ubuntu22.04`         | `ai/vlm/Dockerfile:86`         |
-| `ai-gateway`       | `nvcr.io/nvidia/tritonserver:26.01-py3`                    | `ai/gateway/Dockerfile:1`      |
+| `ai-gateway`       | `nvcr.io/nvidia/tritonserver:26.09-py3`                    | `ai/gateway/Dockerfile:1`      |
 | `ai-llm-vllm`      | `docker.io/vllm/vllm-openai:cu130-nightly`                 | `docker-compose.prod.yml:291`  |
 | `dcgm-exporter`    | `nvcr.io/nvidia/k8s/dcgm-exporter:3.3.5-3.4.0-ubuntu22.04` | `docker-compose.prod.yml:1377` |
 
@@ -87,10 +87,10 @@ Weights are host-mounted, never baked:
 
 | Technology                         | Version                                        | Source File                                           |
 | ---------------------------------- | ---------------------------------------------- | ----------------------------------------------------- |
-| NVIDIA Triton Inference Server     | **26.01**                                      | `ai/gateway/Dockerfile:1`                             |
+| NVIDIA Triton Inference Server     | **26.09**                                      | `ai/gateway/Dockerfile:1`                             |
 | NVIDIA TensorRT                    | bundled in the `nvcr.io/nvidia/*:26.0x` images | `ai/common/tensorrt_utils.py` (runtime version check) |
 | NVIDIA CUDA Toolkit (`ai-vlm`)     | **13.3.1**                                     | `ai/vlm/Dockerfile:19,86`                             |
-| NVIDIA CUDA Toolkit (`ai-gateway`) | bundled in `tritonserver:26.01-py3`            | `ai/gateway/Dockerfile:1`                             |
+| NVIDIA CUDA Toolkit (`ai-gateway`) | bundled in `tritonserver:26.09-py3`            | `ai/gateway/Dockerfile:1`                             |
 | NVIDIA DCGM                        | **3.3.5** (exporter **3.4.0**)                 | `docker-compose.prod.yml:1377`                        |
 | NVIDIA Container Toolkit           | detected via `nvidia-ctk`                      | `setup_lib/nvidia_toolkit.py`                         |
 | NVIDIA driver (host floor)         | **580** minimum for CUDA 13.x                  | `setup_lib/nvidia_detect.py:38`                       |
@@ -233,7 +233,7 @@ grace: `curl -f http://localhost:8098/health`, `--start-period=120s`
 
 | Setting            | Value                                            | Source                         |
 | ------------------ | ------------------------------------------------ | ------------------------------ |
-| Image              | `nvcr.io/nvidia/tritonserver:26.01-py3`          | `ai/gateway/Dockerfile:1`      |
+| Image              | `nvcr.io/nvidia/tritonserver:26.09-py3`          | `ai/gateway/Dockerfile:1`      |
 | Gateway port       | 8090 (FastAPI, published to localhost)           | `ai/gateway/entrypoint.sh:11`  |
 | HTTP port          | 8000 (internal: readiness, metrics proxy)        | `ai/gateway/entrypoint.sh:12`  |
 | gRPC port          | 8001 (internal: inference)                       | `ai/gateway/entrypoint.sh:13`  |
@@ -408,7 +408,7 @@ face-recognizer loader stays out of the VRAM budget.
 | Package              | Version  | Where                                                         |
 | -------------------- | -------- | ------------------------------------------------------------- |
 | `onnxruntime`        | >=1.16   | host Python, `face` extra, CPU EP only — `pyproject.toml:200` |
-| ONNX Runtime         | bundled  | Triton `onnxruntime` backend in `tritonserver:26.01-py3`      |
+| ONNX Runtime         | bundled  | Triton `onnxruntime` backend in `tritonserver:26.09-py3`      |
 | `tritonclient[grpc]` | >=2.42.0 | `ai-gateway` — `ai/gateway/requirements.txt`                  |
 
 ---

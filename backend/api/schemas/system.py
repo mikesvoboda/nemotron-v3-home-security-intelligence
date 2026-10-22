@@ -305,9 +305,8 @@ class GPUStatsResponse(BaseModel):
     )
     pcie_link_gen: int | None = Field(
         None,
-        description="PCIe link generation (1-4)",
+        description="PCIe link generation (1+; Gen 6 devices report 6)",
         ge=1,
-        le=5,
     )
     pcie_link_width: int | None = Field(
         None,
@@ -409,7 +408,7 @@ class GPUStatsSample(BaseModel):
     # Medium-value metrics
     memory_clock: int | None = Field(None, description="Memory clock in MHz", ge=0)
     memory_clock_max: int | None = Field(None, description="Max memory clock in MHz", ge=0)
-    pcie_link_gen: int | None = Field(None, description="PCIe link generation", ge=1, le=5)
+    pcie_link_gen: int | None = Field(None, description="PCIe link generation (1+)", ge=1)
     pcie_link_width: int | None = Field(None, description="PCIe link width", ge=1)
     pcie_tx_throughput: int | None = Field(None, description="PCIe TX throughput KB/s", ge=0)
     pcie_rx_throughput: int | None = Field(None, description="PCIe RX throughput KB/s", ge=0)
@@ -485,6 +484,12 @@ class ConfigResponse(BaseModel):
         ge=1,
         le=365,
     )
+    trash_retention_days: int = Field(
+        default_factory=lambda: 30,
+        description="Number of days to keep soft-deleted events in Trash before purging (0 disables the Trash clock)",
+        ge=0,
+        le=365,
+    )
     batch_window_seconds: int = Field(
         ...,
         description="Time window for batch processing detections",
@@ -532,6 +537,7 @@ class ConfigResponse(BaseModel):
                 "version": "0.1.0",
                 "retention_days": 30,
                 "log_retention_days": 7,
+                "trash_retention_days": 30,
                 "batch_window_seconds": 90,
                 "batch_idle_timeout_seconds": 30,
                 "detection_confidence_threshold": 0.5,
@@ -560,6 +566,12 @@ class ConfigUpdateRequest(BaseModel):
         None,
         description="Number of days to retain logs",
         ge=1,
+        le=365,
+    )
+    trash_retention_days: int | None = Field(
+        None,
+        description="Number of days to keep soft-deleted events in Trash before purging (0 disables the Trash clock)",
+        ge=0,
         le=365,
     )
     batch_window_seconds: int | None = Field(

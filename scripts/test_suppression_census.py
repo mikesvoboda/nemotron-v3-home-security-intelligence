@@ -410,16 +410,28 @@ GOLDEN_SHAPES = [
     ("test\n  .skip('chained fluent', async () => {});\n", 1, "chain rooted at test"),
     ("test.skip(!harness.ready, 'no stack');\n", 0, "condition first = guard, runs when false"),
     ("test.skip(a ? b : c, 'why');\n", 0, "ternary first = guard"),
-    ("test('t', async () => { test.info().skip(c, 'why'); });\n", 0, "runtime guard, not a registration"),
+    (
+        "test('t', async () => { test.info().skip(c, 'why'); });\n",
+        0,
+        "runtime guard, not a registration",
+    ),
     ("test\n  .info()\n  .skip(true, 'runtime');\n", 0, "chained runtime guard: root is .info()"),
     # The dangerous neighbour of the line above: same chain, but a STRING first
     # arg, which is the shape a walk-back that treats .info() as an ordinary
     # step miscounts as a registration (it reads the chain root back to `test`).
     # Kept at 0 by the .info() terminator, NOT by the guard rule, so this row
     # reddens if that terminator is ever dropped.
-    ("test\n  .info()\n  .skip('looks like a leg', 'runtime');\n", 0, "runtime .info() chain never a registration"),
+    (
+        "test\n  .info()\n  .skip('looks like a leg', 'runtime');\n",
+        0,
+        "runtime .info() chain never a registration",
+    ),
     ("fixtures\n  .skip('not a test', fn);\n", 0, "chain rooted at a receiver"),
-    ("const t = pick();\nt\n  .skip('unknown root', fn);\n", 0, "unresolvable root reads as not-ours"),
+    (
+        "const t = pick();\nt\n  .skip('unknown root', fn);\n",
+        0,
+        "unresolvable root reads as not-ours",
+    ),
     ("// test.skip('disabled in a comment', fn);\n", 0, "commented-out leg is prose"),
     (" * history: test.fixme('x', fn) was restored\n", 0, "jsdoc mention is prose"),
     ("// test.describe.skip('was disabled', () => {});\n", 0, "commented suite form stays prose"),
@@ -458,9 +470,7 @@ def test_golden_scans_registration_not_guards(tmp_path, src, want, why):
     assert found == want, f"{why}: {src!r} counted {found}, want {want}"
 
 
-@pytest.mark.parametrize(
-    "src,label", GOLDEN_REFUSALS, ids=[w for _, w in GOLDEN_REFUSALS]
-)
+@pytest.mark.parametrize("src,label", GOLDEN_REFUSALS, ids=[w for _, w in GOLDEN_REFUSALS])
 def test_golden_refuses_to_silently_undercount(tmp_path, src, label):
     """The dangerous direction is covered by failing loud, not by parsing deeper.
 
@@ -481,7 +491,9 @@ def test_golden_refuses_to_silently_undercount(tmp_path, src, label):
         check=False,
     )
     assert r.returncode != 0, f"{label}: census exited 0 and reported {r.stdout.strip()[-200:]}"
-    assert "shape.spec.ts" in r.stderr, f"{label}: failure does not name the file: {r.stderr[-300:]}"
+    assert "shape.spec.ts" in r.stderr, (
+        f"{label}: failure does not name the file: {r.stderr[-300:]}"
+    )
 
 
 def test_golden_scans_by_test_file_convention_not_one_suffix(tmp_path):
@@ -497,7 +509,9 @@ def test_golden_scans_by_test_file_convention_not_one_suffix(tmp_path):
     got = run_census(root)
     assert got["golden_fixme"] == EXPECTED["golden_fixme"] + 1, got
     ids = [r["id"] for r in run_locations(root)["golden_fixme"]]
-    assert any(r.endswith("renamed.test.ts::F-009 named .test.ts, still governed") for r in ids), ids
+    assert any(r.endswith("renamed.test.ts::F-009 named .test.ts, still governed") for r in ids), (
+        ids
+    )
     # and the count is INDEPENDENT of the suffix: drop the file, back to baseline
     spec.unlink()
     assert run_census(root)["golden_fixme"] == EXPECTED["golden_fixme"]
@@ -514,7 +528,9 @@ def test_golden_arm_is_inventory_not_just_a_tally(tmp_path):
             assert row["reason"], f"reason drives classification: {row}"
     # The e2e decoy must not leak into the golden arm (or vice versa): same
     # runner, opposite governance.
-    assert not any("e2e" in row["id"] for cat in ("golden_skip", "golden_fixme") for row in got[cat])
+    assert not any(
+        "e2e" in row["id"] for cat in ("golden_skip", "golden_fixme") for row in got[cat]
+    )
 
 
 def test_counts_only_move_with_the_suppression(tmp_path):
@@ -534,7 +550,9 @@ def test_counts_only_move_with_the_suppression(tmp_path):
 # WP2.4: the census must report WHAT A SUPPRESSION SUPPRESSES, not just how
 # many ids mint it. Measured bias P pinned: 255 test-level ids resolve to
 # 1,136 real test cases (4.45x); pytest_skipif 56 ids -> 193 functions
-# (30 sit on CLASSES); frontend_quarantine's 16 ids hold ~662 vitest cases.
+# (30 sit on CLASSES); frontend_quarantine's 16 ids held ~662 vitest cases
+# until F3.3 (#7325, 2026-10-22) emptied the quarantine list — the pins below
+# record that history and enforce the emptied tree.
 # At id level environment looked like 66.9% of backend skips; at test level
 # 39.2%. The `--cases` mode reports {category: {ids, cases}}; config
 # categories (not test-level) carry cases=null rather than pretending 1:1.
@@ -623,8 +641,11 @@ def test_real_tree_cases_report_reproduces_p_measured_bias():
     assert got["pytest_skipif"]["cases"] >= 180, (
         f"P measured 56 ids -> 193 functions (class-hiding + params); got {got['pytest_skipif']}"
     )
-    assert 600 <= got["frontend_quarantine"]["cases"] <= 720, (
-        f"P measured ~662 cases behind 16 quarantine ids; got {got['frontend_quarantine']}"
+    # 600..720 (P's band) → ==0 (2026-10-22, F3.3 #7325): the quarantine list
+    # is empty — the ids P measured behind are repaired or deleted — so the
+    # band collapses with its category; 0 is the only honest reading now.
+    assert got["frontend_quarantine"]["cases"] == 0, (
+        f"quarantine emptied but cases report {got['frontend_quarantine']}"
     )
     test_level = (
         "pytest_skip",
@@ -638,10 +659,17 @@ def test_real_tree_cases_report_reproduces_p_measured_bias():
     )
     ids = sum(got[c]["ids"] for c in test_level)
     cases = sum(got[c]["cases"] for c in test_level)
-    # P: 255 ids -> 1,136 cases (4.45x) on the tree P censused; this run
-    # measures 255 -> 1,112 (4.36x). The INVARIANT: id counts understate
+    # P: 255 ids -> 1,136 cases (4.45x) on the tree P censused; the run after
+    # that measured 255 -> 1,112 (4.36x). The INVARIANT: id counts understate
     # suppressed surface by multiples — a report that only shows ids hides it.
-    assert cases >= ids * 4, f"test-level ids {ids} -> cases {cases} (P measured 4.45x)"
+    # 4x→1.9x (2026-10-22, F3.3 #7325): the 13 quarantine ids carried ~627 of
+    # the cases (main measures 239→1072, 4.49x); F3.3 empties them, so the
+    # total expansion ratio drops to what the remaining categories measure
+    # (226→445, 1.97x). The invariant is now "cases ≥ ids" exactly — expansion
+    # can only add — plus the skipif floor below; the multiple was the
+    # quarantine's, and pinning it here would re-require the suppression the
+    # package just removed.
+    assert cases >= ids, f"test-level ids {ids} -> cases {cases} (expansion lost a site)"
 
 
 @pytest.mark.timeout(180)  # real-tree AST census ~14s; tier default timeout is 5s
@@ -771,18 +799,41 @@ def test_real_tree_matches_spec_baselines():
     are falsifiable claims about a feature rather than host state.
     A drift here means either the tree gained a hatch (ratchet territory) or
     the spec baseline went stale — WP1.1's MEASURE step adjudicates which.
+    pytest_skip_imperative 93→94 (2026-10-21, [r285] PR #7318): the
+    outbound-webhook retry-commit tests, test_outbound_webhook_retry_commit.
+    py:41 — the tests run the shipped get_db against real Postgres and skip
+    where TEST_DATABASE_URL/DATABASE_URL are unset (the test_db_isolation.
+    py:66 env-behind-local-alias shape). Adjudicated environment via
+    HOST_JUSTIFIED (b904d853f) — registry + baseline raised inside the PR,
+    the mirror raised THIS commit after the PR's first-round local gates
+    missed it; Collection Sanity caught the drift exactly as designed.
     """
     got = run_census(REPO_ROOT)
     expected = {
-        "collection_allowlist": 4,
+        # 4→2 (2026-10-21, F3.2 #7246): the deletion cut removed the two retired
+        # collection ids with their files (SystemHealthIndicator,
+        # ZoneTimelineScrubber); the same drop is in this commit's
+        # .github/suppression-baseline.json.
+        # 2→1 (2026-10-22, F3.3 #7325): F3.3 deleted TimeGroupedEvents.simple
+        # .test.tsx and the allowlist line with it; test_helpers.py is the one
+        # row left.
+        "collection_allowlist": 1,
         "flake_allowlist": 0,
-        "frontend_quarantine": 16,
+        # 16→13 (2026-10-21, roll 10 of #7246): the F3.2 cut removed three
+        # quarantine ids with their files; measured on the merged tree by
+        # suppression-census.py. The 16→13 movement happened on this PR's side
+        # (main never had the cut), so main's mirror kept the stale 16.
+        # 13→0 (2026-10-22, F3.3 #7325): the package emptied vite.config.ts's
+        # exclusion list — 12 files repaired and green, one deleted — so the
+        # census measures no quarantine site anywhere; the registry drops its
+        # 13 rows with the sites and keeps the category key (ALWAYS_PRESENT).
+        "frontend_quarantine": 0,
         # 32→25 (2026-10-16, ruling 220): the seven redundant "Flaky … app
         # initialization timing" skips in test_system_models.py expired on 10-15 and
         # were removed with their `#2` registry rows; each test stays skipped by its
         # "Moved to test_model_management.py" decorator (`retired`, BB.1 deletes them).
-        "pytest_skip": 25,
-        "pytest_skipif": 59,
+        "pytest_skip": 22,
+        "pytest_skipif": 58,
         "pytest_xfail": 4,
         # 89→93 (2026-10-11, BE-1 / ruling 87, PR #6979): the four harness-contract
         # skips of the first backend golden tree — conftest.py:61/70 (the
@@ -801,15 +852,42 @@ def test_real_tree_matches_spec_baselines():
         # skips that exist because collection must never crash without a live
         # stack — a contract that can never be "fixed", so their deadline must be
         # null. Increase path, fifth precedent.
-        "pytest_skip_imperative": 93,
-        "frontend_skip": 52,
+        # 93→94 (2026-10-21, [r285] / PR #7318): test_outbound_webhook_retry_
+        # commit.py:41 — the retry-commit tests run the shipped get_db against
+        # real Postgres and skip where TEST_DATABASE_URL/DATABASE_URL are unset
+        # (the test_db_isolation.py:66 env-behind-local-alias shape). The
+        # baseline file was raised in f7cadeed9 but THIS mirror was missed there
+        # and the miss surfaced only here, at this round's Collection Sanity
+        # (run 39531798246 job 119015088702: census=94 spec=93) — the mirror is
+        # a third gate beyond the ratchet and the gen --check, and the first
+        # round's local gate runs didn't include the spec suite. Adjudicated
+        # environment via HOST_JUSTIFIED (b904d853f added the key; the gen then
+        # mints kind: environment, expires: null, justification carried).
+        # Increase path, sixth precedent.
+        # 94→93 (2026-10-21, B3.2 #7319): test_benchmark_vram.py deleted with
+        # backend/scripts/benchmark_vram.py (-1 imperative skip at :208).
+        # 93→95 (2026-10-22, [r308a] PR #7340): the sink smoke spec's two
+        # imperative skips — test_notification_sinks.py:73 (the sink env
+        # gate; the comprehension over os.environ reads sits behind a local
+        # alias `missing`, the conftest.py:61/:70 local-alias shape) and
+        # :171 (no events rows on the live stack; an alert needs a real
+        # events.id, the test_webhook_deliveries.py:154 data-chain shape).
+        # Both adjudicated environment via HOST_JUSTIFIED (b904d853f's
+        # channel); registry entries + baseline raised in this same commit.
+        # Increase path, seventh precedent.
+        "pytest_skip_imperative": 95,
+        # 51→49 (2026-10-21, roll 10 of #7246) then main's r285 +3 sites landed
+        # inside files the F3.2 cut had already deleted (useMonitoringTargets,
+        # ReidHistoryPanel tests): the merged tree MEASURES 49, so main's 52
+        # does not survive this merge — the three skip sites rode deleted files.
+        "frontend_skip": 49,
         "excluded_test_trees": 4,
         "coverage_omit": 5,
         # WP1.3: 150 uncounted patterns (P's figure, reproduced exactly) pruned
         # to the 7 MEASURED breaches over 18 main junit datasets; the channel
         # is counted from here on and the ratchet's one-way rule owns it.
         # 7→8 (2026-09-23): license-plate household-matching test admitted with
-        # measured corpus breaches (4.18s ×2 #6667 head, 4.297s main junit;
+        # measured corpus breaches (4.18s x2 #6667 head, 4.297s main junit;
         # 1.20s solo → -n8 contention), registry entry same commit.
         # 8→9 (2026-10-06): r8-s2b full-tree import sweep admitted with measured
         # corpus breaches (4.40s PR #6826 head run 37560500061, 4.116s main
@@ -858,7 +936,7 @@ def test_real_tree_matches_spec_baselines():
         # committed count — so it cannot be fake-clocked away, and the pattern
         # is one regex covering both ids, so the CENSUS (+1) and the tests it
         # exempts (+2) differ deliberately.
-        "tpa_slow_list": 9,
+        "tpa_slow_list": 6,
         # [r173] ruling 173 — the new arm, measured (see the docstring's
         # 0→2 entry). Asserted here as well as in the baseline file so a golden
         # test.fixme added later trips this mirror AND the ratchet.

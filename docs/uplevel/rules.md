@@ -152,6 +152,12 @@ Read this section while you write a package's code, tests, docs and PR.
   hooks never bypassed (the `SKIP` UR-184 sets is not a bypass), podman, ports from `.env`, coverage
   floors never lowered. (the deleted
   README section "Read this first"; lane kickoff prompts)
+- **UR-186** A scope canary is a test asserting a minimum count of modules, files or directories, or
+  a pinned band derived from those counts. It moves down only in the PR that carries an authorized
+  retirement or deletion, and that PR's body gives the old value, the new value and the measured
+  count; the UR-89 reviewer checks all three against the tree at the head. Such a move is not a
+  lowered bar on the reserved list and needs no owner leg. Coverage floors are not scope canaries,
+  and UR-69 is unchanged. (ruling 304)
 - **UR-70** Read the `00-audit.md` sections your package cites and re-measure any **[A]** number
   before acting on it. Read `01-mutation-policy.md` whenever your package deletes, merges or writes
   tests. (the deleted README section "Read this first")
@@ -230,11 +236,30 @@ Constraints on what you build; reopening one is a ruling (UR-44).
   runtime state; GPU-less development uses the fake VLM through an explicit overlay. (UR-18)
 - **UR-84** Out of scope: rewriting git history, renaming `setup.py`, and widening frontend Stryker
   beyond its three utility files. (the deleted README section "Rulings of record")
-- **UR-85** Production re-ID stays OSNet-AIN on the CPU (`REID_BACKEND=local`) until a later ruling.
-  Re-ID may depend on the GPU only once a proven GPU path exists, and then no CPU fallback is
-  required. (ruling 107)
-- **UR-86** Triton stays the one model server: any new GPU-served model joins Triton, and its `nv_*`
-  metrics stay (OD-39). (ruling 89)
+- **UR-85** Production re-ID moves to the GPU: OSNet-AIN served by Triton through the gateway
+  (`REID_BACKEND=gateway`), once O2.4 passes: `[r252]`'s run was spent without a pass, and
+  `[r312a]`'s second run, reading every plan stage at or above 0.999 on all 36 crops on the image
+  `main` serves, is O2.4's evidence (ruling 312 point 4).
+  `[r306a]` then flips the default and `[r306b]` removes the backend's CPU copy; until the flip it
+  stays `local`. A proven GPU path stands without a CPU fallback. The parity gate stays at 0.999
+  (ruling 68). Serving re-ID through ONNX Runtime instead of a TensorRT plan stays unauthorised;
+  `[r312a]` measures it inside Triton as a probe only. (rulings 107, 306, 312)
+- **UR-86** Triton is the one model server, and stays so for now (OD-39): no package compares it
+  with an alternative, and GPU memory and latency are recorded under Triton inside each model's own
+  test (ruling 302). Every neural-network model the product runs that can run on the GPU is served
+  by Triton, through TensorRT plans with a parity gate, and the backend keeps no CPU copy once a
+  model's GPU path passes. The VLM (llama.cpp, outside Triton) is sized to the GPU memory the small
+  models leave. Triton's `nv_*` metrics stay. The face models keep the VSS phase-1 plan's F12
+  conditions except "CPU": exactly two SHA-256-pinned ONNX files, never `insightface.FaceAnalysis`,
+  and model IDs unchanged. (rulings 89, 302, 307)
+- **UR-187** The AI stack runs the latest supported release of each component: the Triton server
+  image, TensorRT, ONNX Runtime, CUDA, the VLM server and the ML frameworks in `ai/`. "Supported"
+  means the vendor's support matrix covers the serving GPU (GB300: Blackwell, aarch64) and the
+  driver on the owner's host; an image's forward-compatibility libraries count where the vendor
+  supports them on the host's driver branch. A component behind its latest supported release is an
+  upgrade package, flagged `heavy`, with every affected model rebuilt, CI green and a real-tier run.
+  A pin held back gives its reason and a review date in the file that pins it. `[r312b]`'s inventory
+  is the list this rule tracks. (ruling 312)
 - **UR-87** Future plans go in `docs/superpowers/<date>-<slug>/`; `docs/plans/` is frozen history,
   and a dated plan created anywhere else is a violation (OD-33). (ruling 89)
 - **UR-21** `AGENTS.md` files live only at boundaries, listed with a reason. `agents_md_validator.py`
@@ -449,7 +474,8 @@ and the re-read and merge comment are UR-29.
 ## Red main and the nightly
 
 Read this section when `CI` or `Deploy` fails on `main`, the Nightly Full Gate is red, the
-full-lockfile audit is red on `main` (once `[r291]` merges, UR-185), or you are fixing any of them.
+full-lockfile audit (once `[r291]` merges) or the full Trivy scans (once `[r294]` merges) are red on
+`main` (UR-185), or you are fixing any of them.
 
 - **UR-111** On the first red `CI Gate` run on `main`, unless an open package already owns that
   failure, the coordinator raises the urgent path with the failing job and the log lines it read.
@@ -474,13 +500,14 @@ full-lockfile audit is red on `main` (once `[r291]` merges, UR-185), or you are 
   test the same way, to the lane that owns its file. `Nightly Analysis` (`nightly.yml`) is
   report-only and outside this rule. (rulings 109, 149)
 - **UR-185** Once `[r291]` merges, an advisory published against unchanged code no longer makes
-  `main` red. The gate's dependency audit then fails a change only on what it adds over its base
-  (an unexempted finding, or a bad exemption entry it adds or edits) or on an audit error, and the
-  full-lockfile audit runs outside the gate on each push to `main` and daily. A red full-lockfile
-  audit is raised and routed like red `main` (UR-111), and its fix merges next as a red-`main` fix
-  (UR-112), but it does not freeze the merge queue: auto-merge stays on and the queue line keeps
-  every entry. Until `[r291]` merges, an advisory turns `main` red as UR-111 and ruling 288 say.
-  (ruling 291)
+  `main` red through the dependency audit, and once `[r294]` merges, no longer through Trivy's two
+  vulnerability scans. Each of those gate checks then fails a change only on what it adds over its
+  base (an unexempted finding, or a bad exemption entry it adds or edits) or on an audit or scan
+  error, and its full run (the full-lockfile audit, the full Trivy scans) runs outside the gate on
+  each push to `main` and daily. A red full run is raised and routed like red `main` (UR-111), and
+  its fix merges next as a red-`main` fix (UR-112), but it does not freeze the merge queue:
+  auto-merge stays on and the queue line keeps every entry. Until a check's package merges, an
+  advisory it finds turns `main` red as UR-111 and ruling 288 say. (rulings 291 and 294)
 
 ## CI and shared jobs
 

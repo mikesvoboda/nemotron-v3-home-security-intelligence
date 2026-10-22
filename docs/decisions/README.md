@@ -80,7 +80,6 @@ ADRs follow this standard structure:
 
 ## Related Documentation
 
-- [AGENTS.md](AGENTS.md) - Agent guide for this directory
 - [Design Plans](../plans/README.md) - Brainstorming and implementation plans
 - [Developer Hub](../developer/README.md) - Developer documentation index
 

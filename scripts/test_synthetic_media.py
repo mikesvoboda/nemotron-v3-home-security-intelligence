@@ -167,9 +167,9 @@ class TestRedirectPolicy:
         assert new is not None and "upload.wikimedia.org" in new.full_url
 
     def test_get_uses_the_revalidating_opener(self) -> None:
-        assert any(
-            isinstance(h, sm._AllowListRedirectHandler) for h in sm._OPENER.handlers
-        ), "_get must fetch through the opener that rechecks every hop"
+        assert any(isinstance(h, sm._AllowListRedirectHandler) for h in sm._OPENER.handlers), (
+            "_get must fetch through the opener that rechecks every hop"
+        )
 
 
 class TestRetry:
@@ -196,7 +196,7 @@ class TestRetry:
         assert len(sleeps) == 2, "backoff between attempts, none after success"
 
     def test_retry_exhaustion_reraises(self, monkeypatch) -> None:
-        monkeypatch.setattr(sm.time, "sleep", lambda s: None)
+        monkeypatch.setattr(sm.time, "sleep", lambda _s: None)
         n = {"i": 0}
 
         def always_fail(url, params=None):
@@ -263,7 +263,7 @@ class TestLoudSkips:
         return fake
 
     def test_download_failure_is_logged_not_silent(self, tmp_path, monkeypatch, caplog) -> None:
-        monkeypatch.setattr(sm.time, "sleep", lambda s: None)
+        monkeypatch.setattr(sm.time, "sleep", lambda _s: None)
         monkeypatch.setattr(sm, "_get", self._fake_get(b""))
         with caplog.at_level(logging.WARNING, logger="vss-eval-media"):
             recs = sm.fetch_scenario("casing", 1, tmp_path)
@@ -271,7 +271,7 @@ class TestLoudSkips:
         assert "File:Ok.jpg" in caplog.text, "the log must name WHAT was skipped"
 
     def test_undersized_frame_logged_as_skipped(self, tmp_path, monkeypatch, caplog) -> None:
-        monkeypatch.setattr(sm.time, "sleep", lambda s: None)
+        monkeypatch.setattr(sm.time, "sleep", lambda _s: None)
         monkeypatch.setattr(sm, "_get", self._fake_get(b"z" * 100, fail_image=False))
         with caplog.at_level(logging.WARNING, logger="vss-eval-media"):
             recs = sm.fetch_scenario("casing", 1, tmp_path)
@@ -279,7 +279,7 @@ class TestLoudSkips:
         assert "size" in caplog.text.lower()
 
     def test_successful_fetch_writes_frame_and_manifest(self, tmp_path, monkeypatch) -> None:
-        monkeypatch.setattr(sm.time, "sleep", lambda s: None)
+        monkeypatch.setattr(sm.time, "sleep", lambda _s: None)
         frame = JPEG  # inside the 20 kB..4 MB bound, JPEG magic
         monkeypatch.setattr(sm, "_get", self._fake_get(frame, fail_image=False))
         recs = sm.fetch_scenario("casing", 1, tmp_path)
@@ -306,15 +306,22 @@ class TestFrameSanity:
 
     @staticmethod
     def _page(title: str, index: int, mime: str = "image/jpeg") -> dict:
-        return _img(title, "CC0") | {"index": index, "imageinfo": [{**_img(title, "CC0")["imageinfo"][0], "mime": mime}]}
+        return _img(title, "CC0") | {
+            "index": index,
+            "imageinfo": [{**_img(title, "CC0")["imageinfo"][0], "mime": mime}],
+        }
 
     def test_document_mimes_rejected(self, tmp_path, monkeypatch) -> None:
-        monkeypatch.setattr(sm.time, "sleep", lambda s: None)
-        monkeypatch.setattr(sm, "_get", lambda u, p=None: self._body([self._page("File:Mag.djvu", 1, "image/vnd.djvu")]))
+        monkeypatch.setattr(sm.time, "sleep", lambda _s: None)
+        monkeypatch.setattr(
+            sm,
+            "_get",
+            lambda _u, _p=None: self._body([self._page("File:Mag.djvu", 1, "image/vnd.djvu")]),
+        )
         assert sm.fetch_scenario("prowling", 6, tmp_path) == []
 
     def test_non_jpeg_bytes_skipped_loudly(self, tmp_path, monkeypatch, caplog) -> None:
-        monkeypatch.setattr(sm.time, "sleep", lambda s: None)
+        monkeypatch.setattr(sm.time, "sleep", lambda _s: None)
         png_bytes = b"\x89PNG\r\n\x1a\n" + b"z" * 25_000
         monkeypatch.setattr(sm, "_get", TestLoudSkips._fake_get(png_bytes, fail_image=False))
         with caplog.at_level(logging.WARNING, logger="vss-eval-media"):
@@ -335,19 +342,25 @@ class TestFrameSanity:
         # [Same, Same, New] per=2: dedup drops the 2nd Same so New reaches the
         # 2nd slot. Without dedup the run would stop at [Same, Same] and never
         # fetch New - which is the exact casing/prowling/loitering defect.
-        monkeypatch.setattr(sm.time, "sleep", lambda s: None)
-        dupes = [self._page("File:Same.jpg", 1), self._page("File:Same.jpg", 2), self._page("File:New.jpg", 3)]
+        monkeypatch.setattr(sm.time, "sleep", lambda _s: None)
+        dupes = [
+            self._page("File:Same.jpg", 1),
+            self._page("File:Same.jpg", 2),
+            self._page("File:New.jpg", 3),
+        ]
         monkeypatch.setattr(sm, "_get", self._search_and_frames(dupes))
         recs = sm.fetch_scenario("casing", 2, tmp_path)
         assert [Path(r["file"]).name for r in recs] == ["001.jpg", "002.jpg"]
         assert [r["title"] for r in recs] == ["File:Same.jpg", "File:New.jpg"]
 
     def test_resume_remember_existing_titles(self, tmp_path, monkeypatch) -> None:
-        monkeypatch.setattr(sm.time, "sleep", lambda s: None)
+        monkeypatch.setattr(sm.time, "sleep", lambda _s: None)
         d = tmp_path / "casing"
         d.mkdir()
         (d / "001.jpg").write_bytes(b"\xff\xd8" + b"z" * 25_000)
-        (d / "001.json").write_text(json.dumps({"title": "File:Same.jpg", "file": str(d / "001.jpg")}))
+        (d / "001.json").write_text(
+            json.dumps({"title": "File:Same.jpg", "file": str(d / "001.jpg")})
+        )
         monkeypatch.setattr(sm, "_get", self._search_and_frames([self._page("File:Same.jpg", 1)]))
         recs = sm.fetch_scenario("casing", 2, tmp_path)
         assert recs == [], "the already-held file must not be refetched into 002"
@@ -361,14 +374,14 @@ class TestResume:
     made every candidate skip forever.)"""
 
     def test_topup_appends_after_existing_frames(self, tmp_path, monkeypatch) -> None:
-        monkeypatch.setattr(sm.time, "sleep", lambda s: None)
+        monkeypatch.setattr(sm.time, "sleep", lambda _s: None)
         d = tmp_path / "casing"
         d.mkdir()
         (d / "001.jpg").write_bytes(JPEG)
-        (d / "001.json").write_text(json.dumps({"title": "File:Old.jpg", "file": str(d / "001.jpg")}))
-        monkeypatch.setattr(
-            sm, "_get", TestLoudSkips._fake_get(JPEG, fail_image=False)
+        (d / "001.json").write_text(
+            json.dumps({"title": "File:Old.jpg", "file": str(d / "001.jpg")})
         )
+        monkeypatch.setattr(sm, "_get", TestLoudSkips._fake_get(JPEG, fail_image=False))
         recs = sm.fetch_scenario("casing", 2, tmp_path)
         assert [r["file"] for r in recs] == [str(d / "002.jpg")], "must fill 002, not re-check 001"
         # manifest covers ALL frames in the dir, not just this run's writes

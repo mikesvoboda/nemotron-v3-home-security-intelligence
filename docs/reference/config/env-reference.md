@@ -294,10 +294,11 @@ High-confidence detections can bypass batching for immediate alerts.
 
 ## Retention
 
-| Variable             | Required | Default | Description                        |
-| -------------------- | -------- | ------- | ---------------------------------- |
-| `RETENTION_DAYS`     | No       | `30`    | Days to keep events and detections |
-| `LOG_RETENTION_DAYS` | No       | `7`     | Days to keep log entries           |
+| Variable               | Required | Default | Description                                                             |
+| ---------------------- | -------- | ------- | ----------------------------------------------------------------------- |
+| `RETENTION_DAYS`       | No       | `30`    | Days to keep events and detections                                      |
+| `LOG_RETENTION_DAYS`   | No       | `7`     | Days to keep log entries                                                |
+| `TRASH_RETENTION_DAYS` | No       | `30`    | Days to keep soft-deleted events in Trash before purging (`0` disables) |
 
 ---
 

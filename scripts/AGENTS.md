@@ -10,12 +10,10 @@ This directory contains development, testing, deployment, and maintenance script
 scripts/
   AGENTS.md                          # This file
   README.md                          # Quick reference for all scripts
-  hooks/                             # Git hooks
-    post-checkout                    # Post-checkout hook for worktree protection
+  hooks/post-checkout                # Post-checkout hook for worktree protection
 
   # Setup Scripts
-  # (cross-platform env setup moved to root `setup.py`; setup.ps1 is Windows-only extras)
-  setup.ps1                          # Windows PowerShell dev environment setup
+  # (cross-platform env setup lives at root `setup.py`)
   setup-hooks.sh                     # Pre-commit and pre-push hook setup
   setup-systemd.sh                   # Systemd service setup (Linux)
   setup-launchd.sh                   # launchd service setup (macOS)
@@ -31,20 +29,15 @@ scripts/
   # Validation & Testing
   validate.sh                        # Full validation (lint, type, test)
   test-runner.sh                     # Test suite runner with coverage
-  test-fast.sh                       # Fast parallel test runner
   test-docker.sh                     # Docker Compose deployment testing
   r243-render-check.sh               # Prod render: does `backend` get the engine socket (r243)
-  test-prod-connectivity.sh          # Production connectivity tests
-  test-in-container.sh               # Container-first integration testing
-  smoke-test.sh                      # End-to-end pipeline smoke test
   feature-check.sh                   # Golden paths against an isolated test deployment (O2.2)
   feature_check.py                   # feature-check.sh's logic: preflight, in-run check, postflight
-  find-slow-tests.sh                 # Test performance debugging
   audit-test-durations.py            # CI test duration auditing
   audit-summary.sh                   # Local weekly audit runner
 
   # Database & Seeding
-  seed-events.py                # Mock events and cameras seeding script
+  seed-events.py                     # Mock events and cameras seeding script
 
   # Code Generation & Certs
   generate-types.sh                  # TypeScript API type generation
@@ -55,20 +48,17 @@ scripts/
   extract_pydantic_constraints.py    # Extract Pydantic model constraints
 
   # AI Pipeline Scripts
+  ai-quality-analysis.py             # CLI analyser for LLM risk-assessment outputs
   benchmark_model_zoo.py             # Model Zoo performance benchmarks
   benchmark_yolo26_accuracy.py       # YOLO26 accuracy benchmarks
   download-model-zoo.py              # Download AI model zoo models
-  download_yolo26.py                 # Download YOLO26 model weights
   export_yolo26.py                   # Export YOLO26 to ONNX/TensorRT
-  trigger-filewatcher.sh             # Trigger file watcher with images
 
   # Pre-commit Hooks & Test Validation
   check-test-mocks.py                # Pre-commit: mock validation
   check-test-timeouts.py             # Pre-commit: timeout validation
   check-api-coverage.sh              # API endpoint coverage check
   check-api-compatibility.sh         # API backward compatibility check
-  check-api-contracts.sh             # API contract validation
-  check-branch-name.sh               # Git branch naming convention check
   check-version-consistency.sh       # All runtime versions must agree with .nvmrc/.python-version
   check-validation-drift.py          # Detect validation rule drift between schemas
   pre-push-rebase.sh                 # Auto-rebase before push
@@ -86,21 +76,18 @@ scripts/
   check-npm-audit-exemptions.py      # CI gate: frontend npm-audit exemption registry
 
   # CI/CD and Analysis Scripts
-  analyze-ci-dependencies.py         # Analyze CI workflow dependencies
   analyze-flaky-tests.py             # Analyze and report flaky test patterns
   audit-linear-github-sync.py        # Audit Linear-GitHub synchronization
   ci-metrics-collector.py            # Collect and report CI metrics
   ci-smoke-test.sh                   # Quick CI smoke test
   close-rollback-issues.sh           # Close the open "Automated Rollback" incidents (O1.9)
   coverage-analysis.py               # Advanced coverage analysis
-  linear-label-issues.sh             # Bulk label Linear issues
   check-docs-drift.py                # Detect documentation drift from code
   docs-drift-rules.yml               # Rules configuration for docs drift detection
   check-uplevel-cites.py             # CI gate: docs/uplevel cites resolve and entail (rules.md)
 
   # Development Tools
   create-worktree.sh                 # Create git worktree for isolated work
-  git-bisect-helper.sh               # Helper for git bisect debugging
   generate-docs.sh                   # Generate documentation
   load-test.sh                       # Load testing shell wrapper
   load_test.py                       # Load testing Python implementation
@@ -109,27 +96,9 @@ scripts/
 
   # Utilities
   validate-api-types.sh              # Validate API type definitions
-
-  # Accessibility Testing
-  a11y-smoke-test.sh                 # Accessibility smoke tests
 ```
 
 ## Key Scripts
-
-### Development Setup
-
-#### setup.ps1
-
-**Purpose:** Development environment setup for Windows (PowerShell). Cross-platform setup (including Linux/macOS) is the root-level `python setup.py` — the former scripts/setup.sh was removed in the setup consolidation (commit 84188795); `setup.py` checks prerequisites, creates `.venv` via uv, syncs deps, generates `.env` from `.env.example`, installs frontend deps and pre-commit hooks.
-
-**Usage:**
-
-```powershell
-.\scripts\setup.ps1             # Full setup
-.\scripts\setup.ps1 -Help       # Show options
-.\scripts\setup.ps1 -SkipGpu    # Skip NVIDIA GPU checks
-.\scripts\setup.ps1 -Clean      # Clean and reinstall
-```
 
 ### Service Auto-Start Setup
 
@@ -290,26 +259,6 @@ job invokes. Docs text only, no behavior. -->
 - Backend: `coverage/backend/index.html`
 - Frontend: `frontend/coverage/index.html`
 
-#### test-fast.sh
-
-**Purpose:** Fast parallel test runner with timing report.
-
-**What it does:**
-
-1. Runs pytest with parallel workers (auto-detected or specified)
-2. Reports timing for each test
-3. Supports running unit, integration, or all tests
-
-**Usage:**
-
-```bash
-./scripts/test-fast.sh                    # Run all unit tests
-./scripts/test-fast.sh backend/tests/     # Run specific path
-./scripts/test-fast.sh unit 8             # Run unit tests with 8 workers
-./scripts/test-fast.sh integration        # Run integration tests
-./scripts/test-fast.sh all                # Run all tests
-```
-
 #### test-docker.sh
 
 **Purpose:** Test Docker Compose deployment.
@@ -321,71 +270,6 @@ job invokes. Docs text only, no behavior. -->
 ./scripts/test-docker.sh --no-cleanup # Leave containers running
 ./scripts/test-docker.sh --skip-build # Use existing images
 ```
-
-#### test-prod-connectivity.sh
-
-**Purpose:** Test production service connectivity and health.
-
-**Usage:**
-
-```bash
-./scripts/test-prod-connectivity.sh              # Test all services
-./scripts/test-prod-connectivity.sh --backend    # Test backend only
-./scripts/test-prod-connectivity.sh --ai         # Test AI services only
-```
-
-#### test-in-container.sh
-
-**Purpose:** Container-first integration testing with postgres-test and redis-test.
-
-**Usage:**
-
-```bash
-./scripts/test-in-container.sh                     # Run integration tests
-./scripts/test-in-container.sh backend/tests/unit/ # Run specific tests
-```
-
-**What it does:**
-
-1. Starts postgres-test and redis-test containers from `docker-compose.test.yml`
-2. Waits for services to be healthy
-3. Runs pytest with containerized database URLs
-4. Uses port 5433 for postgres-test, 6380 for redis-test
-
-#### smoke-test.sh
-
-**Purpose:** End-to-end smoke test for MVP pipeline validation.
-
-**What it validates:**
-
-1. Prerequisites (curl, jq, backend API, Redis)
-2. Creates test camera in database
-3. Generates and drops test image
-4. Waits for detection to be created
-5. Waits for event to be created (batch processing)
-6. Verifies API endpoints return expected data
-7. Cleans up test artifacts
-
-**Usage:**
-
-```bash
-./scripts/smoke-test.sh                  # Basic smoke test
-./scripts/smoke-test.sh --verbose        # Verbose output
-./scripts/smoke-test.sh --skip-cleanup   # Keep test artifacts
-./scripts/smoke-test.sh --api-url URL    # Custom API URL
-./scripts/smoke-test.sh --timeout 180    # Custom timeout
-```
-
-#### find-slow-tests.sh
-
-**Purpose:** Find tests that hang or take too long.
-
-**What it does:**
-
-- Runs each test file individually with timeout
-- Unit tests: 15-second timeout
-- Integration tests: 30-second timeout
-- Reports TIMEOUT, FAILED, or OK for each file
 
 #### audit-test-durations.py
 
@@ -443,7 +327,7 @@ python scripts/audit-test-durations.py <results-dir>
 ./scripts/generate-types.sh --check  # Check if types are current
 ```
 
-**Output:** `frontend/src/types/api-endpoints.ts`
+**Output:** the generated types under `frontend/src/types/generated/`.
 
 ### Pre-commit Hooks
 
@@ -607,19 +491,6 @@ python scripts/benchmark_model_zoo.py --output results.md    # Custom output
 ./scripts/download-model-zoo.py --list           # List available models
 ```
 
-#### trigger-filewatcher.sh
-
-**Purpose:** Touch real image files to trigger file watcher processing.
-
-**Usage:**
-
-```bash
-./scripts/trigger-filewatcher.sh                   # Touch 100 images
-./scripts/trigger-filewatcher.sh --count 50        # Touch 50 images
-./scripts/trigger-filewatcher.sh --camera kitchen  # Specific camera
-./scripts/trigger-filewatcher.sh --dry-run         # Preview only
-```
-
 #### export_yolo26.py
 
 **Purpose:** Export YOLO26 models to various formats (ONNX, TensorRT) and benchmark inference speeds.
@@ -664,24 +535,6 @@ uv run python scripts/export_yolo26.py --force
 - tensorrt (for TensorRT export, optional)
 - CUDA-enabled PyTorch (for TensorRT export)
 
-#### download_yolo26.py
-
-**Purpose:** Download and validate YOLO26 model weights from Ultralytics.
-
-**Usage:**
-
-```bash
-uv run python scripts/download_yolo26.py
-```
-
-**Models Downloaded:**
-
-- yolo26n.pt (Nano - fastest, ~5 MB)
-- yolo26s.pt (Small - balanced, ~20 MB)
-- yolo26m.pt (Medium - higher accuracy, ~42 MB)
-
-**Output Location:** `/export/ai_models/model-zoo/yolo26/`
-
 ### Maintenance Scripts
 
 #### audit-summary.sh
@@ -697,23 +550,6 @@ uv run python scripts/download_yolo26.py
 - Knip frontend dead code
 
 ### CI/CD and Analysis Scripts
-
-#### analyze-ci-dependencies.py
-
-**Purpose:** Analyze GitHub Actions workflow dependencies and execution paths.
-
-**Usage:**
-
-```bash
-python scripts/analyze-ci-dependencies.py
-```
-
-**What it analyzes:**
-
-- Workflow job dependencies
-- Critical path analysis
-- Parallelization opportunities
-- Bottleneck identification
 
 #### analyze-flaky-tests.py
 
@@ -792,8 +628,9 @@ says why. Delete it when O2.1's fake AI stack runs here instead.
 #### feature-check.sh
 
 **Purpose:** O2.2's harness. It runs the golden paths against a **test
-deployment**: the CI stack with the fake AI (`docker-compose.fake-ai.yml`)
-under a compose project of its own, which touches nothing else on the machine.
+deployment**: the CI stack with the fake AI (`docker-compose.fake-ai.yml`) and
+the notification sinks (`docker-compose.sinks.yml`) under a compose project of
+its own, which touches nothing else on the machine.
 
 **Usage:**
 
@@ -940,16 +777,6 @@ python scripts/audit-linear-github-sync.py
 - Label mapping accuracy
 - Missing bidirectional links
 
-#### linear-label-issues.sh
-
-**Purpose:** Bulk apply labels to Linear issues matching criteria.
-
-**Usage:**
-
-```bash
-./scripts/linear-label-issues.sh --label backend --filter "NEM-1*"
-```
-
 ### Development Tool Scripts
 
 #### create-worktree.sh
@@ -967,23 +794,6 @@ python scripts/audit-linear-github-sync.py
 - Creates worktree in `../<repo>-<feature-name>/`
 - Checks out new branch
 - Sets up working directory
-
-#### git-bisect-helper.sh
-
-**Purpose:** Helper script for git bisect to find regression commits.
-
-**Usage:**
-
-```bash
-./scripts/git-bisect-helper.sh <test-command>
-```
-
-**Example:**
-
-```bash
-git bisect start HEAD v1.0.0
-git bisect run ./scripts/git-bisect-helper.sh "pytest backend/tests/unit/models/test_camera.py"
-```
 
 #### generate-docs.sh
 
@@ -1052,39 +862,6 @@ git bisect run ./scripts/git-bisect-helper.sh "pytest backend/tests/unit/models/
 - Removed endpoints
 - Changed response structures
 
-#### check-branch-name.sh
-
-**Purpose:** Enforce git branch naming conventions.
-
-**Usage:**
-
-```bash
-./scripts/check-branch-name.sh
-```
-
-**Valid Patterns:**
-
-- `feature/description`
-- `fix/description`
-- `hotfix/description`
-- `chore/description`
-
-#### check-api-contracts.sh
-
-**Purpose:** Validate API contract consistency between backend schemas and frontend types.
-
-**Usage:**
-
-```bash
-./scripts/check-api-contracts.sh
-```
-
-**Checks:**
-
-- OpenAPI schema matches backend implementation
-- Frontend types match OpenAPI definitions
-- Request/response schemas are synchronized
-
 #### validate-api-types.sh
 
 **Purpose:** Validate TypeScript API types are current and match backend schemas.
@@ -1101,28 +878,6 @@ git bisect run ./scripts/git-bisect-helper.sh "pytest backend/tests/unit/models/
 - Compares generated types with committed types
 - Fails if types are out of sync
 - Can auto-regenerate with `--generate` flag
-
-### Accessibility Scripts
-
-#### a11y-smoke-test.sh
-
-**Purpose:** Run accessibility smoke tests on the frontend.
-
-**Usage:**
-
-```bash
-./scripts/a11y-smoke-test.sh                  # Run all a11y tests
-./scripts/a11y-smoke-test.sh --component Nav  # Test specific component
-./scripts/a11y-smoke-test.sh --verbose        # Verbose output
-```
-
-**Tests:**
-
-- WCAG 2.1 compliance
-- Color contrast ratios
-- Keyboard navigation
-- Screen reader compatibility
-- Focus management
 
 ### Test Automation & Enforcement (NEM-2102)
 
@@ -1332,10 +1087,14 @@ reference fails directly. The only committed baseline left is the per-name
 `retired_name_baseline` in `.agents-md-validator.yml`, and it admits no new
 mentions. The loader REJECTS the presence of a `dead_reference_allowlist` key
 (exit 2): re-adding an excuse list is treated as a gate-disable attempt, not a
-config edit. `missing_agents_md` stays reporting-only until W3.1 wires the
-boundary rule. W2.1 added the other two required keys: `boundary_list` (the
+config edit. Since W3.1 PR 1 (ruling 300), `missing_agents_md` enforces
+`boundary_list` directly (failing with exit 1 when any listed boundary has no
+scanned `AGENTS.md`, and no longer requiring an `AGENTS.md` in every directory
+with two code files), while `ratchet.outside_boundaries` reports every scanned
+`AGENTS.md` outside `boundary_list` without failing until the last lane's W3.1
+PR switches `failing` to `True`. W2.1 added the other two required keys: `boundary_list` (the
 directories that keep an `AGENTS.md` when W3.1 prunes the rest, one `reason`
-per entry - 42 today) and `line_caps` (per-tier ceilings - `root`,
+per entry - 37 today) and `line_caps` (per-tier ceilings - `root`,
 `lane_root`, `package`). Both are loader-mandatory on the baseline doctrine:
 deleting either key exits 2 rather than meaning "none". Line caps are
 **reporting-only until W3.2** - an over-cap boundary file lands in
@@ -1345,7 +1104,8 @@ work list. The standard itself has its single home at
 `docs/developer/agents-md-standard.md`.
 
 **Exit codes:** `0` clean under the baselines; `1` a content violation (any dead
-reference, any dead link, a retired-name count above its ceiling, an unbalanced
+reference, any dead link, a missing `boundary_list` `AGENTS.md`, a retired-name
+count above its ceiling, an unbalanced
 code fence, or an inline suppression comment without a tracking ref); `2` the
 gate could not run (config absent, unparseable, missing any baseline key, or
 carrying the removed allowlist key - the report is then NOT written, so a broken
@@ -1392,11 +1152,8 @@ includes it.
 ### Initial Setup
 
 ```bash
-# Linux/macOS (cross-platform, from repo root)
+# Cross-platform setup, from repo root
 python setup.py
-
-# Windows (PowerShell)
-.\scripts\setup.ps1
 
 # Activate environment and start
 source .venv/bin/activate
@@ -1433,8 +1190,8 @@ git add -A && git commit -m "message"
 # Docker deployment test
 ./scripts/test-docker.sh
 
-# E2E smoke test
-./scripts/smoke-test.sh
+# CI smoke test
+./scripts/ci-smoke-test.sh --backend-url http://localhost:8000 --frontend-url http://localhost:3000
 ```
 
 ### Database Management

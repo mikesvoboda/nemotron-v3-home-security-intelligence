@@ -19,6 +19,7 @@ import subprocess
 import sys
 from dataclasses import dataclass
 from pathlib import Path
+from typing import Any
 
 # Test requirement thresholds
 REQUIREMENTS = {
@@ -188,13 +189,24 @@ def find_test_file(source_file: str) -> str | None:
         flat_unit = project_root / f"backend/tests/unit/test_{stem}.py"
         flat_integration = project_root / f"backend/tests/integration/test_{stem}.py"
 
-        candidates = [
+        # The `_api`-suffix form: 24 of the repo's 56 route files are tested by
+        # `test_<route>_api.py` (backend/tests/integration/test_outbound_webhooks_api.py
+        # is the live #7318 instance — the gate red on an obeyed convention, the
+        # #6681 shape). Same additive discipline as the flat form above: the
+        # earlier candidates stay first, so no existing verdict can flip, only a
+        # false "None found" can become a found.
+        flat_unit_api = project_root / f"backend/tests/unit/test_{stem}_api.py"
+        flat_integration_api = project_root / f"backend/tests/integration/test_{stem}_api.py"
+
+        candidates: list[Path] = [
             test_unit,
             test_unit_alt,
             test_integration,
             test_integration_alt,
             flat_unit,
             flat_integration,
+            flat_unit_api,
+            flat_integration_api,
         ]
 
     elif source_file.startswith("frontend/src/"):
@@ -208,7 +220,7 @@ def find_test_file(source_file: str) -> str | None:
         # useTopEventsQuery.ts to a nonexistent .test.ts and the required
         # Test Coverage Gate failed the PR for OBEYING the rule (#6681).
         source_path_obj = Path(source_file)
-        candidates: list[Path] = [
+        candidates = [
             source_path_obj.with_name(f"{source_path_obj.stem}.test{suffix}")
             for suffix in ("".join(source_path_obj.suffixes), ".ts", ".tsx")
         ]
@@ -302,11 +314,12 @@ def check_file_requirements(file_change: FileChange) -> TestRequirement | None:
                 if test_file:
                     test_files = [test_file]
 
+                req_tests: Any = requirement_spec["required_tests"]
                 return TestRequirement(
                     file_path=file_path,
-                    file_type=requirement_spec["type"],
-                    required_tests=requirement_spec["required_tests"],
-                    min_coverage=requirement_spec["min_coverage"],
+                    file_type=str(requirement_spec["type"]),
+                    required_tests=list(req_tests),
+                    min_coverage=int(requirement_spec["min_coverage"]),  # type: ignore[call-overload]
                     has_tests=bool(test_files),
                     test_files=test_files,
                 )
@@ -453,6 +466,8 @@ def _kill_process_group(proc: subprocess.Popen) -> None:
         os.killpg(proc.pid, signal.SIGKILL)
     except (ProcessLookupError, PermissionError, OSError):
         pass  # the whole group was already gone - fine
+
+
 """Real drops are points-wide; the baseline itself is noise below that.
 
 WP2.3 set this to 2.0pp on the observed 68.70 -> 70.33 -> 70.32 lineage
@@ -583,6 +598,7 @@ def check_coverage_diff(
                 stdout, stderr = proc.communicate(timeout=_collect_timeout_limit())
             except subprocess.TimeoutExpired as exc:
                 _kill_process_group(proc)
+
                 # Partial output the timed-out drain ALREADY read - the
                 # collector's last words before it wedged - kept as the
                 # fallback tail. (Nit 2, self-review 2026-10-10:

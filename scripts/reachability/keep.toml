@@ -18,3 +18,35 @@ reason = "synthbench workstream (UR-82), ruling 210"
 [[keep]]
 module = "synthbench/contract"
 reason = "synthbench workstream (UR-82), ruling 210"
+
+[[keep]]
+module = "backend/services/scene_change_detector"
+reason = "F-287, R2a row 24"
+
+[[keep]]
+module = "backend/services/mqtt_client"
+reason = "F-291, R2a row 8"
+
+[[keep]]
+module = "backend/services/mqtt_command_handler"
+reason = "F-291, R2a row 8"
+
+[[keep]]
+module = "backend/services/unified_embedding_service"
+reason = "F-272, R2a row 21"
+
+[[keep]]
+module = "backend/services/camera_status_service"
+reason = "F-029"
+
+[[keep]]
+module = "backend/migrations/__main__"
+reason = "B3.3 schema upgrade CLI entry point (python -m backend.migrations, ruling 203)"
+
+[[keep]]
+module = "backend/ai_contract/providers"
+reason = "AI provider contract registrations imported at module level by backend/ai_contract/__init__.py (WP8.1)"
+
+[[keep]]
+module = "backend/services/ai_quality_metrics"
+reason = "Imported by documented CLI script scripts/ai-quality-analysis.py:123 (docs/reference/backend-entry-points.md:1471)"

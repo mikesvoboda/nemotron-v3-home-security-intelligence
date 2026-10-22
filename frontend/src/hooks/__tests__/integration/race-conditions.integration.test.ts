@@ -435,21 +435,26 @@ describe('Race Conditions Integration', () => {
         initialProps: { enabled: true },
       });
 
-      // First request starts
-      expect(result.current.isLoading).toBe(true);
+      // First request starts. NEM-3409 placeholderData means the hook reports
+      // placeholder cameras immediately (isLoading stays false) while the real
+      // fetch is in flight.
+      expect(result.current.isLoading).toBe(false);
+      expect(result.current.isPlaceholderData).toBe(true);
+      expect(result.current.cameras).toHaveLength(6);
 
       // Disable and re-enable quickly to simulate rapid navigation
       rerender({ enabled: false });
       rerender({ enabled: true });
 
       // The previous request's abort controller should be signaled
-      // React Query handles this internally
+      // React Query handles this internally. The query settles once the
+      // in-flight fetch resolves and the placeholder is replaced.
       await waitFor(
         () => {
-          // Either loading completes or we're in a stable state
-          expect(result.current.cameras).toBeDefined();
+          expect(result.current.isPlaceholderData).toBe(false);
+          expect(result.current.cameras).toHaveLength(1);
         },
-        { timeout: 2000 }
+        { timeout: 3000 }
       );
     });
   });

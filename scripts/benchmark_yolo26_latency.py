@@ -216,7 +216,8 @@ def benchmark_yolo_model(
 
         # Get model info
         model_size_mb = model_path.stat().st_size / (1024 * 1024)
-        parameters_m = sum(p.numel() for p in model.model.parameters()) / 1e6
+        raw_model: Any = model.model
+        parameters_m = sum(p.numel() for p in raw_model.parameters()) / 1e6
 
         # Clear GPU cache and reset peak memory tracking
         gc.collect()
@@ -244,10 +245,10 @@ def benchmark_yolo_model(
 
             # Benchmark
             print(f"    Benchmarking ({benchmark_iterations} iterations)...")
-            latencies = []
-            preprocess_times = []
-            inference_times = []
-            postprocess_times = []
+            latencies: Any = []
+            preprocess_times: list[float] = []
+            inference_times: list[float] = []
+            postprocess_times: list[float] = []
 
             for i in range(benchmark_iterations):
                 # Clear cache periodically to prevent memory buildup
@@ -257,7 +258,7 @@ def benchmark_yolo_model(
                 start_total = time.perf_counter()
 
                 # Run inference - YOLO handles preprocessing internally
-                results_batch = model.predict(
+                results_batch: Any = model.predict(
                     images, imgsz=resolution[0], device=device, verbose=False
                 )
 
@@ -272,9 +273,9 @@ def benchmark_yolo_model(
                 # Extract timing info from YOLO results if available
                 if hasattr(results_batch[0], "speed"):
                     speed = results_batch[0].speed
-                    preprocess_times.append(speed.get("preprocess", 0))
-                    inference_times.append(speed.get("inference", 0))
-                    postprocess_times.append(speed.get("postprocess", 0))
+                    preprocess_times.append(float(speed.get("preprocess", 0)))
+                    inference_times.append(float(speed.get("inference", 0)))
+                    postprocess_times.append(float(speed.get("postprocess", 0)))
 
             # Calculate statistics
             latencies = np.array(latencies)
@@ -463,8 +464,8 @@ def benchmark_yolo26_model(
                 postprocess_times.append(postprocess_ms)
 
             # Calculate statistics
-            latencies = np.array(latencies)
-            latency_per_image = latencies / batch_size
+            latencies_arr = np.array(latencies)
+            latency_per_image = latencies_arr / batch_size
 
             vram_current, vram_peak = get_gpu_memory_mb()
 
@@ -483,7 +484,7 @@ def benchmark_yolo26_model(
                 preprocess_mean_ms=float(np.mean(preprocess_times)) / batch_size,
                 inference_mean_ms=float(np.mean(inference_times)) / batch_size,
                 postprocess_mean_ms=float(np.mean(postprocess_times)) / batch_size,
-                throughput_fps=batch_size * 1000 / float(np.mean(latencies)),
+                throughput_fps=batch_size * 1000 / float(np.mean(latencies_arr)),
                 vram_used_mb=vram_current,
                 vram_peak_mb=vram_peak,
                 parameters_m=parameters_m,

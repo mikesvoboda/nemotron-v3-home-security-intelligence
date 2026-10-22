@@ -112,7 +112,7 @@ This project follows **Test-Driven Development (TDD)** (tasks labeled `tdd`). Fu
 | ------------------- | ------------------------------------------------------ | ---------------------------------------------- |
 | Backend unit        | tier floor 84¹                                         | `uv run pytest backend/tests/unit/ -n auto`    |
 | Backend integration | tier floor 37¹                                         | `uv run pytest backend/tests/integration/ -n0` |
-| Frontend            | floors 80 / 74.6 / 78.4 / 80.9² (measured values)      | `cd frontend && npm test`                      |
+| Frontend            | floors 79.5 / 74.3 / 77.2 / 80.5² (measured values)    | `cd frontend && npm test`                      |
 | **Full validation** | **80% combined unit+integration** (the executed floor) | `./scripts/validate.sh`                        |
 
 Gate semantics (re-verified against the tree 2026-09-22):
@@ -120,7 +120,7 @@ Gate semantics (re-verified against the tree 2026-09-22):
 - The executed **absolute** backend floor is **80% on combined unit+integration**: `scripts/validate.sh` merges both tiers and checks `--fail-under=80`, mirrored in `.github/workflows/nightly-full-gate.yml`.
 - `pyproject.toml` `fail_under = 85` is **not** an absolute floor. Per owner ruling A7.1 it is the PR diff gate's **relative baseline** over merged shard data; the diff gate (`scripts/check-test-coverage-gate.py`, `COVERAGE_DIFF_EPSILON_PP = 0.5`) forgives drops up to its 0.5pp noise band (WP2.5 re-derived the band from post-seed-pin runs).
 - ¹ Per-tier absolute floors (unit 84, integration 37 — WP2.5 measured) are enforced in the CI merge steps **only when the tier fully passed** — a red shard means partial data, and partial data is never floor-checked (`ci.yml` unit/integration floor steps).
-- ² Frontend floors are the **measured** stmts/branches/functions/lines values (R-1/WP2.3; run 35486259345), defined in `frontend/scripts/merge-shard-coverage.mjs` and enforced via `--enforce` in CI only when all Vitest shards passed.
+- ² Frontend floors are the **measured** stmts/branches/functions/lines values (R-1/WP2.3; run 39161827871 at d78f1a7ed, re-pinned by owner ruling 261 — one-off), defined in `frontend/scripts/merge-shard-coverage.mjs` and enforced via `--enforce` in CI only when all Vitest shards passed.
 - Reference measurement (2026-09-20): 84.12% blended / 86.02% line / 76.27% branch — three different numbers (`--format=total` is the blend). Main runs publish line and branch separately; see the testing guide.
 
 ## Git Rules
@@ -161,21 +161,22 @@ Everything binds `127.0.0.1`, the frontend nginx included — unless `EXPOSE_LAN
 
 ### Configuration Files
 
-| File                         | Purpose                                                                 |
-| ---------------------------- | ----------------------------------------------------------------------- |
-| `pyproject.toml`             | Python project config with Ruff, mypy, pytest, and coverage settings    |
-| `.pre-commit-config.yaml`    | Pre-commit hooks (ruff, mypy, eslint, prettier, typescript check)       |
-| `docker-compose.prod.yml`    | Production Docker services with multi-stage builds and resource limits  |
-| `docker-compose.ci.yml`      | CI-specific Docker configuration for GitHub Actions                     |
-| `docker-compose.fake-ai.yml` | Fake AI stack overlay on the CI stack (never a default; name with `-f`) |
-| `docker-compose.test.yml`    | Test containers (postgres-test, redis-test) for CI                      |
-| `.env.example`               | Environment variable template                                           |
-| `semgrep.yml`                | Semgrep security scanning configuration                                 |
-| `vulture_whitelist.py`       | False positive suppressions for Vulture dead code detection             |
-| `lychee.toml`                | Lychee link checker configuration                                       |
-| `.prettierrc`                | Prettier code formatting configuration                                  |
-| `codecov.yml`                | Codecov coverage reporting configuration                                |
-| `commitlint.config.js`       | Commit message linting configuration                                    |
+| File                         | Purpose                                                                     |
+| ---------------------------- | --------------------------------------------------------------------------- |
+| `pyproject.toml`             | Python project config with Ruff, mypy, pytest, and coverage settings        |
+| `.pre-commit-config.yaml`    | Pre-commit hooks (ruff, mypy, eslint, prettier, typescript check)           |
+| `docker-compose.prod.yml`    | Production Docker services with multi-stage builds and resource limits      |
+| `docker-compose.ci.yml`      | CI-specific Docker configuration for GitHub Actions                         |
+| `docker-compose.fake-ai.yml` | Fake AI stack overlay on the CI stack (never a default; name with `-f`)     |
+| `docker-compose.sinks.yml`   | Notification-sink overlay on the CI stack (never a default; name with `-f`) |
+| `docker-compose.test.yml`    | Test containers (postgres-test, redis-test) for CI                          |
+| `.env.example`               | Environment variable template                                               |
+| `semgrep.yml`                | Semgrep security scanning configuration                                     |
+| `vulture_whitelist.py`       | False positive suppressions for Vulture dead code detection                 |
+| `lychee.toml`                | Lychee link checker configuration                                           |
+| `.prettierrc`                | Prettier code formatting configuration                                      |
+| `codecov.yml`                | Codecov coverage reporting configuration                                    |
+| `commitlint.config.js`       | Commit message linting configuration                                        |
 
 ### Documentation
 
@@ -241,7 +242,7 @@ Everything binds `127.0.0.1`, the frontend nginx included — unless `EXPOSE_LAN
 ├── config/               # Runtime YAML configs (tracker configs, quality baselines)
 ├── data/                 # Runtime data home (runtime subdirs gitignored — logs/, certs/, calibration/, profiles/; eval/benchmark/synthetic content tracked)
 ├── docker/               # Shared container base images (base.Dockerfile)
-├── docs/                 # Documentation (full index: docs/AGENTS.md)
+├── docs/                 # Documentation (full index: docs/README.md)
 │   ├── ai/               # AI model-zoo and pipeline documentation
 │   ├── api/              # API documentation and deprecation policy
 │   ├── architecture/     # Technical architecture documentation
@@ -293,7 +294,6 @@ Everything binds `127.0.0.1`, the frontend nginx included — unless `EXPOSE_LAN
 │   ├── pyroscope/        # Pyroscope continuous profiling configuration
 │   └── tempo/            # Tempo trace storage configuration
 ├── scripts/              # Development and deployment scripts
-│   ├── benchmark/        # Benchmark harness scripts
 │   ├── dataset_converters/ # Training-dataset conversion scripts
 │   ├── hooks/            # Git hooks (post-checkout worktree protection)
 │   ├── synthetic/        # Synthetic test-data generation
@@ -304,7 +304,7 @@ Everything binds `127.0.0.1`, the frontend nginx included — unless `EXPOSE_LAN
 │   ├── contract/         # Event contract: spec/truth/provenance models, append-only corpus store
 │   ├── taxonomy/         # Committed Tier B taxonomy YAML and the seeded quota sampler
 │   └── spikes/           # Throwaway harnesses (p1_bakeoff: the P1 model bake-off)
-├── tests/                # Root-level test suites (benchmark, load, smoke)
+├── tests/                # Root-level test suites (load, smoke)
 └── .github/              # GitHub Actions workflows and configs
     ├── workflows/        # CI/CD workflows
     ├── codeql/           # CodeQL security analysis
@@ -368,7 +368,7 @@ Tasks are organized into **8 execution phases**. Complete phases in order:
 1. **Read this file (AGENTS.md)** — the single root instruction file; `CLAUDE.md` was deliberately retired (owner ruling 2026-09), don't look for it
 2. **Check available work:** Visit [Linear Active](https://linear.app/nemotron-v3-home-security/team/NEM/active) or filter by phase label
 3. **Review docs/ROADMAP.md** - Post-MVP roadmap ideas (pursue **after Phases 1-8 are operational**)
-4. **Read the AGENTS.md of any directory before exploring it** — every code directory has one documenting purpose, key files, and patterns (`ai/AGENTS.md`, `backend/AGENTS.md`, `frontend/AGENTS.md`, `docs/AGENTS.md`, …)
+4. **Read the AGENTS.md of any boundary directory before exploring it** — boundary code directories have one documenting purpose, entry points, invariants, and traps (`ai/AGENTS.md`, `backend/AGENTS.md`, `frontend/AGENTS.md`, `scripts/AGENTS.md`, …; see `.agents-md-validator.yml` `boundary_list`)
 
 ### Understanding the Codebase
 
@@ -496,7 +496,14 @@ Infrastructure work additionally requires the **Infrastructure Verification** ch
 ## Resources
 
 - **Issue Tracker:** [Linear](https://linear.app/nemotron-v3-home-security/team/NEM/active) (Team: NEM)
-- **Documentation:** `docs/` directory (index: `docs/AGENTS.md`)
+- **Documentation:** `docs/` directory (index: `docs/README.md`)
 - **Runtime Config:** `docs/reference/config/env-reference.md` (authoritative reference for backend settings vars)
 - **Coverage Reports:** `coverage/backend/index.html` and `frontend/coverage/index.html`
 - **Feature Guides:** [Multi-GPU](docs/developer/multi-gpu.md) · [Video Analytics](docs/guides/video-analytics.md) · [Zone Configuration](docs/guides/zone-configuration.md) · [Face Recognition](docs/guides/face-recognition.md)
+
+### Documentation Invariants & Traps
+
+- **Synthbench docs contract:** `docs/synthbench/command-reference.md` must list each command's options verbatim (checked against `argparse` by `backend/tests/unit/synthbench/test_command_reference.py`), and `docs/synthbench/agent-handoff.md` names only the eight agent commands (checked by the same test) and never describes GPU windows or host units (design G11; those belong in `docs/synthbench/operator-runbook.md`).
+- **VSS register & state-page gate:** `scripts/check-vss-docs-currency.py` guards `docs/vss-integration/17-action-plan.md` and `docs/vss-integration/README.md` (`python scripts/vss-next-id.py iss|e` allocates `ISS-nnn` and `E-nnn` IDs across branches and worktrees); `docs/plans/` is frozen history while future plans live in `docs/superpowers/` (UR-87).
+- **Model Zoo & VLM readiness traps:** `BACKEND_MODEL_PRELOAD` defaults to `false` (`setup.py` sets `true` at ≥ 24 GB VRAM); `ModelManager` (`backend/services/model_zoo.py`) has no eviction pass (`never_evict` and `priority` in `models.yml` are unconsulted, and `POST /api/system/models/{name}/load|unload` return 501 by design in `backend/api/routes/model_management.py`), and `ai-vlm`'s `/health` returns 200 even in text-only mode without `VLM_MMPROJ_PATH` (check `/props`).
+- **Benchmarks & load tests:** `.github/workflows/benchmarks.yml` and `.github/workflows/load-tests.yml` are nightly/manual report-only workflows (owner ruling 100); `docs/benchmarks/synthbench/p1-bakeoff.md` carries hand-written owner decisions at the top that must be preserved if regenerated.

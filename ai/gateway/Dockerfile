@@ -1,4 +1,12 @@
-FROM nvcr.io/nvidia/tritonserver:26.01-py3
+ARG TRITON_IMAGE=nvcr.io/nvidia/tritonserver:26.09-py3
+FROM ${TRITON_IMAGE}
+
+# Resolve dependencies on the same import path the application uses. Newer
+# bases expose DALI-only packages that disappear when PYTHONPATH becomes /app.
+# (O2.5 venue fix, ruling 287 item 7: the maui venue builds this image on the
+# Triton 26.09 arm64 base by digest via --build-arg TRITON_IMAGE=..., and its
+# pip installs must see /app from the first RUN, not only after the last ENV.)
+ENV PYTHONPATH=/app
 
 # hadolint ignore=DL3008
 RUN apt-get update && apt-get install -y --no-install-recommends libxcb1 libgl1 && \
@@ -64,7 +72,6 @@ ENV GATEWAY_PORT=8090
 ENV TRITON_GRPC_URL=localhost:8001
 ENV TRITON_HTTP_URL=http://localhost:8000
 ENV TRITON_METRICS_URL=http://localhost:8002
-ENV PYTHONPATH=/app
 
 # The gateway listens on 8090; Triton gRPC on 8001, HTTP on 8000, metrics on 8002
 # Only 8090 is exposed externally

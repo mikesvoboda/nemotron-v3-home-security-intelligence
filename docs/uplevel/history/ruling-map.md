@@ -304,6 +304,32 @@ package tagged `[rNNN]` is a fix that ruling NNN ordered.
 | 289    | one-off, delegated: Phase 3 rebalance; O3.4, O3.5 to heavy-b; B3.3's box 4 (record 6303414416)              |
 | 290    | UR-47 (283 amended) and package `[r290]`: the coordinator proposes balance moves (record 6303479997)        |
 | 291    | UR-185 and package `[r291]`: the gate audits only what a change adds (record 6304527940)                    |
+| 292    | one-off: ops-a claims `O2.5`'s venue fixes while #7310 is open, a UR-52 exception (record 6304623987)       |
+| 293    | one-off, delegated: the `certifi` red-`main` route and its correction (records 6307149057, 6307222499)      |
+| 294    | UR-185 and package `[r294]`: Trivy's scans fail a change only on what it adds (record 6307203645)           |
+| 295    | one-off: pip's bundled `certifi` exempted; package `[r295]`: pip leaves the image (record 6307239846)       |
+| 296    | package `[r262]`: rows only for bugs and medium+ from batch 7; a cite checker scoped (record 6307432184)    |
+| 297    | package `[r282]` closed on its measured gain; package `[r297]`: the shard fixed cost (record 6315692389)    |
+| 298    | one-off: heavy-b claims `O3.7` from ops-b's queue, ahead of `O3.2` and `B2.3` (record 6321095724)           |
+| 299    | package `[r299]`: the E2E setup's tour keys; `[r262]` batches 4–6 ruled (record 6321779954)                 |
+| 300    | package `W3.1`: to heavy-a, one PR per lane as each lane's Phase 3 is done (record 6322983128)              |
+| 301    | package Monitoring (`F4.*`): the zone panels drop; F-117 stays complete (record 6323705324)                 |
+| 302    | UR-86 (OD-39): Triton stays; no measure-first package (record 6323705569)                                   |
+| 303    | package `[r303]`: RF-DETR tested against YOLO26-M (record 6323705837)                                       |
+| 304    | UR-186: a scope canary moves down only with an authorized retirement (record 6323706092)                    |
+| 305    | package `[r305]`: three weak tests and 15 prose rows of `[r262]` batches 4–6 (record 6323706301)            |
+| 306    | UR-85; packages `[r306a]`, `[r306b]`; `[r252]`'s proving run now (record 6323748868)                        |
+| 307    | UR-86; packages `[r307a]`–`[r307d]`: small models in Triton, fast-alpr out (record 6323846997)              |
+| 308    | P1 packages `B4.1`–`B4.6`, `F4.1`–`F4.4`, `[r308a]`, `[r308b]`, spread (record 6326364266)                  |
+| 309    | package `[r309]`: real stills for `[r303]`, which goes to heavy-b (record 6327202214)                       |
+| 310    | #7336 (F-246's outbound webhooks) fixed inside `B4.2` (record 6327324775)                                   |
+| 311    | arming: `B4.7`, `B4.8`, `F4.5`, `[r311a]`, `[r311b]`; sensitivity leaves MQTT (record 6328311780)           |
+| 312    | UR-187; packages `[r312a]`, `[r312b]`; amended: #7343 merges on its smoke (records 6329693164, 6331303299)  |
+| 313    | package `[r313]`: the npm audit checker fails closed; corrected (records 6332025973, 6332789646)            |
+| 314    | packages `[r314a]`, `[r314b]`: UR-187's two follow-ups to heavy-b (record 6342032031)                       |
+| 315    | `O2.5` item 2 runs again with its peak sampled, at item 1's pin (record 6345740728)                         |
+| 316    | docs closes `[r262]`; `W3.2` and `W3.3` first on its queue (record 6346660761)                              |
+| 317    | P2 designs (scene changes, exports, status); `B4.9`–`B4.11`, `F4.6`–`F4.8` (record 6347331324)              |
 
 ## Owner records
 

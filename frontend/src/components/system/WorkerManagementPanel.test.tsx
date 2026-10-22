@@ -206,7 +206,8 @@ describe('WorkerManagementPanel', () => {
 
     const statusBadge = screen.getByTestId('worker-status-badge-detection_worker');
     expect(statusBadge).toHaveTextContent(/crashed/i);
-    expect(statusBadge).toHaveClass('bg-yellow-600');
+    // crashed/failed render bg-red-600 (bg-yellow-600 is the 'restarting' badge)
+    expect(statusBadge).toHaveClass('bg-red-600');
   });
 
   it('shows correct status badge for failed worker', () => {
@@ -394,7 +395,7 @@ describe('WorkerManagementPanel', () => {
 
     render(<WorkerManagementPanel />);
 
-    const stopButton = screen.getByTestId('worker-stop-button-file_watcher');
+    const stopButton = screen.getByTestId('worker-action-stop-file_watcher');
     fireEvent.click(stopButton);
 
     // Confirm the action in the dialog
@@ -437,7 +438,7 @@ describe('WorkerManagementPanel', () => {
 
     render(<WorkerManagementPanel />);
 
-    const restartButton = screen.getByTestId('worker-restart-button-file_watcher');
+    const restartButton = screen.getByTestId('worker-action-restart-file_watcher');
     fireEvent.click(restartButton);
 
     // Confirm the action in the dialog
@@ -512,7 +513,7 @@ describe('WorkerManagementPanel', () => {
 
     render(<WorkerManagementPanel />);
 
-    const stopButton = screen.getByTestId('worker-stop-button-file_watcher');
+    const stopButton = screen.getByTestId('worker-action-stop-file_watcher');
     fireEvent.click(stopButton);
 
     // Confirmation dialog should appear
@@ -562,8 +563,8 @@ describe('WorkerManagementPanel', () => {
 
     render(<WorkerManagementPanel />);
 
-    const stopButton = screen.getByTestId('worker-stop-button-file_watcher');
-    const restartButton = screen.getByTestId('worker-restart-button-file_watcher');
+    const stopButton = screen.getByTestId('worker-action-stop-file_watcher');
+    const restartButton = screen.getByTestId('worker-action-restart-file_watcher');
 
     expect(stopButton).toBeDisabled();
     expect(restartButton).toBeDisabled();

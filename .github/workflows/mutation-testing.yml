@@ -118,6 +118,8 @@ jobs:
     # impossible under the required CI Gate check)
     permissions:
       contents: write
+      issues: write
+      pull-requests: write
 
     services:
       postgres:
@@ -287,15 +289,15 @@ jobs:
           uv run python scripts/mutation-score.py --repair
           uv run python scripts/mutation-score.py > mutation-score.json
           {
-            echo "## Backend Mutation Results (WP4.3 widened set)"
+            echo "## Backend Mutation Results (01 M2 scored set)"
             echo ""
-            jq -r '"**Modules with results**: \(.modules|length) / \(.target_modules|length) targets  ·  **Score (mutmut badge formula)**: \(.totals.score | if . == null then "n/a" else (.*10|round)/10 end)%  ·  killed \(.totals.killed) | survived \(.totals.survived) | timeout \(.totals.timeout) | no-tests \(.totals.no_tests) | skipped \(.totals.skipped) | unchecked \(.totals.not_checked)"' mutation-score.json
+            jq -r '"**Modules with results**: \(.modules|length) / \(.target_modules|length) shipping targets  ·  **Informational global score (raw / with accepted survivors)**: \(.totals.score | if . == null then "n/a" else (.*10|round)/10 end)% / \(.totals.score_with_accepted | if . == null then "n/a" else (.*10|round)/10 end)%  ·  killed \(.totals.killed) | survived \(.totals.survived) | accepted \(.totals.accepted_survivors) | timeout \(.totals.timeout) | no-tests \(.totals.no_tests) | skipped \(.totals.skipped) | unchecked \(.totals.not_checked)"' mutation-score.json
             echo ""
-            echo "### Worst 15 modules (survivors = WP4.4 targets)"
+            echo "### Worst 15 scored modules"
             echo ""
-            echo "| Score | Module | Survived | Total |"
-            echo "|------:|--------|---------:|------:|"
-            jq -r '.modules | sort_by(.score // 0) | .[:15][] | "| \(if .score == null then "n/a" else (.score * 10 | round) / 10 end)% | \(.module) | \(.survived) | \(.total) |"' mutation-score.json
+            echo "| Score | With Accepted | Module | Survived | Accepted | Total |"
+            echo "|------:|--------------:|--------|---------:|---------:|------:|"
+            jq -r '.modules | sort_by(.score_with_accepted // .score // 0) | .[:15][] | "| \(if .score == null then "n/a" else (.score * 10 | round) / 10 end)% | \(if .score_with_accepted == null then "n/a" else (.score_with_accepted * 10 | round) / 10 end)% | \(.module) | \(.survived) | \(.accepted_survivors) | \(.total) |"' mutation-score.json
             echo ""
             echo "### Targets with no mutants this run"
             echo ""
@@ -363,9 +365,16 @@ jobs:
           fi
           git fetch origin main --quiet
           git checkout -B main origin/main --quiet
+          # 01 M2: compare comparable (not_checked == 0) scored modules against
+          # the previous entry in .github/mutation-history.json, open/update one
+          # `mutation floor: <module>` issue per module that dropped beyond the
+          # 1.0pp noise band or lost mutant count with unchanged source bytes
+          # (never failing the job on a floor alert), then append this week's entry.
           uv run python scripts/mutation-score.py \
             --history .github/mutation-history.json \
-            --date "$(date -u +%F)" > /dev/null
+            --date "$(date -u +%F)" \
+            --sync-issues \
+            --repo "$GITHUB_REPOSITORY" > /dev/null
           git config user.name "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
           # stage FIRST: a first-run history file is untracked and `git diff`

@@ -134,14 +134,21 @@ SOCKET_SENTINEL = ENV["PODMAN_SOCKET"]
 # The complement form (not under RUN_ROOT) cannot miss a path nobody thought to list.
 
 
-def _compose(files: list[Path], profiles: tuple[str, ...] = ()) -> dict:
+def _compose(files: list[Path], profiles: tuple[str, ...] = (), *, env: dict | None = None) -> dict:
     cmd = ["docker", "compose", "-p", "prodshape-audit", "--project-directory", str(REPO)]
     for pf in profiles:
         cmd += ["--profile", pf]
     for f in files:
         cmd += ["-f", str(f)]
     cmd += ["config", "--format", "json"]
-    p = subprocess.run(cmd, cwd=REPO, env=_clean_env(), capture_output=True, text=True)
+    p = subprocess.run(
+        cmd,
+        check=False,
+        cwd=REPO,
+        env=env if env is not None else _clean_env(),
+        capture_output=True,
+        text=True,
+    )
     if p.returncode != 0:
         # Loud, never a silent green: this leg is only worth anything if the oracle ran.
         pytest.fail(
@@ -497,11 +504,14 @@ def test_ports_are_offset_and_collide_with_nothing(prod_services, merged_service
             tgt = str(p["target"])
             assert tgt in prod_by_target, f"{n}: override publishes target {tgt} that prod does not"
             want = PORT_POOL_EXCEPTIONS.get(n, int(prod_by_target[tgt]["published"]) + PORT_OFFSET)
-            assert str(p["published"]) == str(want), (
-                f"{n}:{tgt} published {p['published']} != "
-                + (f"the declared exception {want}" if n in PORT_POOL_EXCEPTIONS
-                   else f"prod + {PORT_OFFSET}"))
-            assert str(p.get("host_ip")) == str(prod_by_target[tgt].get("host_ip")), f"{n}:{tgt} host_ip changed"
+            assert str(p["published"]) == str(want), f"{n}:{tgt} published {p['published']} != " + (
+                f"the declared exception {want}"
+                if n in PORT_POOL_EXCEPTIONS
+                else f"prod + {PORT_OFFSET}"
+            )
+            assert str(p.get("host_ip")) == str(prod_by_target[tgt].get("host_ip")), (
+                f"{n}:{tgt} host_ip changed"
+            )
             key = (str(p.get("host_ip")), str(p["published"]))
             assert key not in seen, f"{n} collides with {seen[key]} on {key}"
             seen[key] = n
@@ -539,9 +549,13 @@ def test_no_published_port_lands_in_the_runners_vlm_pool(
 
     for label, services in (("merged", merged_services), ("gpu-merged", gpu_merged_services)):
         found = squats(services)
-        assert not found, f"{label} render publishes in the runner's VLM pool {min(pool)}-{max(pool)}: {found}"
+        assert not found, (
+            f"{label} render publishes in the runner's VLM pool {min(pool)}-{max(pool)}: {found}"
+        )
     # must-catch: the shape the guard exists for, and the one prod's own offset produced.
-    synthetic = {"loki": {"ports": [{"host_ip": "127.0.0.1", "published": min(pool), "target": "3100"}]}}
+    synthetic = {
+        "loki": {"ports": [{"host_ip": "127.0.0.1", "published": min(pool), "target": "3100"}]}
+    }
     assert len(squats(synthetic)) == 1, "the pool scan cannot see a squat it is meant to catch"
     # must-ignore: neighbours of the pool stay legal, so the scan is not "everything in 18xxx".
     neighbours = {
@@ -569,18 +583,22 @@ def test_the_pool_exception_table_is_the_minimal_set(
             prod = prod_services.get(n)
             assert prod is not None, (
                 f"{n}: the table names a service absent from the profile-less render; this node "
-                f"derives 'is the exception earned' from prod_services only")
+                f"derives 'is the exception earned' from prod_services only"
+            )
             prod_ports = {int(p["published"]) for p in prod.get("ports", [])}
             assert prod_ports, f"{n}: prod publishes no ports for the table to offset"
             assert any(pp + PORT_OFFSET in pool for pp in prod_ports), (
                 f"{n}: the table exempts it but prod + {PORT_OFFSET} "
-                f"{sorted(prod_ports)} never enters the pool — the exception is unearned")
+                f"{sorted(prod_ports)} never enters the pool — the exception is unearned"
+            )
             assert port not in pool, f"{n}: the declared port {port} is still inside the pool"
             assert published.get(port) == n, (
                 f"{n}: nothing in the render publishes {port} "
-                f"(it belongs to {published.get(port, 'nobody')})")
+                f"(it belongs to {published.get(port, 'nobody')})"
+            )
             assert port not in {pp + PORT_OFFSET for pp in prod_ports}, (
-                f"{n}: {port} equals its own offset port, so the table hides a double bind")
+                f"{n}: {port} equals its own offset port, so the table hides a double bind"
+            )
         # "nothing squats by being left OFF the table" is the other node's job
         # (test_no_published_port_lands_in_the_runners_vlm_pool scans every service); this one only
         # proves the entries that ARE on the table are earned and sufficient.
@@ -684,7 +702,7 @@ def test_override_refuses_to_render_without_the_run_root():
         "config",
         "--quiet",
     ]
-    p = subprocess.run(cmd, cwd=REPO, env=env, capture_output=True, text=True)
+    p = subprocess.run(cmd, check=False, cwd=REPO, env=env, capture_output=True, text=True)
     assert p.returncode != 0, (
         "the override rendered with PROD_SHAPE_RUN_ROOT unset — its writable binds land at the "
         f"filesystem root, outside the run directory: {p.stdout[:200]}"
@@ -819,7 +837,6 @@ def test_the_generated_boot_file_rebinds_its_objects_to_the_live_project(tmp_pat
     )
 
 
-
 # ------------------------------------------------ ruling 256: the spliced boot document renders --
 def _splice_venue(fc, venue: str) -> tuple[dict, dict]:
     """The boot document one prod-shape run would write, via the real compose oracle.
@@ -830,12 +847,15 @@ def _splice_venue(fc, venue: str) -> tuple[dict, dict]:
     ci-net/ports divergence shipped: a dict-level test that omits the keys under test
     cannot see them. Returns (the boot document, the pre-fix control)."""
     full = _render_full([PROD, OVERRIDE], "prodshape-audit")
-    bodies = _render_full([REPO / "docker-compose.ci.yml", REPO / "docker-compose.fake-ai.yml"],
-                          "ci-fake")
+    bodies = _render_full(
+        [REPO / "docker-compose.ci.yml", REPO / "docker-compose.fake-ai.yml"], "ci-fake"
+    )
     fakes = {n: b for n, b in bodies["services"].items() if n in ("ai-vlm", "ai-gateway")}
     if venue == "sandbox":
-        swapped, kwargs = "ai-gateway", {"vlm_url": "http://127.0.0.1:18100",
-                                         "fake_gateway": fakes["ai-gateway"]}
+        swapped, kwargs = (
+            "ai-gateway",
+            {"vlm_url": "http://127.0.0.1:18100", "fake_gateway": fakes["ai-gateway"]},
+        )
     elif venue == "maui":
         swapped, kwargs = "ai-vlm", {"vlm_url": None, "fake_vlm": fakes["ai-vlm"]}
     else:
@@ -876,14 +896,31 @@ def test_the_spliced_boot_document_renders_and_keeps_prod_network_and_ports(venu
     assert set(spliced.get("networks") or {}) == {"security-net"}, spliced.get("networks")
     ci_band = {"8090", "8098"}
     assert not ci_band & {str(p.get("published")) for p in spliced.get("ports") or []}, (
-        f"the spliced body publishes on the CI band beside production: {spliced.get('ports')}")
+        f"the spliced body publishes on the CI band beside production: {spliced.get('ports')}"
+    )
 
     control_file = tmp_path / f"control-{venue}.json"
     control_file.write_text(json.dumps(fc.boot_render(control), indent=2) + "\n", encoding="utf-8")
     p = subprocess.run(
-        ["docker", "compose", "-p", "hsi-splice-control", "--project-directory", str(REPO),
-         "-f", str(control_file), "config", "--format", "json"],
-        cwd=REPO, env=_clean_env(), capture_output=True, text=True, check=False)
+        [
+            "docker",
+            "compose",
+            "-p",
+            "hsi-splice-control",
+            "--project-directory",
+            str(REPO),
+            "-f",
+            str(control_file),
+            "config",
+            "--format",
+            "json",
+        ],
+        cwd=REPO,
+        env=_clean_env(),
+        capture_output=True,
+        text=True,
+        check=False,
+    )
     assert p.returncode != 0, "the pre-fix control renders -- the refusal this test guards is gone"
     assert "ci-net" in p.stderr, p.stderr[-400:]
 
@@ -1112,3 +1149,68 @@ def test_an_uncovered_new_writable_bind_is_caught(prod_services, merged_services
         "the key-level guard now DISAGREES with itself on the tampered pair, so it is no longer "
         "blind here -- re-check whether this companion test is still needed"
     )
+
+
+def test_the_venue_model_binds_follow_ai_models_path_with_prods_default(
+    prod_services, merged_services
+):
+    """O2.5 venue fix (ruling 287 item 2, from the maui handoff): the override's
+    read-only model-zoo/quantized binds must keep prod's ${AI_MODELS_PATH:-...}
+    interpolation, not hard-code /export/ai_models.
+
+    prod interpolates that variable on the same four mounts (backend's
+    model-zoo, ai-gateway's zoo/quantized and, with the profile leg, dcgm's);
+    the maui venue's model tree lives elsewhere, and its only levers are the
+    env file keys prod_shape_env admits (AI_MODELS_PATH among them). An
+    override that hard-codes prod's path leaves the venue no way to point the
+    read-only binds at its own tree without editing the file -- and editing a
+    frozen, hand-authored artifact is what ruling 162 item 3 forbids.
+
+    Two-sided: the env the fixtures render with is scrubbed of AI_MODELS_PATH
+    (_clean_env), so these renders carry only the interpolation DEFAULT --
+    asserting the default survives proves the fix changed nothing for a venue
+    that sets nothing. The override value then proves the lever actually moves
+    the bind. The scrub test above already pins that a HOST AI_MODELS_PATH can
+    never leak into these renders.
+    """
+    # Default leg: with AI_MODELS_PATH scrubbed, the merged bind source must equal
+    # prod's rendered source, for every model mount prod carries.
+    model_targets = {
+        "ai-gateway": ("/models/zoo", "/models/quantized"),
+        "backend": ("/models/model-zoo",),
+    }
+    for n, targets in model_targets.items():
+        prod_src = {
+            str(v["target"]): str(v["source"])
+            for v in prod_services[n].get("volumes", [])
+            if str(v["target"]) in targets
+        }
+        merged_src = {
+            str(v["target"]): str(v["source"])
+            for v in merged_services[n].get("volumes", [])
+            if str(v["target"]) in targets
+        }
+        assert set(prod_src) == set(targets), f"{n}: prod lost a model mount: {sorted(prod_src)}"
+        assert prod_src == merged_src, (
+            f"{n}: the override's model binds diverge from prod's rendered source "
+            f"(default must be identical): {prod_src} != {merged_src}"
+        )
+    # Override leg: the venue's lever moves every one of those binds, and nothing
+    # else on the service. Rendered with the variable set, `${AI_MODELS_PATH:-...}`
+    # resolves to the venue value on BOTH files -- so what this leg actually pins is
+    # that the OVERRIDE no longer hard-codes the path it restates.
+    env = _clean_env(AI_MODELS_PATH="/venue/models")
+    venue_merged = _compose([PROD, OVERRIDE], env=env)
+    venue_prod = _compose([PROD], env=env)
+    for n, targets in model_targets.items():
+        for v in venue_merged[n].get("volumes", []):
+            if str(v.get("type")) == "bind" and str(v["target"]) in targets:
+                assert str(v["source"]).startswith("/venue/models/"), (
+                    f"{n}: {v['target']} still hard-codes the model path: {v['source']}"
+                )
+        # and the venue render stays prod-shaped: same targets, same read-only flag
+        for target in targets:
+            prod_v = next(v for v in venue_prod[n]["volumes"] if str(v.get("target")) == target)
+            merged_v = next(v for v in venue_merged[n]["volumes"] if str(v.get("target")) == target)
+            assert merged_v["read_only"] == prod_v["read_only"], target
+            assert merged_v["target"] == prod_v["target"], target

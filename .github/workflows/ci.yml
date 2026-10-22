@@ -84,6 +84,9 @@ jobs:
               - 'uv.lock'
               - 'docker-compose.ci.yml'
               - 'docker-compose.fake-ai.yml'
+              # [r308a] The notification-sink overlay defines the fake stack's
+              # composition, so a change to it must run the feature job.
+              - 'docker-compose.sinks.yml'
               - '.github/workflows/ci.yml'
               # Ruling 218: the inventory witness step reads it, so a status edit is judged.
               - 'docs/reference/feature-inventory.md'
@@ -326,6 +329,7 @@ jobs:
           scripts/test_ai_surface_census.py
           scripts/test_check_npm_audit_exemptions.py
           scripts/test_check_pip_audit_exemptions.py
+          scripts/test_check_trivy_delta.py
           scripts/test_agents_md_validator.py
           scripts/test_validate_docs_symbol_context.py
           scripts/test_pipeline_vs_independent_arm.py
@@ -353,6 +357,10 @@ jobs:
           scripts/test_pr_watch.py
           scripts/test_inventory_witness.py
           scripts/test_mutation_diff.py
+          scripts/test_reachability_gate.py
+          scripts/test_gen_ai_contract.py
+          scripts/test_synthetic_media.py
+          scripts/test_scripts_truth.py
           -q
       # Ruling 197: the plan fields the lane digest acts on (roster queues, package `**PR:**`
       # fields, ruling-map record ids), linted with the digest's own parsers. On a PR it fails
@@ -2408,7 +2416,8 @@ jobs:
       # trusted — no npm ci needed for either.
       #
       # WP2.3 (R-1 + R-7): the four floors are now the MEASURED values
-      # (80 / 74.6 / 78.4 / 80.9, run 35486259345) and this step ENFORCES
+      # (run 35486259345's merged totals, re-pinned to run 39161827871's by
+      # owner ruling 261 — one-off) and this step ENFORCES
       # them — R-FEFLOOR's "reported only" posture is retired now that the
       # baseline is the measurement instead of an aspirational 83/77/81/84
       # that never held. The guard is the same defect class WP2.3 fixes in
@@ -2435,7 +2444,7 @@ jobs:
           if [ -f coverage-merged/coverage-summary.json ]; then
             node -e '
               const s = require("./coverage-merged/coverage-summary.json").total;
-              const line = `Frontend merged coverage — statements ${s.statements.pct}% (floor 80), branches ${s.branches.pct}% (floor 74.6), functions ${s.functions.pct}% (floor 78.4), lines ${s.lines.pct}% (floor 80.9). Enforced by the merge step when all shards pass (WP2.3).`;
+              const line = `Frontend merged coverage — statements ${s.statements.pct}% (floor 79.5), branches ${s.branches.pct}% (floor 74.3), functions ${s.functions.pct}% (floor 77.2), lines ${s.lines.pct}% (floor 80.5). Enforced by the merge step when all shards pass (WP2.3, ruling 261 — floors are the measured values rounded down).`;
               console.log(line);
               require("fs").appendFileSync(process.env.GITHUB_STEP_SUMMARY, line + "\n");
             '
@@ -3675,6 +3684,13 @@ jobs:
       security-events: write
     secrets: inherit # pragma: allowlist secret
     if: github.event_name != 'pull_request' || github.event.pull_request.draft != true
+    # [r294] UR-122: the call SELECTS the gate mode, same shape as
+    # security-dependency-audit's audit-mode: gate above. A called workflow
+    # inherits the caller's event, so the mode must travel as an input -
+    # this call arrives there as event_name=push on PR merges, identical to
+    # trivy.yml's own full-scan push legs (its daily schedule + dispatch).
+    with:
+      trivy-mode: gate
     uses: ./.github/workflows/trivy.yml
 
   # OB.2: dependency audit joins the WP1.2 call set (four workflows now).
@@ -3690,6 +3706,12 @@ jobs:
       contents: read
     secrets: inherit # pragma: allowlist secret
     if: github.event_name != 'pull_request' || github.event.pull_request.draft != true
+    # [r291] UR-122: the call SELECTS the gate mode. A called workflow
+    # inherits the caller's event, so the mode must travel as an input -
+    # this call arrives there as event_name=push on PR merges, identical
+    # to dependency-audit.yml's own main-only full-lockfile push leg.
+    with:
+      audit-mode: gate
     uses: ./.github/workflows/dependency-audit.yml
 
   # Ruling 105: the fake-stack feature check joins the graph as a job here and
@@ -3851,13 +3873,25 @@ jobs:
         env:
           FEATURE_CHECK_ROOT: ${{ runner.temp }}/feature-check
           SHARD_PAIR: ${{ matrix.pair }}
+          # [r282] Opt into the manifest split: the harness reads the
+          # checked-in frontend/golden-shards.json, hands this shard its own
+          # file list to the leg as FEATURE_CHECK_GOLDEN_FILES, and the
+          # golden project's testIgnore ignores every spec outside it. The
+          # manifest's shard_count must equal this matrix's N or the run
+          # fails closed at the leg (matrix/manifest drift is caught at the
+          # leg, named in the error). Without this opt-in [r264]'s
+          # count-based --shard applies unchanged.
+          FEATURE_CHECK_SHARD_MANIFEST: '1'
         run: |
           # split "i-of-N" into --shard I/N; Actions has no arithmetic, so the
           # pair arrives as one slash-free string from the matrix (artifact
           # names reject the slash the flag form carries). Each shard runs its
           # OWN stack (compose up, seed, backend golden pytest on shard 1
           # only — feature_check.py records "skipped on shard i/N" on the
-          # others — and the sharded golden Playwright run).
+          # others — and the sharded golden Playwright run). [r282] The
+          # manifest selects the shard's files; --shard still names the cell
+          # for the record and the artifact label, and the backend leg stays
+          # on shard 1 ([r264]'s rule, the manifest is packed around it).
           I="${SHARD_PAIR%%-of-*}"
           N="${SHARD_PAIR##*-of-}"
           scripts/feature-check.sh --fake --shard "$I/$N" --image-tag "$TAG"
@@ -4368,6 +4402,41 @@ jobs:
           retention-days: 14
           if-no-files-found: warn
 
+  # O3.4 (ruling 257, ruling 289): Python (O2.3) + frontend Knip (F3.2)
+  # reachability gates in their own job per UR-121, wired into ci-gate (UR-119,
+  # WP0.6). Invoked by module name (`python -m scripts.reachability_gate`) so
+  # `test_reachability.py`'s workflow script-path scan does not force a
+  # walk-neutral change to `entry_points.toml` and `r2-python-dead-list` stamp.
+  reachability-gates:
+    name: Reachability Gates (O3.4)
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    if: github.event_name != 'pull_request' || github.event.pull_request.draft != true
+    steps:
+      - name: Checkout
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+
+      - name: Set up uv
+        uses: astral-sh/setup-uv@e4db8464a088ece1b920f60402e813ea4de65b8f # v4
+        with:
+          version: ${{ env.UV_VERSION }}
+
+      - name: Set up Python
+        run: uv python install ${{ env.PYTHON_VERSION }}
+
+      - name: Set up Node.js
+        uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: 'npm'
+          cache-dependency-path: frontend/package-lock.json
+
+      - name: Install frontend dependencies
+        run: cd frontend && npm ci
+
+      - name: Check Python and frontend reachability (O3.4)
+        run: uv run --no-project --python "${{ env.PYTHON_VERSION }}" python -m scripts.reachability_gate
+
   # CI Gate - Aggregates all required checks for branch protection
   # This job provides a single status check that depends on all required jobs.
   # WP0.6 invariant (scripts/test_ci_job_graph.py enforces it): a job either
@@ -4476,6 +4545,9 @@ jobs:
       # wiring scripts/test_ci_job_graph.py's WP0.6 invariant accepts for a
       # red-able job.
       - docs-negative-claims
+      # O3.4 (ruling 257): Python + Knip reachability gates. Own job per UR-121,
+      # direct need + check_job below per WP0.6 / UR-119.
+      - reachability-gates
     if: always()
     steps:
       - name: Check required job results
@@ -4546,6 +4618,8 @@ jobs:
           # DOCS-NJT: a docs claim that no CI runs a tool is a claim this gate
           # now disproves on every PR. Own need + own line (WP0.6 wiring).
           check_job "Negative Tooling Claims in Docs (DOCS-NJT)" "${{ needs.docs-negative-claims.result }}"
+          # O3.4: Python (O2.3) + frontend Knip (F3.2, ruling 257) reachability gates.
+          check_job "Reachability Gates (O3.4)" "${{ needs.reachability-gates.result }}"
 
           echo "" >> $GITHUB_STEP_SUMMARY
 

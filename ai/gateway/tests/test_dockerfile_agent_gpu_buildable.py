@@ -26,11 +26,13 @@ correct as they are.
 
 Transparency about coverage: the transcribed contract has three clauses — (1) every
 ``FROM`` names an explicit registry so builds never pull, (2) no flags on ``RUN``,
-(3) no ``ONBUILD``. This file pins (2) and (3). Clause (1) holds at this head
-(``FROM nvcr.io/nvidia/tritonserver:...`` is explicit) but is **unpinned**: a future
-``FROM tritonserver:...`` would read green here. It stays unpinned pending the digest
-follow-up, which is blocked on measurement, not effort — ``nvcr.io/v2/`` returns 401
-to anonymous requests, so the digest cannot be recorded from CI.
+(3) no ``ONBUILD``. This file pins (2) and (3), and since the O2.5 venue fixes
+(ruling 287 item 7) it pins clause (1) as ``ARG TRITON_IMAGE=`` + ``FROM
+${TRITON_IMAGE}`` — the registry ref appears exactly once, as the ARG's default,
+and ``FROM`` may not hard-code one. (The digest follow-up stays blocked on
+measurement, not effort: ``nvcr.io/v2/`` returns 401 to anonymous requests, so a
+digest pin cannot be recorded from CI; the maui venue instead overrides the base
+by digest at build time via ``--build-arg TRITON_IMAGE=...``.)
 
 The absence assertion is paired with a positive witness (a fixture that *does*
 carry ``RUN --mount=`` and ``ONBUILD`` must be detected), so an empty parse
@@ -100,7 +102,7 @@ PIP_PACKAGE_PROVIDES: dict[str, frozenset[str]] = {
     "onnxruntime-gpu": frozenset({"onnxruntime"}),
 }
 
-# Modules pre-installed in the nvcr.io/nvidia/tritonserver:26.01-py3 base image.
+# Modules pre-installed in the nvcr.io/nvidia/tritonserver:26.09-py3 base image.
 BASE_IMAGE_MODULES: frozenset[str] = frozenset({"yaml", "tensorrt"})
 
 REID_REAL_TIER_RUNNER = REPO_ROOT / "scripts" / "uplevel" / "reid_real_tier.sh"
@@ -265,7 +267,7 @@ def pip_installed_packages(text: str) -> set[str]:
 # Flags that change WHICH wheels pip resolves, not just where it looks for them
 # in the layer. `--no-cache-dir` / `--force-reinstall` are deliberately absent: the
 # fix itself carries both, and neither alters the resulting dependency graph.
-RESOLUTION_ALTERING_FLAGS: frozenset[str] = frozenset(
+RESOLUTION_ALTERING_LONG_FLAGS: frozenset[str] = frozenset(
     {
         "--no-deps",
         "--no-index",
@@ -276,7 +278,13 @@ RESOLUTION_ALTERING_FLAGS: frozenset[str] = frozenset(
         "--only-binary",
         "--no-binary",
         "--require-hashes",
+        "--pre",
+        "--constraint",
     }
+)
+RESOLUTION_ALTERING_SHORT_FLAGS: frozenset[str] = frozenset({"-i", "-c", "-f"})
+RESOLUTION_ALTERING_FLAGS: frozenset[str] = (
+    RESOLUTION_ALTERING_LONG_FLAGS | RESOLUTION_ALTERING_SHORT_FLAGS
 )
 
 
@@ -286,7 +294,8 @@ def pip_resolution_flags(text: str) -> list[str]:
     The package-set pin above compares names only, so ``pip install --no-deps``
     (which drops the whole transitive closure while keeping every named package)
     leaves that set untouched. This walks the same instructions and surfaces the
-    flags the name comparison is blind to.
+    flags the name comparison is blind to, including short forms (``-i``/``-c``/
+    ``-f``), ``--pre``, ``--constraint``, and underscore-spelled long flags.
     """
     found: list[str] = []
     for ins in logical_instructions(text):
@@ -298,9 +307,13 @@ def pip_resolution_flags(text: str) -> list[str]:
                 continue
             after = part.split("pip install", 1)[1].strip()
             for tok in after.split():
-                name = tok.split("=", 1)[0]
-                if name in RESOLUTION_ALTERING_FLAGS:
-                    found.append(tok)
+                if tok.startswith("--"):
+                    name = tok.split("=", 1)[0].replace("_", "-")
+                    if name in RESOLUTION_ALTERING_LONG_FLAGS:
+                        found.append(tok)
+                elif tok.startswith("-") and len(tok) >= 2:
+                    if tok[:2] in RESOLUTION_ALTERING_SHORT_FLAGS:
+                        found.append(tok)
     return found
 
 
@@ -354,10 +367,93 @@ class TestGatewayDockerfileAgentGpuBuildable:
         )
 
     def test_the_resolution_flag_parser_detects_what_it_asserts_absent(self) -> None:
-        # Positive witness for the pin above: a fixture WITH --no-deps must be
-        # detected, so the clean-file pass isn't just an empty parse.
+        # Positive witness for the pin above: a fixture WITH --no-deps, --pre,
+        # --constraint, short forms (-i/-c/-f, spaced and attached), or
+        # underscore-spelled long forms (--no_deps, --index_url) must be
+        # detected, so the clean-file pass isn't just an narrow exact-name match
+        # (Q-127, ruling 305).
         assert pip_resolution_flags("RUN pip install --no-deps foo\n") == ["--no-deps"]
+        assert pip_resolution_flags("RUN pip install --pre --constraint=c.txt foo\n") == [
+            "--pre",
+            "--constraint=c.txt",
+        ]
+        assert pip_resolution_flags("RUN pip install --no_deps --index_url=https://x foo\n") == [
+            "--no_deps",
+            "--index_url=https://x",
+        ]
+        assert pip_resolution_flags(
+            "RUN pip install -i https://x -ihttps://y -c c.txt -cc.txt -f /w -f/w foo\n"
+        ) == ["-i", "-ihttps://y", "-c", "-cc.txt", "-f", "-f/w"]
         assert pip_resolution_flags("RUN pip install --no-cache-dir --force-reinstall foo\n") == []
+
+        dockerfile_text = GATEWAY_DOCKERFILE.read_text()
+        for injected in ("--pre", "--constraint=c.txt", "--no_deps", "-i https://x", "-f/wheels"):
+            mutated = dockerfile_text.replace(
+                "pip install --no-cache-dir",
+                f"pip install --no-cache-dir {injected}",
+                1,
+            )
+            assert pip_resolution_flags(mutated), f"missed injected flag {injected!r}"
+
+    def test_the_python_import_path_is_set_before_the_first_install_and_the_base_is_overridable(
+        self,
+    ) -> None:
+        # O2.5 venue fixes (ruling 287 item 7, from the maui handoff): two
+        # properties the maui venue needs from this file.
+        #
+        # (1) PYTHONPATH must be /app from the FIRST instruction onward. The
+        #     26.09 Triton base (the maui venue's, by digest) resolves some
+        #     packages differently from 26.01: bases newer than this pin's
+        #     expose DALI-only wheels whose import path is baked in at base
+        #     build time, and pip consults sys.path when it resolves
+        #     dependencies. With ENV PYTHONPATH=/app only at the file's end,
+        #     the RUN installs above run with the base's default path and a
+        #     resolution that holds on 26.01 can fail on 26.09. The fix moves
+        #     the ENV above the first RUN so both bases resolve on the path
+        #     the application actually uses.
+        # (2) The base must stay overridable by build arg. The maui venue pins
+        #     the Triton 26.09 arm64 base BY DIGEST (ruling 287 item 2's
+        #     requirements); a hard-coded FROM gives the venue no lever short
+        #     of editing the file. ARG TRITON_IMAGE + FROM ${TRITON_IMAGE}
+        #     keeps the default identical for every existing caller (plain
+        #     `docker build`, `agent-gpu build`, CI) while letting the venue
+        #     pass --build-arg TRITON_IMAGE=<digest-ref> without a fork.
+        text = GATEWAY_DOCKERFILE.read_text()
+        instructions = logical_instructions(text)
+        assert instructions[0] == "ARG TRITON_IMAGE=nvcr.io/nvidia/tritonserver:26.09-py3", (
+            "the first instruction must default the base to the latest supported "
+            "Triton release (ruling 312 / [r312b], 26.09-py3); venues may still "
+            "override it by digest via --build-arg TRITON_IMAGE=..."
+        )
+        assert instructions[1] == "FROM ${TRITON_IMAGE}", (
+            "FROM must read the base from TRITON_IMAGE so the maui venue can pin "
+            "the 26.09 arm64 base by digest with --build-arg, not a fork"
+        )
+        env_lines = [i for i in instructions if i == "ENV PYTHONPATH=/app"]
+        first_run = next(i for i in instructions if i.startswith("RUN"))
+        assert len(env_lines) == 1, (
+            "exactly one ENV PYTHONPATH=/app; a second one at the bottom is the "
+            "defect this pin removes"
+        )
+        assert instructions.index("ENV PYTHONPATH=/app") < instructions.index(first_run), (
+            "ENV PYTHONPATH=/app must precede the first RUN: the pip installs must "
+            "resolve dependencies on the same import path the application uses "
+            "(newer Triton bases expose DALI-only packages that vanish when "
+            "PYTHONPATH becomes /app only at the end)"
+        )
+
+    def test_the_base_default_is_the_image_the_pins_assume(self) -> None:
+        # The ARG default is load-bearing for every non-maui caller: CI, the
+        # agent-gpu venue and plain docker builds all get today's base. If the
+        # default drifts, BASE_IMAGE_MODULES and the pip set above no longer
+        # describe the image, silently. Pin the default to the base this file's
+        # module pin was measured on (ruling 312 / [r312b]: 26.09-py3).
+        text = GATEWAY_DOCKERFILE.read_text()
+        assert "ARG TRITON_IMAGE=nvcr.io/nvidia/tritonserver:26.09-py3" in text
+        assert "FROM nvcr.io/nvidia/tritonserver" not in text, (
+            "FROM must not hard-code the registry ref; the base comes from "
+            "TRITON_IMAGE so the venue can override it"
+        )
 
     def test_a_comment_mentioning_a_mount_is_not_read_as_a_live_flag(self) -> None:
         # Guards the comment-stripping in the parser: the fix's own rationale text

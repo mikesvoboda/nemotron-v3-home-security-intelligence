@@ -15,42 +15,70 @@ import { fileURLToPath } from 'url';
 
 import { chromium } from '@playwright/test';
 
+import { E2E_STORAGE_STATE_ORIGIN, resolveE2eBaseUrl } from './base-url';
 import { setupApiMocks } from './fixtures/api-mocks';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
-async function globalSetup() {
-  // Create the storage state file directly without needing a browser
-  // This is more reliable than trying to navigate to the app during setup
-  const storageState = {
-    cookies: [],
-    origins: [
-      {
-        origin: 'https://localhost:8444',
-        localStorage: [
-          {
-            name: 'nemotron-tour-completed',
-            value: 'true',
-          },
-          {
-            name: 'nemotron-tour-skipped',
-            value: 'true',
-          },
-        ],
-      },
-    ],
-  };
+/**
+ * The storage state global setup writes: no cookies, one origin — the origin
+ * the specs actually run at (tests/e2e/base-url.ts) — carrying exactly the
+ * two tour-suppression keys.
+ *
+ * Serialization is fixed deliberately (2-space indent, trailing newline) so
+ * the output is byte-identical to the committed seed
+ * tests/e2e/.auth/storage-state.json: the committed file stays in the tree
+ * (see the DECIDE in the PR) because golden runs and
+ * concurrent-operations.spec.ts read it WITHOUT running global setup first,
+ * and byte-stability means a non-golden run never dirties the working tree.
+ */
+export function buildStorageStateJson(): string {
+  return `${JSON.stringify(
+    {
+      cookies: [],
+      origins: [
+        {
+          origin: E2E_STORAGE_STATE_ORIGIN,
+          localStorage: [
+            {
+              name: 'nemotron-tour-completed',
+              value: 'true',
+            },
+            {
+              name: 'nemotron-tour-skipped',
+              value: 'true',
+            },
+          ],
+        },
+      ],
+    },
+    null,
+    2
+  )}\n`;
+}
 
+/**
+ * Write the tour-suppression storage state to the given path; returns the
+ * path so callers (and the pinning test) can read back what was written.
+ * Exported for the [r299] pin under tests/pinning/.
+ */
+export function writeTourSuppressionState(storagePath: string): string {
   // Ensure the directory exists
-  const authDir = path.join(__dirname, '.auth');
-  if (!fs.existsSync(authDir)) {
-    fs.mkdirSync(authDir, { recursive: true });
-  }
+  fs.mkdirSync(path.dirname(storagePath), { recursive: true });
+  fs.writeFileSync(storagePath, buildStorageStateJson());
+  return storagePath;
+}
 
-  // Write the storage state file
-  const storagePath = path.join(authDir, 'storage-state.json');
-  fs.writeFileSync(storagePath, JSON.stringify(storageState, null, 2));
+async function globalSetup() {
+  // Create the storage state file directly without needing a browser.
+  // This is more reliable than trying to navigate to the app during setup.
+  // The origin comes from tests/e2e/base-url.ts — the same base URL the
+  // Playwright config hands every spec — not from a literal (ruling 299,
+  // Q-179: the old literal was https:// while the specs run http://, and
+  // Playwright applies localStorage per origin, so the tour keys never
+  // landed).
+  writeTourSuppressionState(path.join(__dirname, '.auth', 'storage-state.json'));
 
   console.log('Global setup: Product tour disabled via storage state');
 
@@ -68,9 +96,15 @@ async function globalSetup() {
   await warmDevServer();
 }
 
-const E2E_BASE_URL = 'http://localhost:8444';
+const E2E_BASE_URL = resolveE2eBaseUrl();
 
-async function warmDevServer() {
+/**
+ * Ruling 58: warm the dev server's module graph once, outside every test.
+ *
+ * Exposed for the [r299] pin (tests/pinning/) so the pin exercises the real
+ * export surface; see the module comment there.
+ */
+export async function warmDevServer(): Promise<void> {
   let browser;
   try {
     browser = await chromium.launch({

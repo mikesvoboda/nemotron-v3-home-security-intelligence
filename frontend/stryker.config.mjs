@@ -111,21 +111,23 @@ export default {
     'reports',
     '**/*.d.ts',
     // WP3.3 SANDBOX PARITY with the R-T7-VITEST quarantine (vite.config.ts
-    // `test.exclude`, 16 files / 62 deterministic failures). WHY copying them
-    // is the problem and excluding via `exclude` is not: stryker's `related`
-    // mode passes test files to vitest EXPLICITLY, and explicit file args
-    // override vitest's `exclude` — the quarantine that `npm test` honors did
+    // `test.exclude`; 16 files / 62 deterministic failures at the R-T7
+    // baseline, 13 now — F3.2 note below). WHY copying them is the problem
+    // and excluding via `exclude` is not: stryker's `related` mode passes
+    // test files to vitest EXPLICITLY, and explicit file args override
+    // vitest's `exclude` — the quarantine that `npm test` honors did
     // not apply inside the sandbox, so the dry run died on EventCard's
     // snooze red before any mutant ran. Not-copying is the only lever stryker
-    // has (ignorePatterns gates the sandbox copy). Same 16 files, same
+    // has (ignorePatterns gates the sandbox copy). Same list, same
     // meaning as the R-T7 list — R-4 applies (into quarantine free; these
     // files are ALREADY quarantined in the repo's own test layer).
+    // F3.2 (2026-10-18): 16->13; ReidHistoryPanel, SystemHealthIndicator and
+    // ZoneTimelineScrubber went with their unreachable components.
     // None of them is in the mutate set or a direct test of it.
     'src/components/settings/NotificationSettings.test.tsx',
     'src/components/events/EventTimeline.test.tsx',
     'src/components/alerts/AlertsPage.test.tsx',
     'src/components/events/EventCard.test.tsx',
-    'src/components/entities/ReidHistoryPanel.test.tsx',
     'src/components/system/WorkerManagementPanel.test.tsx',
     'src/__tests__/auth-flow.test.tsx',
     'src/components/pyroscope/PyroscopePage.test.tsx',
@@ -135,8 +137,6 @@ export default {
     'src/hooks/__tests__/useHouseholdApi.test.ts',
     'src/hooks/__tests__/useSettingsApi.test.tsx',
     'src/components/events/TimeGroupedEvents.simple.test.tsx',
-    'src/components/system/SystemHealthIndicator.test.tsx',
-    'src/components/zones/ZoneTimelineScrubber.test.tsx',
   ],
 
   // Log level

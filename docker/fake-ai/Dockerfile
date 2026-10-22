@@ -30,6 +30,10 @@ RUN uv pip install --python /app/.venv/bin/python --no-deps --no-cache \
         rpds-py==2026.6.3 \
     && rm -rf /app/backend
 COPY --chown=appuser:appuser backend/ /app/backend/
+# Settings reads models.yml at import time from beside the backend tree; keep it
+# with the copied backend, rather than inheriting a potentially older manifest
+# from BACKEND_IMAGE. backend/tests/unit/scripts/test_fake_ai_overlay.py pins it.
+COPY --chown=appuser:appuser models.yml /app/models.yml
 USER appuser
 
 # The backend's entrypoint waits for Postgres; the fake needs no database.

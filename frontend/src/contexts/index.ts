@@ -5,66 +5,17 @@
  * the application for centralized state management.
  */
 
-// Toast notifications context
-export {
-  ToastContext,
-  ToastProvider,
-  useToast,
-  DEFAULT_TOAST_DURATION,
-  MAX_TOASTS,
-} from './ToastContext';
+// Toast notifications live in `hooks/useToast.ts` (the live hook, sonner-backed)
+// and `components/common/ToastProvider.tsx` (the mounted provider). The
+// `contexts/ToastContext.tsx` re-implementation was dead and F3.2 removed it.
 
-export type {
-  Toast,
-  ToastType,
-  ToastContextType,
-  ToastProviderContextType,
-  ToastProviderProps,
-} from './ToastContext';
-
-// System data context for shared polling (composed from specialized contexts)
-export {
-  SystemDataContext,
-  SystemDataProvider,
-  useSystemData,
-  useSystemDataOptional,
-  DEFAULT_HEALTH,
-  DEFAULT_GPU_STATS,
-} from './SystemDataContext';
-
-export type { SystemData, SystemDataProviderProps } from './SystemDataContext';
-
-// Camera context for camera state
-export {
-  CameraContext,
-  CameraProvider,
-  useCameraContext,
-  useCameraContextOptional,
-} from './CameraContext';
-
-export type { CameraContextData, CameraProviderProps } from './CameraContext';
-
-// Health context for system health
-export {
-  HealthContext,
-  HealthProvider,
-  useHealthContext,
-  useHealthContextOptional,
-  DEFAULT_HEALTH as HEALTH_DEFAULT,
-} from './HealthContext';
-
-export type { HealthContextData, HealthProviderProps } from './HealthContext';
-
-// Metrics context for GPU and performance metrics
-export {
-  MetricsContext,
-  MetricsProvider,
-  useMetricsContext,
-  useMetricsContextOptional,
-  DEFAULT_GPU_STATS as METRICS_DEFAULT_GPU_STATS,
-} from './MetricsContext';
-
-export type { MetricsContextData, MetricsProviderProps } from './MetricsContext';
+// The `SystemDataContext` family — `SystemDataContext`, `CameraContext`,
+// `HealthContext` and `MetricsContext`, with the providers and hooks that
+// compose them — had no production consumer at `2fb1c95d8`: `App.tsx` mounts
+// only `ThemeProvider`, `ToastProvider`, `AnnouncementProvider` and
+// `AuthProvider` from this barrel, nothing else imports any of the four, and
+// every hook they export is knip-unused. F3.2 removed them under the package's
+// "dead contexts and stores" clause.
 
 // Announcement context for screen reader announcements
 export { AnnouncementContext, AnnouncementProvider, useAnnounce } from './AnnouncementContext';

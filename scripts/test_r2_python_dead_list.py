@@ -86,9 +86,9 @@ def fresh() -> dict:
 def test_committed_inventory_table_is_fresh(fresh):
     """The gate: inventory §4's Python region == the tool's current output
     (history column masked, see module docstring)."""
-    assert gen._mask_history(fresh["inv_region"]).strip() == gen._mask_history(
-        fresh["table"]
-    ).strip(), "R2 Python input is stale: run uv run python scripts/r2-python-dead-list.py"
+    assert (
+        gen._mask_history(fresh["inv_region"]).strip() == gen._mask_history(fresh["table"]).strip()
+    ), "R2 Python input is stale: run uv run python scripts/r2-python-dead-list.py"
 
 
 @pytest.mark.timeout(120)

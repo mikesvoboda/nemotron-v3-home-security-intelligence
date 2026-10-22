@@ -8,9 +8,17 @@
 
 ## A
 
+### Activity Key
+
+The `(camera_id, object_type)` pair identifying an ongoing activity on a camera. Snoozing an event or alert writes an `activity_snoozes` row for its activity key, silencing subsequent non-critical alerts for the same camera and object type until the snooze expires.
+
+### Alert
+
+A household-visible security incident record (`alerts` table, `backend/services/alerting/pipeline.py`) created when an [Event](#event) matches an [Alert Rule](#alert-rule). Starts in `open` status (`acknowledged` or `dismissed` as the household handles it), folds repeat matches within the rule's cooldown window (`match_count`, `last_seen_at`, `last_event_id`, `alert_events`), and records its [Verdict Source](#verdict-source) and [Effective Severity](#effective-severity).
+
 ### Alert Rule
 
-A stored condition on risk threshold, object types, cameras and schedules (`backend/services/alert_engine.py`, `AlertRuleEngine`), evaluated by the alerts API when it is called — the engine runs no scheduler of its own, so nothing fires on its own. See [System Operations API](../developer/api/system-ops.md).
+A policy rule (`alert_rules` table and the synthetic default rule, evaluated by `backend/services/alerting/policy.py`) that decides whether an event raises or folds into an [Alert](#alert). Evaluates cameras (`camera_ids`, `excluded_camera_ids`), object types, minimum confidence, threat detections, schedule in household local time, and verdict handling (`risk_threshold` for VLM verdicts, detector confidence fallback for detector verdicts, and `alert_on_rejected`). See [System Operations API](../developer/api/system-ops.md).
 
 ### Analysis Worker
 
@@ -36,6 +44,10 @@ Service that groups individual detections into batches based on camera and time 
 
 The rectangular region in an image where an object was detected. Defined by X/Y coordinates (top-left corner) and width/height in pixels.
 
+### Break-through
+
+The policy rule under which an [Alert](#alert) with `critical` [Effective Severity](#effective-severity) bypasses active [Activity Key](#activity-key) snoozes and a recipient's quiet hours (unless that recipient explicitly disables critical break-through for their quiet hours).
+
 ---
 
 ## C
@@ -47,6 +59,10 @@ A physical security camera device that uploads images via FTP to the configured 
 ### CDI (Container Device Interface)
 
 A specification for exposing hardware devices (like GPUs) to containers in a standardized way. Used by container runtimes to provide GPU access to AI services. See also [NVIDIA CDI](https://docs.nvidia.com/datacenter/cloud-native/container-toolkit/latest/cdi-support.html).
+
+### Channel
+
+A notification transport (`browser`, `email`, `webhook`, or `webpush`) configured on a [Recipient](#recipient) for receiving [Alert](#alert) notifications.
 
 ### CI/CD (Continuous Integration/Continuous Deployment)
 
@@ -76,6 +92,10 @@ A queue where failed messages are stored when they cannot be processed after mul
 
 A system operating state when some services are unavailable. The system continues operating with reduced functionality. Modes: `normal`, `degraded`, `minimal`, `offline`.
 
+### Delivery
+
+An outbox and history record (`notification_deliveries`) tracking one attempt to notify a [Recipient](#recipient) on a [Channel](#channel) for an [Alert](#alert).
+
 ### Detection
 
 A single object instance identified by YOLO26 in an image. Contains object type, confidence score, bounding box coordinates, and timestamp. Multiple detections may be grouped into one [Event](#event).
@@ -91,6 +111,10 @@ A test parallelization strategy that splits tests by functional domain (API, Web
 ---
 
 ## E
+
+### Effective Severity
+
+The severity assigned to an [Alert](#alert) when a rule matches (`backend/services/alerting/policy.py`): the higher of the [Alert Rule](#alert-rule)'s configured severity and the event's risk level from `SeverityService` for VLM-sourced verdicts, or the rule's configured severity for detector-sourced verdicts.
 
 ### Embedding
 
@@ -160,6 +184,10 @@ The time period after which an inactive batch is closed and sent for analysis, e
 
 The process of running an AI model on input data to produce predictions. For this system: Triton runs YOLO26 detection in `ai-gateway`, `ai-vlm` turns a batch into a risk verdict, and the lookup models run in the backend process on CPU.
 
+### Installation ID
+
+A UUID stored in `system_settings` under `installation_id` and recorded in every backup manifest (`manifest.json` `installation_id`) to identify the installation that created the archive (`backend/services/backup_service.py`). Restore never overwrites it: when an archive's `installation_id` matches the local one, `households`, `properties`, `areas` and `household_members` merge by ID and existing `known_person_id` links are kept; when it differs or is absent (`1.0` archives), `households`, `properties` and `areas` match by name with foreign-key remapping and `household_members` are inserted with new IDs with their `known_person_id` links cleared and reported.
+
 ---
 
 ## J
@@ -214,6 +242,10 @@ The end-to-end processing flow for security images:
 
 Timing metrics for each stage of the pipeline. Used to identify bottlenecks and monitor performance.
 
+### Purge
+
+A permanent delete of a soft-deleted [Event](#event) from Trash (`EventPurger.purge` in `backend/services/event_purger.py`), removing the event, its exclusive detections and their enrichment, any media files (`clip_path`, `thumbnail_path`, `file_path`) not referenced by surviving rows, `entities` whose `primary_detection_id` is purged, and legacy `face_detection_events` on the event's camera within its time window, while clearing enrolled reference links (`PersonEmbedding.source_event_id`, `FaceEmbedding.source_image_path`), repointing or removing affected [Alerts](#alert), and writing a content-free audit log entry.
+
 ---
 
 ## Q
@@ -241,6 +273,10 @@ The process of matching detected people across different camera frames or time p
 ### Readiness Probe
 
 A health check that indicates whether the application is ready to receive traffic. If it fails, traffic should not be routed to this instance. See `GET /ready`.
+
+### Recipient
+
+A person or household target configured to receive [Alert](#alert) notifications on their chosen [Channels](#channel), with their own quiet hours and [Break-through](#break-through) preference.
 
 ### Redis
 
@@ -281,6 +317,10 @@ A numeric value from 0-100 indicating the threat level of an event, produced by 
 ---
 
 ## S
+
+### Safety Backup
+
+An automatic backup created and committed as its own `BackupJob` (`backup_jobs`, labeled `"before restore of <backup> at <time>"` in its manifest) on a separate database session before `run_restore_job` (`backend/api/routes/backup.py`) modifies any configuration row. Stored under `/app/data/backups` on the data volume (`BACKUP_DIR`) so it survives container restarts; if creating the safety backup fails, the restore aborts before touching any row. Restoring the safety backup reverts changed configuration rows and baselines, while rows added during the restore remain and are listed by name in the restore result.
 
 ### SBOM (Software Bill of Materials)
 
@@ -329,6 +369,10 @@ A 128-bit identifier that is unique across space and time. Used extensively in t
 ---
 
 ## V
+
+### Verdict Source
+
+Which step of the three-step chain decided an [Alert](#alert) (`backend/services/alerting/verdict.py`): `local` (the local `ai-vlm` engine), `cloud` (an opt-in cloud VLM), or `detector` (the detector + Triton specialists fallback when VLM verification is unavailable).
 
 ### VRAM (Video RAM)
 

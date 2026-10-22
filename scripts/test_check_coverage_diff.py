@@ -129,6 +129,28 @@ def test_resolver_sees_flat_backend_test_layout(synthetic_root):
     )
 
 
+def test_resolver_sees_the_api_suffix_route_test(synthetic_root):
+    """backend/api/routes/X.py is covered by tests/<tier>/test_X_api.py.
+
+    The repo's route tests follow both names: 55 of 56 route files resolve
+    today, and 24 of those resolve only through the `_api` suffix
+    (backend/tests/integration/test_outbound_webhooks_api.py is the live
+    #7318 instance — the gate red on an obeyed rule, the #6681 shape).
+    Regression guard: the additive `_api` candidates must see that suite
+    without disturbing the earlier resolutions.
+    """
+    root, mod = synthetic_root
+    _mk(root, "backend/api/routes/outbound_webhooks.py")
+    _mk(root, "backend/tests/integration/test_outbound_webhooks_api.py")
+
+    found = mod.find_test_file("backend/api/routes/outbound_webhooks.py")
+    assert found == "backend/tests/integration/test_outbound_webhooks_api.py", (
+        f"the `_api`-suffixed integration suite exists but the resolver "
+        f"reported {found!r}; the PR Test Coverage Gate failed the PR for "
+        "obeying the repo's naming convention (#6681 shape)"
+    )
+
+
 def test_resolver_sees_flat_backend_unit_test_for_a_service(synthetic_root):
     root, mod = synthetic_root
     _mk(root, "backend/services/alpr_service.py")
@@ -501,7 +523,7 @@ class _FakeProc:
         self.stdout = stdout
         self.stderr = stderr
 
-    def communicate(self, timeout: float | None = None) -> tuple[str, str]:
+    def communicate(self, timeout: float | None = None) -> tuple[str, str]:  # noqa: ARG002
         return self.stdout, self.stderr
 
     def poll(self) -> int:

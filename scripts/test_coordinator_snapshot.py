@@ -20,6 +20,7 @@ import subprocess
 import sys
 from datetime import UTC, datetime, timedelta
 from pathlib import Path
+from typing import Any
 
 import pytest
 
@@ -41,10 +42,8 @@ NOW = datetime(2026, 10, 13, 15, 0, 0, tzinfo=UTC)
 REPO = "o/r"
 HEAD = "a1b2c3d" + "e" * 33  # a full sha whose 7-char prefix the reviews below name
 BASE = "b" * 40  # the PR's merge-base with origin/main
-RUN_BASE = "d" * 40  # the main the gate's run merged the head into
 TIP = "f" * 40
 GATE_RUN = 900
-CHECKOUT_JOB = 77
 
 
 def t(delta: timedelta) -> str:
@@ -92,13 +91,6 @@ def filler_check(name="Backend Unit Tests"):
     }
 
 
-def checkout_log(head=HEAD, base=RUN_BASE):
-    return (
-        "2026-10-13T15:13:40Z ##[group]Checking out the ref\n"
-        f"2026-10-13T15:13:41Z HEAD is now at 0a1b2c3 Merge {head} into {base}\n"
-    )
-
-
 def run(conclusion, status="completed", head=TIP, minutes=10):
     return {
         "databaseId": minutes,
@@ -108,6 +100,65 @@ def run(conclusion, status="completed", head=TIP, minutes=10):
         "createdAt": t(-timedelta(minutes=minutes)),
         "event": "push",
         "url": "u",
+    }
+
+
+# --- ruling 290's balance fixtures ---------------------------------------------------------
+# The roster carries the three shapes the section must tell apart: a fast two-cell lane (ops-a
+# backlogged, ops-b idle), a one-cell fast lane, and the strongest tier that alone may take a
+# `heavy` package. Rows read | `agent` | model | queue | label |, the live column names.
+ROSTER = """\
+| sandbox               | model     | queue                                    | review label |
+| --------------------- | --------- | ---------------------------------------- | ------------ |
+| `uplevel-coordinator` | fast      | routing (`roles/coordinator.md`)         | none         |
+| `uplevel-ops-a`       | fast      | `O2.4`, `[r295]`, `O3.7`                 | none         |
+| `uplevel-ops-b`       | fast      | `[r290]`                                 | none         |
+| `uplevel-ops-c`       | fast      | none                                     | none         |
+| `uplevel-heavy-b`     | strongest | `[r273]`, `B2.3`                         | none         |
+"""  # fmt: skip
+README = """\
+<!-- prettier-ignore -->
+| package | lane                    | phase      | name                                           | flags         | status      | PR  |
+| ------- | ----------------------- | ---------- | ---------------------------------------------- | ------------- | ----------- | --- |
+| O2.4    | ops                     | 2          | Re-ID on the GB300 GPU via TensorRT            |               | in progress | #7002 |
+| B2.3    | backend                 | 2          | Re-ID model bake-off                           | heavy         | not started |       |
+| O3.7    | ops                     | 3          | `scripts/` truth                               |               | not started |     |
+| R2a     | owner; frontend records | 2          | Phase 2 RULING session, part 1 (as it stood)   | owner         | done        | #6980 |
+| R2b     | owner; frontend records | 2          | Phase 2 RULING session, part 2 (after `F2.3`)  | owner         | done        | #7030 |
+"""  # fmt: skip
+# One lane file with every dependency shape the six pins name: `O2.4` depends on `R2` -- free
+# text the README cannot resolve (no row is named `R2`), so it reads unread, never met; `[r295]`
+# depends on nothing; `O3.7` depends on nothing and is `heavy` (UR-24's move constraint).
+OPS_PKG = """\
+### O2.4 Re-ID on the GB300 GPU via TensorRT
+
+**Flags:** none. **Depends on:** `R2`. **PR:** #7002. (ruling 84)
+
+- [ ] box
+
+### [r295] pip leaves the production image
+
+**Flags:** none. **Assigned:** backend. **Depends on:** none. **PR:** none yet. (ruling 295)
+
+- [ ] box
+
+### O3.7 `scripts/` truth
+
+**Flags:** `heavy`. **Assigned:** heavy-b (ruling 298). **Depends on:** none. **PR:** none yet.
+(ruling 298)
+
+- [ ] box
+"""  # fmt: skip
+
+
+def beat_row(agent: str, prose: str, minutes: int = 5, cid: int | None = None) -> dict:
+    """A heartbeat in the live shape; the status field rides the second line."""
+    return {
+        "id": cid if cid is not None else abs(hash(agent)),
+        "user": {"login": "mikesvoboda"},
+        "created_at": t(-timedelta(days=2)),
+        "updated_at": t(-timedelta(minutes=minutes)),
+        "body": f"<!-- heartbeat:{agent} -->\n{prose}",
     }
 
 
@@ -180,14 +231,11 @@ class FakeRunner:
             {"id": 30, "created_at": t(-timedelta(hours=2)), "user": "ops-b", "body": "Review: approve\nHead: `a1b2c3d`"}
         ]  # fmt: skip
         self.ci_runs = [run("", status="in_progress", minutes=1), run("success", minutes=30)]
-        # The run base is 3 merges behind the tip; the older merge-base is 10 behind.
-        self.merges_behind = {RUN_BASE: "3", BASE: "10"}
-        self.main_files = {RUN_BASE: "docs/a.md\n", BASE: "docs/a.md\ndocs/b.md\n"}
+        # The merge-base is 10 merges behind the tip.
+        self.merges_behind = {BASE: "10"}
         self.pr_files = "docs/b.md\n"
         # Per-PR rollups that differ from the batched list's (the list caps each PR at 100 entries).
         self.pr_rollups: dict[int, list] = {}
-        self.checkout_jobs = [{"id": 99, "steps": 40}, {"id": CHECKOUT_JOB, "steps": 5}]
-        self.log = checkout_log()
         # ruling 164: the UR-106 own-diff reads, the merged list, per-PR comments and doc fields.
         self.own_diffs: dict[str, str] = {}  # keyed by the "<base>..<rev>" range argument
         self.merge_bases: dict[str, str] = {}  # "<root>::<rev>" -> base; see merge-base below
@@ -201,6 +249,28 @@ class FakeRunner:
         # `gh pr view --json files` answers; keyed by PR number.
         self.pr_files_by_number: dict[int, list[str]] = {7001: ["docs/b.md"], 7002: ["docs/c.md"]}
         self.pr_bodies: dict[int, str] = {}
+        # ruling 278's subset carry: the branch's first-parent commits after an approved head,
+        # one line per commit in `%P` shape ("p1" for an author commit, "p1 p2" for a merge),
+        # keyed by the "<approved>..<head>" range; and merge-parent ancestry, keyed
+        # (parent, root) -> "0" (ancestor) or a positive count.
+        self.branch_commits: dict[str, str] = {}
+        self.ancestry: dict[tuple[str, str], str] = {}
+        # ruling 290's balance section: the roster and the tree docs it reads from origin/main,
+        # keyed by the basename `git show` ends with ("lane.md" -> roster; a lane's packages file;
+        # "README.md"). An unscripted doc still raises -- a new read shows up as a failing test.
+        self.docs: dict[str, str] = {
+            "lane.md": ROSTER,
+            "README.md": README,
+            "ops.md": OPS_PKG,
+            # the other packaged lanes read as empty files: no claimable shapes there, so a test
+            # that needs one scripts it into `self.docs` (the KeyError-style assert catches a read
+            # the balance never asked for).
+            "backend.md": "",
+            "frontend.md": "",
+            "docs.md": "",
+        }
+        self.roster = self.docs["lane.md"]
+        self.readme = self.docs["README.md"]
 
     def fail(self, needle: str, message: str = "HTTP 504") -> None:
         self.rules[needle] = snap.CommandError(message)
@@ -244,10 +314,6 @@ class FakeRunner:
                 if number == 7001:  # §3's review read keeps its own fixture
                     return json.dumps(self.reviews)
                 return json.dumps(self.pr_issue_comments.get(number, []))
-            if path.startswith(f"repos/{REPO}/actions/runs/{GATE_RUN}/jobs"):
-                return json.dumps(self.checkout_jobs)
-            if path == f"repos/{REPO}/actions/jobs/{CHECKOUT_JOB}/logs":
-                return self.log
         if cmd[:3] == ["gh", "run", "list"]:
             if "ci.yml" in joined:
                 return json.dumps(self.ci_runs)
@@ -264,6 +330,11 @@ class FakeRunner:
             return json.dumps({"statusCheckRollup": rollup})
         if cmd[:2] == ["git", "fetch"]:
             return ""
+        if cmd[:2] == ["git", "show"]:  # ruling 290's balance read: roster, packages, README
+            doc = cmd[-1].rsplit("/", 1)[-1]
+            if doc in self.docs:
+                return self.docs[doc]
+            raise AssertionError(f"unscripted git show: {cmd[-1]}")
         if cmd[:2] == ["git", "rev-parse"]:
             arg = cmd[-1]
             if arg.endswith("^1"):  # main as it stood at the merge = the merged PR's base root
@@ -292,7 +363,19 @@ class FakeRunner:
             # <head> *is* the head, so the own diff is empty and every carry check passes for free.
             raise AssertionError(f"undeclared merge-base root {root} for {rev[:9]}")
         if cmd[:2] == ["git", "rev-list"]:
+            if "--count" in cmd and "--not" in cmd:
+                # ruling 278's ancestry read: `rev-list --count rev --not root` answers how
+                # many commits `rev` holds that `root` does not -- 0 means rev is an
+                # ancestor of (or is) root. The last two non-flag args are rev and root.
+                args = [a for a in cmd[2:] if a not in ("--count", "--not")]
+                return self.ancestry.get((args[-2], args[-1]), "1") + "\n"
             return self.merges_behind[cmd[-1].split("..")[0]] + "\n"
+        if cmd[:2] == ["git", "log"] and "--first-parent" in cmd:
+            # ruling 278's condition 1: the branch's own commits, read as the head's
+            # first-parent chain from the approved head. The fixture is the parents line
+            # per commit, in the order `git log` prints (newest first).
+            rng = next(a for a in cmd if ".." in a)
+            return self.branch_commits.get(rng, "") + "\n"
         if cmd[:2] == ["git", "log"]:  # ruling 181: commits on a PR head since that agent's beat
             number = int(cmd[-1].rsplit("/", 1)[-1])
             since = next(a.split("=", 1)[1] for a in cmd if a.startswith("--since="))
@@ -307,8 +390,6 @@ class FakeRunner:
                 if int(snap.parse_time(st).timestamp()) >= epoch
             )
         if cmd[:2] == ["git", "diff"]:
-            if cmd[-1] == "origin/main":
-                return self.main_files[cmd[-2]]
             if "--" in cmd:  # the UR-106 own diff: keyed by its exact <base>..<rev> range
                 key = cmd[2]
                 if key in self.own_diffs:
@@ -324,8 +405,6 @@ class FakeRunner:
                 if len(cands) == 1:
                     return self.own_diffs[cands[0]]
                 raise AssertionError(f"undeclared own diff {key}")
-            # From the run base (not an ancestor of the head) the diff would carry main's file too.
-            return self.pr_files if cmd[-2] == BASE else "docs/a.md\n" + self.pr_files
         raise AssertionError(f"unexpected command {cmd}")
 
 
@@ -500,11 +579,12 @@ def test_changes_requested_and_negated_verdicts_are_not_approvals():
     assert p["latest_review"].startswith("Review: **not approved**")
 
 
-def test_drafts_get_no_review_read_and_no_legs():
+def test_drafts_get_no_review_read_and_no_merge_state():
     fake = FakeRunner()
     p = pr(build(fake), 7002)
     assert "approval" not in p
-    assert "legs" not in p
+    assert "behind" not in p
+    assert "in_flight" not in p
     assert not any("/issues/7002/comments" in " ".join(c) for c in fake.calls)
 
 
@@ -542,99 +622,94 @@ def test_a_short_rollup_without_a_gate_is_not_reread():
     assert not [c for c in fake.calls if c[:3] == ["gh", "pr", "view"]]
 
 
-# --- 4. UR-102 legs ----------------------------------------------------------------------
+# --- 4. merge state (ruling 270) ---------------------------------------------------------
 
 
-def test_legs_measure_from_the_run_base_not_the_merge_base():
-    """The run base is 3 merges behind (pass) while the merge-base is 10 behind; the main file
-    the merge-base diff would share with the PR landed before the run, so it is no overlap."""
+def test_the_state_reads_behind_from_the_merge_base():
+    """§3's `base=` — the merge-base — is the measured referent (ruling 270 item 2, "its
+    `base=` is not `main`'s tip"): the fake's merge-base is 10 merges behind the tip, so
+    behind reads yes and the sign needs base at the tip, so it reads no."""
     fake = FakeRunner()
+    fake.ci_runs = [run("", status="in_progress", minutes=1), run("success", minutes=30)]
     p = pr(build(fake))
     assert p["gate_run"] == GATE_RUN
-    assert p["leg_base"] == {
-        "run_id": GATE_RUN,
-        "merge_base": BASE,
-        "run_base": RUN_BASE,
-        "used": "run",
-    }
-    assert p["legs"]["behind"] == {"merges": 3, "pass": True}
-    assert p["legs"]["overlap"] == {"paths": [], "pass": True}
-    assert p["legs"]["main_ci"] == {"conclusion": "success", "pass": True}
-    assert p["merge_without_update"] is True
+    assert p["behind"] == {"merges": 10, "at_tip": False}
+    assert p["in_flight"]["base_at_tip"] is False
+    assert p["in_flight"]["yes"] is False
     assert [
         "git",
         "rev-list",
         "--count",
         "--first-parent",
-        f"{RUN_BASE}..origin/main",
+        f"{BASE}..origin/main",
     ] in fake.calls
-    assert ["git", "diff", "--name-only", RUN_BASE, "origin/main"] in fake.calls
-    assert ["git", "diff", "--name-only", BASE, HEAD] in fake.calls  # the PR's own files
-    logs = [c for c in fake.calls if c[:2] == ["gh", "api"] and c[2].endswith("/logs")]
-    assert logs == [["gh", "api", f"repos/{REPO}/actions/jobs/{CHECKOUT_JOB}/logs"]]
+    # No checkout-log read: §3's base= is the merge-base, which needs no API call. The run's
+    # merged base was the old legs' basis, not the sign's observable.
+    assert not [c for c in fake.calls if c[:2] == ["gh", "api"] and c[2].endswith("/logs")]
     text = snap.render_text(build(FakeRunner()))
-    assert f"base: run {RUN_BASE[:9]} (run {GATE_RUN}) · merge-base {BASE[:9]}" in text
+    assert f"merge-base {BASE[:9]}" in text
 
 
-def test_four_merges_behind_the_run_base_fails_the_first_leg():
+def test_the_in_flight_sign_holds_when_the_base_is_at_the_tip():
+    """Merging a PR step 1's sign: base= at main's tip, the gate not finished (absent here),
+    and the approval carries. The fake's approval names HEAD and the carry read passes."""
     fake = FakeRunner()
-    fake.merges_behind[RUN_BASE] = "4"
+    # No gate run at all: gate reads absent (the update-branch window before the gate queues).
+    # The merge-base itself must be at the tip for the sign to hold: declare
+    # merge-base(origin/main, head) = TIP.
+    fake.prs[0]["statusCheckRollup"] = []
+    fake.merge_bases[f"origin/main::{HEAD}"] = TIP
+    fake.own_diffs[f"{TIP}..{HEAD}"] = "docs/b.md\n"
+    fake.merges_behind[TIP] = "0"
     p = pr(build(fake))
-    assert p["legs"]["behind"] == {"merges": 4, "pass": False}
-    assert p["merge_without_update"] is False
+    assert p["gate"] == "absent"
+    assert p["behind"] == {"merges": 0, "at_tip": True}
+    assert p["in_flight"]["base_at_tip"] is True
+    assert p["in_flight"]["gate_unfinished"] is True
+    assert p["in_flight"]["carry"] is True
+    assert p["in_flight"]["yes"] is True
+    text = snap.render_text(build(fake))
+    assert f"#{p['number']}" in text
+    assert "in-flight sign: yes" in text
 
 
-@pytest.mark.parametrize(
-    ("change", "reason"),
-    [
-        ("no_run_id", "no run id"),
-        ("no_checkout_job", "no successful checkout job"),
-        ("no_merge_line", "names no checkout merge"),
-        ("other_head", "not the head"),
-        ("log_fails", "HTTP 404"),
-    ],
-)
-def test_an_unreadable_run_base_falls_back_to_the_merge_base(change, reason):
+def test_a_green_gate_and_a_behind_base_fail_the_sign():
     fake = FakeRunner()
-    if change == "no_run_id":
-        fake.prs[0]["statusCheckRollup"][0].pop("detailsUrl")
-    elif change == "no_checkout_job":
-        fake.checkout_jobs = []
-    elif change == "no_merge_line":
-        fake.log = "no checkout here\n"
-    elif change == "other_head":
-        fake.log = checkout_log(head="9" * 40)
-    else:
-        fake.fail("/logs", "HTTP 404")
+    p = pr(build(fake))
+    assert p["behind"] == {"merges": 10, "at_tip": False}
+    assert p["in_flight"]["yes"] is False
+
+
+def test_a_failing_behind_read_is_reported_not_fatal():
+    """The rev-list call is guarded like every other read (module contract, lines 43-45):
+    a failure becomes a behind error and the report goes on."""
+    fake = FakeRunner()
+    fake.fail("rev-list", "HTTP 500")
     data = build(fake)
     p = pr(data)
-    assert p["leg_base"]["used"] == "merge-base fallback"
-    assert reason in p["leg_base"]["error"]
-    assert p["legs"]["behind"] == {"merges": 10, "pass": False}
-    assert p["legs"]["overlap"] == {"paths": ["docs/b.md"], "pass": False}
-    assert "(base: merge-base fallback" in snap.render_text(data)
+    assert p["behind"] == {"error": "HTTP 500"}
+    assert p["in_flight"]["base_at_tip"] is None
+    assert p["in_flight"]["yes"] is False
+    text = snap.render_text(data)
+    assert "behind main: HTTP 500" in text
+    assert "in-flight sign: no" in text
 
 
-def test_a_shared_path_fails_the_overlap_leg():
+def test_a_main_tip_that_cannot_be_read_reports_an_error():
     fake = FakeRunner()
-    fake.pr_files = "docs/a.md\ndocs/b.md\n"
+    fake.fail("rev-parse", "HTTP 500")
     p = pr(build(fake))
-    assert p["legs"]["overlap"] == {"paths": ["docs/a.md"], "pass": False}
-    assert p["merge_without_update"] is False
+    assert p["behind"] == {"error": "main tip unread"}
+    assert "behind main: main tip unread" in snap.render_text(build(fake))
 
 
-def test_red_main_fails_the_third_leg():
+def test_a_draft_gets_no_merge_state_row_in_the_report():
     fake = FakeRunner()
-    fake.ci_runs = [run("failure", minutes=5), run("success", minutes=30)]
-    p = pr(build(fake))
-    assert p["legs"]["main_ci"] == {"conclusion": "failure", "pass": False}
-    assert p["merge_without_update"] is False
-
-
-def test_no_legs_without_a_green_gate():
-    fake = FakeRunner()
-    fake.prs[0]["statusCheckRollup"] = [gate(conclusion="FAILURE")]
-    assert "legs" not in pr(build(fake))
+    text = snap.render_text(build(fake))
+    assert (
+        "#7002"
+        not in text.split("== 4. merge state (ruling 270), non-draft PRs")[1].split("== 5.")[0]
+    )
 
 
 # --- 5. main -----------------------------------------------------------------------------
@@ -646,7 +721,6 @@ def test_cancelled_main_run_is_not_red():
     data = build(fake)
     assert data["main"]["ci_latest"]["conclusion"] == "cancelled"
     assert data["main"]["ci_last_completed"]["conclusion"] == "success"
-    assert pr(data)["legs"]["main_ci"]["pass"] is True
 
 
 def test_main_section_reads_each_workflow():
@@ -1213,9 +1287,11 @@ def test_text_report_has_the_six_sections_in_order():
     text = snap.render_text(build(FakeRunner()))
     heads = [line for line in text.splitlines() if line.startswith("== ")]
     assert [h.split(".")[0] for h in heads] == [
-        "== 1", "== 2", "== 3", "== 4", "== 5", "== 6", "== 7", "== 8",
+        "== 1", "== 2", "== 3", "== 4", "== 5", "== 6", "== 7", "== 8", "== 9",
     ]  # fmt: skip
-    assert "merge without update-branch: yes" in text
+    assert "merge state (ruling 270)" in text
+    assert "behind main: yes (10 merges behind)" in text
+    assert "in-flight sign: no" in text
 
 
 # --- 7. ruling 164: UR-106 hashes, the disable list, the merged audit ----------------------
@@ -1246,6 +1322,24 @@ APPROVED_BASE = "d" * 40  # the approved head's own merge-base -- older than the
 MERGE_MAIN = "1" * 40  # the merge commit's first parent: main as it stood at the merge
 MERGE_PARENT = "a" * 40  # the merged PR's head, second parent of the merge commit
 LANDED_OTHER = "c" * 40  # a merged head that is not the approved head
+# ruling 278's subset carry: the update-branch roll DROPS a line the approved diff added
+# (a stale task-list checkbox main already fixed). The new head's own diff holds every line
+# of APPROVED_DIFF except `+added line`.
+SUBSET_DIFF = APPROVED_DIFF.replace("+added line\n", "")
+# main's own change between the two merge-bases: main's own change ALSO adds the same line
+# (a task-list fix), so after the roll the new head's diff holds it as context and the PR
+# diff loses it -- the "same file and sign" of condition 3. `-added line` would be the
+# wrong sign: the dropped line was an ADDED line, so main's change must add it too.
+MAIN_HOLDING_DIFF = (
+    "diff --git a/docs/b.md b/docs/b.md\n"
+    "index def5678..7777777 100644\n"
+    "--- a/docs/b.md\n"
+    "+++ b/docs/b.md\n"
+    "@@ -1,3 +1,3 @@\n"
+    " context line\n"
+    "+added line\n"
+)
+MAIN_OTHER_DIFF = MAIN_HOLDING_DIFF.replace("+added line\n", "+other line\n")
 
 
 def shell_ur106_hash(diff: str) -> str:
@@ -1357,6 +1451,9 @@ def test_own_diff_carry_yes_on_a_base_roll():
 
 def test_own_diff_carry_no_on_an_author_commit():
     fake = _approved_not_head(_recorded_reads(FakeRunner(), COMMIT_DIFF))
+    # the diff changed because an author commit sits between the approved head and the
+    # head under judgment -- the chain read (condition 1) names it, a single-parent commit.
+    fake.branch_commits[f"{APPROVED_HEAD[:7]}..{HEAD}"] = "authorparent1\n"
     data = build(fake)
     p = pr(data)
     assert p["own_diff"]["carry"] is False
@@ -1401,12 +1498,110 @@ def test_a_failed_own_diff_read_reports_carry_unknown():
     assert any("own-diff" in e for e in p["errors"])
 
 
+def _subset_reads(fake: FakeRunner, head_diff: str, main_diff: str, chain: str) -> FakeRunner:
+    """The UR-106 subset reads for #7001: hashes as `_recorded_reads` wires them, plus the
+    two reads the subset rule adds -- the branch's first-parent chain after the approved
+    head (condition 1) and main's own change between the two merge-bases (condition 3).
+
+    The head's own base stays BASE (the fake's open-PR default), so the between-bases read
+    is `APPROVED_BASE..BASE` over the PR's files.
+    """
+    fake = _recorded_reads(fake, head_diff)
+    fake.merge_bases["origin/main::" + BASE] = APPROVED_BASE  # the between-bases anchor
+    fake.own_diffs[f"{APPROVED_BASE}..{BASE}"] = main_diff
+    fake.branch_commits[f"{APPROVED_HEAD[:7]}..{HEAD}"] = chain
+    # every two-parent commit in the chain is a main merge by construction: the fake
+    # answers its second parent's ancestry with 0 (an ancestor of main's tip). A test
+    # that wants the ancestry read to FAIL scripts fake.fail on the rev-list needle.
+    for parents in (ln for ln in chain.splitlines() if ln.strip()):
+        parts = parents.split()
+        if len(parts) >= 2:
+            fake.ancestry[(parts[1], "origin/main")] = "0"
+    return fake
+
+
+MERGE_COMMIT_CHAIN = (
+    "e" * 39 + "1" + " " + APPROVED_HEAD[:7] + "c0ffee"
+)  # a merge + the approved head
+
+
+def test_a_subset_carry_where_main_holds_the_dropped_line_carries():
+    """UR-106's subset rule: N ⊆ A and every dropped line is one main's own change also
+    removes, with only update-branch merges between the heads."""
+    fake = _approved_not_head(
+        _subset_reads(FakeRunner(), SUBSET_DIFF, MAIN_HOLDING_DIFF, MERGE_COMMIT_CHAIN)
+    )
+    p = pr(build(fake))
+    assert p["own_diff"]["carry"] is True
+    assert p["own_diff"]["subset_lines"] == 1
+    assert any(
+        "carry=yes (subset: 1 lines main holds)" in row for row in rendered_pr_block(build(fake))
+    )
+
+
+def test_a_dropped_line_main_does_not_hold_reads_no_carry():
+    fake = _approved_not_head(
+        _subset_reads(FakeRunner(), SUBSET_DIFF, MAIN_OTHER_DIFF, MERGE_COMMIT_CHAIN)
+    )
+    p = pr(build(fake))
+    assert p["own_diff"]["carry"] is False
+    assert any("carry=no" in row for row in rendered_pr_block(build(fake)))
+
+
+def test_a_new_line_in_the_head_diff_is_no_carry():
+    """A line in N that A does not hold breaks the multiset containment (condition 2)."""
+    new_line_diff = CARRY_DIFF + "+brand new line\n"
+    fake = _approved_not_head(
+        _subset_reads(FakeRunner(), new_line_diff, MAIN_HOLDING_DIFF, MERGE_COMMIT_CHAIN)
+    )
+    assert pr(build(fake))["own_diff"]["carry"] is False
+
+
+def test_an_author_commit_between_the_heads_is_no_carry():
+    """Condition 1: only update-branch merges may sit between the approved head and the
+    head under judgment. A single-parent commit in the chain is an author commit."""
+    fake = _approved_not_head(
+        _subset_reads(
+            FakeRunner(), SUBSET_DIFF, MAIN_HOLDING_DIFF, "authorparent1\nauthorparent2\n"
+        )
+    )
+    assert pr(build(fake))["own_diff"]["carry"] is False
+
+
+def test_a_subset_carry_is_ok_for_the_watch_and_the_inflight_sign():
+    """The §7 disable list and §4's in-flight sign must read a subset carry as a carry."""
+    fake = _approved_not_head(
+        _subset_reads(FakeRunner(), SUBSET_DIFF, MAIN_HOLDING_DIFF, MERGE_COMMIT_CHAIN)
+    )
+    fake.prs[0]["autoMergeRequest"] = _armed()
+    data = build(fake)
+    assert data["auto_merge_watch"]["ok"] == [7001]
+    assert pr(data)["in_flight"]["carry"] is True
+
+
+def test_a_failed_subset_read_reports_unknown_never_yes():
+    """A failed condition read is unknown: the coordinator hand-judges, the armed PR never
+    lands in the disable list, and the never-yes rule (UR-106, UR-154) holds."""
+    fake = _approved_not_head(
+        _subset_reads(FakeRunner(), SUBSET_DIFF, MAIN_HOLDING_DIFF, MERGE_COMMIT_CHAIN)
+    )
+    fake.fail(f"{APPROVED_BASE}..{BASE}", "fatal: bad object")  # main's between-bases diff
+    fake.prs[0]["autoMergeRequest"] = _armed()
+    data = build(fake)
+    p = pr(data)
+    assert p["own_diff"]["carry"] is None
+    assert data["auto_merge_watch"]["unknown"] == [7001]
+    assert data["auto_merge_watch"]["disable"] == []
+
+
 def _armed():
     return {"enabledAt": t(-timedelta(hours=1)), "mergeMethod": "MERGE"}
 
 
 def test_disable_list_flags_an_armed_uncarried_head():
     fake = _approved_not_head(_recorded_reads(FakeRunner(), COMMIT_DIFF))
+    # same author-commit scenario as the diff shape stages: the chain read names it.
+    fake.branch_commits[f"{APPROVED_HEAD[:7]}..{HEAD}"] = "authorparent1\n"
     fake.prs[0]["autoMergeRequest"] = _armed()
     data = build(fake)
     watch = data["auto_merge_watch"]
@@ -1538,7 +1733,9 @@ def test_a_merged_head_that_is_neither_approved_nor_a_carry_is_bared():
     fake = FakeRunner()
     fake.merged_prs = [merged(7108, 18)]
     review_on(fake, 7108, LANDED_OTHER)
-    merge_of(fake, 7108, APPROVED_DIFF, COMMIT_DIFF, approved=LANDED_OTHER)
+    landed = merge_of(fake, 7108, APPROVED_DIFF, COMMIT_DIFF, approved=LANDED_OTHER)
+    # the diff changed because an author commit raced the merge: the chain read names it.
+    fake.branch_commits[f"{LANDED_OTHER[:7]}..{landed}"] = "authorparent1\n"
     data = build(fake)
     audit = {i["number"]: i for i in data["merged_audit"]["items"]}
     assert audit[7108]["verdict"].startswith("NOT APPROVED at the landed head")
@@ -1646,6 +1843,492 @@ def test_an_unmarked_mention_of_the_pr_on_6854_does_not_bar_it():
     data = build(fake)
     audit = {i["number"]: i for i in data["merged_audit"]["items"]}
     assert audit[7106]["verdict"] == "ok"
+
+
+# --- 7b. package balance (ruling 290) -------------------------------------------------------
+
+
+def bal(data: dict) -> dict:
+    return data["balance"]
+
+
+def set_beats(fake: FakeRunner, **agents: str) -> None:
+    """Replace the default fixture's heartbeats with one row per named agent.
+
+    ``prose`` is the beat's status line verbatim (``ops-b · 18:00Z · idle``); the whole default
+    fixture carries prose this section must not read, so a balance test builds its own world.
+    """
+    fake.heartbeats = [beat_row(a, prose) for a, prose in agents.items()]
+
+
+def pr_item(number: int, labels: list[str], title: str, draft: bool = False) -> dict[str, Any]:
+    """A PR in the list shape `_prs` feeds `_pr_item` -- the only fields balance reads."""
+    return {
+        "number": number,
+        "title": title,
+        "isDraft": draft,
+        "labels": [{"name": v} for v in labels],
+        "headRefOid": TIP,
+        "mergeStateStatus": "BEHIND",
+        "statusCheckRollup": [],
+    }
+
+
+def test_an_idle_agent_with_nothing_claimable_beside_a_backlogged_agent_flags():
+    # The imbalance the section exists to find: ops-c beats idle and its queue reads none, while
+    # ops-a holds two met-dep claimables ([r295], O3.7). ops-b holds the open O2.4 PR, so the
+    # draft-as-claim rule keeps it out of the flag on both sides. The flag names both ends and
+    # one candidate move.
+    fake = FakeRunner()
+    set_beats(
+        fake,
+        **{
+            "agent-uplevel-coordinator": "coordinator · 18:00Z · tick",
+            "agent-uplevel-ops-a": "ops-a · 18:00Z · working",
+            "agent-uplevel-ops-b": "ops-b · 18:00Z · working #7002",
+            "agent-uplevel-ops-c": "ops-c · 18:00Z · idle",
+        },
+    )
+    fake.prs = [pr_item(7002, ["lane:ops", "cell:b"], "[O2.4] claim: reid via tensorrt")]
+    data = build(fake)
+    b = bal(data)
+    ids = {i["agent"]: i for i in b["items"]}
+    # ops-a: no open package PR, two met-dep claimables ([r295], O3.7 -- both deps read met/none)
+    assert ids["uplevel-ops-a"]["open_prs"] == []
+    assert [e["token"] for e in ids["uplevel-ops-a"]["claimable"]] == ["r295", "O3.7"]
+    assert all(e["deps"] == "met" for e in ids["uplevel-ops-a"]["claimable"])
+    # ops-b: its O2.4 PR is open (a draft IS the claim), so idle reads no
+    assert ids["uplevel-ops-b"]["open_prs"] == [7002]
+    assert ids["uplevel-ops-b"]["idle"] is False
+    # ops-c: idle beat, no open PR, queue none -- idle with nothing claimable
+    assert ids["uplevel-ops-c"]["idle"] is True
+    assert ids["uplevel-ops-c"]["claimable"] == []
+    text = snap.render_text(data)
+    assert "IMBALANCE" in text
+    assert "ops-c" in has_line(text, "IMBALANCE") and "ops-a" in has_line(text, "IMBALANCE")
+
+
+def test_two_busy_agents_flag_nothing():
+    fake = FakeRunner()
+    set_beats(
+        fake,
+        **{
+            "agent-uplevel-coordinator": "coordinator · 18:00Z · tick",
+            "agent-uplevel-ops-a": "ops-a · 18:00Z · working",
+            "agent-uplevel-ops-b": "ops-b · 18:00Z · working #7002",
+        },
+    )
+    fake.prs = [pr_item(7002, ["lane:ops", "cell:b"], "[O2.4] claim: reid via tensorrt")]
+    data = build(fake)
+    assert bal(data)["flag"] is None
+    assert "IMBALANCE" not in snap.render_text(data)
+
+
+def test_a_free_text_dependency_reads_unread_and_never_met():
+    # `[r295]`'s `**Depends on:** `R2`` names no README row (R2a/R2b are the real rows), so the
+    # verdict is unread -- never met -- and the entry must not count toward the imbalance's
+    # met-dep side. ops-a's queue here carries ONLY that unread entry: no met-dep donor exists,
+    # so no flag fires even with ops-c idle.
+    fake = FakeRunner()
+    set_beats(
+        fake,
+        **{
+            "agent-uplevel-coordinator": "coordinator · 18:00Z · tick",
+            "agent-uplevel-ops-a": "ops-a · 18:00Z · working",
+            "agent-uplevel-ops-b": "ops-b · 18:00Z · working #7002",
+            "agent-uplevel-ops-c": "ops-c · 18:00Z · idle",
+        },
+    )
+    fake.prs = [pr_item(7002, ["lane:ops", "cell:b"], "[O2.4] claim: reid via tensorrt")]
+    # The only queued entry gains the free-text dependency: `R2` names no README row (R2a/R2b
+    # are the real rows), so the verdict reads unread -- never met. O3.7 stays met-dep, but one
+    # met entry is below the >=2 donor threshold, so no flag fires.
+    fake.docs["ops.md"] = OPS_PKG.replace(
+        "**Flags:** none. **Assigned:** backend. **Depends on:** none.",
+        "**Flags:** none. **Assigned:** backend. **Depends on:** `R2`.",
+    )
+    data = build(fake)
+    ids = {i["agent"]: i for i in bal(data)["items"]}
+    # O2.4 is title-claimed (the open PR), so the queue yields [r295] and O3.7: the unread entry
+    # and one met entry -- below the >=2 donor threshold, so no flag fires.
+    assert [e["token"] for e in ids["uplevel-ops-a"]["claimable"]] == ["r295", "O3.7"]
+    assert ids["uplevel-ops-a"]["claimable"][0]["deps"] == "unread"
+    assert ids["uplevel-ops-a"]["claimable"][1]["deps"] == "met"
+    assert bal(data)["flag"] is None
+
+
+def test_a_heavy_package_is_never_proposed_to_a_fast_agent():
+    # A heavy claimable on the donor's queue: `[r295]` becomes a heavy package, ops-c (fast,
+    # idle) is the only idle agent, so UR-24 forbids proposing it to ops-c -- the move must name
+    # heavy-b (strongest) as the receiver instead.
+    fake = FakeRunner()
+    set_beats(
+        fake,
+        **{
+            "agent-uplevel-coordinator": "coordinator · 18:00Z · tick",
+            "agent-uplevel-ops-a": "ops-a · 18:00Z · working",
+            "agent-uplevel-ops-b": "ops-b · 18:00Z · working #7002",
+            "agent-uplevel-ops-c": "ops-c · 18:00Z · idle",
+        },
+    )
+    fake.prs = [pr_item(7002, ["lane:ops", "cell:b"], "[O2.4] claim: reid via tensorrt")]
+    fake.docs["ops.md"] = OPS_PKG.replace(
+        "### [r295] pip leaves the production image\n\n**Flags:** none.",
+        "### [r295] pip leaves the production image\n\n**Flags:** `heavy`.",
+    )
+    data = build(fake)
+    move = bal(data)["flag"]["move"]
+    assert "heavy-b" in move["to"]
+    assert move["package"] == "r295"
+
+
+def test_the_render_prints_the_section_with_per_agent_rows():
+    fake = FakeRunner()
+    set_beats(
+        fake,
+        **{
+            "agent-uplevel-coordinator": "coordinator · 18:00Z · tick",
+            "agent-uplevel-ops-a": "ops-a · 18:00Z · working",
+            "agent-uplevel-ops-b": "ops-b · 18:00Z · working #7002",
+            "agent-uplevel-ops-c": "ops-c · 18:00Z · idle",
+        },
+    )
+    fake.prs = [pr_item(7002, ["lane:ops", "cell:b"], "[O2.4] claim: reid via tensorrt")]
+    text = snap.render_text(build(fake))
+    assert "== 9. package balance (ruling 290)" in text
+    rows = has_line(text, "uplevel-ops-a (fast)")
+    assert "claimable" in rows
+    assert "not idle" in rows
+    # The idle row reads its beat's status field, and the header names the package (ruling 290).
+    idle_row = has_line(text, "uplevel-ops-c (fast)")
+    assert "idle ·" in idle_row
+    assert "claimable: none" in idle_row
+
+
+def has_line(text: str, needle: str) -> str:
+    return next(ln for ln in text.splitlines() if needle in ln)
+
+
+# --- the review round: one test per defect the UR-89 review found --------------------------
+
+BEATS_BALANCE = {
+    "agent-uplevel-coordinator": "coordinator · 18:00Z · tick",
+    "agent-uplevel-ops-a": "ops-a · 18:00Z · working",
+    "agent-uplevel-ops-b": "ops-b · 18:00Z · working #7002",
+    "agent-uplevel-ops-c": "ops-c · 18:00Z · idle",
+}
+# A backend donor for the cross-lane probes: two none-yet blocks whose deps read met, in a file
+# the ops roster's queues must not be proposed across.
+BACKEND_PKG_DONOR = """\
+### B1 backend package one
+
+**Flags:** none. **Depends on:** none. **PR:** none yet.
+
+- [ ] box
+
+### B2 backend package two
+
+**Flags:** none. **Depends on:** none. **PR:** none yet.
+
+- [ ] box
+"""  # fmt: skip
+# Two extra ops donor blocks (met-dep, none-yet) appended to OPS_PKG by the cross-lane probes,
+# so ops-a holds a two-met claimable list beside an idle agent.
+DONOR_OPS_EXTRA = """\
+
+### D1 ops donor one
+
+**Flags:** none. **Depends on:** none. **PR:** none yet.
+
+- [ ] box
+
+### D2 ops donor two
+
+**Flags:** none. **Depends on:** none. **PR:** none yet.
+
+- [ ] box
+"""  # fmt: skip
+# A docs lane file whose queue-named blocks all carry unread dependencies (the self-contradiction
+# probe): the docs agent is idle and holds claimables whose deps cannot resolve.
+DOCS_PKG_UNREAD = """\
+### U1 docs package one
+
+**Flags:** none. **Depends on:** `R2`. **PR:** none yet.
+
+- [ ] box
+
+### U2 docs package two
+
+**Flags:** none. **Depends on:** `R2`. **PR:** none yet.
+
+- [ ] box
+"""  # fmt: skip
+
+
+def test_the_candidate_move_stays_in_the_package_s_lane():
+    # Review defect 1: the flag proposed a backend package to an idle ops agent with the false
+    # why "same lane, the cells' file areas hold". lane.md's cells' file areas are per-lane (ops
+    # A runs `ai/`, ops B runs `scripts/`; backend splits VLM path vs API), so a move keeps them
+    # by staying in the package's own lane -- or by naming a heavy agent, ruling 289's shape.
+    fake = FakeRunner()
+    set_beats(
+        fake,
+        **{
+            **BEATS_BALANCE,
+            "agent-uplevel-backend": "backend · 18:00Z · working",
+        },
+    )
+    fake.docs["backend.md"] = BACKEND_PKG_DONOR
+    # The donor must be a roster agent with a beat (a beatless agent's scans did not run --
+    # review defect 4's own rule): a backend row (one-cell lane) whose queue names B1, B2,
+    # replacing ops-a's queue so the backend agent is the ONLY donor and the probe isolates the
+    # lane rule (the donor list takes the first, in roster order).
+    fake.docs["lane.md"] = ROSTER.replace(
+        "| `uplevel-ops-a`       | fast      | `O2.4`, `[r295]`, `O3.7`                 | none         |",
+        "| `uplevel-backend`     | fast      | `B1`, `B2`                               | none         |",
+    )
+    data = build(fake)
+    move = bal(data)["flag"]["move"]
+    # B1 is a backend package: its receiver must be a backend agent or a heavy agent -- never
+    # ops-c, the idle ops agent.
+    assert move["package"] == "B1"
+    assert "backend" in move["to"] or "heavy" in move["to"]
+    assert "ops-c" not in move["to"]
+
+
+def test_the_move_s_names_truthfully_names_the_lane_or_the_heavy_agent():
+    # Review defect 1's second half: the printed why must be TRUE. A same-lane move says so; a
+    # heavy-package move to a strongest agent names UR-24; and no move may carry the old
+    # "same lane ..." why for a package that would cross lanes.
+    fake = FakeRunner()
+    set_beats(fake, **BEATS_BALANCE)
+    # Same-lane donor: an idle ops agent beside an ops donor holding two met-dep none-yet
+    # blocks -- the receiver is the idle ops agent, the why names the lane.
+    fake.docs["ops.md"] = OPS_PKG + DONOR_OPS_EXTRA
+    data = build(fake)
+    move = bal(data)["flag"]["move"]
+    assert move["to"] == "uplevel-ops-c"
+    assert "ops" in move["why"].lower()
+    # Heavy donor: the why names UR-24 and the receiver is a heavy agent (covered shape kept).
+    fake2 = FakeRunner()
+    set_beats(fake2, **BEATS_BALANCE)
+    fake2.docs["ops.md"] = OPS_PKG.replace(
+        "### [r295] pip leaves the production image\n\n**Flags:** none.",
+        "### [r295] pip leaves the production image\n\n**Flags:** `heavy`.",
+    )
+    move2 = bal(build(fake2))["flag"]["move"]
+    assert "UR-24" in move2["why"]
+    assert "heavy" in move2["to"]
+
+
+def test_an_idle_agent_with_claimables_is_not_a_flag_s_idle_side():
+    # Review defect 2: the box reads "an idle agent has nothing claimable"; the code flagged an
+    # idle agent holding two unread-dep claimables -- and then the render printed those very
+    # claimables on the flagged agent's own row. Nothing claimable means the list is empty.
+    fake = FakeRunner()
+    set_beats(fake, **{**BEATS_BALANCE, "agent-uplevel-docs": "docs · 18:00Z · idle"})
+    # The docs agent joins the world: its queue names two blocks whose deps cannot resolve
+    # (`R2` names no README row), so it is idle WITH claimables -- not the flag's idle side.
+    # Isolate the idle-side rule: ops-a's queue is stripped (no donor, so no flag can fire for
+    # ANY idle agent) and ops-b's claim PR is the only PR (the default fixture's lane:docs PR
+    # would make the docs agent not-idle by ownership).
+    fake.docs["lane.md"] = (
+        ROSTER.replace(
+            "| `uplevel-ops-a`       | fast      | `O2.4`, `[r295]`, `O3.7`                 | none         |",
+            "| `uplevel-ops-a`       | fast      | none                                     | none         |",
+        )
+        + "| `uplevel-docs`       | fast      | `U1`, `U2`                               | none         |\n"
+    )
+    fake.docs["docs.md"] = DOCS_PKG_UNREAD
+    fake.prs = [pr_item(7002, ["lane:ops", "cell:b"], "[O2.4] claim: reid via tensorrt")]
+    data = build(fake)
+    ids = {i["agent"]: i for i in bal(data)["items"]}
+    docs_item = ids["uplevel-docs"]
+    assert docs_item["claimable"], "the docs agent holds unread-dep claimables"
+    assert all(e["deps"] == "unread" for e in docs_item["claimable"])
+    assert docs_item["idle"] is True
+    # The old code flagged it (idle with no MET claimable); the box's words do not.
+    assert bal(data)["flag"] is None
+
+
+def test_not_heavy_prose_never_classifies_a_package_heavy():
+    # Review defect 3: the classifier substringed "heavy" over the whole block body, so ops.md's
+    # house prose "**Flags:** none: not heavy..." classified as heavy and the flag cited UR-24 to
+    # misroute non-heavy work. Heavy is read from the Flags field's backticked token, the same
+    # inline shape the real corpus carries (`**Flags:** `heavy``).
+    fake = FakeRunner()
+    set_beats(fake, **BEATS_BALANCE)
+    fake.docs["ops.md"] = OPS_PKG.replace(
+        "### [r295] pip leaves the production image\n\n**Flags:** none.",
+        "### [r295] pip leaves the production image\n\n**Flags:** none: not heavy; not owner-tier.",
+    )
+    data = build(fake)
+    move = bal(data)["flag"]["move"]
+    # r295 is NOT heavy: the move keeps the cells' file areas -- ops package to the idle ops
+    # agent -- and cites no UR-24.
+    assert move["to"] == "uplevel-ops-c"
+    assert "UR-24" not in move["why"]
+
+
+def test_a_beatless_agent_s_row_reads_not_read_not_nothing():
+    # Review defect 4: an agent with no beat row printed "not idle · claimable: none" -- facts
+    # the scans (which sit inside the beat guard) never read. UR-154: a failed/unmade read is
+    # never a yes and never a no. The row says so.
+    fake = FakeRunner()
+    # No beats at all: every agent is beatless; ops-b's roster queue holds [r290] with PR #7330
+    # stamped, so the scan WOULD have found something to say.
+    set_beats(fake)  # no arguments: zero heartbeats
+    fake.prs = []
+    text = snap.render_text(build(fake))
+    row = has_line(text, "uplevel-ops-b (fast)")
+    assert "claimable: not read" in row
+    assert "not idle" not in row
+    assert "open package PRs: not read" in row
+    # A paused agent reads the same way: its scans did not run either.
+    fake2 = FakeRunner()
+    set_beats(fake2, **{"agent-uplevel-ops-b": "ops-b · 18:00Z · paused · owner hold"})
+    fake2.prs = []
+    row2 = has_line(snap.render_text(build(fake2)), "uplevel-ops-b (fast)")
+    assert "claimable: not read" in row2
+    # And a beatless/paused agent is never the flag's idle side: "idle" is a read verdict.
+    assert bal(build(fake))["flag"] is None
+    assert bal(build(fake2))["flag"] is None
+
+
+def test_a_heavy_agent_s_claimables_read_the_owning_lanes_files():
+    # Review defect 5: heavy-b's roster queue holds O3.2 (ops.md) and B2.3 (backend.md), but the
+    # scan looked blocks up only in `lanes.get("heavy", {})` -- always empty, so heavy-b printed
+    # "claimable: none" while both blocks are `none yet` (the live section's own false row).
+    # Heavy packages live in the OWNING lane's file (UR-59; there is no heavy.md on main), so
+    # the scan must resolve the tokens there -- plan_lint's documented UNPACKAGED cross-file
+    # lookup, queue order preserved.
+    fake = FakeRunner()
+    set_beats(
+        fake,
+        **{
+            **BEATS_BALANCE,
+            "agent-uplevel-heavy-b": "heavy-b · 18:00Z · working",
+        },
+    )
+    fake.docs["backend.md"] = """\
+### B2.3 Re-ID model bake-off
+**Flags:** `heavy`. **Depends on:** `O2.4`. **PR:** none yet.
+
+- [ ] box
+"""  # fmt: skip
+    # [r273] is heavy-b's own package, packaged in the lane whose work it is (O3.2's shape): an
+    # ops block assigned to heavy-b.
+    fake.docs["ops.md"] = OPS_PKG + """\
+
+### [r273] heavy-b's assigned ops package
+
+**Flags:** `heavy`. **Assigned:** heavy-b. **Depends on:** none. **PR:** none yet.
+
+- [ ] box
+"""  # fmt: skip
+    # heavy-b's roster queue is `[r273]`, `B2.3`: [r273] lives in ops.md, B2.3 in backend.md.
+    data = build(fake)
+    ids = {i["agent"]: i for i in bal(data)["items"]}
+    hb = ids["uplevel-heavy-b"]
+    assert [e["token"] for e in hb["claimable"]] == ["r273", "B2.3"]
+    # B2.3 depends on O2.4, a README row: with O2.4 `in progress`, the verdict is unmet
+    # (dependency_verdict reads met only off `done`); r273's deps are none, so met.
+    assert hb["claimable"][0]["deps"] == "met"
+    assert hb["claimable"][1]["deps"] == "unmet"
+    # The wider read does not manufacture a heavy-side flag on its own: heavy-b (working beat,
+    # no open PR) is not idle, so it is never the flag's idle side; the world's own imbalance
+    # (ops-c idle, ops-a backlogged) is the first review's same-lane shape and fires as before.
+    flag = bal(data)["flag"]
+    assert (
+        flag is None
+        or flag["move"]["to"] != "uplevel-heavy-b"
+        or flag["package"] in ("r273", "B2.3")
+    )
+
+
+def test_a_dependency_name_is_the_backticked_package_token_not_the_prose_around_it():
+    # The re-review's blocking defect: B2.3's LIVE field is
+    # "**Depends on:** `O2.4` (its `RESULT: PASS` posted)." -- the words after the
+    # backticked token are prose about the dependency's state, but the same-line capture
+    # read them as more names ('its', 'RESULT', 'PASS', 'posted'), which match no README
+    # row, so the verdict printed "unread" where O2.4's row (`in progress`) gives "unmet".
+    # The same live shapes: "(ruling 260)", "(#7188)", backticked prose (`done`, `main`,
+    # `RESULT: PASS`), and file/sha mentions (`pipeline_workers.py`, `5d5c4bcc5`).
+    from scripts.uplevel.coordinator_snapshot import dep_names, dependency_verdict
+
+    def v(field, rows):
+        return dependency_verdict(dep_names("**Depends on:** " + field), rows)
+
+    rows = {
+        "O2.4": "in progress",
+        "B1.4": "done",
+        "F2.1": "done",
+        "O2.5": "awaiting real tier",
+        "O2.2": "done",
+        "R2a": "done",
+        "R2b": "done",
+    }
+    # B2.3's verbatim live field: the prose suffix is state, not a name.
+    assert v("`O2.4` (its `RESULT: PASS` posted).", rows) == "unmet"
+    # Ruling-cite and PR-cite parentheticals are prose, not names.
+    assert v("`F2.1`. Its status is", rows) == "met"
+    assert dep_names("**Depends on:** `R2`; #7244 (`B3.3`) merged (ruling 260).") == ["R2", "B3.3"]
+    assert dep_names("**Depends on:** `B1.5`, `O1.6`.") == ["B1.5", "O1.6"]
+    assert dep_names("**Depends on:** `R2` (rules.md §Claiming and assigning work); lands in") == [
+        "R2"
+    ]
+    # Backticked PROSE is not a package token: state words, a branch name, a file, a sha.
+    assert dep_names("**Depends on:** `R2`; the target lane's Phase 3 `done`.") == ["R2"]
+    assert dep_names("**Depends on:** #7321 (ruling 295's red-`main` exemption) merged.") == []
+    assert dep_names("**Depends on:** `[r199]` merged (both edit `pipeline_workers.py`).") == [
+        "[r199]"
+    ]
+    assert dep_names("**Depends on:** `[r231]` merged (#7235, `5d5c4bcc5`).") == ["[r231]"]
+    assert dep_names("**Depends on:** #7268 (`[r239]`) merged.") == ["[r239]"]
+    assert dep_names("**Depends on:** `R2`; both `O2.5` runs posted (ruling 260).") == [
+        "R2",
+        "O2.5",
+    ]
+    # A `none`-prefixed field declares no names even when prose later backticks a token.
+    assert dep_names("**Depends on:** none; it runs in parallel with backend's `[r130b]`.") == []
+    assert dep_names("**Depends on:** none named; it builds on `O2.2`'s") == []
+    # A field whose only text is prose names nothing (met, not unread).
+    assert v("its trigger.", {}) == "met"
+    # And the free-text name that no row carries still reads unread, never met (UR-154's
+    # direction is unchanged): `R2` names no row (the rows are `R2a`/`R2b`).
+    assert v("`R2`.", rows) == "unread"
+
+
+def test_the_claimable_scan_suppresses_only_the_agent_s_own_titles():
+    # Review defect 6: the scan suppressed a token on `[{token}] in titles` over ALL open PR
+    # titles repo-wide, while `next_claimable` (the box's own definition) checks only the
+    # ticking agent's own titles -- and only as a LEADING token (a mid-title mention is prose).
+    fake = FakeRunner()
+    set_beats(fake, **BEATS_BALANCE)
+    # Another agent's PR mentioning [r295] mid-title must NOT empty ops-a's claimable list.
+    fake.prs = [
+        pr_item(7002, ["lane:ops", "cell:b"], "[O2.4] claim: reid via tensorrt"),
+        pr_item(7999, ["lane:docs"], "side quest mentions [r295] in passing"),
+    ]
+    ids = {i["agent"]: i for i in bal(build(fake))["items"]}
+    assert [e["token"] for e in ids["uplevel-ops-a"]["claimable"]] == ["r295", "O3.7"]
+    # And a LEADING title by ANOTHER agent also does not suppress ops-a's claimable: O2.4's
+    # title-claim suppression applies only to the agent whose queue holds the block and whose
+    # own PR titles it -- per-agent mine lists, `next_claimable`'s semantics.
+    fake2 = FakeRunner()
+    set_beats(fake2, **BEATS_BALANCE)
+    fake2.prs = [
+        pr_item(7002, ["lane:ops", "cell:b"], "[O2.4] claim: reid via tensorrt"),
+        pr_item(7999, ["lane:ops", "cell:a"], "[O2.4] claim: another cell's PR"),
+    ]
+    ids2 = {i["agent"]: i for i in bal(build(fake2))["items"]}
+    assert [e["token"] for e in ids2["uplevel-ops-a"]["claimable"]] == ["r295", "O3.7"]
+    # But my OWN leading title still suppresses (the unchanged half of the semantics).
+    fake3 = FakeRunner()
+    set_beats(fake3, **BEATS_BALANCE)
+    fake3.prs = [pr_item(7100, ["lane:ops", "cell:a"], "[r295] claim: pip leaves the image")]
+    ids3 = {i["agent"]: i for i in bal(build(fake3))["items"]}
+    assert [e["token"] for e in ids3["uplevel-ops-a"]["claimable"]] == ["O3.7"]
 
 
 # --- 8. ruling 164: the status comment drafted from the snapshot ---------------------------
