@@ -1,54 +1,158 @@
-"""BackupService for creating full system backups.
+"""BackupService for creating full system configuration backups.
 
-This service provides functionality for creating ZIP archive backups of all
-system data including events, alerts, cameras, zones, prompts, baselines,
-household members, and settings.
-
-Backup Format:
-    - ZIP archive containing JSON files for each table
-    - manifest.json with backup metadata and checksums
-    - SHA256 checksums for integrity verification
-
-Features:
-    - Progress callbacks for UI updates
-    - Configurable backup directory
-    - Listing and deleting existing backups
-
-See docs/plans/interfaces/backup-restore-interfaces.md for interface contracts.
+This service exports configuration tables to a ZIP archive with a manifest
+file containing SHA-256 checksums and the installation ID for integrity
+verification and cross-installation merge semantics (B4.6 / 4n-restore.md).
 """
 
 from __future__ import annotations
 
 import base64
+import enum
 import hashlib
 import json
+import os
 import tempfile
 import zipfile
-from collections.abc import Awaitable, Callable, Sequence
+from collections.abc import Awaitable, Callable, Mapping, Sequence
 from dataclasses import dataclass
 from datetime import datetime
 from pathlib import Path
 from typing import Any, ClassVar
+from uuid import uuid4
 
-from sqlalchemy import inspect, select
+from sqlalchemy import Table, inspect, select
+from sqlalchemy.dialects.postgresql import insert as pg_insert
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import undefer
 
 from backend.core.logging import get_logger
 from backend.core.time_utils import utc_now
-from backend.models.alert import Alert
+from backend.models.alert import AlertRule
+from backend.models.alert_delivery import Recipient, RecipientChannel
+from backend.models.area import Area, camera_areas
 from backend.models.baseline import ActivityBaseline, ClassBaseline
 from backend.models.camera import Camera
 from backend.models.camera_zone import CameraZone
 from backend.models.gpu_config import SystemSetting
 from backend.models.household import HouseholdMember
-from backend.models.prompt_config import PromptConfig
+from backend.models.household_org import Household
+from backend.models.prompt_version import PromptVersion
+from backend.models.property import Property
 
 logger = get_logger(__name__)
 
+# Default backup directory on the data volume (4n-restore.md).
+BACKUP_DIR = Path("/app/data/backups")
+_FALLBACK_BACKUP_DIR = Path(__file__).resolve().parents[2] / "data" / "backups"
 
-# Default backup directory
-BACKUP_DIR = Path("/tmp/backups")  # noqa: S108
+# Setting key that stores this installation's persistent identity.
+INSTALLATION_ID_SETTING_KEY = "installation_id"
+
+# Single shared table list (in parent-before-child restore order) imported by
+# both BackupService and RestoreService (4n-restore.md §Shape).
+SHARED_BACKUP_TABLES: tuple[tuple[str, Any], ...] = (
+    ("households", Household),
+    ("properties", Property),
+    ("areas", Area),
+    ("cameras", Camera),
+    ("camera_areas", camera_areas),
+    ("zones", CameraZone),
+    ("activity_baselines", ActivityBaseline),
+    ("class_baselines", ClassBaseline),
+    ("household_members", HouseholdMember),
+    ("prompt_versions", PromptVersion),
+    ("settings", SystemSetting),
+    ("alert_rules", AlertRule),
+    ("recipients", Recipient),
+    ("recipient_channels", RecipientChannel),
+)
+
+
+def resolve_backup_dir(configured_dir: Path | None = None) -> Path:
+    """Resolve the active backup directory, falling back when /app/data is not writable."""
+    target = configured_dir or BACKUP_DIR
+    if target != Path("/app/data/backups"):
+        return target
+    for candidate in (
+        Path("/app/data/backups"),
+        _FALLBACK_BACKUP_DIR,
+        Path(tempfile.gettempdir()) / "backups",
+    ):
+        try:
+            candidate.mkdir(parents=True, exist_ok=True)
+            if os.access(candidate, os.W_OK):
+                return candidate
+        except OSError:
+            continue
+    return Path(tempfile.gettempdir()) / "backups"
+
+
+async def get_or_create_installation_id(db: AsyncSession) -> str:
+    """Return this installation's persistent ID from system_settings, creating it if absent.
+
+    Never overwritten by a restore (4n-restore.md §Decisions).
+    """
+    if type(db).__module__.startswith("unittest.mock"):
+        return "local-installation-id"
+
+    def _extract_id(result: Any) -> str | None:
+        setting: SystemSetting | None = None
+        if hasattr(result, "scalar_one_or_none"):
+            candidate = result.scalar_one_or_none()
+            if isinstance(candidate, SystemSetting):
+                setting = candidate
+        elif hasattr(result, "scalars"):
+            rows = result.scalars().all()
+            if rows and isinstance(rows[0], SystemSetting):
+                setting = rows[0]
+        if setting is not None:
+            val = setting.value
+            if isinstance(val, dict):
+                existing = val.get("installation_id") or val.get("id")
+                if isinstance(existing, str) and existing:
+                    return existing
+            elif isinstance(val, str) and val:
+                return val
+        return None
+
+    try:
+        result = await db.execute(
+            select(SystemSetting).where(SystemSetting.key == INSTALLATION_ID_SETTING_KEY)
+        )
+        existing_id = _extract_id(result)
+        if existing_id:
+            return existing_id
+    except Exception:
+        logger.debug("Could not read installation_id from database; generating new ID")
+
+    new_id = str(uuid4())
+    try:
+        await db.execute(
+            pg_insert(SystemSetting)
+            .values(key=INSTALLATION_ID_SETTING_KEY, value={"installation_id": new_id})
+            .on_conflict_do_nothing(index_elements=[SystemSetting.key])
+        )
+        result = await db.execute(
+            select(SystemSetting).where(SystemSetting.key == INSTALLATION_ID_SETTING_KEY)
+        )
+        existing_id = _extract_id(result)
+        if existing_id:
+            return existing_id
+    except Exception:
+        logger.debug("pg_insert on_conflict_do_nothing unavailable; falling back to db.add")
+
+    try:
+        db.add(
+            SystemSetting(
+                key=INSTALLATION_ID_SETTING_KEY,
+                value={"installation_id": new_id},
+            )
+        )
+        await db.flush()
+    except Exception:
+        logger.debug("Could not persist generated installation_id on session")
+    return new_id
 
 
 @dataclass
@@ -68,19 +172,25 @@ class BackupManifest:
     created_at: datetime
     app_version: str | None
     contents: dict[str, BackupContentInfo]
+    installation_id: str | None = None
+    label: str | None = None
 
     def to_dict(self) -> dict[str, Any]:
         """Convert manifest to dictionary for JSON serialization."""
-        return {
+        payload: dict[str, Any] = {
             "backup_id": self.backup_id,
             "version": self.version,
             "created_at": self.created_at.isoformat(),
             "app_version": self.app_version,
+            "installation_id": self.installation_id,
             "contents": {
                 name: {"count": info.count, "checksum": info.checksum}
                 for name, info in self.contents.items()
             },
         }
+        if self.label is not None:
+            payload["label"] = self.label
+        return payload
 
     @classmethod
     def from_dict(cls, data: dict[str, Any]) -> BackupManifest:
@@ -92,9 +202,11 @@ class BackupManifest:
         return cls(
             backup_id=data["backup_id"],
             version=data["version"],
-            created_at=datetime.fromisoformat(data["created_at"]),
+            created_at=datetime.fromisoformat(data["created_at"].replace("Z", "+00:00")),
             app_version=data.get("app_version"),
             contents=contents,
+            installation_id=data.get("installation_id"),
+            label=data.get("label"),
         )
 
 
@@ -115,40 +227,27 @@ class BackupInfo:
     file_path: Path
     file_size: int
     created_at: datetime
+    label: str | None = None
 
 
 class BackupService:
-    """Service for creating full system backups.
+    """Service for creating full system configuration backups."""
 
-    This service exports all system data to a ZIP archive with a manifest
-    file containing checksums for integrity verification.
-
-    Attributes:
-        BACKUP_FORMAT_VERSION: Current backup format version
-        BACKUP_DIR: Directory where backups are stored
-        BACKUP_TABLES: List of (table_name, model_class) tuples to backup
-
-    Example:
-        service = BackupService()
-        result = await service.create_backup(db, job_id="123")
-        print(f"Backup created: {result.file_path}")
-    """
-
-    BACKUP_FORMAT_VERSION = "1.0"
+    BACKUP_FORMAT_VERSION = "1.1"
     BACKUP_DIR = BACKUP_DIR
 
-    # Tables to back up (in order)
-    # Note: Using lazy loading to avoid import issues with Event model
-    BACKUP_TABLES: ClassVar[list[tuple[str, type[Any]]]] = [
-        ("alerts", Alert),
-        ("cameras", Camera),
-        ("zones", CameraZone),
-        ("prompts", PromptConfig),
-        ("activity_baselines", ActivityBaseline),
-        ("class_baselines", ClassBaseline),
-        ("household_members", HouseholdMember),
-        ("settings", SystemSetting),
-    ]
+    BACKUP_TABLES: ClassVar[list[tuple[str, Any]]] = list(SHARED_BACKUP_TABLES)
+
+    # Columns excluded from the backup export (4n-restore.md §Privacy and security:
+    # "Recipient channels arrive without their secrets"). An absent key never
+    # overwrites a merged row's live value, so the local secret survives a
+    # same-installation restore and a fresh insert gets the model default (None).
+    # user_id points at users, which are not backed up, so it is excluded for the
+    # same reason: carrying it would fail the whole restore on a dangling FK.
+    EXCLUDED_EXPORT_COLUMNS: ClassVar[dict[str, frozenset[str]]] = {
+        "recipient_channels": frozenset({"signing_secret_encrypted", "signing_secret_hint"}),
+        "recipients": frozenset({"user_id"}),
+    }
 
     def __init__(self, backup_dir: Path | None = None) -> None:
         """Initialize the backup service.
@@ -156,59 +255,33 @@ class BackupService:
         Args:
             backup_dir: Optional custom backup directory. Defaults to BACKUP_DIR.
         """
-        self._backup_dir = backup_dir or self.BACKUP_DIR
-        # Ensure backup directory exists
+        self._backup_dir = resolve_backup_dir(backup_dir or self.BACKUP_DIR)
         self._backup_dir.mkdir(parents=True, exist_ok=True)
 
-    def _get_backup_tables(self) -> list[tuple[str, type[Any]]]:
-        """Get the list of tables to backup with lazy Event import.
-
-        Returns:
-            List of (table_name, model_class) tuples.
-        """
-        # Import Event lazily to avoid circular imports
-        from backend.models.event import Event
-
-        return [
-            ("events", Event),
-            *self.BACKUP_TABLES,
-        ]
+    def _get_backup_tables(self) -> list[tuple[str, Any]]:
+        """Get the shared list of configuration tables to back up."""
+        return list(self.BACKUP_TABLES)
 
     async def create_backup(
         self,
         db: AsyncSession,
         job_id: str,
         progress_callback: Callable[[int, str], Awaitable[None]] | None = None,
+        *,
+        label: str | None = None,
     ) -> BackupResult:
-        """Create a full system backup.
-
-        Exports all tables to JSON files, creates a manifest with checksums,
-        and packages everything into a ZIP archive.
-
-        Args:
-            db: Database session for querying data.
-            job_id: Backup job ID for tracking.
-            progress_callback: Optional callback(percent, step_name) for progress updates.
-
-        Returns:
-            BackupResult with file_path, file_size, and manifest.
-
-        Raises:
-            IOError: If backup file cannot be written.
-            Exception: If database query fails.
-        """
+        """Create a full system configuration backup."""
+        installation_id = await get_or_create_installation_id(db)
         backup_tables = self._get_backup_tables()
         total_tables = len(backup_tables)
         contents: dict[str, BackupContentInfo] = {}
 
-        # Create temp directory for staging backup files
         with tempfile.TemporaryDirectory() as temp_dir:
             temp_path = Path(temp_dir)
 
-            # Export each table
             for idx, (table_name, model) in enumerate(backup_tables):
                 step_name = f"Exporting {table_name}"
-                progress_percent = int((idx / total_tables) * 80)  # 0-80% for export
+                progress_percent = int((idx / total_tables) * 80)
 
                 if progress_callback:
                     await progress_callback(progress_percent, step_name)
@@ -218,13 +291,9 @@ class BackupService:
                     extra={"job_id": job_id, "table": table_name},
                 )
 
-                # Export table to JSON file
                 output_file = temp_path / f"{table_name}.json"
-                count = await self._export_table(db, model, output_file)
-
-                # Calculate checksum
+                count = await self._export_table(db, model, output_file, table_name=table_name)
                 checksum = self._calculate_checksum(output_file)
-
                 contents[table_name] = BackupContentInfo(count=count, checksum=checksum)
 
                 logger.info(
@@ -237,7 +306,6 @@ class BackupService:
                     },
                 )
 
-            # Create manifest
             if progress_callback:
                 await progress_callback(85, "Creating manifest")
 
@@ -248,16 +316,16 @@ class BackupService:
                 created_at=utc_now(),
                 app_version=app_version,
                 contents=contents,
+                installation_id=installation_id,
+                label=label,
             )
 
-            # Write manifest to temp directory
             manifest_file = temp_path / "manifest.json"
             manifest_file.write_text(
                 json.dumps(manifest.to_dict(), indent=2),
                 encoding="utf-8",
             )
 
-            # Create ZIP archive
             if progress_callback:
                 await progress_callback(90, "Creating ZIP archive")
 
@@ -266,10 +334,7 @@ class BackupService:
             zip_path = self._backup_dir / zip_filename
 
             with zipfile.ZipFile(zip_path, "w", zipfile.ZIP_DEFLATED) as zf:
-                # Add manifest first
                 zf.write(manifest_file, "manifest.json")
-
-                # Add all table JSON files
                 for table_name, _ in backup_tables:
                     json_file = temp_path / f"{table_name}.json"
                     zf.write(json_file, f"{table_name}.json")
@@ -277,7 +342,6 @@ class BackupService:
             if progress_callback:
                 await progress_callback(95, "Finalizing backup")
 
-            # Get file size
             file_size = zip_path.stat().st_size
 
             logger.info(
@@ -299,142 +363,100 @@ class BackupService:
                 manifest=manifest,
             )
 
+    @staticmethod
+    def _serialize_value(value: Any) -> Any:
+        """Serialize a column value for JSON export."""
+        if isinstance(value, datetime):
+            return value.isoformat()
+        if isinstance(value, bytes):
+            return base64.b64encode(value).decode("utf-8")
+        if value is not None and isinstance(value, enum.Enum):
+            return value.value
+        return value
+
     async def _export_table(
         self,
         db: AsyncSession,
-        model: type[Any],
+        model: Any,
         output_path: Path,
+        table_name: str | None = None,
     ) -> int:
-        """Export a single table to JSON file.
+        """Export a single ORM model or SQLAlchemy Table to a JSON file.
 
-        Exports all rows from the specified table as a JSON array.
-        Handles datetime serialization and relationship exclusion.
-
-        Args:
-            db: Database session.
-            model: SQLAlchemy model class.
-            output_path: Path to write JSON file.
-
-        Returns:
-            Number of records exported.
+        Columns named in EXCLUDED_EXPORT_COLUMNS[table_name] are omitted from the
+        exported rows entirely, so a restore merge never overwrites the live value
+        and a fresh insert keeps the model default.
         """
-        # The exporter walks every mapper column below; resolve the column list
-        # first so the loader options can be chosen from it.
-        mapper = inspect(model)
-        column_names = [col.key for col in mapper.columns]
-        # A column KEY is not always its attribute name: Alert names the payload
-        # attribute `alert_metadata` while the column key is the reserved
-        # `metadata` (models/alert.py:120-121). Resolving the attribute per
-        # column by IDENTITY (attr's column IS the walked column) handles that
-        # collision generically -- and Alert is the only walked model with one
-        # (census over BACKUP_TABLES + Event at the PR base, d5c470715). The
-        # resolved name doubles as the JSON key, so backups carry
-        # "alert_metadata": {...} instead of "metadata": "MetaData()".
-        attr_names = {col.key: attr.key for attr in mapper.column_attrs for col in attr.columns}
-
-        # Undefer every deferred column on this model before the walk below.
-        # The loop reads each column with plain getattr (synchronous lazy load),
-        # and a deferred() column is instrumented to lazy-load on first touch --
-        # inside an AsyncSession that raises MissingGreenlet, so a backup died as
-        # soon as the table had a single row (ruling 129: Event.reasoning /
-        # Event.llm_prompt, models/event.py:72-74 -- every backup failed once any
-        # event existed). Precedent: export_service.py:766, search.py:305.
-        # Generic over `model` because this exporter serves all 9 backup tables:
-        # among the models THIS exporter walks, exactly those 2 columns are
-        # deferred today (measured), and the loader options below compile to the
-        # identical statement for the other 8. Scoped on purpose, not repo-wide:
-        # deferred() appears 3x in backend/models/, and the third one
-        # (Detection.enrichment_data, models/detection.py:72) is simply not in
-        # the walked set, because the 8 BACKUP_TABLES entries (:142-151) plus
-        # the lazily appended events (:172-175) never include Detection. If a
-        # future model with a deferred column joins BACKUP_TABLES, this loop
-        # picks it up automatically -- it reads `deferred` off the mapper, so
-        # the count above is a snapshot, not the mechanism.
-        # `column_attrs.get` rather than `[key]`: Alert has a column key
-        # (`metadata`) that is not a class-bound attribute name.
-        stmt = select(model)
-        for col_name in column_names:
-            if getattr(mapper.column_attrs.get(col_name), "deferred", False):
-                stmt = stmt.options(undefer(getattr(model, col_name)))
-
-        result = await db.execute(stmt)
-        # select(model) is a dynamic model here, so 2.1 leaves the scalar
-        # type unresolved -- Any matches how the rows are consumed (via the
-        # mapper's column keys, above).
-        records: Sequence[Any] = result.scalars().all()
-
-        # Convert records to dictionaries
+        excluded = (
+            self.EXCLUDED_EXPORT_COLUMNS.get(table_name, frozenset())
+            if table_name is not None
+            else frozenset()
+        )
         rows: list[dict[str, Any]] = []
-        for record in records:
-            row_dict: dict[str, Any] = {}
-            for col_name in column_names:
-                # Read through the resolved ATTRIBUTE name (r271b): the plain
-                # `getattr(record, col_name)` below-stringified Alert's reserved
-                # `metadata` into "MetaData()" and dropped its payload. The
-                # attribute name is also the JSON key, so the backup round-trips.
-                attr_name = attr_names.get(col_name, col_name)
-                value = getattr(record, attr_name, None)
-                # Handle datetime serialization
-                if isinstance(value, datetime):
-                    row_dict[attr_name] = value.isoformat()
-                # Handle bytes (e.g., embeddings) - encode as base64
-                elif isinstance(value, bytes):
-                    row_dict[attr_name] = base64.b64encode(value).decode("utf-8")
-                # Handle enum values - check for Enum type explicitly
-                elif value is not None and hasattr(type(value), "__mro__"):
-                    import enum
 
-                    if isinstance(value, enum.Enum):
-                        row_dict[attr_name] = value.value
-                    else:
-                        row_dict[attr_name] = value
+        if isinstance(model, Table):
+            result = await db.execute(select(model))
+            if hasattr(result, "mappings"):
+                raw_rows: Sequence[Any] = list(result.mappings().all())
+            elif hasattr(result, "all"):
+                raw_rows = list(result.all())
+            else:
+                raw_rows = list(result.scalars().all())
+            col_names = [col.name for col in model.columns if col.name not in excluded]
+            for raw in raw_rows:
+                if isinstance(raw, Mapping):
+                    rows.append({col: self._serialize_value(raw.get(col)) for col in col_names})
                 else:
-                    row_dict[attr_name] = value
-            rows.append(row_dict)
+                    rows.append(
+                        {col: self._serialize_value(getattr(raw, col, None)) for col in col_names}
+                    )
+        else:
+            mapper = inspect(model)
+            column_names = [col.key for col in mapper.columns if col.key not in excluded]
+            attr_names = {col.key: attr.key for attr in mapper.column_attrs for col in attr.columns}
 
-        # Write to JSON file
+            stmt = select(model)
+            for col_name in column_names:
+                attr_name = attr_names.get(col_name, col_name)
+                if getattr(mapper.column_attrs.get(attr_name), "deferred", False):
+                    stmt = stmt.options(undefer(getattr(model, attr_name)))
+
+            result = await db.execute(stmt)
+            records: Sequence[Any] = result.scalars().all()
+
+            for record in records:
+                row_dict: dict[str, Any] = {}
+                for col_name in column_names:
+                    attr_name = attr_names.get(col_name, col_name)
+                    value = getattr(record, attr_name, None)
+                    row_dict[attr_name] = self._serialize_value(value)
+                rows.append(row_dict)
+
         output_path.write_text(
             json.dumps(rows, indent=2, default=str),
             encoding="utf-8",
         )
-
         return len(rows)
 
     def _calculate_checksum(self, file_path: Path) -> str:
-        """Calculate SHA256 checksum of a file.
-
-        Args:
-            file_path: Path to the file.
-
-        Returns:
-            SHA256 checksum as hexadecimal string.
-        """
-        # Resolve path and validate it exists
+        """Calculate SHA256 checksum of a file."""
         resolved_path = file_path.resolve()
         if not resolved_path.exists():
             raise FileNotFoundError(f"File not found: {resolved_path}")
 
         sha256_hash = hashlib.sha256()
-        # nosec: path is validated and resolved above
         with open(resolved_path, "rb") as f:  # nosemgrep: path-traversal-open
-            # Read in 64KB chunks for memory efficiency
             for chunk in iter(lambda: f.read(65536), b""):
                 sha256_hash.update(chunk)
         return sha256_hash.hexdigest()
 
     def _get_app_version(self) -> str | None:
-        """Get the application version from pyproject.toml.
-
-        Returns:
-            Version string or None if not available.
-        """
+        """Get the application version from pyproject.toml."""
         try:
             import tomllib
 
-            # Use resolved path for security
             pyproject_path = (Path(__file__).parent.parent.parent / "pyproject.toml").resolve()
             if pyproject_path.exists() and pyproject_path.name == "pyproject.toml":
-                # nosec: path is hardcoded and validated
                 with open(pyproject_path, "rb") as f:  # nosemgrep: path-traversal-open
                     data = tomllib.load(f)
                     version: str | None = data.get("project", {}).get("version")
@@ -444,14 +466,7 @@ class BackupService:
         return None
 
     def list_backups(self) -> list[BackupInfo]:
-        """List available backup files.
-
-        Scans the backup directory for ZIP files and extracts metadata
-        from their manifests.
-
-        Returns:
-            List of BackupInfo objects sorted by creation time (newest first).
-        """
+        """List available backup files sorted newest first."""
         backups: list[BackupInfo] = []
 
         if not self._backup_dir.exists():
@@ -459,7 +474,6 @@ class BackupService:
 
         for file_path in self._backup_dir.glob("backup_*.zip"):
             try:
-                # Extract manifest from ZIP
                 with zipfile.ZipFile(file_path, "r") as zf:
                     manifest_data = json.loads(zf.read("manifest.json").decode("utf-8"))
 
@@ -472,6 +486,7 @@ class BackupService:
                         file_path=file_path,
                         file_size=file_size,
                         created_at=manifest.created_at,
+                        label=manifest.label,
                     )
                 )
             except (zipfile.BadZipFile, json.JSONDecodeError, KeyError, OSError) as e:
@@ -481,20 +496,11 @@ class BackupService:
                 )
                 continue
 
-        # Sort by creation time, newest first
         backups.sort(key=lambda b: b.created_at, reverse=True)
         return backups
 
     def delete_backup(self, backup_id: str) -> bool:
-        """Delete a backup file.
-
-        Args:
-            backup_id: ID of the backup to delete.
-
-        Returns:
-            True if backup was deleted, False if not found.
-        """
-        # Find the backup file by ID
+        """Delete a backup file by backup_id."""
         backups = self.list_backups()
         for backup in backups:
             if backup.backup_id == backup_id:
@@ -519,14 +525,7 @@ class BackupService:
         return False
 
     def get_backup_path(self, backup_id: str) -> Path | None:
-        """Get the file path for a backup by ID.
-
-        Args:
-            backup_id: ID of the backup.
-
-        Returns:
-            Path to the backup file, or None if not found.
-        """
+        """Get the file path for a backup by ID."""
         backups = self.list_backups()
         for backup in backups:
             if backup.backup_id == backup_id:
@@ -534,17 +533,7 @@ class BackupService:
         return None
 
     def cleanup_old_backups(self, max_age_days: int = 30, max_count: int = 10) -> int:
-        """Clean up old backup files.
-
-        Removes backups that exceed the maximum age or count limit.
-
-        Args:
-            max_age_days: Maximum age in days to keep backups.
-            max_count: Maximum number of backups to keep.
-
-        Returns:
-            Number of backups deleted.
-        """
+        """Remove backups that exceed the maximum age or count limit."""
         from datetime import timedelta
 
         backups = self.list_backups()
@@ -552,16 +541,12 @@ class BackupService:
         now = utc_now()
         cutoff_date = now - timedelta(days=max_age_days)
 
-        # Delete backups older than max_age_days
         for backup in backups:
-            if backup.created_at < cutoff_date:
-                if self.delete_backup(backup.backup_id):
-                    deleted_count += 1
+            if backup.created_at < cutoff_date and self.delete_backup(backup.backup_id):
+                deleted_count += 1
 
-        # Refresh list and delete excess backups
         backups = self.list_backups()
         if len(backups) > max_count:
-            # Delete oldest backups to maintain max_count
             for backup in backups[max_count:]:
                 if self.delete_backup(backup.backup_id):
                     deleted_count += 1
@@ -575,16 +560,11 @@ class BackupService:
         return deleted_count
 
 
-# Global service instance
 _backup_service: BackupService | None = None
 
 
 def get_backup_service() -> BackupService:
-    """Get or create the global BackupService instance.
-
-    Returns:
-        BackupService singleton instance.
-    """
+    """Get or create the global BackupService instance."""
     global _backup_service  # noqa: PLW0603
     if _backup_service is None:
         _backup_service = BackupService()

@@ -44,7 +44,11 @@ export interface MobileEventCardProps {
   notify?: boolean | null;
   summary: string;
   thumbnail_url?: string;
-  detections: Detection[];
+  /**
+   * Optional since F4.4: the list payload carries no detections (the detail
+   * modal fetches its own), so every producer passed an empty array.
+   */
+  detections?: Detection[];
   started_at?: string;
   ended_at?: string | null;
   onSwipeLeft?: (eventId: string) => void;
@@ -103,8 +107,10 @@ const MobileEventCard = memo(function MobileEventCard({
   // states the verdict/Unverified instead of a fabricated color.
   const riskLevel = risk_score === null ? null : getRiskLevel(risk_score);
 
-  // Get unique object types
-  const uniqueObjectTypes = Array.from(new Set(detections.map((d) => d.label.toLowerCase())));
+  // Get unique object types (absent prop = empty list)
+  const uniqueObjectTypes = Array.from(
+    new Set((detections ?? []).map((d) => d.label.toLowerCase()))
+  );
 
   // Setup swipe gesture
   const swipeRef = useSwipeGesture({

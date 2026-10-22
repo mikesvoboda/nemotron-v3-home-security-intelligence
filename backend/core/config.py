@@ -431,6 +431,16 @@ class Settings(BaseSettings):
         'Generate with: python -c "import secrets; print(secrets.token_urlsafe(48))" '
         "Minimum 32 characters recommended for security.",
     )
+
+    # Alert-delivery webhook signing secrets (B4.2): recipient webhook channels
+    # are stored Fernet-encrypted under this key. MUST be set when any webhook
+    # recipient channel exists; generate the same way as jwt_secret.
+    secrets_master_key: SecretStr | None = Field(
+        default=None,
+        description="Master key for encrypting stored secrets (webhook signing "
+        'secrets). Generate with: python -c "import secrets; print(secrets.token_urlsafe(48))" '
+        "Minimum 32 characters recommended for security.",
+    )
     # OD-12 (B1.5): the one auth switch. backend/api/middleware/auth.py reads it.
     expose_lan: bool = Field(
         default=False,
@@ -758,6 +768,11 @@ class Settings(BaseSettings):
         default=30,
         gt=0,
         description="Number of days to retain events and detections",
+    )
+    trash_retention_days: int = Field(
+        default=30,
+        ge=0,
+        description="Number of days to keep soft-deleted events in Trash before purging (0 disables the Trash clock)",
     )
 
     # Batch processing settings

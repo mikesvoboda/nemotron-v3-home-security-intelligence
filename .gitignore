@@ -76,6 +76,8 @@ data/external/kinetics/security_classes.json
 
 # Calibration data (generated locally, too large for git)
 data/calibration/
+data/backups/
+backend/data/backups/
 
 # AI Models (large files)
 ai/rtdetr/weights/

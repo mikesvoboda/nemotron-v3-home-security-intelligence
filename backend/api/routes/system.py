@@ -2499,6 +2499,12 @@ async def get_gpu_stats_history(
     )
 
 
+def _trash_retention_days(settings: Any) -> int:
+    """Read trash_retention_days preserving 0 while falling back to 30 on bare mocks."""
+    val = getattr(settings, "trash_retention_days", 30)
+    return val if isinstance(val, int) and not isinstance(val, bool) else 30
+
+
 @router.get("/config", response_model=ConfigResponse)
 async def get_config(response: Response) -> ConfigResponse:
     """Get public configuration settings.
@@ -2531,6 +2537,7 @@ async def get_config(response: Response) -> ConfigResponse:
         version=settings.app_version,
         retention_days=settings.retention_days,
         log_retention_days=settings.log_retention_days,
+        trash_retention_days=_trash_retention_days(settings),
         batch_window_seconds=settings.batch_window_seconds,
         batch_idle_timeout_seconds=settings.batch_idle_timeout_seconds,
         detection_confidence_threshold=settings.detection_confidence_threshold,
@@ -2648,6 +2655,7 @@ async def patch_config(
     old_values = {
         "retention_days": old_settings.retention_days,
         "log_retention_days": old_settings.log_retention_days,
+        "trash_retention_days": _trash_retention_days(old_settings),
         "batch_window_seconds": old_settings.batch_window_seconds,
         "batch_idle_timeout_seconds": old_settings.batch_idle_timeout_seconds,
         "detection_confidence_threshold": old_settings.detection_confidence_threshold,
@@ -2661,6 +2669,8 @@ async def patch_config(
         overrides["RETENTION_DAYS"] = str(update.retention_days)
     if update.log_retention_days is not None:
         overrides["LOG_RETENTION_DAYS"] = str(update.log_retention_days)
+    if update.trash_retention_days is not None:
+        overrides["TRASH_RETENTION_DAYS"] = str(update.trash_retention_days)
     if update.batch_window_seconds is not None:
         overrides["BATCH_WINDOW_SECONDS"] = str(update.batch_window_seconds)
     if update.batch_idle_timeout_seconds is not None:
@@ -2692,12 +2702,14 @@ async def patch_config(
     new_values = {
         "retention_days": settings.retention_days,
         "log_retention_days": settings.log_retention_days,
+        "trash_retention_days": _trash_retention_days(settings),
         "batch_window_seconds": settings.batch_window_seconds,
         "batch_idle_timeout_seconds": settings.batch_idle_timeout_seconds,
         "detection_confidence_threshold": settings.detection_confidence_threshold,
         "fast_path_confidence_threshold": settings.fast_path_confidence_threshold,
         "fast_path_enabled": settings.fast_path_enabled,
     }
+
     changes: dict[str, dict[str, Any]] = {}
     for key, old_value in old_values.items():
         new_value = new_values[key]
@@ -2731,6 +2743,7 @@ async def patch_config(
         version=settings.app_version,
         retention_days=settings.retention_days,
         log_retention_days=settings.log_retention_days,
+        trash_retention_days=_trash_retention_days(settings),
         batch_window_seconds=settings.batch_window_seconds,
         batch_idle_timeout_seconds=settings.batch_idle_timeout_seconds,
         detection_confidence_threshold=settings.detection_confidence_threshold,

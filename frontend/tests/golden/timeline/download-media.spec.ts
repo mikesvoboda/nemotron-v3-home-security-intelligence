@@ -86,7 +86,9 @@
  *   - THE ROW'S "OR VIDEO" DISJUNCT. `detection.media_type === 'video'`
  *     (api.ts:3332) is UNREACHABLE by sanctioned supply: the book ships one IMAGE
  *     per scenario, no video (backend/ai_contract/fake/scenario_fixtures/
- *     scenarios.json — five scenarios, each detections:[one], image: *.jpg;
+ *     scenarios.json — seven scenarios since [F4.4], each detections:[one] or
+ *     less of one exception — f4.4-gold-high carries two image detections —
+ *     image: *.jpg for all;
  *     asserted against the STORED detection, not the book alone). The branch's
  *     endpoint IS a live route and its shipped refusal is 400 "Detection {id} is
  *     not a video (media_type: image)" (detections.py:1390, guard :1432, f-string
@@ -1027,11 +1029,19 @@ test.describe('F-059 download media', () => {
    * detected_at and event_detections.created_at DISAGREE about which is first.
    *
    * WHY IT CANNOT RUN ON THIS TIER (both halves measured, not assumed):
-   *   1. SANCTIONED SUPPLY MAKES ONE DETECTION PER DROP. The book ships one
-   *      detection per scenario (scenarios.json: five scenarios, each
-   *      detections:[one]) and the fake VLM writes exactly the detections it
-   *      declares (detector_client.py:1281 is the Detection writer), so a drop
-   *      yields one row. Two drops to one camera folder make TWO EVENTS, not one
+   *   1. SANCTIONED SUPPLY MAKES ONE DETECTION PER DROP — by scenario, not by
+   *      declaration count. The book's five r287-era scenarios each carried
+   *      detections:[one] ([F4.4] added f4.4-gold-high with TWO person
+   *      detections and f4.4-gold-rejected with one — but a drop still writes
+   *      ONE EVENT; the fake VLM writes exactly the detections the matched
+   *      scenario declares (detector_client.py:1281 is the Detection writer),
+   *      all attached to that single event). The claim here needs one EVENT
+   *      whose detected_at disagrees with a junction created_at ACROSS two of
+   *      its detections; a multi-detection scenario like f4.4-gold-high writes
+   *      both its rows from the same verdict session (created_at within one
+   *      transaction), so detected_at-vs-created_at ordering stays coherent —
+   *      the mismatch this leg needs has no scenario. Two drops to one camera
+   *      folder make TWO EVENTS, not one
    *      event with two detections — the watcher keys events per file.
    *   2. THERE IS NO CLIENT-CALLED WRITE THAT ATTACHES A SECOND DETECTION. The
    *      app's own detection reads are GET-only (api.ts:2598 fetchEventDetections;

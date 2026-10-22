@@ -60,11 +60,11 @@ measurement is posted on the PR (the row sits at `awaiting real tier` until then
 
 ### B2.3 Re-ID model bake-off
 
-**Flags:** `heavy`; label `cell:heavy-b` (ruling 258). **Depends on:** `O2.4` (its `RESULT: PASS` posted).
+**Flags:** `heavy`; label `cell:heavy-b` (ruling 258). **Depends on:** `O2.4`'s pass (UR-85).
 Approved by owner ruling 107 (issue #6854, comment `6109720693`, 2026-10-11). It may stay open past
 Phase 2's exit (UR-10, contract rule 5).
-**Assigned:** heavy-b, next once `O2.4`'s `RESULT: PASS` is posted, after the PR heavy-b holds then
-(rulings 258 and 260). **PR:** none yet.
+**Assigned:** heavy-b, once `O2.4` passes (UR-85; ruling 312 point 4), after the PR heavy-b holds
+then and after `[r307a]` (rulings 258, 260 and 307). **PR:** none yet.
 
 - [ ] Export CLIP-ReID ViT-B/16 and PersonViT ViT-S/16 through `O2.4`'s TensorRT path.
 - [ ] Score them with OSNet-AIN x1.0 on a labelled set of person crops from the owner's setting:
@@ -314,6 +314,11 @@ note. OD-36 (debug tooling) and OD-37 ("Clear All Test Data") packages are flagg
 is step 1. Ruling 308 put the four with concurrency, erasure or data-migration risk on the heavy
 agents and the rest on the fast lanes.
 
+**The P2 packages** (ruling 317, record 6347331324): scene changes, exports and system status,
+designed in [`../4n-scene-changes.md`](../4n-scene-changes.md),
+[`../4n-exports.md`](../4n-exports.md) and [`../4n-status.md`](../4n-status.md) with their review.
+Debug tooling (OD-36) waits for a keep-or-retire ruling, and F-063 for the Easy/Advanced design.
+
 ### B4.1 Alert pipeline core
 
 **Flags:** `heavy`. **Assigned:** heavy-a, after `[r305]`; `W3.1`'s per-lane PRs still slot in
@@ -338,7 +343,7 @@ from "Snooze an event or alert"). Covers F-050, F-079, F-216, F-217.
 
 **Flags:** none. **Assigned:** backend, after `[r295]` (ruling 308). **Depends on:** `B4.1` for the
 build PR; the test-only PR may open first. Its golden path uses `[r308a]`'s sinks.
-**PR:** #7339. (ruling 308, record 6326364266)
+**PR:** #7339, #7346. (ruling 308, record 6326364266)
 
 Design: [`../4n-alerting.md`](../4n-alerting.md), "Packages" row 2. Covers F-236, F-232.
 
@@ -347,19 +352,19 @@ Design: [`../4n-alerting.md`](../4n-alerting.md), "Packages" row 2. Covers F-236
       EQUIVALENT residue moved into `accepted_survivors.toml`, 17 entries); plus the
       `backend.api.routes.notification` suite (77 mutants, kill-loss 0) measured after UR-89 review
       found it unmeasured.
-- [ ] The build PR: recipients, channels, the outbox, `planner`, the worker, email and webhook, the
+- [x] The build PR: recipients, channels, the outbox, `planner`, the worker, email and webhook, the
       local-network flag, name redaction, history, browser rows; recipients and channels join the
       backup list without their secrets if `B4.6` has landed (else `B4.6` adds them); an
       additive recorded upgrade; if `B4.4` landed first, a purge also removes the alert's
       deliveries.
-- [ ] #7336: the outbound webhooks use this package's destination policy on create, update, Test
+- [x] #7336: the outbound webhooks use this package's destination policy on create, update, Test
       and send, with an "on this network" flag on the webhook (an additive column in the same
       upgrade); the worker also resends outbound deliveries whose `next_retry_at` has passed, under
       the same lease, until `max_retries`. Tests: a loopback, link-local or metadata URL is a 422;
       a private address passes only with the flag; a failed delivery is resent after its backoff on
       a fixed clock and stops at `max_retries`. The PR closes #7336 (ruling 310, record
       6327324775).
-- [ ] Golden path (pytest): the webhook sink gets the payload and idempotency key and History reads
+- [x] Golden path (pytest): the webhook sink gets the payload and idempotency key and History reads
       `sent`; a retry ends `failed`; quiet hours give `suppressed`; critical breaks through.
 
 **Done when:** steps 4–6 hold for its rows.
@@ -381,15 +386,15 @@ Design: [`../4n-alerting.md`](../4n-alerting.md), "Packages" row 3.
 
 **Flags:** `heavy`. **Assigned:** heavy-a, after `B4.1` (ruling 308). **Depends on:** none; the
 alert steps go with whichever of `B4.1` and `B4.4` lands second, the deliveries' with whichever of
-`B4.2` and `B4.4`. **PR:** #7347. (ruling 308, record 6326364266)
+`B4.2` and `B4.4`. **PR:** #7347, #7354. (ruling 308, record 6326364266)
 
 Design: [`../4n-trash.md`](../4n-trash.md), the `B4.4` parts. Covers F-087, F-088 with `F4.3`.
 
 - [x] The test-only PR (step 2).
-- [ ] The build PR: `EventPurger` and its four adapters; soft delete stops scheduling file
+- [x] The build PR: `EventPurger` and its four adapters; soft delete stops scheduling file
       deletion; the trash purge at the earlier deadline, before general retention;
       `trash_retention_days`.
-- [ ] Golden path (pytest, `backend/tests/golden/external/test_trash_purge.py`) as the design
+- [x] Golden path (pytest, `backend/tests/golden/external/test_trash_purge.py`) as the design
       gives it.
 
 **Done when:** its golden path is green on the fake stack and the real-tier check is posted;
@@ -419,17 +424,17 @@ Design: [`../4n-alerting.md`](../4n-alerting.md), "Packages" row 5.
 
 **Flags:** `heavy`. **Assigned:** heavy-b, after `O3.7` and `[r312b]`; `[r307a]` keeps its place
 ahead of it if O2.4 passes first (rulings 308, 312). **Depends on:** none.
-**PR:** #7345. (ruling 308, record 6326364266)
+**PR:** #7345, #7350, #7358. (ruling 308, record 6326364266)
 
 Design: [`../4n-restore.md`](../4n-restore.md), its `RestoreModal` part included (UR-9). Covers
 F-101.
 
 - [x] The test-only PR (step 2).
-- [ ] The build PR: the shared table list, per-table keys, the installation id, format `1.1` and
+- [x] The build PR: the shared table list, per-table keys, the installation id, format `1.1` and
       its adapters, three sessions, the safety backup on the data volume, the narrowed undo; if
       `B4.2` landed first, recipients and channels join the backup without their secrets; if
       `B4.7` landed first, the test that a restore keeps one "External alerts" rule.
-- [ ] Golden path: pytest steps in `backend/tests/golden/external/` and the modal step in
+- [x] Golden path: pytest steps in `backend/tests/golden/external/` and the modal step in
       Playwright, as the design gives them.
 
 **Done when:** steps 4–6 hold for F-101.
@@ -442,11 +447,11 @@ the fast lanes.
 
 **Flags:** `heavy`. **Assigned:** heavy-a, after `B4.4` (ruling 311). **Depends on:** `B4.1`
 merged for the build PR; the test-only PR may open first.
-**PR:** none yet. (ruling 311, record 6328311780)
+**PR:** #7357. (ruling 311, record 6328311780)
 
 Design: [`../4n-arming.md`](../4n-arming.md), "Packages" row `B4.7`. Covers F-290.
 
-- [ ] The test-only PR (step 2): `inbound_webhooks.py` and the alerting `policy` and `pipeline`.
+- [x] The test-only PR (step 2): `inbound_webhooks.py` and the alerting `policy` and `pipeline`.
 - [ ] The build PR: `arming.py` (`mode_at`, `is_armed`, `set_mode`, `apply_schedule`,
       `next_scheduled`); the four arming tables, with `schedule_updated_at` and a change log that
       carries every mode's exclusions; the policy hook (raised while unarmed, the mode-scoped
@@ -488,6 +493,76 @@ Design: [`../4n-arming.md`](../4n-arming.md), "Packages" row `B4.8`. Covers F-29
 
 **Done when:** steps 4–6 hold. F-291 reads **works** once the MQTT section of Settings has landed
 too, and its row records that sensitivity left MQTT (ruling 311).
+
+### B4.9 Scene changes
+
+**Flags:** `heavy`. **Assigned:** heavy-b, once `B4.7` merges (ruling 317). **Depends on:** `B4.7`
+merged (the event source and rules' `sources`).
+**PR:** none yet. (ruling 317, record 6347331324)
+
+Design: [`../4n-scene-changes.md`](../4n-scene-changes.md), "Packages" row `B4.9`. Covers F-208 and
+F-287 with `F4.6`.
+
+- [ ] The test-only PR (step 2): `scene_change_detector.py`, the scene-change model and routes,
+      `pipeline_workers.py`'s image path, the emitter's scene branches, and the event readers'
+      thumbnail code in `events.py` and `search.py`.
+- [ ] The build PR: `scene_watch.py` (`observe` with featureless frames checked first, day and
+      night baselines with their anchors and the 0.75 drift cap, and frames in capture order;
+      `classify`; `set_normal`; `acknowledge`; `close`); the worker hook; `scene_baselines` and the
+      new `scene_changes` columns and types in one additive recorded upgrade; the incident's picture
+      file, its route and the source-aware thumbnails; the event with source `scene_change`, the
+      resolver's source, rules' `sources` and the seeded "Camera tampering" rule with a fixed UUID;
+      the sweep's clause; the routes; the live messages through `get_broadcaster`; the audit
+      action; Trash's close and the purger's file; `scene_change_enabled` read again, and
+      `SCENE_CHANGE_SIMILARITY_THRESHOLD`; the regenerated contract and types (UR-83).
+- [ ] Golden path (pytest, `backend/tests/golden/external/`) as the design gives it.
+
+**Done when:** steps 4–6 hold for its rows.
+
+### B4.10 Exports
+
+**Flags:** none. **Assigned:** backend, after `B4.3` (ruling 317). **Depends on:** `B4.1` and `B4.2`
+merged. **PR:** none yet. (ruling 317, record 6347331324)
+
+Design: [`../4n-exports.md`](../4n-exports.md), "Packages" row `B4.10`. Covers F-051, F-098 and
+F-099 with `F4.7`.
+
+- [ ] The test-only PR (step 2): `export_service.py`, `exports.py`, `job_tracker.py`'s export path,
+      the export routes in `jobs.py` and `events.py`, and `detections.py`'s export.
+- [ ] The build PR: per-job files written as `.part` and renamed on completion; the Events and
+      Alerts types; ZIP thumbnails up to 1,000 events; `expires_at` checked on every download, and
+      the hourly expiry; cancel between batches with conditional status writes; every timeline
+      filter; audit and rate limit; `cancelled` and `expired` through `ADD VALUE IF NOT EXISTS`;
+      the request's three compliance fields removed; bulk cancel refusing export jobs; the Trash
+      filter in `detections.py`, without `file_path`; `EXPORT_DIR` on the data volume; the
+      regenerated contract and types (UR-83). The two old export routes stay until `F4.7`.
+- [ ] Golden path (pytest) as the design gives it.
+
+**Done when:** steps 4–6 hold for its rows.
+
+### B4.11 System status (expand)
+
+**Flags:** `heavy`, `owner` (it changes an auth check and host-privileged tooling, UR-98); label
+`cell:heavy-b`. **Assigned:** heavy-b, now (ruling 317). **Depends on:** none.
+**PR:** #7366. (ruling 317, record 6347331324)
+
+Design: [`../4n-status.md`](../4n-status.md), "Packages" row `B4.11`. Covers the status rows with
+`F4.8`.
+
+- [x] The test-only PR (step 2): the six AI-health producers and their routes, `services.py`,
+      `container_orchestrator.py` and its health loop, the worker routes, `webhooks.py`,
+      `alertmanager.py` and `admin.py`'s flush.
+- [ ] The build PR: `ai_health.py` and its readers; the VLM client's call record and
+      `VLM_SLEEP_IDLE_SECONDS`; the never-probed set for `ai-vlm`; the new fields beside the old
+      (expand, with the `ai_models` key unmoved); the latency histograms; restart under
+      `get_current_admin_user` for the four services, its two-step audit, the disabled check gone;
+      the routes `F4.8` retires, and worker restart, under the same guard; the infrastructure-alerts
+      proxy; `alertmanager.py` and `prometheus_alerts` retired by a recorded upgrade; the mode-aware
+      flush; the regenerated contract and types.
+- [ ] Golden path (pytest, `backend/tests/golden/external/`) as the design gives it.
+
+**Done when:** steps 4–6 hold for its rows. F-140's real-tier check is the owner's witnessed restart
+on the live install (ruling 317). F-293's row reads **retired**.
 
 ### BB.\* Background track
 
@@ -1098,8 +1173,8 @@ and `[r312a]`'s second run, reading every plan stage at or above 0.999 on all 36
 (`local`, CPU-only torch wheels, `pyproject.toml:984-994`) and the gateway's GPU `reid`
 (`gateway`), "the same network and weights" (`config.py:1449`), under one model ID
 (`osnet-ain-x1-0@osnet_ain_x1_0_msmt17@8a07e8da3894`, #7002 `6154659954`). Stored person vectors
-stay valid across the flip once parity holds. On `RESULT: PASS`, `O2.4` goes to `done` and `B2.3` is
-unblocked (ruling 107).
+stay valid across the flip once parity holds. When O2.4 passes (UR-85), `O2.4` goes to `done` and
+`B2.3` is unblocked (rulings 107, 312).
 
 - [ ] `REID_BACKEND`'s default becomes `gateway` in `backend/core/config.py` and in every compose
       or env file that sets it.

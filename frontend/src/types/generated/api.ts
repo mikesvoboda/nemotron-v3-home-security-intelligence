@@ -5332,6 +5332,10 @@ export interface paths {
          *             verification_failed, or 'none' for never-verified events). An
          *             unrecognised value is a 422 from the Literal-typed param - never
          *             an empty list, which would read as a false all-clear.
+         *         min_confidence: Optional detector-confidence floor (0.0-1.0): the
+         *             event matches when any of its detections is at or above it; 0
+         *             means the event has at least one detection. Outside 0 to 1 is
+         *             a 422 from the Query bounds.
          *         start_date: Optional start date for date range filter
          *         end_date: Optional end date for date range filter
          *         reviewed: Optional filter by reviewed status
@@ -5548,7 +5552,11 @@ export interface paths {
         get: operations["events_list_deleted_events"];
         put?: never;
         post?: never;
-        delete?: never;
+        /**
+         * Empty trash (permanently purge all soft-deleted events)
+         * @description Permanently purge all soft-deleted events currently in Trash (B4.4).
+         */
+        delete: operations["events_empty_trash"];
         options?: never;
         head?: never;
         patch?: never;
@@ -5772,20 +5780,8 @@ export interface paths {
         put?: never;
         post?: never;
         /**
-         * Soft delete a single event
-         * @description Soft delete a single event with optional cascade to related detections.
-         *
-         *     By default, cascade=True soft deletes all related detections using the same
-         *     timestamp as the event. This enables cascade restore by matching timestamps.
-         *
-         *     Args:
-         *         event_id: ID of the event to delete
-         *         cascade: If True, cascade soft delete to related detections
-         *         db: Database session
-         *         cache: Cache service for invalidation
-         *
-         *     Raises:
-         *         HTTPException: 404 if event not found, 409 if already deleted
+         * Soft delete or permanently purge a single event
+         * @description Soft delete a live event or permanently purge a trashed event (`?permanent=true`).
          */
         delete: operations["events_delete_event"];
         options?: never;
@@ -15224,9 +15220,6 @@ export interface components {
         /**
          * BackupContentInfo
          * @description Information about a single backup content type.
-         *
-         *     Stored inside the backup manifest to track what data is included
-         *     and verify integrity via checksum.
          */
         BackupContentInfo: {
             /**
@@ -15243,18 +15236,12 @@ export interface components {
         /**
          * BackupJobCreate
          * @description Schema for creating a backup job (no parameters needed for full backup).
-         *
-         *     Full system backups export all data without filters. Simply POST
-         *     to the endpoint to create a new backup job.
          * @example {}
          */
         BackupJobCreate: Record<string, never>;
         /**
          * BackupJobProgress
          * @description Progress information for a backup job.
-         *
-         *     Tracks how many tables have been exported and the overall
-         *     progress percentage.
          */
         BackupJobProgress: {
             /**
@@ -15277,16 +15264,13 @@ export interface components {
             /**
              * Total Tables
              * @description Total tables to export
-             * @default 8
+             * @default 12
              */
             total_tables: number;
         };
         /**
          * BackupJobResponse
          * @description Full status response for a backup job.
-         *
-         *     Complete status information for a backup job, including progress,
-         *     timing, result, and any error information.
          */
         BackupJobResponse: {
             /**
@@ -15334,9 +15318,6 @@ export interface components {
         /**
          * BackupJobStartResponse
          * @description Response when creating a backup job.
-         *
-         *     Returns the job ID that can be used to track progress via
-         *     GET /api/backup/{job_id}.
          * @example {
          *       "job_id": "019478a1-b2c3-7def-8901-234567890abc",
          *       "message": "Backup job created. Use GET /api/backup/{job_id} to track progress.",
@@ -15369,8 +15350,6 @@ export interface components {
         /**
          * BackupListItem
          * @description Summary item for backup list.
-         *
-         *     Lightweight representation of a backup for list views.
          */
         BackupListItem: {
             /**
@@ -15394,6 +15373,11 @@ export interface components {
              * @description Backup ID
              */
             id: string;
+            /**
+             * Label
+             * @description Optional label (e.g. safety backup note)
+             */
+            label?: string | null;
             /** @description Job status */
             status: components["schemas"]["BackupJobStatus"];
         };
@@ -15414,10 +15398,6 @@ export interface components {
         /**
          * BackupManifest
          * @description Manifest file stored inside backup ZIP.
-         *
-         *     The manifest is written as manifest.json at the root of the backup
-         *     archive. It contains metadata about the backup and checksums for
-         *     all included data files.
          */
         BackupManifest: {
             /**
@@ -15432,7 +15412,7 @@ export interface components {
             backup_id: string;
             /**
              * Contents
-             * @description Map of content type to info (events, alerts, cameras, etc.)
+             * @description Map of content type to info
              */
             contents?: {
                 [key: string]: components["schemas"]["BackupContentInfo"];
@@ -15444,8 +15424,18 @@ export interface components {
              */
             created_at: string;
             /**
+             * Installation Id
+             * @description Identifier of the installation that created the backup
+             */
+            installation_id?: string | null;
+            /**
+             * Label
+             * @description Optional label (e.g. 'before restore of <backup> at <time>')
+             */
+            label?: string | null;
+            /**
              * Version
-             * @description Backup format version (e.g., '1.0')
+             * @description Backup format version (e.g., '1.1')
              */
             version: string;
         };
@@ -18193,6 +18183,7 @@ export interface components {
          *       "grafana_url": "/grafana",
          *       "log_retention_days": 7,
          *       "retention_days": 30,
+         *       "trash_retention_days": 30,
          *       "version": "0.1.0"
          *     }
          */
@@ -18249,6 +18240,11 @@ export interface components {
              */
             retention_days: number;
             /**
+             * Trash Retention Days
+             * @description Number of days to keep soft-deleted events in Trash before purging (0 disables the Trash clock)
+             */
+            trash_retention_days?: number;
+            /**
              * Version
              * @description Application version
              */
@@ -18297,6 +18293,11 @@ export interface components {
              * @description Number of days to retain events and detections
              */
             retention_days?: number | null;
+            /**
+             * Trash Retention Days
+             * @description Number of days to keep soft-deleted events in Trash before purging (0 disables the Trash clock)
+             */
+            trash_retention_days?: number | null;
         };
         /**
          * ContainerMetrics
@@ -20167,6 +20168,50 @@ export interface components {
              * @description ID of the polygon zone
              */
             zone_id: number;
+        };
+        /**
+         * EmptyTrashResponse
+         * @description Response schema for DELETE /api/events/deleted (Empty Trash, B4.4).
+         */
+        EmptyTrashResponse: {
+            /**
+             * Deleted Count
+             * @description Alias for purged_count (number of events permanently deleted)
+             */
+            deleted_count: number;
+            /**
+             * Detections Removed
+             * @description Number of detection rows deleted
+             * @default 0
+             */
+            detections_removed: number;
+            /**
+             * Files Deleted
+             * @description Number of media files deleted
+             * @default 0
+             */
+            files_deleted: number;
+            /**
+             * Files Failed
+             * @description Number of media files that failed to delete
+             * @default 0
+             */
+            files_failed: number;
+            /**
+             * Kept
+             * @description Event IDs kept in Trash because a file deletion failed
+             */
+            kept?: number[];
+            /**
+             * Purged
+             * @description Event IDs permanently purged from Trash
+             */
+            purged?: number[];
+            /**
+             * Purged Count
+             * @description Number of trashed events permanently purged
+             */
+            purged_count: number;
         };
         /**
          * EnrichmentModelInfo
@@ -34786,9 +34831,6 @@ export interface components {
         /**
          * RestoreJobProgress
          * @description Progress information for a restore job.
-         *
-         *     Tracks how many tables have been restored and the overall
-         *     progress percentage.
          */
         RestoreJobProgress: {
             /**
@@ -34811,18 +34853,22 @@ export interface components {
             /**
              * Total Tables
              * @description Total tables to restore
-             * @default 8
+             * @default 12
              */
             total_tables: number;
         };
         /**
          * RestoreJobResponse
          * @description Full status response for a restore job.
-         *
-         *     Complete status information for a restore job, including progress,
-         *     source backup info, timing, result, and any error information.
          */
         RestoreJobResponse: {
+            /**
+             * Added Rows
+             * @description Added rows by name per table
+             */
+            added_rows?: {
+                [key: string]: string[];
+            } | null;
             /**
              * Backup Created At
              * @description When source backup was created
@@ -34833,6 +34879,11 @@ export interface components {
              * @description Source backup ID from manifest
              */
             backup_id?: string | null;
+            /**
+             * Cleared Known Person Links
+             * @description Household member names whose known-person links were cleared
+             */
+            cleared_known_person_links?: string[] | null;
             /**
              * Completed At
              * @description Job completion timestamp
@@ -34863,19 +34914,38 @@ export interface components {
             } | null;
             progress?: components["schemas"]["RestoreJobProgress"];
             /**
+             * Safety Backup Id
+             * @description Automatic safety backup job ID created before restore
+             */
+            safety_backup_id?: string | null;
+            /**
+             * Same Installation
+             * @description Whether the restored archive came from this installation
+             */
+            same_installation?: boolean | null;
+            /**
+             * Skipped Tables
+             * @description Tables skipped by version adapter (e.g. events, alerts on 1.0 archives)
+             */
+            skipped_tables?: string[] | null;
+            /**
              * Started At
              * @description Job start timestamp
              */
             started_at?: string | null;
             /** @description Current job status */
             status: components["schemas"]["RestoreJobStatus"];
+            /**
+             * Tables
+             * @description Per-table restore breakdown (updated, inserted, replaced, kept)
+             */
+            tables?: {
+                [key: string]: components["schemas"]["TableRestoreSummary"];
+            } | null;
         };
         /**
          * RestoreJobStartResponse
          * @description Response when starting a restore job.
-         *
-         *     Returns the job ID that can be used to track progress via
-         *     GET /api/backup/restore/{job_id}.
          */
         RestoreJobStartResponse: {
             /**
@@ -37242,6 +37312,36 @@ export interface components {
             uptime_seconds: number;
         };
         /**
+         * TableRestoreSummary
+         * @description Per-table restore statistics.
+         */
+        TableRestoreSummary: {
+            /**
+             * Inserted
+             * @description Rows added
+             * @default 0
+             */
+            inserted: number;
+            /**
+             * Kept
+             * @description Existing rows not in the backup and kept
+             * @default 0
+             */
+            kept: number;
+            /**
+             * Replaced
+             * @description Rows replaced (e.g. baselines)
+             * @default 0
+             */
+            replaced: number;
+            /**
+             * Updated
+             * @description Rows updated in place
+             * @default 0
+             */
+            updated: number;
+        };
+        /**
          * TargetHealth
          * @description Health status for a single Prometheus scrape target.
          * @example {
@@ -39108,6 +39208,12 @@ export interface components {
              */
             name: string;
             /**
+             * On Local Network
+             * @description Allow private/unique-local targets and plain HTTP for this webhook (the household's own network). Loopback, link-local and metadata addresses stay blocked either way.
+             * @default false
+             */
+            on_local_network: boolean;
+            /**
              * Payload Template
              * @description Custom payload template (Jinja2)
              */
@@ -39427,6 +39533,12 @@ export interface components {
              * @description Webhook name
              */
             name: string;
+            /**
+             * On Local Network
+             * @description Whether private/unique-local targets are allowed for this webhook
+             * @default false
+             */
+            on_local_network: boolean;
             /** Payload Template */
             payload_template?: string | null;
             /** Retry Delay Seconds */
@@ -39570,6 +39682,11 @@ export interface components {
             max_retries?: number | null;
             /** Name */
             name?: string | null;
+            /**
+             * On Local Network
+             * @description Set true to allow private/unique-local targets and plain HTTP for this webhook
+             */
+            on_local_network?: boolean | null;
             /** Payload Template */
             payload_template?: string | null;
             /** Retry Delay Seconds */
@@ -48018,6 +48135,8 @@ export interface operations {
                 risk_level?: string | null;
                 /** @description Filter by VLM verification verdict (confirmed, rejected, uncertain, verification_failed) or 'none' for events never verified. Anything else is a 422, never an empty list - a typo'd verdict must not read as a false all-clear. */
                 verdict?: ("confirmed" | "rejected" | "uncertain" | "verification_failed" | "none") | null;
+                /** @description Minimum detector confidence across the event's detections (0.0-1.0). An event matches when ANY of its detections is at or above the threshold. 0 means the event has at least one detection. Values outside 0 to 1 are a 422. */
+                min_confidence?: number | null;
                 /** @description Filter by start date (ISO format) */
                 start_date?: string | null;
                 /** @description Filter by end date (ISO format) */
@@ -48294,6 +48413,26 @@ export interface operations {
             };
         };
     };
+    events_empty_trash: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Trash emptied */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["EmptyTrashResponse"];
+                };
+            };
+        };
+    };
     events_export_events: {
         parameters: {
             query?: {
@@ -48545,6 +48684,8 @@ export interface operations {
     events_delete_event: {
         parameters: {
             query?: {
+                /** @description If True, permanently purge a soft-deleted event from Trash */
+                permanent?: boolean;
                 /** @description Cascade soft delete to related detections */
                 cascade?: boolean;
             };
@@ -48570,7 +48711,7 @@ export interface operations {
                 };
                 content?: never;
             };
-            /** @description Event already deleted */
+            /** @description Event already deleted or not in Trash for permanent delete */
             409: {
                 headers: {
                     [name: string]: unknown;

@@ -1958,18 +1958,17 @@ export async function hardDeleteFixtureRows(
   eventIds: number[]
 ): Promise<void> {
   if (eventIds.length === 0) return;
-  // The route caps a request at 100 ids (schemas/bulk.py:182-187).
-  for (let i = 0; i < eventIds.length; i += 100) {
-    const chunk = eventIds.slice(i, i + 100);
-    // Settle, don't throw: cleanup must not turn a green run red. A failure
-    // here leaks rows into the NEXT run, where the purge above removes them.
-    await fetch(`${h.api}/api/events/bulk`, {
+  for (const id of eventIds) {
+    // B4.4 requires an event to be in Trash before permanent purge: soft-delete
+    // first (no-op 409 if already in Trash), then purge with ?permanent=true.
+    // Using the per-row routes avoids spending the bulk-tier rate-limit budget.
+    await fetch(`${h.api}/api/events/${id}`, {
       method: 'DELETE',
-      headers: {
-        'Content-Type': 'application/json',
-        Cookie: `${session.name}=${session.value}`,
-      },
-      body: JSON.stringify({ event_ids: chunk, soft_delete: false }),
+      headers: { Cookie: `${session.name}=${session.value}` },
+    }).catch(() => undefined);
+    await fetch(`${h.api}/api/events/${id}?permanent=true`, {
+      method: 'DELETE',
+      headers: { Cookie: `${session.name}=${session.value}` },
     }).catch(() => undefined);
   }
 }
@@ -3334,7 +3333,7 @@ export async function deleteAlertRuleIfPresent(api: AuthedFetch, ruleId: string)
  * for 300 s (backend/services/dedupe.py). Consequences baked in below:
  *
  * - Fixture choice is a shared resource AND a semantic choice. The book
- *   (backend/ai_contract/fake/scenario_fixtures/scenarios.json) ships five
+ *   (backend/ai_contract/fake/scenario_fixtures/scenarios.json) ships seven
  *   images, each encoding a different outcome:
  *     person-at-door  — claimed by F2.1's dashboard-drop.spec.ts; a second drop
  *                       of the same bytes inside 300 s dedupes and reddens it.
@@ -3356,6 +3355,13 @@ export async function deleteAlertRuleIfPresent(api: AuthedFetch, ruleId: string)
  *     car-in-driveway — nobody claims it, no reply delay, verdict `uncertain`,
  *                       risk 45 → `medium` (backend/services/severity.py tiering
  *                       against the settings defaults 29/59/84).
+ *     f4.4-gold-high    — [F4.4] verdict confirmed, risk 52 → `medium`; TWO
+ *                       person detections (0.90 / 0.78), the book's only
+ *                       multi-detection scenario. Claimed by
+ *                       ./timeline/confidence-filter.spec.ts.
+ *     f4.4-gold-rejected — [F4.4] verdict rejected, risk 12 → `low`; one cat
+ *                       detection at 0.75 (the book's lowest above the 0.70
+ *                       medium band). Claimed by the same spec.
  *   DO-1 claims car-in-driveway. Its tier is the point: /alerts pages only
  *   `high` and `critical` (useAlertsQuery), so this drop is the NEGATIVE case
  *   that proves the band filter end to end, and its detection is the positive
@@ -3577,10 +3583,14 @@ export function assertSoleAlertIsSmoke(
 
 export const WEBHOOKS_URL = '/api/outbound-webhooks';
 
-/** A refused loopback port, the repo's OWN established sink for a deterministic
- *  outbound failure: backend/tests/golden/external/test_webhook_deliveries.py:68
- *  uses `http://127.0.0.1:1/...` for exactly this and explains why (:20) — httpx
- *  fails it in milliseconds, so a spec never waits on a retry window.
+/** An in-network dead port, the repo's OWN established shape for a deterministic
+ *  outbound failure: backend/tests/golden/external/test_webhook_deliveries.py:86
+ *  seeds exactly this (`http://backend:8099/...`) and explains why (:80-85) —
+ *  F12 (ruling 310) refuses loopback at create even with the per-channel
+ *  `on_local_network` flag, so the seed rides the flag's real use case: the
+ *  backend container itself (resolvable in every stack shape) on a port nothing
+ *  listens on, which httpx fails in milliseconds. A spec never waits on a
+ *  retry window.
  *
  *  Chosen over an HTTP 2xx target deliberately. A reachable sink would need
  *  another service in the fake stack (which publishes only ai-vlm:8098 and
@@ -3588,20 +3598,26 @@ export const WEBHOOKS_URL = '/api/outbound-webhooks';
  *  forbids this PR from touching compose or the harness. So F-249's golden arm is
  *  the refusal, which is fully determinable here, and the success arm is left to
  *  the real tier rather than faked — which is what F2.1 forbids. */
-export const REFUSED_URL = 'http://127.0.0.1:1/golden-do4-refused';
+export const REFUSED_URL = 'http://backend:8099/golden-do4-refused';
 
 /** Create a webhook the real way — the route the F-246 form posts to
  *  (outbound_webhooks.py:342). Required fields only, read from the schema:
  *  name (min_length 1), url (HttpUrl), event_types (min_length 1)
  *  (api/schemas/outbound_webhook.py:144-148).
  *
+ *  `on_local_network: true` admits the in-network REFUSED_URL — without it the
+ *  F12 policy rejects any RFC1918 target at create (the schema's model
+ *  validator, outbound_webhook.py:184-196), and loopback stays refused even
+ *  WITH the flag (url_validation.py:124-125), which is why the seed is not
+ *  127.0.0.1 anymore.
+ *
  *  `enabled: true` and `max_retries: 0` are set explicitly rather than taken from
- *  defaults: the default IS true (schema :152) but a spec that flips it must not
- *  depend on that, and max_retries defaults to 4 (:158), which would make any
+ *  defaults: the default IS true (schema :167) but a spec that flips it must not
+ *  depend on that, and max_retries defaults to 4 (:181), which would make any
  *  delivery from this row retry for minutes. The backend golden spec pins the
- *  same reasoning at test_webhook_deliveries.py:119 (`"max_retries": 0`, whose
- *  :118 comment says "0 retries is what makes the row terminal on the first
- *  attempt") — not :116, which is the unrelated `"url": REFUSED_URL` line. */
+ *  same reasoning at test_webhook_deliveries.py:153 (`"max_retries": 0`, whose
+ *  :151-152 comment says "0 retries is what makes the row terminal on the first
+ *  attempt") — not :146, which is the unrelated `"url": REFUSED_URL` line. */
 export async function createWebhook(
   api: AuthedFetch,
   name: string,
@@ -3613,6 +3629,7 @@ export async function createWebhook(
     event_types: ['alert_fired'],
     integration_type: 'generic',
     enabled: true,
+    on_local_network: true,
     max_retries: 0,
   });
   expect(res.status, 'the batch fixture creates its row (201)').toBe(201);

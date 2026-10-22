@@ -228,7 +228,7 @@ function FilteredDetections() {
 Components use Tailwind CSS classes and are compatible with the NVIDIA dark theme:
 
 - Overlay uses absolute positioning with `z-index: 10`
-- SVG scales responsively with `preserveAspectRatio="none"`
+- SVG scales responsively with `preserveAspectRatio="xMidYMid meet"`
 - Labels have semi-transparent backgrounds
 - Hover effects increase stroke width on clickable boxes
 

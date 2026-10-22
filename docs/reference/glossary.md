@@ -184,6 +184,10 @@ The time period after which an inactive batch is closed and sent for analysis, e
 
 The process of running an AI model on input data to produce predictions. For this system: Triton runs YOLO26 detection in `ai-gateway`, `ai-vlm` turns a batch into a risk verdict, and the lookup models run in the backend process on CPU.
 
+### Installation ID
+
+A UUID stored in `system_settings` under `installation_id` and recorded in every backup manifest (`manifest.json` `installation_id`) to identify the installation that created the archive (`backend/services/backup_service.py`). Restore never overwrites it: when an archive's `installation_id` matches the local one, `households`, `properties`, `areas` and `household_members` merge by ID and existing `known_person_id` links are kept; when it differs or is absent (`1.0` archives), `households`, `properties` and `areas` match by name with foreign-key remapping and `household_members` are inserted with new IDs with their `known_person_id` links cleared and reported.
+
 ---
 
 ## J
@@ -237,6 +241,10 @@ The end-to-end processing flow for security images:
 ### Pipeline Latency
 
 Timing metrics for each stage of the pipeline. Used to identify bottlenecks and monitor performance.
+
+### Purge
+
+A permanent delete of a soft-deleted [Event](#event) from Trash (`EventPurger.purge` in `backend/services/event_purger.py`), removing the event, its exclusive detections and their enrichment, any media files (`clip_path`, `thumbnail_path`, `file_path`) not referenced by surviving rows, `entities` whose `primary_detection_id` is purged, and legacy `face_detection_events` on the event's camera within its time window, while clearing enrolled reference links (`PersonEmbedding.source_event_id`, `FaceEmbedding.source_image_path`), repointing or removing affected [Alerts](#alert), and writing a content-free audit log entry.
 
 ---
 
@@ -309,6 +317,10 @@ A numeric value from 0-100 indicating the threat level of an event, produced by 
 ---
 
 ## S
+
+### Safety Backup
+
+An automatic backup created and committed as its own `BackupJob` (`backup_jobs`, labeled `"before restore of <backup> at <time>"` in its manifest) on a separate database session before `run_restore_job` (`backend/api/routes/backup.py`) modifies any configuration row. Stored under `/app/data/backups` on the data volume (`BACKUP_DIR`) so it survives container restarts; if creating the safety backup fails, the restore aborts before touching any row. Restoring the safety backup reverts changed configuration rows and baselines, while rows added during the restore remain and are listed by name in the restore result.
 
 ### SBOM (Software Bill of Materials)
 

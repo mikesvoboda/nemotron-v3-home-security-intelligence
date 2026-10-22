@@ -26,6 +26,7 @@ import zipfile
 from datetime import UTC, datetime, timedelta
 from enum import StrEnum
 from pathlib import Path
+from typing import Any
 
 import pytest
 from sqlalchemy import DateTime, LargeBinary
@@ -149,12 +150,38 @@ class TestServiceConstruction:
         svc = _service(tmp_path)
         assert svc._backup_dir.is_dir()
 
-    def test_tables_events_first(self, tmp_path) -> None:
+    def test_default_backup_dir_is_on_data_volume(self) -> None:
+        assert Path("/app/data/backups") == BackupService.BACKUP_DIR
+
+    def test_shared_configuration_tables_order(self, tmp_path) -> None:
+        from backend.services.restore_service import RESTORE_TABLE_ORDER, RestoreService
+
         tables = _service(tmp_path)._get_backup_tables()
         names = [n for n, _ in tables]
-        assert names[0] == "events"
-        assert names[-1] == "settings"
-        assert len(names) == 9
+        assert names == [
+            "households",
+            "properties",
+            "areas",
+            "cameras",
+            "camera_areas",
+            "zones",
+            "activity_baselines",
+            "class_baselines",
+            "household_members",
+            "prompt_versions",
+            "settings",
+            "alert_rules",
+            "recipients",
+            "recipient_channels",
+        ]
+        assert "events" not in names
+        assert "alerts" not in names
+        assert "prompts" not in names
+        # Every table the backup writes has a restore mapping in the same order
+        assert names == RESTORE_TABLE_ORDER
+        restore_svc = RestoreService()
+        for name in names:
+            assert restore_svc._get_model_class(name) is not None
 
 
 # -------------------------------------------------------------- _export_table
@@ -243,6 +270,78 @@ class TestExportTable:
         # ... and the reserved key must not carry a stringified MetaData.
         assert "metadata" not in exported
 
+    @pytest.mark.asyncio
+    async def test_recipient_channels_export_without_secrets(self, tmp_path) -> None:
+        """[B4.2] 4n-restore.md §Privacy: recipient channels arrive without their secrets.
+
+        The signing secret (Fernet ciphertext) and its hint are excluded from the
+        exported rows entirely -- the key is absent, not None -- so a restore merge
+        keeps the local value on update and the default (None) on insert
+        (4n-restore.md §Shape: "A key missing from a record keeps the local value
+        on update and the default on insert"). The row is a real unsaved
+        RecipientChannel instance, the same object shape the export loop sees.
+        """
+        from backend.models.alert_delivery import RecipientChannel
+
+        row = RecipientChannel(
+            recipient_id="11111111-1111-7111-8111-111111111111",
+            kind="webhook",
+            target="http://example.invalid/hook",
+        )
+        row.signing_secret_encrypted = "gAAAAABh-fake-fernet-ciphertext"  # pragma: allowlist secret
+        row.signing_secret_hint = "gAAA"  # pragma: allowlist secret
+
+        svc = _service(tmp_path)
+        out = tmp_path / "recipient_channels.json"
+        count = await svc._export_table(
+            FakeDB([row]), RecipientChannel, out, table_name="recipient_channels"
+        )
+        assert count == 1
+        (exported,) = json.loads(out.read_text())
+        # The secret columns are absent from the archive, not nulled in it.
+        assert "signing_secret_encrypted" not in exported
+        assert "signing_secret_hint" not in exported
+        # The rest of the channel still ships.
+        assert exported["kind"] == "webhook"
+        assert exported["target"] == "http://example.invalid/hook"
+        assert exported["recipient_id"] == "11111111-1111-7111-8111-111111111111"
+
+    @pytest.mark.asyncio
+    async def test_recipients_export_without_user_id(self, tmp_path) -> None:
+        """[B4.2] user_id points at users, which backups do not carry; an archive
+        row with a dangling user_id would fail the whole all-or-nothing restore on
+        the FK. Excluded for the same absent-key reason as the channel secrets.
+        """
+        from backend.models.alert_delivery import Recipient
+
+        row = Recipient(name="Alex")
+        row.user_id = "user-7"
+
+        svc = _service(tmp_path)
+        out = tmp_path / "recipients.json"
+        count = await svc._export_table(FakeDB([row]), Recipient, out, table_name="recipients")
+        assert count == 1
+        (exported,) = json.loads(out.read_text())
+        assert "user_id" not in exported
+        assert exported["name"] == "Alex"
+        assert exported["enabled"] is True
+        assert exported["critical_breaks_quiet"] is True
+
+    @pytest.mark.asyncio
+    async def test_excluded_columns_only_apply_to_their_table(self, tmp_path) -> None:
+        """The exclusion map is keyed by table name; another table exporting the
+        same column name keeps it."""
+        from backend.models.alert_delivery import Recipient
+
+        row = Recipient(name="Sam")
+        row.user_id = "user-9"
+
+        svc = _service(tmp_path)
+        out = tmp_path / "no-name.json"
+        await svc._export_table(FakeDB([row]), Recipient, out, table_name=None)
+        (exported,) = json.loads(out.read_text())
+        assert exported["user_id"] == "user-9"
+
 
 # -------------------------------------------------------------- _calculate_checksum
 
@@ -296,19 +395,40 @@ class TestCreateBackup:
         with zipfile.ZipFile(result.file_path) as zf:
             names = set(zf.namelist())
             assert "manifest.json" in names
-            assert "events.json" in names and "settings.json" in names
-            assert len(names) == 10  # manifest + 9 tables
+            assert "households.json" in names and "alert_rules.json" in names
+            assert "events.json" not in names and "alerts.json" not in names
+            assert len(names) == 15  # manifest + 14 configuration tables
             body = json.loads(zf.read("manifest.json"))
         assert body["backup_id"] == "abcdef12345"
-        assert body["version"] == BackupService.BACKUP_FORMAT_VERSION
+        assert body["version"] == "1.1"
+        assert body["installation_id"]
         # every table exported empty: count 0 and checksum of "[]"
-        assert body["contents"]["events"]["count"] == 0
-        assert body["contents"]["events"]["checksum"] == hashlib.sha256(b"[]").hexdigest()
+        assert body["contents"]["cameras"]["count"] == 0
+        assert body["contents"]["cameras"]["checksum"] == hashlib.sha256(b"[]").hexdigest()
 
-        # progress: 9 export steps at int(idx/9*80), then 85/90/95/100
-        assert [p for p, _ in steps] == [0, 8, 17, 26, 35, 44, 53, 62, 71, 85, 90, 95, 100]
+        # progress: 14 export steps at int(idx/14*80), then 85/90/95/100
+        assert [p for p, _ in steps] == [
+            0,
+            5,
+            11,
+            17,
+            22,
+            28,
+            34,
+            40,
+            45,
+            51,
+            57,
+            62,
+            68,
+            74,
+            85,
+            90,
+            95,
+            100,
+        ]
         assert steps[-1][1] == "Backup complete"
-        assert steps[9][1] == "Creating manifest"
+        assert steps[14][1] == "Creating manifest"
 
     @pytest.mark.asyncio
     async def test_without_callback_still_succeeds(self, tmp_path) -> None:
@@ -378,3 +498,111 @@ class TestSingleton:
         reset_backup_service()
         assert get_backup_service() is not svc
         reset_backup_service()
+
+
+class TestInstallationIdAndAssociationExport:
+    @pytest.mark.asyncio
+    async def test_get_or_create_installation_id_reads_and_creates(self) -> None:
+        from backend.models.gpu_config import SystemSetting
+        from backend.services.backup_service import (
+            INSTALLATION_ID_SETTING_KEY,
+            get_or_create_installation_id,
+        )
+
+        class _FakeResult:
+            def __init__(self, row: Any) -> None:
+                self._row = row
+
+            def scalar_one_or_none(self) -> Any:
+                return self._row
+
+        class _FakeSession:
+            def __init__(self, row: Any = None) -> None:
+                self.row = row
+                self.added: list[Any] = []
+                self.flushed = False
+                self.executed_stmts: list[Any] = []
+
+            async def execute(self, stmt: Any) -> _FakeResult:
+                self.executed_stmts.append(stmt)
+                return _FakeResult(self.row)
+
+            def add(self, obj: Any) -> None:
+                self.added.append(obj)
+
+            async def flush(self) -> None:
+                self.flushed = True
+
+        existing = SystemSetting(
+            key=INSTALLATION_ID_SETTING_KEY,
+            value={"installation_id": "inst-existing-123"},
+        )
+        assert await get_or_create_installation_id(_FakeSession(existing)) == "inst-existing-123"  # type: ignore[arg-type]
+
+        existing_str = SystemSetting(
+            key=INSTALLATION_ID_SETTING_KEY,
+            value="inst-str-456",  # type: ignore[arg-type]
+        )
+        assert await get_or_create_installation_id(_FakeSession(existing_str)) == "inst-str-456"  # type: ignore[arg-type]
+
+        fresh = _FakeSession(None)
+        generated = await get_or_create_installation_id(fresh)  # type: ignore[arg-type]
+        assert len(generated) == 36
+        assert fresh.flushed is True
+        assert len(fresh.added) == 1
+        assert fresh.added[0].key == INSTALLATION_ID_SETTING_KEY
+
+        class _ConcurrentRaceSession(_FakeSession):
+            async def execute(self, stmt: Any) -> _FakeResult:
+                self.executed_stmts.append(stmt)
+                if len(self.executed_stmts) >= 3:
+                    return _FakeResult(
+                        SystemSetting(
+                            key=INSTALLATION_ID_SETTING_KEY,
+                            value={"installation_id": "winner-from-concurrent-insert"},
+                        )
+                    )
+                return _FakeResult(None)
+
+        raced = _ConcurrentRaceSession(None)
+        assert (
+            await get_or_create_installation_id(raced)  # type: ignore[arg-type]
+            == "winner-from-concurrent-insert"
+        )
+        assert raced.flushed is False
+
+    def test_resolve_backup_dir_falls_back_when_unwritable(self, tmp_path: Path) -> None:
+        from backend.services.backup_service import resolve_backup_dir
+
+        writable = tmp_path / "writable-backups"
+        writable.mkdir()
+        assert resolve_backup_dir(writable) == writable
+
+    @pytest.mark.asyncio
+    async def test_export_association_table_serializes_rows(self, tmp_path: Path) -> None:
+        from backend.models.area import camera_areas
+
+        svc = _service(tmp_path)
+
+        class _FakeMappingResult:
+            def mappings(self) -> _FakeMappingResult:
+                return self
+
+            def all(self) -> list[dict[str, Any]]:
+                return [
+                    {"camera_id": "front_door", "area_id": 1},
+                    {"camera_id": "back_yard", "area_id": 2},
+                ]
+
+        class _FakeSession:
+            async def execute(self, _stmt: Any) -> _FakeMappingResult:
+                return _FakeMappingResult()
+
+        out_file = tmp_path / "camera_areas.json"
+        count = await svc._export_table(_FakeSession(), camera_areas, out_file)  # type: ignore[arg-type]
+        assert count == 2
+        rows = json.loads(out_file.read_text())
+        assert rows == [
+            {"camera_id": "front_door", "area_id": 1},
+            {"camera_id": "back_yard", "area_id": 2},
+        ]

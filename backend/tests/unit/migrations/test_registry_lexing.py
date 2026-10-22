@@ -159,6 +159,9 @@ def test_unterminated_quoted_identifier_raises():
         # 0012 (B4.1 alert pipeline core): 6 ADD COLUMN IF NOT EXISTS + 2 CREATE TABLE IF NOT EXISTS
         # + 1 DO $$ ... END $$ block = 9 statements.
         ("0012-alert-pipeline-core", 9),
+        # 0013 (B4.2 alert delivery): 2 ADD COLUMN IF NOT EXISTS + 1 INSERT...SELECT (the
+        # Household seed) + 1 UPDATE (hand the existing quiet-hours rows to it) = 4.
+        ("0013-alert-delivery", 4),
     ],
 )
 def test_shipped_files_lex_to_the_expected_statement_count(upgrade_id, expected_statements):

@@ -80,6 +80,25 @@ def _empty_planner(*args: Any, **kwargs: Any) -> Sequence[Any]:  # noqa: ARG001
     return ()
 
 
+def _normalise_planned(record: Any, now: datetime) -> dict[str, Any]:
+    """Normalise one planner record (dict or PlannedDelivery) to a dict."""
+    if isinstance(record, dict):
+        return {**record, "planned_at": now}
+    return {
+        "alert_id": getattr(record, "alert_id", None),
+        "recipient_id": record.recipient_id,
+        "channel_id": record.channel_id,
+        "channel_kind": (
+            record.channel_kind.value
+            if getattr(record.channel_kind, "value", None)
+            else record.channel_kind
+        ),
+        "status": (record.status.value if getattr(record.status, "value", None) else record.status),
+        "include_names": getattr(record, "include_names", False),
+        "planned_at": now,
+    }
+
+
 @dataclass(frozen=True, slots=True)
 class PipelineResult:
     """Result of running AlertPipeline.process for one event."""
@@ -111,12 +130,17 @@ class AlertPipeline:
         broadcaster: Any | None = None,
         planner: Callable[..., Sequence[Any]] | None = None,
         memory_store: Any | None = None,
+        delivery_writer: Callable[..., Any] | None = None,
     ) -> None:
         self._session_factory = session_factory
         self._redis = redis_client
         self._broadcaster = broadcaster
         self._planner = planner or _empty_planner
         self._memory_store = memory_store
+        # B4.2: writes the planner's records as delivery rows in the SAME
+        # transaction as the alert ("the alert and its pending deliveries are
+        # written in one transaction"). None keeps the B4.1 shape (no rows).
+        self._delivery_writer = delivery_writer
 
     @classmethod
     def from_memory_store(
@@ -165,8 +189,27 @@ class AlertPipeline:
                 )
                 await owned_session.commit()
 
-        await self._publish_alerts(result.created_alerts, result.updated_alerts)
+        reached_ids = await self._publish_alerts(result.created_alerts, result.updated_alerts)
+        # B4.2 (4n-alerting.md:115): the browser rows are marked ``broadcast``
+        # once the publish returns — the worker's republish ladder takes only
+        # the rows the publish missed (reached nobody or raised).
+        await self._mark_browser_rows_broadcast(reached_ids)
+        # B4.2: the deliveries are committed — wake the worker so sends start
+        # immediately (the poll interval is only the fallback).
+        if result.planned_deliveries:
+            from backend.services.delivery_worker_registry import wake_delivery_worker
+
+            wake_delivery_worker()
         return result
+
+    async def publish_and_mark(self, result: PipelineResult) -> None:
+        """Publish the result's alerts and mark its browser rows ``broadcast``.
+
+        The post-commit tail the production callers (``vlm_analyzer``) run
+        after their own commit; ``process()`` runs the same sequence inline.
+        """
+        reached_ids = await self._publish_alerts(result.created_alerts, result.updated_alerts)
+        await self._mark_browser_rows_broadcast(reached_ids)
 
     def _process_in_memory(
         self,
@@ -306,6 +349,7 @@ class AlertPipeline:
         )
         store.decisions[event.id] = decision
         store.committed += 1
+        self._record_planned_deliveries_in_store(store, planned_deliveries, now)
 
         return PipelineResult(
             event_id=event.id,
@@ -605,6 +649,7 @@ class AlertPipeline:
             now=now,
             is_postgres=is_postgres,
         )
+        await self._write_deliveries_in_session(session, planned_deliveries)
 
         return PipelineResult(
             event_id=event.id,
@@ -616,6 +661,34 @@ class AlertPipeline:
             planned_deliveries=tuple(planned_deliveries),
             already_processed=False,
         )
+
+    @staticmethod
+    def _record_planned_deliveries_in_store(
+        store: Any, planned_deliveries: list[Any], now: datetime
+    ) -> None:
+        """Memory path: append the planner's records to the store's history.
+
+        The fake planners in tests return dicts; the real planner returns
+        ``PlannedDelivery`` dataclasses — both are normalised to a dict with the
+        fields the history read needs.
+        """
+        if not planned_deliveries:
+            return
+        for record in planned_deliveries:
+            store.deliveries.append(_normalise_planned(record, now))
+
+    async def _write_deliveries_in_session(
+        self, session: AsyncSession, planned_deliveries: list[Any]
+    ) -> None:
+        """DB path: persist the planner's records inside the caller's transaction.
+
+        The planner records may be dicts (tests) or ``PlannedDelivery``
+        dataclasses (production). With no writer configured this is a no-op
+        (B4.1 shape preserved).
+        """
+        if not planned_deliveries or self._delivery_writer is None:
+            return
+        await self._delivery_writer(session, planned_deliveries)
 
     @staticmethod
     async def _find_open_alert(
@@ -783,27 +856,38 @@ class AlertPipeline:
         self,
         created_alerts: Sequence[Alert],
         updated_alerts: Sequence[Alert],
-    ) -> None:
+    ) -> set[str]:
+        """Publish the alert frames; return the alert ids whose publish reached
+        at least one client (or completed without a count — the frame went out).
+
+        The pipeline marks the browser delivery rows ``broadcast`` for those
+        ids once the publish returns (4n-alerting.md:115); a publish that
+        reached nobody or raised leaves the rows ``pending`` for the worker's
+        15 s republish ladder (F3).
+        """
         if not created_alerts and not updated_alerts:
-            return
+            return set()
         broadcaster = self._broadcaster
         if broadcaster is None:
             if self._redis is None:
-                return
+                return set()
             try:
                 from backend.services.event_broadcaster import get_broadcaster
 
                 broadcaster = await get_broadcaster(self._redis)
             except Exception as exc:
                 logger.warning(f"Failed to acquire broadcaster for alert publish: {exc}")
-                return
+                return set()
 
+        reached_ids: set[str] = set()
         for alert in created_alerts:
             try:
-                await broadcaster.broadcast_alert(
+                reached = await broadcaster.broadcast_alert(
                     alert.to_dict(for_websocket=True),
                     WebSocketAlertEventType.ALERT_CREATED,
                 )
+                if reached is None or reached > 0:
+                    reached_ids.add(str(alert.id))
             except Exception as exc:
                 logger.warning(
                     "Failed to publish alert_created frame",
@@ -812,15 +896,41 @@ class AlertPipeline:
 
         for alert in updated_alerts:
             try:
-                await broadcaster.broadcast_alert(
+                reached = await broadcaster.broadcast_alert(
                     alert.to_dict(for_websocket=True),
                     WebSocketAlertEventType.ALERT_UPDATED,
                 )
+                if reached is None or reached > 0:
+                    reached_ids.add(str(alert.id))
             except Exception as exc:
                 logger.warning(
                     "Failed to publish alert_updated frame",
                     extra={"alert_id": alert.id, "error": str(exc)},
                 )
+        return reached_ids
+
+    async def _mark_browser_rows_broadcast(self, alert_ids: set[str]) -> None:
+        """Mark the alerts' pending browser delivery rows ``broadcast`` (B4.2).
+
+        The pipeline publishes the browser channel's frame itself; once the
+        publish reaches a client, its rows are done — the worker's republish
+        ladder only exists for rows the publish missed. No-op without a
+        session factory (the in-memory test path keeps no DB rows).
+        """
+        if not alert_ids or self._memory_store is not None:
+            return
+        async with self._session_factory() as session:
+            await session.execute(
+                # Internal SET-list, values bound; the ids are a bound array.
+                text(  # nosemgrep: python.sqlalchemy.security.audit.avoid-sqlalchemy-text.avoid-sqlalchemy-text
+                    "UPDATE notification_deliveries SET "
+                    "status = 'broadcast', sent_at = timezone('utc', now()), "
+                    "updated_at = timezone('utc', now()) "
+                    "WHERE alert_id = ANY(:ids) AND kind = 'browser' AND status = 'pending'"
+                ),
+                {"ids": sorted(alert_ids)},
+            )
+            await session.commit()
 
     async def sweep_unprocessed(
         self,
