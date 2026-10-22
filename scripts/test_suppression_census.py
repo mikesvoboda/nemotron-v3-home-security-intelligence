@@ -550,7 +550,9 @@ def test_counts_only_move_with_the_suppression(tmp_path):
 # WP2.4: the census must report WHAT A SUPPRESSION SUPPRESSES, not just how
 # many ids mint it. Measured bias P pinned: 255 test-level ids resolve to
 # 1,136 real test cases (4.45x); pytest_skipif 56 ids -> 193 functions
-# (30 sit on CLASSES); frontend_quarantine's 16 ids hold ~662 vitest cases.
+# (30 sit on CLASSES); frontend_quarantine's 16 ids held ~662 vitest cases
+# until F3.3 (#7325, 2026-10-22) emptied the quarantine list — the pins below
+# record that history and enforce the emptied tree.
 # At id level environment looked like 66.9% of backend skips; at test level
 # 39.2%. The `--cases` mode reports {category: {ids, cases}}; config
 # categories (not test-level) carry cases=null rather than pretending 1:1.
@@ -639,8 +641,11 @@ def test_real_tree_cases_report_reproduces_p_measured_bias():
     assert got["pytest_skipif"]["cases"] >= 180, (
         f"P measured 56 ids -> 193 functions (class-hiding + params); got {got['pytest_skipif']}"
     )
-    assert 600 <= got["frontend_quarantine"]["cases"] <= 720, (
-        f"P measured ~662 cases behind 16 quarantine ids; got {got['frontend_quarantine']}"
+    # 600..720 (P's band) → ==0 (2026-10-22, F3.3 #7325): the quarantine list
+    # is empty — the ids P measured behind are repaired or deleted — so the
+    # band collapses with its category; 0 is the only honest reading now.
+    assert got["frontend_quarantine"]["cases"] == 0, (
+        f"quarantine emptied but cases report {got['frontend_quarantine']}"
     )
     test_level = (
         "pytest_skip",
@@ -654,10 +659,17 @@ def test_real_tree_cases_report_reproduces_p_measured_bias():
     )
     ids = sum(got[c]["ids"] for c in test_level)
     cases = sum(got[c]["cases"] for c in test_level)
-    # P: 255 ids -> 1,136 cases (4.45x) on the tree P censused; this run
-    # measures 255 -> 1,112 (4.36x). The INVARIANT: id counts understate
+    # P: 255 ids -> 1,136 cases (4.45x) on the tree P censused; the run after
+    # that measured 255 -> 1,112 (4.36x). The INVARIANT: id counts understate
     # suppressed surface by multiples — a report that only shows ids hides it.
-    assert cases >= ids * 4, f"test-level ids {ids} -> cases {cases} (P measured 4.45x)"
+    # 4x→1.9x (2026-10-22, F3.3 #7325): the 13 quarantine ids carried ~627 of
+    # the cases (main measures 239→1072, 4.49x); F3.3 empties them, so the
+    # total expansion ratio drops to what the remaining categories measure
+    # (226→445, 1.97x). The invariant is now "cases ≥ ids" exactly — expansion
+    # can only add — plus the skipif floor below; the multiple was the
+    # quarantine's, and pinning it here would re-require the suppression the
+    # package just removed.
+    assert cases >= ids, f"test-level ids {ids} -> cases {cases} (expansion lost a site)"
 
 
 @pytest.mark.timeout(180)  # real-tree AST census ~14s; tier default timeout is 5s
@@ -801,15 +813,21 @@ def test_real_tree_matches_spec_baselines():
         # 4→2 (2026-10-21, F3.2 #7246): the deletion cut removed the two retired
         # collection ids with their files (SystemHealthIndicator,
         # ZoneTimelineScrubber); the same drop is in this commit's
-        # .github/suppression-baseline.json. The allowlist keeps
-        # test_helpers.py + TimeGroupedEvents.simple.
-        "collection_allowlist": 2,
+        # .github/suppression-baseline.json.
+        # 2→1 (2026-10-22, F3.3 #7325): F3.3 deleted TimeGroupedEvents.simple
+        # .test.tsx and the allowlist line with it; test_helpers.py is the one
+        # row left.
+        "collection_allowlist": 1,
         "flake_allowlist": 0,
         # 16→13 (2026-10-21, roll 10 of #7246): the F3.2 cut removed three
         # quarantine ids with their files; measured on the merged tree by
         # suppression-census.py. The 16→13 movement happened on this PR's side
         # (main never had the cut), so main's mirror kept the stale 16.
-        "frontend_quarantine": 13,
+        # 13→0 (2026-10-22, F3.3 #7325): the package emptied vite.config.ts's
+        # exclusion list — 12 files repaired and green, one deleted — so the
+        # census measures no quarantine site anywhere; the registry drops its
+        # 13 rows with the sites and keeps the category key (ALWAYS_PRESENT).
+        "frontend_quarantine": 0,
         # 32→25 (2026-10-16, ruling 220): the seven redundant "Flaky … app
         # initialization timing" skips in test_system_models.py expired on 10-15 and
         # were removed with their `#2` registry rows; each test stays skipped by its
