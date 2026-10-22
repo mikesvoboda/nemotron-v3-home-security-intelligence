@@ -240,7 +240,7 @@ small backend part (`min_confidence`) rides in the same PR (UR-9).
 
 Design: [`../4n-timeline.md`](../4n-timeline.md). Covers F-044, F-055.
 
-- [ ] The test-only PR (step 2).
+- [x] The test-only PR (step 2).
 - [ ] The build PR: `min_confidence` as a correlated `EXISTS`; the Verification select; the
       modal's detections from its own fetch; boxes on still images through `BoundingBoxOverlay`;
       `ThreatBoundingBox` retired.
