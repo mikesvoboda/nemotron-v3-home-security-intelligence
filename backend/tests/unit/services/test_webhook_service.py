@@ -16,20 +16,36 @@ Tests cover:
 
 from __future__ import annotations
 
+import asyncio
 import base64
+import hashlib
+import hmac
+import json
 from datetime import UTC, datetime, timedelta
+from types import ModuleType, SimpleNamespace
+from typing import Any
 from unittest.mock import AsyncMock, MagicMock, patch
 from uuid import uuid4
 
 import httpx
 import pytest
+from sqlalchemy import and_, func, select
 
+import backend.services.webhook_service as W
 import backend.services.webhook_service as webhook_service_module
+from backend.api.schemas.outbound_webhook import (
+    IntegrationType as SchemaIntegrationType,
+)
 from backend.api.schemas.outbound_webhook import (
     WebhookAuthConfig,
     WebhookCreate,
     WebhookEventType,
+    WebhookHealthSummary,
+    WebhookTestResponse,
     WebhookUpdate,
+)
+from backend.api.schemas.outbound_webhook import (
+    WebhookDeliveryStatus as SchemaWebhookDeliveryStatus,
 )
 from backend.core.time_utils import utc_now
 from backend.models.outbound_webhook import (
@@ -41,12 +57,18 @@ from backend.models.outbound_webhook import (
 from backend.services.webhook_service import (
     DEFAULT_MAX_RETRIES,
     DEFAULT_RETRY_DELAY,
+    DEFAULT_TIMEOUT,
     MAX_BACKOFF_SECONDS,
     MAX_RESPONSE_BODY_LENGTH,
     WebhookService,
     get_webhook_service,
     trigger_webhook_background,
 )
+
+# pytestmark reconciled (B4.2 step 2): the four consolidated battery files set
+# pytestmark = pytest.mark.unit at module level; the consolidated file adopts
+# that value (no-op in effect: conftest auto-marks everything under /unit/).
+pytestmark = pytest.mark.unit
 
 # =============================================================================
 # Test Fixtures
@@ -1933,3 +1955,3200 @@ def test_retired_r2a_row42_webhook_event_types_absent() -> None:
     ):
         assert retired not in schema_values
         assert retired not in model_values
+
+
+# =============================================================================
+# Consolidated from test_webhook_service_batch15.py (B4.2 step 2)
+# =============================================================================
+
+# (Battery docstring, preserved verbatim — it is evidence.)
+# Batch-15 battery: webhook_service TEST-GAP clusters from the WP4.4 dossier
+# (the deleted archive's ``wp25-feed/wp44-triage/webhook_service.md``).
+#
+# Clusters killed here (mutmut-adjacent behaviour pinned per cluster):
+# C1 bted-values (87), C5 fmt-discord (30), C6 fmt-teams (29), C7 fmt-slack (18),
+# C12 int-routing (6), C13 boundary300 (6), C15 or-default (6), C19 singleton (2),
+# C20 bted-fallback (2), C21 timing-formula (2), C22 tw-body (3), C23 hdrs-names (3).
+#
+# Deliberately NOT touched (owned by other batches): C2/C3 query-build SQL,
+# C4 delivery-record construction, C8 stats counters, C9 signature recomputation,
+# C10 resp-fields, C11 create-fields, C14 health-boundary, C16 jinja-context,
+# C17 db-args, C18 post-args.
+#
+# EVERY asserted literal below was MEASURED against the pristine shipped source on
+# 2026-09-23 by throwaway probes (``/tmp/b15-probe-*.py`` run with
+# ``uv run python`` under the repo venv, consolidated dump in
+# ``/tmp/b15-probes.json``). No value was guessed and production was NOT bent to
+# any mutant: where shipped behaviour differs from the dossier draft, the shipped
+# behaviour is what is pinned. Measured corrections / additions to the dossier:
+#
+# * Dossier D1 claims ``_build_test_event_data`` returns a ``data``-less shape and
+#   that ``timestamp`` ordering is meaningful; the shipped shape is
+#   ``{**base, **specific}`` where ``base == {"test": True, "timestamp": <iso>}``
+#   (probe1/probe6): the full dict is pinned with a patched clock.
+# * ``WebhookDeliveryStatus`` is ``auto()`` so its values are the *lowercase*
+#   member names (``"success"``, ``"retrying"``, ``"failed"``) — probe4.
+# * C13 boundary: 299 -> SUCCESS in all three classifiers; 300 is FAILURE with a
+#   *different* failure shape per entry point — ``deliver_webhook`` -> status
+#   ``retrying`` + ``next_retry_at`` set + ``delivered_at`` None, ``test_webhook``
+#   -> ``success=False, error_message="HTTP 300", response_body="b300"`` (body is
+#   still returned on failure), ``retry_delivery`` -> status ``failed`` +
+#   ``delivered_at`` None + ``next_retry_at`` None (probe4).
+# * C19: the shipped reset pattern is the module-level holder global
+#   ``webhook_service._WebhookServiceHolder.instance`` (there is NO
+#   ``reset_webhook_service()`` helper); it is saved/restored in ``finally`` so no
+#   module state leaks to other tests (probe6).
+# * C21: both ``/1000`` and ``*1001`` are killed by pinning the exact int returned
+#   from ``_send_request`` with the service module's ``datetime`` patched to a
+#   2-tick clock (37 ms -> 37; ``/1000`` would yield 0, ``*1001`` 37037);
+#   ``int()`` also truncates sub-millisecond elapsed to 0 (probe7).
+# * C23: the shipped base headers are exactly ``{"Content-Type":
+#   "application/json", "User-Agent": "NemotronWebhook/1.0"}`` and the
+#   ``post()`` kwargs are exactly ``("json", "headers")`` with the url positional;
+#   header VALUES (not just the key set) are pinned because the shipped
+#   ``_send_request`` merges custom headers over the base — a value tweak
+#   survives a keys-only assert (probe3/probe7).
+# * Unmeasured-by-us but recorded because it is shipped contract: the three
+#   formatters raise ``AttributeError`` when ``data`` is present-but-``None``
+#   (``payload.get("data", {})`` only defaults a *missing* key) — probe2.
+#
+# Provable-EQUIVALENT members found inside the targeted clusters (kill-work in
+# this file cannot reach them; ledger candidates): dropping ``| bool`` from the
+# formatters' ``isinstance(value, str | int | float | bool)`` (bool is a subclass
+# of int, so the union is unchanged — verified on the mutated module) and the
+# Discord-only ``payload.get("event_type", "event")`` default case flip (that
+# default reaches ``.title()`` only, so ``"EVENT"`` renders identically).
+
+# ---------------------------------------------------------------------------
+# Measured constants (probes 6/7). FIXED/FIXED_ISO come from patching the
+# service module's utc_now, so every iso timestamp in this file is the same
+# measured value.
+# ---------------------------------------------------------------------------
+WID = "wid-fixed-1"
+URL = "https://x.test/hook"
+FIXED = datetime(2026, 3, 4, 5, 6, 7, 891011, tzinfo=UTC)
+FIXED_ISO = "2026-03-04T05:06:07.891011+00:00"
+SECRET = "ab" * 32  # nosemgrep: hardcoded-password
+SECRET_A = "a" * 64
+# probe7: HMAC over json.dumps(payload, sort_keys=True, separators=(",",":"))
+SIG_P1 = (
+    "4012d12033f6bfe41db94b44a97ac0b5434779648ccd370c53ff31d117a6aa4f"  # pragma: allowlist secret
+)
+SIG_P3 = (
+    "31f13e5e1b6da4560d8cca7ec6a477f41b1eb3724711410670f3685c699aec72"  # pragma: allowlist secret
+)
+BASE_HEADERS = {"Content-Type": "application/json", "User-Agent": "NemotronWebhook/1.0"}
+
+# Payloads whose signatures above were measured with SECRET (probe6/probe7).
+P1 = {"zz": 1, "aa": {"y": 2, "b": 3}}
+P3 = {"b": [1, 2], "a": "x"}
+
+# A wide data mapping mixing scalar and non-scalar values; the non-scalars must
+# be dropped by all three formatters (measured, probe2).
+WIDE_DATA = {
+    "zone_id": "driveway",
+    "score": 0.5,
+    "count": 3,
+    "flag": False,
+    "nested": {"x": 1},
+    "items": [1, 2],
+    "none": None,
+}
+
+
+# ---------------------------------------------------------------------------
+# Local fixtures (self-contained; mock_db_session comes from backend/tests)
+# ---------------------------------------------------------------------------
+@pytest.fixture
+def service() -> WebhookService:
+    return WebhookService()
+
+
+@pytest.fixture
+def clock():
+    """Patch the service module's utc_now to the measured FIXED instant."""
+    with patch.object(W, "utc_now", return_value=FIXED, autospec=True):
+        yield FIXED
+
+
+def webhook(integration: IntegrationType = IntegrationType.GENERIC, **overrides) -> OutboundWebhook:
+    """Build an unpersisted OutboundWebhook with the probe's baseline config."""
+    kwargs = {
+        "id": WID,
+        "name": "Batch15",
+        "url": URL,
+        "event_types": ["alert_fired"],
+        "integration_type": integration,
+        "enabled": True,
+        "auth_config": None,
+        "custom_headers": {},
+        "payload_template": None,
+        "max_retries": 4,
+        "retry_delay_seconds": 10,
+        "signing_secret": None,
+        "total_deliveries": 0,
+        "successful_deliveries": 0,
+    }
+    kwargs.update(overrides)
+    return OutboundWebhook(**kwargs)
+
+
+class ClientSpy:
+    """Stand-in for ``httpx.AsyncClient`` that records the ``post()`` call.
+
+    Instances are callable and return themselves from ``__call__`` so the
+    ``async with httpx.AsyncClient(timeout=...) as client`` form works, and no
+    real socket is ever opened.
+    """
+
+    def __init__(self, status_code: int = 202, text: str = "queued") -> None:
+        self.status_code = status_code
+        self.text = text
+        self.calls: list[tuple[tuple, dict]] = []
+        self.constructor_kwargs: list[dict] = []
+
+    def __call__(self, **kwargs) -> ClientSpy:
+        self.constructor_kwargs.append(kwargs)
+        return self
+
+    async def __aenter__(self) -> ClientSpy:
+        return self
+
+    async def __aexit__(self, *exc_info) -> None:
+        return None
+
+    async def post(self, *args, **kwargs):
+        self.calls.append((args, kwargs))
+        response = MagicMock()
+        response.status_code = self.status_code
+        response.text = self.text
+        return response
+
+
+def _session_with(execute: AsyncMock) -> AsyncMock:
+    session = AsyncMock()
+    session.add = MagicMock()
+    session.flush = AsyncMock()
+    session.refresh = AsyncMock()
+    session.execute = execute
+    return session
+
+
+def _result(scalar=None, rows=None, one_or_none=None) -> MagicMock:
+    result = MagicMock()
+    result.scalar.return_value = scalar
+    scalars = MagicMock()
+    scalars.all.return_value = rows if rows is not None else []
+    result.scalars.return_value = scalars
+    result.scalar_one_or_none.return_value = one_or_none
+    return result
+
+
+def _patched_clock(steps: list[datetime]) -> type:
+    """A ``datetime`` look-alike whose ``now()`` walks ``steps`` once."""
+
+    class TickClock:
+        _steps = steps
+        _tick = 0
+
+        @classmethod
+        def now(cls, _tz=None):
+            value = cls._steps[min(cls._tick, len(cls._steps) - 1)]
+            cls._tick += 1
+            return value
+
+    return TickClock
+
+
+# ===========================================================================
+# C1 bted-values (87) — full-shape equality of the sample-event table
+# ===========================================================================
+def test_build_test_event_data_full_shape_per_event_type(service, clock):
+    """Kills every key/value text mutation (XX…XX, UPPER/lower flips, 1.95/1.87)
+    in the event-specific test-data table: the whole merged dict is pinned."""
+    measured = {
+        WebhookEventType.ALERT_FIRED: {
+            "test": True,
+            "timestamp": FIXED_ISO,
+            "alert_id": "test-alert-001",
+            "severity": "high",
+            "camera_id": "front_door",
+            "description": "Test alert triggered",
+        },
+        WebhookEventType.ALERT_DISMISSED: {
+            "test": True,
+            "timestamp": FIXED_ISO,
+            "alert_id": "test-alert-001",
+        },
+        WebhookEventType.ALERT_ACKNOWLEDGED: {
+            "test": True,
+            "timestamp": FIXED_ISO,
+            "alert_id": "test-alert-001",
+        },
+        WebhookEventType.EVENT_CREATED: {
+            "test": True,
+            "timestamp": FIXED_ISO,
+            "event_id": "test-event-001",
+            "camera_id": "front_door",
+            "event_type": "motion_detected",
+        },
+        WebhookEventType.ENTITY_DISCOVERED: {
+            "test": True,
+            "timestamp": FIXED_ISO,
+            "entity_id": "test-entity-001",
+            "entity_type": "person",
+            "label": "Unknown Person",
+        },
+        WebhookEventType.ANOMALY_DETECTED: {
+            "test": True,
+            "timestamp": FIXED_ISO,
+            "anomaly_id": "test-anomaly-001",
+            "zone_id": "driveway",
+            "anomaly_type": "unusual_activity",
+            "score": 0.87,
+        },
+        WebhookEventType.SYSTEM_HEALTH_CHANGED: {
+            "test": True,
+            "timestamp": FIXED_ISO,
+            "component": "ai-yolo26",
+            "status": "degraded",
+            "message": "High latency detected",
+        },
+    }
+    for event_type, expected in measured.items():
+        assert service._build_test_event_data(event_type) == expected
+        # insertion order is part of the shipped shape: base first, then specific
+        assert list(service._build_test_event_data(event_type)) == list(expected)
+
+    # float literals are floats, not strings / rounded ints
+    assert service._build_test_event_data(WebhookEventType.ANOMALY_DETECTED)["score"] == 0.87
+    assert type(service._build_test_event_data(WebhookEventType.ANOMALY_DETECTED)["score"]) is float
+
+
+def test_build_test_event_data_timestamp_is_utc_iso_and_advances(service):
+    """Timestamp shape without the clock patch: 32-char ``+00:00`` isoformat."""
+    data = service._build_test_event_data(WebhookEventType.ALERT_FIRED)
+    stamp = data["timestamp"]
+    assert isinstance(stamp, str)
+    assert stamp.endswith("+00:00")
+    assert len(stamp) == 32
+    assert datetime.fromisoformat(stamp).tzinfo == UTC
+    later = service._build_test_event_data(WebhookEventType.ALERT_FIRED)["timestamp"]
+    assert later >= stamp
+
+
+# ===========================================================================
+# C20 bted-fallback (2) — unmapped event types merge {} (no None, no raise)
+# ===========================================================================
+def test_build_test_event_data_unmapped_event_type_merges_empty_dict(service, clock):
+    """Kills ``.get(value, {})`` -> ``.get(value)`` / dropped default: an enum
+    member absent from the table must merge an empty dict, never None."""
+    unmapped = [
+        "unmapped_event",
+    ]
+    for event_type in unmapped:
+        data = service._build_test_event_data(event_type)
+        assert data == {"test": True, "timestamp": FIXED_ISO}
+        assert data["test"] is True
+
+    # shipped: the lookup keys are the lowercase StrEnum values
+    assert service._build_test_event_data(WebhookEventType.ALERT_FIRED) != {
+        "test": True,
+        "timestamp": FIXED_ISO,
+    }
+
+
+# ===========================================================================
+# C7 fmt-slack (18) — full shape, key case, inline flags, text assembly
+# ===========================================================================
+def test_format_slack_payload_full_shape(service):
+    payload = {"event_type": "camera_motion_detected", "data": WIDE_DATA}
+    text = (
+        "*camera_motion_detected*\n- zone_id: driveway\n- score: 0.5\n- count: 3\n- flag: False\n"
+    )
+    assert service._format_slack_payload(payload) == {
+        "text": text,
+        "blocks": [{"type": "section", "text": {"type": "mrkdwn", "text": text}}],
+    }
+
+
+def test_format_slack_payload_defaults_and_non_scalar_filter(service):
+    assert service._format_slack_payload({}) == {
+        "text": "*event*\n",
+        "blocks": [{"type": "section", "text": {"type": "mrkdwn", "text": "*event*\n"}}],
+    }
+    assert service._format_slack_payload({"event_type": "e"}) == {
+        "text": "*e*\n",
+        "blocks": [{"type": "section", "text": {"type": "mrkdwn", "text": "*e*\n"}}],
+    }
+    # keys are used verbatim (no title-casing) and non-scalars are skipped
+    odd = {
+        "event_type": "a_B_c",
+        "data": {"HTTP_code_x2": "v", "UPPER_CASE": 1, "mix ed": 2, "": 3},
+    }
+    text = "*a_B_c*\n- HTTP_code_x2: v\n- UPPER_CASE: 1\n- mix ed: 2\n- : 3\n"
+    assert service._format_slack_payload(odd) == {
+        "text": text,
+        "blocks": [{"type": "section", "text": {"type": "mrkdwn", "text": text}}],
+    }
+
+
+# ===========================================================================
+# C5 fmt-discord (30) — embed shape, inline flag, title-casing, [:25] cap
+# ===========================================================================
+def test_format_discord_payload_full_shape(service):
+    payload = {"event_type": "camera_motion_detected", "timestamp": "TS-STAMP", "data": WIDE_DATA}
+    assert service._format_discord_payload(payload) == {
+        "embeds": [
+            {
+                "title": "Camera Motion Detected",
+                "timestamp": "TS-STAMP",
+                "fields": [
+                    {"name": "Zone Id", "value": "driveway", "inline": True},
+                    {"name": "Score", "value": "0.5", "inline": True},
+                    {"name": "Count", "value": "3", "inline": True},
+                    {"name": "Flag", "value": "False", "inline": True},
+                ],
+            }
+        ]
+    }
+
+
+def test_format_discord_payload_timestamp_lookup_and_defaults(service):
+    # missing timestamp falls back to the module clock (utc_now is module-global)
+    with patch.object(W, "utc_now", return_value=FIXED, autospec=True):
+        assert service._format_discord_payload({"event_type": "e", "data": {}}) == {
+            "embeds": [{"title": "E", "timestamp": FIXED_ISO, "fields": []}]
+        }
+        assert service._format_discord_payload({}) == {
+            "embeds": [{"title": "Event", "timestamp": FIXED_ISO, "fields": []}]
+        }
+    # explicit timestamp wins
+    assert service._format_discord_payload({"timestamp": "T2", "data": {"alert_id": "a-1"}}) == {
+        "embeds": [
+            {
+                "title": "Event",
+                "timestamp": "T2",
+                "fields": [{"name": "Alert Id", "value": "a-1", "inline": True}],
+            }
+        ]
+    }
+
+
+def test_format_discord_fields_cap_at_25(service):
+    """Boundary pin: 26 inputs -> 25 fields (kills ``fields[:25]`` -> ``[:26]``)."""
+    data = {f"k{i}": i for i in range(26)}
+    fields = service._format_discord_payload({"data": data})["embeds"][0]["fields"]
+    assert len(fields) == 25
+    assert fields[0] == {"name": "K0", "value": "0", "inline": True}
+    assert fields[-1] == {"name": "K24", "value": "24", "inline": True}
+    assert [f["name"] for f in fields][-3:] == ["K22", "K23", "K24"]
+    # 25 inputs is the largest uncapped case; 24 stays 24
+    assert (
+        len(
+            service._format_discord_payload({"data": {f"k{i}": i for i in range(25)}})["embeds"][0][
+                "fields"
+            ]
+        )
+        == 25
+    )
+    assert (
+        len(
+            service._format_discord_payload({"data": {f"k{i}": i for i in range(24)}})["embeds"][0][
+                "fields"
+            ]
+        )
+        == 24
+    )
+    empty = service._format_discord_payload({"data": {}})["embeds"][0]
+    assert empty["title"] == "Event" and empty["fields"] == []
+
+
+# ===========================================================================
+# C6 fmt-teams (29) — MessageCard shape, themeColor, summary, [:10] cap
+# ===========================================================================
+def test_format_teams_payload_full_shape(service):
+    payload = {"event_type": "camera_motion_detected", "timestamp": "TS-STAMP", "data": WIDE_DATA}
+    assert service._format_teams_payload(payload) == {
+        "@type": "MessageCard",
+        "@context": "https://schema.org/extensions",
+        "summary": "camera_motion_detected",
+        "themeColor": "0076D7",
+        "title": "Camera Motion Detected",
+        "sections": [
+            {
+                "facts": [
+                    {"title": "Zone Id", "value": "driveway"},
+                    {"title": "Score", "value": "0.5"},
+                    {"title": "Count", "value": "3"},
+                    {"title": "Flag", "value": "False"},
+                ]
+            }
+        ],
+    }
+    # fact dicts carry exactly two keys — no inline flag (unlike Discord)
+    assert list(service._format_teams_payload(payload)["sections"][0]["facts"][0]) == [
+        "title",
+        "value",
+    ]
+    # top-level key order is part of the shipped shape
+    assert list(service._format_teams_payload(payload)) == [
+        "@type",
+        "@context",
+        "summary",
+        "themeColor",
+        "title",
+        "sections",
+    ]
+
+
+def test_format_teams_summary_is_raw_event_type_and_defaults(service):
+    """``summary`` keeps the raw value while ``title`` is title-cased."""
+    assert service._format_teams_payload({}) == {
+        "@type": "MessageCard",
+        "@context": "https://schema.org/extensions",
+        "summary": "event",
+        "themeColor": "0076D7",
+        "title": "Event",
+        "sections": [{"facts": []}],
+    }
+    slim = service._format_teams_payload(
+        {"event_type": "a_B_c", "data": {"HTTP_code_x2": "v", "": 3}}
+    )
+    assert slim["summary"] == "a_B_c"
+    assert slim["title"] == "A B C"
+    assert slim["sections"][0]["facts"] == [
+        {"title": "Http Code X2", "value": "v"},
+        {"title": "", "value": "3"},
+    ]
+
+
+def test_format_teams_facts_cap_at_10(service):
+    """Boundary pin: 11 inputs -> 10 facts (kills ``facts[:10]`` -> ``[:11]``)."""
+    facts = service._format_teams_payload({"data": {f"k{i}": i for i in range(11)}})["sections"][0][
+        "facts"
+    ]
+    assert len(facts) == 10
+    assert facts[0] == {"title": "K0", "value": "0"}
+    assert facts[-1] == {"title": "K9", "value": "9"}
+    assert (
+        len(
+            service._format_teams_payload({"data": {f"k{i}": i for i in range(10)}})["sections"][0][
+                "facts"
+            ]
+        )
+        == 10
+    )
+    assert (
+        len(
+            service._format_teams_payload({"data": {f"k{i}": i for i in range(9)}})["sections"][0][
+                "facts"
+            ]
+        )
+        == 9
+    )
+    assert service._format_teams_payload({"data": {}})["sections"] == [{"facts": []}]
+
+
+# ===========================================================================
+# C12 int-routing (6) — _format_for_integration comparison targets
+# ===========================================================================
+def test_format_for_integration_routes_each_type_with_full_shape(service, clock):
+    """Kills ``"slack"/"discord"/"teams"`` comparison-target renames: each route
+    must produce its formatted shape; anything else is verbatim passthrough."""
+    standard = {
+        "event_type": "camera_motion",
+        "timestamp": "TS",
+        "data": {"zone_id": "driveway", "score": 0.5},
+    }
+
+    slack = service._format_for_integration(webhook(IntegrationType.SLACK), {**standard})
+    text = "*camera_motion*\n- zone_id: driveway\n- score: 0.5\n"
+    assert slack == {
+        "text": text,
+        "blocks": [{"type": "section", "text": {"type": "mrkdwn", "text": text}}],
+    }
+
+    discord = service._format_for_integration(webhook(IntegrationType.DISCORD), {**standard})
+    assert discord == {
+        "embeds": [
+            {
+                "title": "Camera Motion",
+                "timestamp": "TS",
+                "fields": [
+                    {"name": "Zone Id", "value": "driveway", "inline": True},
+                    {"name": "Score", "value": "0.5", "inline": True},
+                ],
+            }
+        ]
+    }
+
+    teams = service._format_for_integration(webhook(IntegrationType.TEAMS), {**standard})
+    assert teams == {
+        "@type": "MessageCard",
+        "@context": "https://schema.org/extensions",
+        "summary": "camera_motion",
+        "themeColor": "0076D7",
+        "title": "Camera Motion",
+        "sections": [
+            {
+                "facts": [
+                    {"title": "Zone Id", "value": "driveway"},
+                    {"title": "Score", "value": "0.5"},
+                ]
+            }
+        ],
+    }
+
+    generic = webhook(IntegrationType.GENERIC)
+    assert service._format_for_integration(generic, standard) == standard
+    assert service._format_for_integration(generic, standard) is standard
+    # TELEGRAM is not a formatting branch -> passthrough
+    assert service._format_for_integration(webhook(IntegrationType.TELEGRAM), standard) == standard
+    # a bare (non-enum) integration_type string still routes when it matches
+    plain = webhook(IntegrationType.GENERIC)
+    plain.integration_type = "discord"
+    assert service._format_for_integration(plain, {**standard}) == discord
+    # ...and does NOT route when case differs (shipped behaviour, not lenient)
+    plain.integration_type = "SLACK"
+    assert service._format_for_integration(plain, standard) == standard
+
+
+def test_build_payload_routes_through_integration(service, clock):
+    """_build_payload (no template) ends in the integration formatter."""
+    event_data = {"alert_id": "a1"}
+    assert service._build_payload(webhook(), WebhookEventType.ALERT_FIRED, event_data) == {
+        "event_type": "alert_fired",
+        "timestamp": FIXED_ISO,
+        "webhook_id": WID,
+        "data": event_data,
+    }
+    text = "*alert_fired*\n- a: 1\n"
+    assert service._build_payload(
+        webhook(IntegrationType.SLACK), WebhookEventType.ALERT_FIRED, {"a": 1}
+    ) == {
+        "text": text,
+        "blocks": [{"type": "section", "text": {"type": "mrkdwn", "text": text}}],
+    }
+    assert service._build_payload(
+        webhook(IntegrationType.TEAMS), WebhookEventType.ALERT_FIRED, {"a": 1}
+    ) == {
+        "@type": "MessageCard",
+        "@context": "https://schema.org/extensions",
+        "summary": "alert_fired",
+        "themeColor": "0076D7",
+        "title": "Alert Fired",
+        "sections": [{"facts": [{"title": "A", "value": "1"}]}],
+    }
+
+
+# ===========================================================================
+# C13 boundary300 (6) — 200 <= status < 300 in deliver / test / retry
+# ===========================================================================
+@pytest.mark.parametrize(
+    ("status_code", "expected_status"),
+    [
+        (199, WebhookDeliveryStatus.RETRYING),
+        (200, WebhookDeliveryStatus.SUCCESS),
+        (204, WebhookDeliveryStatus.SUCCESS),
+        (299, WebhookDeliveryStatus.SUCCESS),
+        (300, WebhookDeliveryStatus.RETRYING),
+        (301, WebhookDeliveryStatus.RETRYING),
+        (500, WebhookDeliveryStatus.RETRYING),
+    ],
+)
+async def test_deliver_webhook_status_classification_at_300_boundary(
+    service, mock_db_session, status_code, expected_status
+):
+    """Kills ``< 300`` -> ``<= 300`` / ``< 301``: 299 succeeds, 300 does not."""
+    mock_db_session.execute = AsyncMock(return_value=_result())
+    hook = webhook(max_retries=4, retry_delay_seconds=10)
+
+    with patch.object(service, "_send_request", new_callable=AsyncMock) as send:
+        send.return_value = (status_code, f"body-{status_code}", 42)
+        delivery = await service.deliver_webhook(
+            mock_db_session,
+            hook,
+            WebhookEventType.ALERT_FIRED,
+            {"alert_id": "a1"},
+            event_id="evt-9",
+        )
+
+    assert delivery.status is expected_status
+    assert delivery.status_code == status_code
+    assert delivery.response_body == f"body-{status_code}"
+    assert delivery.response_time_ms == 42
+    if expected_status is WebhookDeliveryStatus.SUCCESS:
+        assert delivery.error_message is None
+        assert delivery.delivered_at is not None
+        assert hook.last_delivery_status == "success"
+    else:
+        assert delivery.error_message == f"HTTP {status_code}"
+        assert delivery.delivered_at is None
+        assert delivery.next_retry_at is not None
+        assert hook.last_delivery_status == "retrying"
+
+
+@pytest.mark.parametrize("status_code", [300, 301, 404])
+async def test_deliver_webhook_300_is_failure_with_measured_field_proof(
+    service, mock_db_session, status_code
+):
+    """The delivery-record fields that *prove* 300 is not a success."""
+    mock_db_session.execute = AsyncMock(return_value=_result())
+    hook = webhook()
+    with patch.object(service, "_send_request", new_callable=AsyncMock) as send:
+        send.return_value = (status_code, "b", 5)
+        delivery = await service.deliver_webhook(
+            mock_db_session, hook, WebhookEventType.ALERT_FIRED, {}
+        )
+
+    assert delivery.status is WebhookDeliveryStatus.RETRYING
+    assert delivery.status == "retrying"  # auto()-based StrEnum value is lowercase
+    assert delivery.error_message == f"HTTP {status_code}"
+    assert delivery.delivered_at is None
+    assert hook.total_deliveries == 1
+    assert hook.successful_deliveries == 0
+
+
+@pytest.mark.parametrize(
+    ("status_code", "body", "expected"),
+    [
+        (
+            299,
+            "b299",
+            {
+                "success": True,
+                "status_code": 299,
+                "response_time_ms": 7,
+                "response_body": "b299",
+                "error_message": None,
+            },
+        ),
+        (
+            300,
+            "b300",
+            {
+                "success": False,
+                "status_code": 300,
+                "response_time_ms": 7,
+                "response_body": "b300",
+                "error_message": "HTTP 300",
+            },
+        ),
+        (
+            301,
+            "b301",
+            {
+                "success": False,
+                "status_code": 301,
+                "response_time_ms": 7,
+                "response_body": "b301",
+                "error_message": "HTTP 301",
+            },
+        ),
+    ],
+)
+async def test_test_webhook_success_boundary_at_300(
+    service, mock_db_session, status_code, body, expected
+):
+    """test_webhook classification: 299 success / 300 failure, full response."""
+    hook = webhook()
+    mock_db_session.execute = AsyncMock(return_value=_result(one_or_none=hook))
+    with patch.object(service, "_send_request", new_callable=AsyncMock) as send:
+        send.return_value = (status_code, body, 7)
+        result = await service.test_webhook(mock_db_session, hook.id, WebhookEventType.ALERT_FIRED)
+    assert result.model_dump() == expected
+
+
+async def test_retry_delivery_300_is_failed_299_is_success(service, mock_db_session):
+    """retry_delivery uses the same window but the FAILED branch (not RETRYING)."""
+    hook = webhook()
+    delivery = WebhookDelivery(
+        webhook_id=hook.id,
+        event_type="alert_fired",
+        status=WebhookDeliveryStatus.FAILED,
+        attempt_count=1,
+        request_payload={"a": 1},
+    )
+    mock_db_session.execute = AsyncMock(
+        side_effect=[_result(one_or_none=delivery), _result(one_or_none=hook)]
+    )
+    with patch.object(service, "_send_request", new_callable=AsyncMock) as send:
+        send.return_value = (299, "r299", 11)
+        retried = await service.retry_delivery(mock_db_session, "delivery-1")
+
+    assert retried.status is WebhookDeliveryStatus.SUCCESS
+    assert retried.status_code == 299
+    assert retried.response_body == "r299"
+    assert retried.response_time_ms == 11
+    assert retried.error_message is None
+    assert retried.attempt_count == 2
+    assert hook.last_delivery_status == "success"
+
+    hook2 = webhook()
+    delivery2 = WebhookDelivery(
+        webhook_id=hook2.id,
+        event_type="alert_fired",
+        status=WebhookDeliveryStatus.FAILED,
+        attempt_count=1,
+        request_payload={"a": 1},
+    )
+    mock_db_session.execute = AsyncMock(
+        side_effect=[_result(one_or_none=delivery2), _result(one_or_none=hook2)]
+    )
+    with patch.object(service, "_send_request", new_callable=AsyncMock) as send:
+        send.return_value = (300, "r300", 11)
+        failed = await service.retry_delivery(mock_db_session, "delivery-1")
+
+    assert failed.status is WebhookDeliveryStatus.FAILED
+    assert failed.status_code == 300
+    assert failed.error_message == "HTTP 300"
+    assert failed.response_body == "r300"
+    assert failed.attempt_count == 2
+    assert hook2.total_deliveries == 1
+    assert hook2.successful_deliveries == 0
+    assert hook2.last_delivery_status == "failed"
+
+
+# ===========================================================================
+# C22 tw-body (3) — test_webhook response_body passthrough / None / cap
+# ===========================================================================
+@pytest.mark.parametrize(
+    ("status_code", "body", "expected_body"),
+    [
+        (200, "pong", "pong"),
+        (200, "", None),
+        (404, "", None),
+        (404, "nope", "nope"),
+    ],
+)
+async def test_test_webhook_response_body_passthrough(
+    service, mock_db_session, status_code, body, expected_body
+):
+    hook = webhook()
+    mock_db_session.execute = AsyncMock(return_value=_result(one_or_none=hook))
+    with patch.object(service, "_send_request", new_callable=AsyncMock) as send:
+        send.return_value = (status_code, body, 7)
+        result = await service.test_webhook(mock_db_session, hook.id, WebhookEventType.ALERT_FIRED)
+    assert result.response_body == expected_body
+    assert result.model_dump()["response_body"] == expected_body
+
+
+async def test_test_webhook_response_body_capped_at_2000(service, mock_db_session):
+    hook = webhook()
+    mock_db_session.execute = AsyncMock(return_value=_result(one_or_none=hook))
+    with patch.object(service, "_send_request", new_callable=AsyncMock) as send:
+        send.return_value = (200, "x" * 2001, 7)
+        result = await service.test_webhook(mock_db_session, hook.id, WebhookEventType.ALERT_FIRED)
+    assert len(result.response_body) == 2000
+    assert result.response_body == "x" * 2000
+    assert result.success is True and result.error_message is None
+
+
+async def test_test_webhook_full_success_shape(service, mock_db_session):
+    hook = webhook()
+    mock_db_session.execute = AsyncMock(return_value=_result(one_or_none=hook))
+    with patch.object(service, "_send_request", new_callable=AsyncMock) as send:
+        send.return_value = (200, "pong", 7)
+        result = await service.test_webhook(mock_db_session, hook.id, WebhookEventType.ALERT_FIRED)
+    assert result.model_dump() == {
+        "success": True,
+        "status_code": 200,
+        "response_time_ms": 7,
+        "response_body": "pong",
+        "error_message": None,
+    }
+
+
+# ===========================================================================
+# C23 hdrs-names (3) + C21 timing-formula (2) — _send_request wire contract
+# ===========================================================================
+async def test_send_request_posts_exact_url_json_and_base_headers(service):
+    """Header dict is pinned by keys AND values: the shipped base headers are
+    exactly Content-Type/User-Agent and post() gets (url, json=, headers=)."""
+    spy = ClientSpy(status_code=202, text="queued")
+    with patch.object(httpx, "AsyncClient", spy):
+        result = await service._send_request(webhook(), P1)
+
+    assert spy.constructor_kwargs == [{"timeout": DEFAULT_TIMEOUT}]
+    assert spy.calls == [((URL,), {"json": P1, "headers": BASE_HEADERS})]
+    assert result == (202, "queued", 0)
+
+
+async def test_send_request_signed_headers_exact_dict(service):
+    """Kills header key renames for the signature pair (values are the measured
+    HMAC over the canonical json.dumps form)."""
+    spy = ClientSpy(status_code=200, text="OK")
+    with patch.object(httpx, "AsyncClient", spy):
+        await service._send_request(webhook(signing_secret=SECRET), P1)
+
+    _, kwargs = spy.calls[0]
+    assert kwargs["headers"] == {
+        "Content-Type": "application/json",
+        "User-Agent": "NemotronWebhook/1.0",
+        "X-Webhook-Signature": f"sha256={SIG_P1}",
+        "X-Webhook-Signature-256": SIG_P1,
+    }
+    assert list(kwargs["headers"]) == [
+        "Content-Type",
+        "User-Agent",
+        "X-Webhook-Signature",
+        "X-Webhook-Signature-256",
+    ]
+    # the measured literal equals an in-test recomputation of the shipped
+    # canonicalization (sort_keys + tight separators)
+    canonical = json.dumps(P1, sort_keys=True, separators=(",", ":")).encode()
+    assert hmac.new(bytes.fromhex(SECRET), canonical, hashlib.sha256).hexdigest() == SIG_P1
+
+
+async def test_send_request_auth_and_custom_header_dicts_are_exact(service):
+    bearer = webhook(
+        custom_headers={"X-Trace": "t1"},
+        auth_config={"type": "bearer", "token": "TK1"},
+        signing_secret=SECRET,
+    )
+    spy = ClientSpy()
+    with patch.object(httpx, "AsyncClient", spy):
+        await service._send_request(bearer, P3)
+    _, kwargs = spy.calls[0]
+    assert kwargs["headers"] == {
+        "Content-Type": "application/json",
+        "User-Agent": "NemotronWebhook/1.0",
+        "X-Trace": "t1",
+        "Authorization": "Bearer TK1",
+        "X-Webhook-Signature": f"sha256={SIG_P3}",
+        "X-Webhook-Signature-256": SIG_P3,
+    }
+    assert list(kwargs["headers"]) == [
+        "Content-Type",
+        "User-Agent",
+        "X-Trace",
+        "Authorization",
+        "X-Webhook-Signature",
+        "X-Webhook-Signature-256",
+    ]
+
+    basic = webhook(auth_config={"type": "basic", "username": "cam", "password": "pw"})
+    spy = ClientSpy()
+    with patch.object(httpx, "AsyncClient", spy):
+        await service._send_request(basic, P1)
+    assert spy.calls[0][1]["headers"] == {
+        "Authorization": "Basic Y2FtOnB3",
+        **BASE_HEADERS,
+    }
+
+    header_auth = webhook(
+        auth_config={"type": "header", "header_name": "X-Api-Key", "header_value": "VV"}
+    )
+    spy = ClientSpy()
+    with patch.object(httpx, "AsyncClient", spy):
+        await service._send_request(header_auth, P1)
+    assert spy.calls[0][1]["headers"] == {"X-Api-Key": "VV", **BASE_HEADERS}
+
+    # unknown auth type and empty auth_config add nothing
+    for auth_config in ({"type": "weird"}, {}):
+        spy = ClientSpy()
+        with patch.object(httpx, "AsyncClient", spy):
+            await service._send_request(webhook(auth_config=auth_config), P1)
+        assert spy.calls[0][1]["headers"] == BASE_HEADERS
+
+    # custom headers are merged OVER the base (later update wins)
+    override = webhook(
+        custom_headers={"Content-Type": "text/plain", "User-Agent": "mine", "X-Extra": "e"}
+    )
+    spy = ClientSpy()
+    with patch.object(httpx, "AsyncClient", spy):
+        await service._send_request(override, P3)
+    assert spy.calls[0][1]["headers"] == {
+        "Content-Type": "text/plain",
+        "User-Agent": "mine",
+        "X-Extra": "e",
+    }
+
+
+@pytest.mark.parametrize(
+    ("elapsed_ms", "expected_ms"),
+    [(0, 0), (1, 1), (37, 37), (2500, 2500), (100000, 100000)],
+)
+async def test_send_request_response_time_ms_formula_is_times_1000(
+    service, elapsed_ms, expected_ms
+):
+    """Kills ``* 1000`` -> ``/ 1000`` (37 -> 0) and ``* 1001`` (37 -> 37037) with
+    a two-tick clock injected into the service module's ``datetime``."""
+    steps = [
+        datetime(2026, 1, 1, tzinfo=UTC),
+        datetime(2026, 1, 1, tzinfo=UTC) + timedelta(milliseconds=elapsed_ms),
+    ]
+    spy = ClientSpy(status_code=200, text="pong")
+    with (
+        patch.object(httpx, "AsyncClient", spy),
+        patch.object(W, "datetime", _patched_clock(steps)),
+    ):
+        status, text, response_time_ms = await service._send_request(webhook(), P1)
+    assert (status, text) == (200, "pong")
+    assert response_time_ms == expected_ms
+    assert type(response_time_ms) is int
+
+
+async def test_send_request_sub_millisecond_elapsed_truncates_to_zero(service):
+    """``int()`` truncation is measurable: 999us -> 0, 1999us -> 1."""
+    steps = [datetime(2026, 1, 1, tzinfo=UTC), datetime(2026, 1, 1, 0, 0, 0, 999, tzinfo=UTC)]
+    spy = ClientSpy()
+    with (
+        patch.object(httpx, "AsyncClient", spy),
+        patch.object(W, "datetime", _patched_clock(steps)),
+    ):
+        assert (await service._send_request(webhook(), P1))[2] == 0
+    steps = [datetime(2026, 1, 1, tzinfo=UTC), datetime(2026, 1, 1, 0, 0, 0, 1999, tzinfo=UTC)]
+    spy = ClientSpy()
+    with (
+        patch.object(httpx, "AsyncClient", spy),
+        patch.object(W, "datetime", _patched_clock(steps)),
+    ):
+        assert (await service._send_request(webhook(), P1))[2] == 1
+
+
+# ===========================================================================
+# C15 or-default (6) — ``scalar() or 0`` fallbacks
+# ===========================================================================
+async def test_health_summary_zero_and_none_scalars_fall_back_to_zero(service, mock_db_session):
+    """Kills ``or 0`` -> ``or 1`` on all five count scalars: None and 0 both
+    produce 0, and average_response_time_ms is None for None *and* 0.0."""
+    for values in ([None] * 6, [0, 0, 0, 0, 0, 0]):
+        mock_db_session.execute = AsyncMock(side_effect=[_result(scalar=v) for v in values])
+        with patch.object(service, "list_webhooks", new_callable=AsyncMock) as lister:
+            lister.return_value = []
+            summary = await service.get_health_summary(mock_db_session)
+        assert summary.model_dump() == {
+            "total_webhooks": 0,
+            "enabled_webhooks": 0,
+            "healthy_webhooks": 0,
+            "unhealthy_webhooks": 0,
+            "total_deliveries_24h": 0,
+            "successful_deliveries_24h": 0,
+            "failed_deliveries_24h": 0,
+            "average_response_time_ms": None,
+        }
+        assert mock_db_session.execute.call_count == 6
+        assert lister.call_args.args[0] is mock_db_session
+
+    mock_db_session.execute = AsyncMock(
+        side_effect=[_result(scalar=v) for v in [0, 0, 0, 0, 0, 0.0]]
+    )
+    with patch.object(service, "list_webhooks", new_callable=AsyncMock) as lister:
+        lister.return_value = []
+        summary = await service.get_health_summary(mock_db_session)
+    assert summary.average_response_time_ms is None
+
+
+async def test_health_summary_nonzero_scalars_pass_through(service, mock_db_session):
+    """Same helper proves the fallback is not ``or 1`` in the other direction:
+    real scalars flow through untouched (avg None -> None)."""
+    mock_db_session.execute = AsyncMock(
+        side_effect=[_result(scalar=v) for v in [7, 5, 20, 15, 3, None]]
+    )
+    with patch.object(service, "list_webhooks", new_callable=AsyncMock) as lister:
+        lister.return_value = []
+        summary = await service.get_health_summary(mock_db_session)
+    assert summary.model_dump() == {
+        "total_webhooks": 7,
+        "enabled_webhooks": 5,
+        "healthy_webhooks": 0,
+        "unhealthy_webhooks": 0,
+        "total_deliveries_24h": 20,
+        "successful_deliveries_24h": 15,
+        "failed_deliveries_24h": 3,
+        "average_response_time_ms": None,
+    }
+
+    mock_db_session.execute = AsyncMock(
+        side_effect=[_result(scalar=v) for v in [7, 5, 20, 15, 3, 12.5]]
+    )
+    with patch.object(service, "list_webhooks", new_callable=AsyncMock) as lister:
+        lister.return_value = []
+        summary = await service.get_health_summary(mock_db_session)
+    assert summary.average_response_time_ms == 12.5
+
+
+@pytest.mark.parametrize(("scalar", "expected"), [(None, 0), (0, 0), (5, 5)])
+async def test_get_deliveries_total_falls_back_to_zero(service, mock_db_session, scalar, expected):
+    """Kills ``count_result.scalar() or 0`` -> ``or 1`` in get_deliveries."""
+    mock_db_session.execute = AsyncMock(side_effect=[_result(scalar=scalar), _result(rows=[])])
+    deliveries, total = await service.get_deliveries(mock_db_session, "wid-1", limit=50, offset=0)
+    assert total == expected
+    assert type(total) is int
+    assert deliveries == []
+    assert mock_db_session.execute.call_count == 2
+
+
+# ===========================================================================
+# C19 singleton (2) — get_webhook_service holder contract
+# ===========================================================================
+def test_get_webhook_service_singleton_roundtrip():
+    """Kills ``is None`` -> ``is not None`` and ``instance = None``: the holder
+    global must be populated with a real, stable WebhookService.
+
+    Shipped reset pattern is the module-level holder attribute (there is no
+    reset helper); the original value is restored in ``finally`` so no other
+    test can observe a mutated singleton.
+    """
+    original = W._WebhookServiceHolder.instance
+    try:
+        W._WebhookServiceHolder.instance = None
+        first = W.get_webhook_service()
+        assert isinstance(first, WebhookService)
+        assert first is not None
+        assert W.get_webhook_service() is first
+        assert W._WebhookServiceHolder.instance is first
+
+        W._WebhookServiceHolder.instance = None
+        assert W._WebhookServiceHolder.instance is None
+        second = W.get_webhook_service()
+        assert isinstance(second, WebhookService)
+        assert second is not first
+        assert W._WebhookServiceHolder.instance is second
+    finally:
+        W._WebhookServiceHolder.instance = original
+    assert W._WebhookServiceHolder.instance is original
+
+
+def test_get_webhook_service_reuses_preexisting_holder_instance():
+    """The ``is None`` guard must NOT rebuild when an instance already exists."""
+    original = W._WebhookServiceHolder.instance
+    sentinel = WebhookService()
+    try:
+        W._WebhookServiceHolder.instance = sentinel
+        assert W.get_webhook_service() is sentinel
+        assert W.get_webhook_service() is sentinel
+    finally:
+        W._WebhookServiceHolder.instance = original
+
+
+# ===========================================================================
+# Shipped-contract extras measured while probing these clusters (not dossier
+# drafts): formatter None-data crash and the webhook baseline used above.
+# ===========================================================================
+def test_formatters_crash_on_present_but_none_data(service):
+    """.get("data", {}) only defaults a MISSING key — shipped behaviour raises."""
+    for formatter in (
+        service._format_slack_payload,
+        service._format_discord_payload,
+        service._format_teams_payload,
+    ):
+        with pytest.raises(AttributeError):
+            formatter({"event_type": "e", "data": None})
+
+
+def test_webhook_baseline_helper_matches_probe_construction():
+    hook = webhook(IntegrationType.DISCORD, signing_secret=SECRET_A, total_deliveries=7)
+    assert (hook.id, hook.url, hook.name) == (WID, URL, "Batch15")
+    assert hook.integration_type is IntegrationType.DISCORD
+    assert hook.total_deliveries == 7
+    assert hook.max_retries == 4 and hook.retry_delay_seconds == 10
+    assert str(uuid4()) != hook.id
+
+
+# =============================================================================
+# Consolidated from test_webhook_service_batch15b.py (B4.2 step 2)
+# =============================================================================
+
+# (Battery docstring, preserved verbatim — it is evidence.)
+# Batch-15b mutation-kill battery: CURRENT-generation webhook survivors.
+#
+# Target: the 23 survivors the whserv re-check measured against the shipped +
+# batch-15 suites (``/tmp/redcheck-whserv.log``, rc=0, 19 KILLED / 23 SURVIVED
+# of the 42 CURRENT-cache keys — badge-relevant because the mutmut 3.x cache is
+# diff-scoped and this generation IS the denominator). Module
+# ``backend/services/webhook_service.py``.
+#
+# Survivor clusters and disposition (per-mutant, triaged against MEASURED
+# shipped behavior — /tmp/b15b-harness.py → /tmp/b15b-probes.json):
+# - SQL-shape family (keys 12-21, 11 total): shipped suites never compiled the
+#   trigger query. Killed here by full-shape compiled SQL-text pins (batch-14
+#   vehicle) plus plain-str-input shapes; ``and_(None, ...)`` / ``select(None)``
+#   raise TypeError at build (measured), the rest change the emitted text.
+# - ternary family 2/4/10: diverge and are killed. Key 2 (``= None``) makes
+#   the query bind NULL; key 4 (``hasattr(event_type, None)``) raises
+#   TypeError on EVERY input; key 10 (``else str(None)``) emits "None" for
+#   plain-str inputs (MEASURED shipped: ``'motion' = ANY``). Killed by the
+#   full-shape SQL text pins on enum AND plain-str inputs.
+# - ternary family 3/8/9: EQUIVALENT for every input — WebhookEventType is a
+#   str-subclass enum so ``str(e) == e.value`` (MEASURED); key 3
+#   (``hasattr(None, …)`` → False) and keys 8/9 (absent attribute spellings
+#   "XXvalueXX"/"VALUE") all fall to ``str(event_type)``, and for plain-str
+#   input shipped already takes that branch. Documented; no test admissible.
+# - debug-log family (25/26/28/29/30): message text + EXTRA KEY pinned EXACT.
+# - ``__init___1``: stored-client identity pin.
+#
+# Every expected value MEASURED against shipped production this session;
+# production NOT bent to any mutant. No kill tallies claimed here — those come
+# only from the 15b lane red-check.
+#
+# ADDENDUM (superseded by whserv2, measured this session): the ternary
+# disposition above was wrong on four counts — feed shapes re-dumped from
+# /tmp/extracts/webhook_service.tsv show key 2 is ``and False`` and key 4 is
+# ``hasattr(None, "value")`` (both fall to ``str(obj)``, NOT TypeError/None-
+# bind), key 3 (``or True``) is NOT equivalent (forced ``.value`` raises
+# AttributeError on plain-str input), and keys 2/4/8/9 all DIVERGE on a non-str
+# input carrying ``.value`` where ``str(obj) != obj.value``. All four true gaps
+# plus key 14 (WHERE-only asserts blind to ``select(None)``'s SELECT head) are
+# killed in ``test_webhook_service_batch15c.py``; key 3 was killed by the
+# plain-str shape test above.
+
+
+def make_svc(rows=()):
+    """Carrier: capture the COMPILED trigger SQL, return `rows` from scalars."""
+    svc = WebhookService.__new__(WebhookService)
+    cap: dict[str, str] = {}
+
+    async def execute(stmt):
+        cap["sql"] = str(stmt.compile(compile_kwargs={"literal_binds": True}))
+        res = MagicMock(name="result")
+        res.scalars.return_value.all.return_value = list(rows)
+        return res
+
+    db = MagicMock(name="db")
+    db.execute = AsyncMock(side_effect=execute)
+    return svc, db, cap
+
+
+def patched_logger():
+    lg = MagicMock(name="logger")
+    orig = W.logger
+    W.logger = lg
+    return lg, orig
+
+
+class TestInitStoresClient:
+    def test_http_client_stored_identity(self):
+        sentinel = object()
+        svc = WebhookService.__new__(WebhookService)
+        WebhookService.__init__(svc, sentinel)
+        assert svc._http_client is sentinel  # kills `= None` (key 1)
+
+
+class TestTriggerQueryShape:
+    async def test_enum_sql_full_shape(self):
+        svc, db, cap = make_svc()
+        lg, orig = patched_logger()
+        try:
+            out = await svc.trigger_webhooks_for_event(
+                db, WebhookEventType.ALERT_FIRED, {"a": 1}, "evt-1"
+            )
+        finally:
+            W.logger = orig
+        where = cap["sql"].split("WHERE")[1]
+        assert "outbound_webhooks.enabled IS true" in where
+        assert "'alert_fired' = ANY (outbound_webhooks.event_types)" in where
+        # MEASURED empty-db return
+        assert out == []
+
+    async def test_plain_string_event_type_shape(self):
+        # schema-adjacent input the shipped code explicitly supports via the
+        # hasattr fallback; MEASURED: emits 'motion' = ANY (not str(None)).
+        svc, db, cap = make_svc()
+        lg, orig = patched_logger()
+        try:
+            await svc.trigger_webhooks_for_event(db, "motion", {}, None)  # type: ignore[arg-type]
+        finally:
+            W.logger = orig
+        assert "'motion' = ANY (outbound_webhooks.event_types)" in cap["sql"]
+
+
+class TestTriggerLoggingShape:
+    async def test_empty_path_debug_message_and_extra_exact(self):
+        svc, db, _ = make_svc()
+        lg, orig = patched_logger()
+        try:
+            await svc.trigger_webhooks_for_event(db, WebhookEventType.ALERT_FIRED, {}, None)
+        finally:
+            W.logger = orig
+        dbg = lg.debug.call_args
+        assert dbg.args[0] == "No webhooks subscribed to event type: alert_fired"
+        assert dict(dbg.kwargs["extra"]) == {"event_type": "alert_fired"}
+
+    async def test_nonempty_info_message_extra_and_delivery(self):
+        row = MagicMock(name="webhook")
+        svc, db, _ = make_svc(rows=[row])
+        delivered = MagicMock(name="delivery")
+        svc.deliver_webhook = AsyncMock(return_value=delivered)
+        lg, orig = patched_logger()
+        try:
+            out = await svc.trigger_webhooks_for_event(
+                db, WebhookEventType.ALERT_FIRED, {"d": 2}, "evt-9"
+            )
+        finally:
+            W.logger = orig
+        inf = lg.info.call_args
+        assert inf.args[0] == "Triggering 1 webhooks for event type: alert_fired"
+        assert dict(inf.kwargs["extra"]) == {"event_type": "alert_fired", "webhook_count": 1}
+        args = svc.deliver_webhook.call_args.args
+        assert args[1] is row
+        assert (
+            args[2] is WebhookEventType.ALERT_FIRED
+        )  # identity — str-enum == str passes either way
+        assert args[3] == {"d": 2}
+        assert args[4] == "evt-9"
+        assert out == [delivered]
+
+
+# =============================================================================
+# Consolidated from test_webhook_service_batch15c.py (B4.2 step 2)
+# =============================================================================
+
+# (Battery docstring, preserved verbatim — it is evidence.)
+# Batch-15c mutation-kill battery: whserv2's four true-gap survivors + the
+# wh15c discord-default gap.
+#
+# Measured red-check inputs (this session, no assumptions):
+# - ``whserv2`` (42 CURRENT-cache keys vs shipped + batch-15 + batch-15b)
+#   landed 37 KILLED / 5 SURVIVED (``/tmp/redcheck-whserv2.log``, rc=0, source
+#   clean). Survivors {2,4,8,9,14} triaged against the FEED SHAPES
+#   (``/tmp/extracts/webhook_service.tsv`` full minus/plus, dumped this
+#   session) — and two of my batch-15b claims were WRONG, corrected here:
+#   * key 2 is ``and False`` (not ``= None`` as the 15b note said) and key 4 is
+#     ``hasattr(None, "value")`` (not TypeError): BOTH make the ternary always
+#     take ``str(event_type)``. For str-subclass enums and plain strings that
+#     is invisible (measured equivalence), but a NON-str input carrying a
+#     ``.value`` attribute diverges — shipped binds ``custom_duck`` (the
+#     ``.value``), the mutants bind ``DUCK`` (``str(obj)``). MEASURED shipped
+#     duck-input WHERE clause via /tmp/b15c-duck.py; killed by the duck pin.
+#   * keys 8/9 (attribute spellings "XXvalueXX"/"VALUE") are the SAME
+#     str-vs-value divergence on the same duck input — same pin kills them;
+#     they stay documented EQUIVALENT for enum/plain-str inputs only.
+#   * key 3 (``or True``, always ``.value`` branch) is NOT equivalent after
+#     all: on plain-str input the forced ``.value`` raises AttributeError
+#     (measured). It was already KILLED by the batch-15b plain-str shape test
+#     in whserv2 — the 15b docstring's "keys 3/8/9 equivalent" claim is
+#     superseded by this row.
+#   * key 14 ``select(OutboundWebhook)`` -> ``select(None)`` changes the
+#     SELECT head to ``SELECT NULL AS anon_1`` while the WHERE clause stays
+#     intact — the 15b test asserted into ``sql.split("WHERE")[1]`` only, so
+#     it could never see it. Killed by a SELECT-head prefix pin (full
+#     MEASURED 18-column head from /tmp/b15c-probes.json).
+# - ``wh15c2`` (77-key batch-15-era feed vs batch-15 battery) landed 76 KILLED
+#   / 1 SURVIVED: ``_format_discord_payload__mutmut_9`` swaps the default
+#   ``payload.get("event_type", "event")`` -> ``"EVENT"``, which only shows in
+#   the embed TITLE (``"event".title() == "Event"``). Killed by pinning the
+#   MEASURED shipped titles (absent event_type -> title "Event";
+#   "alert_fired" -> "Alert Fired"; fields verified verbatim).
+#
+# Every expected value MEASURED against shipped production this session;
+# production NOT bent to any mutant. No kill tallies claimed here — those
+# come only from the whserv3/wh15d lane red-checks.
+
+
+class DuckEventType:
+    """Non-str input carrying .value where str(obj) != obj.value — the only
+    input class that separates the ternary mutants from shipped (measured)."""
+
+    value = "custom_duck"
+
+    def __str__(self) -> str:
+        return "DUCK"
+
+
+def make_svc_b15c(rows=()):
+    svc = WebhookService.__new__(WebhookService)
+    cap: dict[str, str] = {}
+
+    async def execute(stmt):
+        cap["sql"] = str(stmt.compile(compile_kwargs={"literal_binds": True}))
+        res = MagicMock(name="result")
+        res.scalars.return_value.all.return_value = list(rows)
+        return res
+
+    db = MagicMock(name="db")
+    db.execute = AsyncMock(side_effect=execute)
+    return svc, db, cap
+
+
+class TestValueAttributeBinding:
+    async def test_duck_input_binds_value_not_str(self):
+        # MEASURED shipped: "'custom_duck' = ANY (…)" — the .value branch.
+        # Mutants 2 (and False), 4 (hasattr(None,"value")), 8/9 (spelling
+        # "XXvalueXX"/"VALUE") all fall to str(obj) -> binds "DUCK".
+        svc, db, cap = make_svc_b15c()
+        lg, orig = patched_logger()
+        try:
+            await svc.trigger_webhooks_for_event(db, DuckEventType(), {}, None)  # type: ignore[arg-type]
+        finally:
+            W.logger = orig
+        where = cap["sql"].split("WHERE")[1]
+        assert "'custom_duck' = ANY (outbound_webhooks.event_types)" in where
+        assert "'DUCK'" not in cap["sql"]
+
+
+class TestSelectHeadShape:
+    async def test_select_head_full_columns(self):
+        # key 14 select(None) emits "SELECT NULL AS anon_1" — WHERE-only
+        # asserts are blind to it; pin the MEASURED shipped head prefix.
+        svc, db, cap = make_svc_b15c()
+        lg, orig = patched_logger()
+        try:
+            from backend.api.schemas.outbound_webhook import WebhookEventType
+
+            await svc.trigger_webhooks_for_event(db, WebhookEventType.ALERT_FIRED, {}, None)
+        finally:
+            W.logger = orig
+        assert cap["sql"].startswith(
+            "SELECT outbound_webhooks.id, outbound_webhooks.name, "
+            "outbound_webhooks.url, outbound_webhooks.event_types, "
+            "outbound_webhooks.integration_type, outbound_webhooks.enabled, "
+            "outbound_webhooks.auth_config, outbound_webhooks.custom_headers, "
+            "outbound_webhooks.payload_template, outbound_webhooks.max_retries, "
+            "outbound_webhooks.retry_delay_seconds, outbound_webhooks.signing_secret, "
+            "outbound_webhooks.created_at, outbound_webhooks.updated_at, "
+            "outbound_webhooks.total_deliveries, outbound_webhooks.successful_deliveries, "
+            "outbound_webhooks.last_delivery_at, outbound_webhooks.last_delivery_status"
+        )
+
+
+class TestDiscordTitleDefault:
+    def test_missing_event_type_title_exact(self):
+        # wh15c2 survivor: default "event" -> "EVENT" changes title
+        # "Event" -> "EVENT". MEASURED shipped title + fields verbatim.
+        svc = WebhookService.__new__(WebhookService)
+        out = svc._format_discord_payload({"data": {"x": 1}})
+        embed = out["embeds"][0]
+        assert embed["title"] == "Event"
+        assert embed["fields"] == [{"name": "X", "value": "1", "inline": True}]
+
+    def test_provided_event_type_title_exact(self):
+        svc = WebhookService.__new__(WebhookService)
+        out = svc._format_discord_payload({"data": {"x": 1}, "event_type": "alert_fired"})
+        assert out["embeds"][0]["title"] == "Alert Fired"
+
+
+# =============================================================================
+# Consolidated from test_webhook_service_batch38_x.py (B4.2 step 2)
+# =============================================================================
+# TARGET-MODULE: backend.services.webhook_service
+
+# (Battery docstring, preserved verbatim — it is evidence.)
+# Battery X — campaign #22 of the ladder (batch-38): kill-real coverage for
+# ``backend/services.webhook_service.py`` (262 survivors at 75.7183% entering).
+#
+# Harness-compatible by design (batch-30 single-process sweep): every test is a
+# module-level sync ``test_*()`` with no fixtures and no parametrize; coroutines
+# run through ``asyncio.run`` inside. The file is also collected by normal
+# pytest in the repo tree, and every seam swap is restored on context exit.
+#
+# What kills what (each polarity MEASURED against the shipped code before the
+# assert was written):
+#
+# * COMPILED-SQL MIRRORS — the fake session records every executed statement
+#   as ``str(stmt.compile(literal_binds))`` and tests assert the whole list
+#   against plain-code mirrors built from the real expressions. ``select(X) ->
+#   select(None)`` renders ``SELECT NULL AS anon_1``, ``.where(clause) ->
+#   .where(None)`` and ``and_(a, None)`` render ``NULL``, ``and_(a, b) ->
+#   and_(a)`` drops the conjunct, ``is_(True) -> is_(None)/(False)`` render
+#   ``IS NULL``/``IS false``, ``any(v) -> any(None)`` renders ``NULL = ANY``,
+#   ``== -> !=`` renders ``!=``, and a call-arg flip ``get_webhook(db, None)``
+#   renders ``id = NULL``. ``db.execute(None)`` cannot compile and is recorded
+#   as ``<unrenderable AttributeError>``. Every flip becomes a string.
+# * NON-ENUM POLARITIES — for a real ``StrEnum`` the
+#   ``x.value if hasattr(x, "value") else str(x)`` family is invisible
+#   (``str(enum) == enum.value``), so each site ALSO runs with (a) ``_Event``
+#   whose ``.value`` differs from its ``str()`` — the and-False,
+#   ``hasattr(None, ...)`` and ``"value" -> XX/VALUE`` flips take the
+#   str-branch there and diverge — and (b) a plain ``str`` entry with NO
+#   ``.value``, which kills the ``or True`` flips (forced ``.value`` ->
+#   ``AttributeError``) and the ``str(None)`` else-branch flips; the
+#   ``hasattr(x, None)`` / one-arg / trailing-comma flips raise ``TypeError``
+#   at every polarity.
+# * LOG RECORD LISTS — a fake logger records ``(level, msg, kwargs)`` tuples
+#   compared as whole lists: msg->None, ``extra=None``, ``extra`` deletion
+#   (kwargs become ``{}``), every extra-key XX/upper flip, and the
+#   ``exc_info`` kwarg in the unexpected-error arm.
+# * WHOLE-CALL SPIES — ``_send_request`` and ``_handle_delivery_failure`` are
+#   swapped on the CLASS and record the whole call tuple, which kills the
+#   arg-swap / arg-None / ARG-DELETION families at all three call sites (the
+#   trailing-comma form leaves one positional argument -> ``TypeError``, which
+#   ``retry_delivery`` PROPAGATES and a test asserts, interim state included).
+# * STRICT JINJA SPIES — a fake ``_jinja_env`` asserts the EXACT render
+#   context ``{event_type, timestamp, webhook_id, data, **event_data}``; the
+#   resulting ``AssertionError`` is outside the module's
+#   ``except (TemplateSyntaxError, UndefinedError, JSONDecodeError)`` tuple so
+#   kwarg-None and kwarg-deletion mutants propagate instead of falling back.
+# * AUTH MATRIX — thirteen ``auth_config`` shapes through a fake module
+#   ``httpx`` whose ``AsyncClient`` wraps the real client on a recording
+#   transport, asserted as whole header dicts. The absent-key rows are what
+#   make the ``.get(key, default)`` family observable: on the key-absent
+#   polarity a swapped default becomes the consumed value, and
+#   ``get("header_name", None)`` -> ``headers[x] = None`` raises
+#   ``TypeError`` inside httpx's ``Headers`` (measured; an empty-string value
+#   is accepted). Note ``get(k, )`` (trailing comma = default deleted) is
+#   ONE-ARG ``get`` -> ``None``, never a KeyError.
+# * REAL-MODEL INSPECTION — ``create_webhook`` returns a real
+#   ``OutboundWebhook`` the fake session captured (every construction-kwarg
+#   None/deletion flip is an attribute difference; the models' defaults are
+#   all ``None``, measured) and ``deliver``/``retry`` assert every post-send
+#   mutation, with the webhook entering on non-zero/non-one counters so the
+#   ``+= 1 -> = 1 / -= 1 / += 2`` twins diverge.
+# * EXACT BOUNDARIES — statuses 200/299/300/404/500 (success-window flips),
+#   a 2001-char body for the ``[:2000]`` store cap, 600-char exception
+#   messages for the ``[:500] -> [:501]`` twins, a fixed clock
+#   (``utc_now`` -> ``2026-12-15T10:30Z``, module ``datetime`` -> a constant
+#   ``now()``) so backoff/cutoff/timestamp/response_time are exact, and
+#   backoff cases where ``attempt - 1 -> + 1``, ``* 2 -> * 3`` and ``min ->
+#   max`` all diverge.
+#
+# Honesty ledger — dispositions registered EQUIVALENT. The sweep must show
+# GREEN on exactly these 12 keys; any other GREEN is a test gap, and a RED
+# here is a battery bug. Each was decided BY CONSTRUCTION this session —
+# orig-vs-mutant equality on every polarity the module itself can reach:
+#
+# * ``__init__`` m1 — ``self._http_client = http_client -> None``: the
+#   attribute is stored and read nowhere in the module (every send builds its
+#   own client), so the store is unreachable. Measured: attribute-only
+#   divergence.
+# * ``create_webhook`` m2 — ``secrets.token_hex(32) -> token_hex(None)``:
+#   measured both produce a 64-char hex string (``token_hex(None)`` defaults
+#   to 32 bytes), and the value is only stored and logged, never compared.
+# * ``deliver_webhook`` m12/m18 — ``status=WebhookDeliveryStatus.PENDING ->
+#   None`` (m18 deletes the kwarg, whose model default is ``None``, measured):
+#   every reachable arm overwrites ``delivery.status`` (SUCCESS, RETRYING or
+#   FAILED) before the object is observed, and the fake session records the
+#   same object either way.
+# * ``_format_discord_payload`` m9 — ``.get("event_type", "event") ->
+#   "EVENT"``: the default is consumed only when the payload lacks the key,
+#   and both spellings pass through ``.replace("_", " ").title()`` which
+#   measured identically (``"Event"``); the reachable callers always set the
+#   key.
+# * ``_sign_payload`` m13 — ``encode("utf-8") -> encode("UTF-8")``: codec
+#   names are case-insensitive; digest measured identical.
+# * ``_send_request`` m16/m18/m21/m22 — ``.get("type", "none") -> None /
+#   (default deleted) / "XXnoneXX" / "NONE"``: the default is consumed only
+#   when ``auth_config`` is truthy but carries no ``type`` key (that row IS in
+#   the matrix), and the value's ONLY consumer is the
+#   ``bearer``/``basic``/``header`` equality chain. ``None``, ``"none"``,
+#   ``"XXnoneXX"`` and ``"NONE"`` all match none of the three arms (the
+#   trailing-comma m18 is one-arg ``get`` -> ``None``, NOT a KeyError —
+#   measured on the shipped tree), so the auth section is skipped
+#   identically. Measured equal on the no-type row.
+# * ``_send_request`` m68/m70 — ``.get("header_name", "") -> None / (default
+#   deleted)``: the default is only ever consumed on the key-absent polarity,
+#   and its use is ``if header_name:`` — ``""`` and ``None`` are both falsy,
+#   so no header is written either way.
+#
+# All other 250 survivor keys carry an explicit kill polarity above.
+# Run-1 outcome (measured): the sweep showed RED=250/250 scope keys and
+# GREEN=12/12 ledger keys, and the RUN preserved exactly 11 of the 12 as
+# survivors — ``__init__`` m1 was ADDITIONALLY killed by the pre-existing
+# suite (some shipped test reads the attribute the sweep alone never saw).
+# The run grew the target 1079 -> 1110 keys; all three adjudicated
+# survivor-births (``test_webhook`` m59 success-flip, m60 and
+# ``retry_delivery`` m49 truncation twins) are KILLABLE, not equivalent,
+# and are closed by this extension's 600-char full-dump arms — run 2's
+# sweep result is disclosed in the milestone row.
+
+
+def _globals_of(obj: Any) -> dict[str, Any]:
+    """Module globals of the REAL function (mutant wrappers delegate)."""
+    fn = obj
+    while hasattr(fn, "__wrapped__"):
+        fn = fn.__wrapped__
+    return fn.__globals__
+
+
+_G = _globals_of(WebhookService.create_webhook)
+assert _G.get("WebhookService") is WebhookService
+
+# --------------------------------------------------------------------------
+# fixed clock
+# --------------------------------------------------------------------------
+
+_FIXED = datetime(2026, 12, 15, 10, 30, tzinfo=UTC)
+_FIXED_ISO = _FIXED.isoformat()
+
+
+def _fixed_now() -> datetime:
+    return _FIXED
+
+
+class _FixedDT:
+    """Module-global ``datetime`` swap: ``_send_request`` only calls now()."""
+
+    @staticmethod
+    def now(_tz: Any = None) -> datetime:
+        return _FIXED
+
+
+class _Env:
+    """Swap module globals for one test; restore on exit."""
+
+    def __init__(self, **kw: Any) -> None:
+        self._old: dict[str, Any] = {}
+        for key, value in kw.items():
+            self._old[key] = _G[key]
+            _G[key] = value
+
+    def __enter__(self) -> _Env:
+        return self
+
+    def __exit__(self, *_exc: Any) -> None:
+        for key, value in self._old.items():
+            _G[key] = value
+
+
+# --------------------------------------------------------------------------
+# fake logger
+# --------------------------------------------------------------------------
+
+
+class _Logger:
+    """Records ``(level, msg, merged)`` — the ``extra`` payload merged with
+    any sibling kwargs (``exc_info``). ``extra=None`` / extra-deletion /
+    extra-key mutants all change the recorded dict."""
+
+    def __init__(self) -> None:
+        self.recs: list[Any] = []
+
+    def _rec(self, level: str, msg: Any, **kw: Any) -> None:
+        extra = kw.pop("extra", None)
+        merged: dict[str, Any] = dict(extra) if isinstance(extra, dict) else {}
+        merged.update(kw)
+        self.recs.append((level, msg, merged))
+
+    def debug(self, msg: Any, **kw: Any) -> None:
+        self._rec("DEBUG", msg, **kw)
+
+    def info(self, msg: Any, **kw: Any) -> None:
+        self._rec("INFO", msg, **kw)
+
+    def warning(self, msg: Any, **kw: Any) -> None:
+        self._rec("WARNING", msg, **kw)
+
+    def error(self, msg: Any, **kw: Any) -> None:
+        self._rec("ERROR", msg, **kw)
+
+
+# --------------------------------------------------------------------------
+# fake DB session with compiled-SQL recording
+# --------------------------------------------------------------------------
+
+
+def _sql_b38x(stmt: Any) -> str:
+    return str(stmt.compile(compile_kwargs={"literal_binds": True}))
+
+
+def _rendered(stmt: Any) -> str:
+    try:
+        return _sql_b38x(stmt)
+    except Exception as e:
+        return f"<unrenderable {type(e).__name__}>"
+
+
+class _Res:
+    def __init__(self, value: Any) -> None:
+        self._value = value
+
+    def scalar_one_or_none(self) -> Any:
+        return self._value
+
+    def scalars(self) -> _Res:
+        return self
+
+    def all(self) -> list[Any]:
+        return list(self._value)
+
+    def scalar(self) -> Any:
+        return self._value
+
+
+class _Scripted:
+    def __init__(self, results: list[Any]) -> None:
+        self._results = list(results)
+        self._pos = 0
+
+    def __call__(self) -> Any:
+        pos = self._pos
+        self._pos += 1
+        if pos >= len(self._results):
+            raise AssertionError("scripted db results exhausted")
+        return _Res(self._results[pos])
+
+
+class _DB:
+    def __init__(self, results: list[Any]) -> None:
+        self.executed: list[str] = []
+        self.added: list[Any] = []
+        self.deleted: list[Any] = []
+        self.flushes = 0
+        self.refreshed: list[Any] = []
+        self._script = _Scripted(results)
+
+    async def execute(self, statement: Any, *args: Any, **kw: Any) -> Any:
+        self.executed.append(_rendered(statement))
+        return self._script()
+
+    def add(self, obj: Any) -> None:
+        self.added.append(obj)
+
+    async def delete(self, obj: Any) -> None:
+        self.deleted.append(obj)
+
+    async def flush(self) -> None:
+        self.flushes += 1
+
+    async def refresh(self, obj: Any) -> None:
+        if obj is None:
+            raise ValueError("Refresh of a None instance")
+        self.refreshed.append(obj)
+
+
+# --------------------------------------------------------------------------
+# non-enum polarity objects: .value deliberately differs from str()
+# --------------------------------------------------------------------------
+
+
+class _Event:
+    """Has ``.value`` but ``str(obj) != obj.value`` (kills the branch flips)."""
+
+    def __init__(self, value: str) -> None:
+        self.value = value
+
+    def __str__(self) -> str:
+        return "S"
+
+
+class _RawIT:
+    """integration_type without ``.value`` whose str() is not a literal."""
+
+    def __init__(self, v: str) -> None:
+        self.v = v
+
+    def __str__(self) -> str:
+        return "IT:" + self.v
+
+
+_WID = "w1"
+_URL = "https://x.test/p"
+_SIG_SECRET = "ff" * 32  # pragma: allowlist secret
+_GET_SQL = _sql_b38x(select(OutboundWebhook).where(OutboundWebhook.id == _WID))
+
+
+def _trigger_sql(value: Any) -> str:
+    return _sql_b38x(
+        select(OutboundWebhook).where(
+            and_(
+                OutboundWebhook.enabled.is_(True),
+                OutboundWebhook.event_types.any(value),
+            )
+        )
+    )
+
+
+def _delivery_select_sql(did: str) -> str:
+    return _sql_b38x(select(WebhookDelivery).where(WebhookDelivery.id == did))
+
+
+def _webhook(**over: Any) -> SimpleNamespace:
+    base: dict[str, Any] = {
+        "id": _WID,
+        "url": _URL,
+        "event_types": ["alert_fired"],
+        "integration_type": SchemaIntegrationType.GENERIC,
+        "enabled": True,
+        "auth_config": None,
+        "custom_headers": {},
+        "payload_template": None,
+        "max_retries": 4,
+        "retry_delay_seconds": 10,
+        "signing_secret": None,
+        "total_deliveries": 0,
+        "successful_deliveries": 0,
+        "last_delivery_at": None,
+        "last_delivery_status": None,
+    }
+    base.update(over)
+    return SimpleNamespace(**base)
+
+
+def _std_payload(event_type: Any, data: Any, wid: str = _WID) -> dict[str, Any]:
+    return {
+        "event_type": event_type,
+        "timestamp": _FIXED_ISO,
+        "webhook_id": wid,
+        "data": data,
+    }
+
+
+def _hmac_sig(payload: dict[str, Any], secret: str) -> str:
+    body = json.dumps(payload, sort_keys=True, separators=(",", ":")).encode("utf-8")
+    return hmac.new(bytes.fromhex(secret), body, hashlib.sha256).hexdigest()
+
+
+# --------------------------------------------------------------------------
+# class-level spies
+# --------------------------------------------------------------------------
+
+
+class _SendSpy:
+    """Records the whole ``(webhook, payload)`` call tuple."""
+
+    def __init__(self, result: Any = None, error: Exception | None = None) -> None:
+        self.calls: list[Any] = []
+        self._result = result
+        self._error = error
+        self._old: Any = None
+
+    async def _send_request(self, webhook: Any, payload: dict[str, Any]) -> tuple[int, str, int]:
+        self.calls.append((webhook, payload))
+        if self._error is not None:
+            raise self._error
+        assert self._result is not None
+        return self._result
+
+    def __enter__(self) -> _SendSpy:
+        self._old = WebhookService._send_request
+        WebhookService._send_request = self._send_request  # type: ignore[method-assign]
+        return self
+
+    def __exit__(self, *_exc: Any) -> None:
+        WebhookService._send_request = self._old
+
+
+class _FailSpy:
+    """Records the whole ``(db, webhook, delivery)`` tuple and reproduces the
+    real tail bookkeeping so the stats keys still diverge where they should."""
+
+    def __init__(self) -> None:
+        self.calls: list[Any] = []
+        self._old: Any = None
+
+    async def _handle(self, db: Any, webhook: Any, delivery: Any) -> None:
+        self.calls.append((db, webhook, delivery))
+        webhook.total_deliveries += 1
+        webhook.last_delivery_at = _FIXED
+        webhook.last_delivery_status = "spied"
+
+    def __enter__(self) -> _FailSpy:
+        self._old = WebhookService._handle_delivery_failure
+        WebhookService._handle_delivery_failure = self._handle  # type: ignore[method-assign]
+        return self
+
+    def __exit__(self, *_exc: Any) -> None:
+        WebhookService._handle_delivery_failure = self._old
+
+
+# ==========================================================================
+# singleton + background trigger
+# ==========================================================================
+
+
+def test_get_webhook_service_singleton_battery38() -> None:
+    holder = _G["_WebhookServiceHolder"]
+    old = holder.instance
+    holder.instance = None
+    try:
+        first = _G["get_webhook_service"]()
+        assert isinstance(first, WebhookService)
+        assert holder.instance is first
+        assert holder.instance is not None
+        assert _G["get_webhook_service"]() is first
+    finally:
+        holder.instance = old
+
+
+def test_trigger_webhook_background_ok() -> None:
+    svc = WebhookService()
+    calls: list[Any] = []
+
+    async def _trigger(db: Any, event_type: Any, event_data: Any, event_id: Any = None) -> None:
+        calls.append((db, event_type, event_data, event_id))
+
+    svc.trigger_webhooks_for_event = _trigger  # type: ignore[method-assign]
+    log = _Logger()
+    with _Env(get_webhook_service=lambda: svc, logger=log):
+        asyncio.run(
+            _G["trigger_webhook_background"](
+                "DB", WebhookEventType.ALERT_FIRED, {"a": 1}, event_id="e7"
+            )
+        )
+    assert calls == [("DB", WebhookEventType.ALERT_FIRED, {"a": 1}, "e7")]
+    assert log.recs == []
+
+
+def test_trigger_webhook_background_swallows() -> None:
+    svc = WebhookService()
+
+    async def _boom(_db: Any, _event_type: Any, _event_data: Any, event_id: Any = None) -> None:
+        raise RuntimeError("kaput")
+
+    svc.trigger_webhooks_for_event = _boom  # type: ignore[method-assign]
+    log = _Logger()
+    with _Env(get_webhook_service=lambda: svc, logger=log):
+        asyncio.run(
+            _G["trigger_webhook_background"](
+                "DB", WebhookEventType.ALERT_FIRED, {"a": 1}, event_id="e7"
+            )
+        )
+    assert log.recs == [
+        (
+            "WARNING",
+            "Background webhook trigger failed for alert_fired: kaput",
+            {"event_type": "alert_fired", "event_id": "e7"},
+        )
+    ]
+
+
+# ==========================================================================
+# CRUD
+# ==========================================================================
+
+
+def test_get_webhook() -> None:
+    svc = WebhookService()
+    row = SimpleNamespace(id=_WID)
+    db = _DB([row])
+    with _Env(utc_now=_fixed_now):
+        got = asyncio.run(svc.get_webhook(db, _WID))
+    assert got is row
+    assert db.executed == [_GET_SQL]
+
+
+_MIXED_EVENTS: list[Any] = [WebhookEventType.ALERT_FIRED, _Event("alert_fired"), "plain_entry"]
+
+
+def test_create_webhook() -> None:
+    svc = WebhookService()
+    data = WebhookCreate.model_construct(
+        name="Hooks",
+        url="https://x.test/hooks",
+        event_types=list(_MIXED_EVENTS),
+        integration_type=SchemaIntegrationType.SLACK,
+        enabled=True,
+        auth=None,
+        custom_headers=None,
+        payload_template="tmpl",
+        max_retries=3,
+        retry_delay_seconds=20,
+    )
+    db = _DB([])
+    log = _Logger()
+    with _Env(logger=log, utc_now=_fixed_now):
+        w = asyncio.run(svc.create_webhook(db, data))
+    assert isinstance(w, OutboundWebhook)
+    assert db.added == [w]
+    assert w.name == "Hooks"
+    assert w.url == "https://x.test/hooks"
+    assert w.event_types == ["alert_fired", "alert_fired", "plain_entry"]
+    assert w.integration_type is SchemaIntegrationType.SLACK
+    assert w.enabled is True
+    assert w.auth_config is None
+    assert w.custom_headers == {}
+    assert w.payload_template == "tmpl"
+    assert w.max_retries == 3
+    assert w.retry_delay_seconds == 20
+    assert w.signing_secret is not None
+    assert len(w.signing_secret) == 64
+    assert db.executed == []
+    assert db.flushes == 1
+    assert db.refreshed == [w]
+    assert log.recs == [
+        (
+            "INFO",
+            "Created webhook 'Hooks' (id=None)",
+            {
+                "webhook_id": None,
+                "webhook_name": "Hooks",
+                "event_types": ["alert_fired", "alert_fired", "plain_entry"],
+            },
+        )
+    ]
+
+
+def test_create_webhook_auth_dump_and_custom_headers() -> None:
+    svc = WebhookService()
+    data = WebhookCreate.model_construct(
+        name="Auth",
+        url="https://x.test/auth",
+        event_types=[WebhookEventType.ALERT_FIRED],
+        integration_type=SchemaIntegrationType.GENERIC,
+        enabled=False,
+        auth=WebhookAuthConfig(type="bearer", token="t"),
+        custom_headers={"X-A": "1"},
+        payload_template=None,
+        max_retries=0,
+        retry_delay_seconds=1,
+    )
+    db = _DB([])
+    with _Env(logger=_Logger(), utc_now=_fixed_now):
+        w = asyncio.run(svc.create_webhook(db, data))
+    assert w.auth_config == {
+        "type": "bearer",
+        "token": "t",
+        "username": None,
+        "password": None,
+        "header_name": None,
+        "header_value": None,
+    }
+    assert w.custom_headers == {"X-A": "1"}
+    assert w.enabled is False
+    assert w.max_retries == 0
+    assert w.retry_delay_seconds == 1
+    data2 = WebhookCreate.model_construct(
+        name="Auth2",
+        url="https://x.test/auth2",
+        event_types=[WebhookEventType.ALERT_FIRED],
+        integration_type=SchemaIntegrationType.GENERIC,
+        enabled=True,
+        auth=None,
+        custom_headers={},
+        payload_template=None,
+        max_retries=4,
+        retry_delay_seconds=10,
+    )
+    db2 = _DB([])
+    with _Env(logger=_Logger(), utc_now=_fixed_now):
+        w2 = asyncio.run(svc.create_webhook(db2, data2))
+    assert w2.auth_config is None
+    assert w2.custom_headers == {}
+
+
+def _full_update() -> WebhookUpdate:
+    return WebhookUpdate.model_construct(
+        name="New",
+        url="https://x.test/new",
+        event_types=list(_MIXED_EVENTS),
+        integration_type=SchemaIntegrationType.DISCORD,
+        enabled=False,
+        auth=WebhookAuthConfig(type="basic", username="u", password="p"),
+        custom_headers={"H": "1"},
+        payload_template="pt",
+        max_retries=2,
+        retry_delay_seconds=30,
+    )
+
+
+def test_update_webhook_full() -> None:
+    svc = WebhookService()
+    hook = _webhook()
+    db = _DB([hook])
+    log = _Logger()
+    with _Env(logger=log, utc_now=_fixed_now):
+        got = asyncio.run(svc.update_webhook(db, _WID, _full_update()))
+    assert got is hook
+    assert hook.name == "New"
+    assert hook.url == "https://x.test/new"
+    assert hook.event_types == ["alert_fired", "alert_fired", "plain_entry"]
+    assert hook.integration_type is SchemaIntegrationType.DISCORD
+    assert hook.enabled is False
+    assert hook.auth_config == {
+        "type": "basic",
+        "token": None,
+        "username": "u",
+        "password": "p",
+        "header_name": None,
+        "header_value": None,
+    }
+    assert hook.custom_headers == {"H": "1"}
+    assert hook.payload_template == "pt"
+    assert hook.max_retries == 2
+    assert hook.retry_delay_seconds == 30
+    assert db.executed == [_GET_SQL]
+    assert db.flushes == 1
+    assert db.refreshed == [hook]
+    assert log.recs == [
+        (
+            "DEBUG",
+            "Updated webhook w1",
+            {
+                "webhook_id": _WID,
+                "updated_fields": [
+                    "name",
+                    "url",
+                    "event_types",
+                    "integration_type",
+                    "enabled",
+                    "auth_config",
+                    "custom_headers",
+                    "payload_template",
+                    "max_retries",
+                    "retry_delay_seconds",
+                ],
+            },
+        )
+    ]
+
+
+def test_update_webhook_partial_enabled() -> None:
+    svc = WebhookService()
+    hook = _webhook(name="Old", enabled=True)
+    db = _DB([hook])
+    log = _Logger()
+    with _Env(logger=log, utc_now=_fixed_now):
+        got = asyncio.run(svc.update_webhook(db, _WID, WebhookUpdate(enabled=False)))
+    assert got is hook
+    assert hook.enabled is False
+    assert hook.name == "Old"
+    assert db.executed == [_GET_SQL]
+    assert db.flushes == 1
+    assert db.refreshed == [hook]
+    assert log.recs == [
+        (
+            "DEBUG",
+            "Updated webhook w1",
+            {"webhook_id": _WID, "updated_fields": ["enabled"]},
+        )
+    ]
+
+
+def test_update_webhook_missing_returns_none() -> None:
+    svc = WebhookService()
+    db = _DB([None])
+    log = _Logger()
+    with _Env(logger=log, utc_now=_fixed_now):
+        assert asyncio.run(svc.update_webhook(db, _WID, WebhookUpdate(name="X"))) is None
+    assert db.flushes == 0
+    assert log.recs == []
+
+
+def test_update_webhook_noop_skips_flush_and_log() -> None:
+    svc = WebhookService()
+    hook = _webhook(name="Old", enabled=True)
+    db = _DB([hook])
+    log = _Logger()
+    with _Env(logger=log, utc_now=_fixed_now):
+        got = asyncio.run(svc.update_webhook(db, _WID, WebhookUpdate()))
+    assert got is hook
+    assert hook.name == "Old"
+    assert hook.enabled is True
+    assert db.flushes == 0
+    assert db.refreshed == []
+    assert log.recs == []
+
+
+def test_delete_webhook() -> None:
+    svc = WebhookService()
+    hook = _webhook()
+    db = _DB([hook])
+    log = _Logger()
+    with _Env(logger=log, utc_now=_fixed_now):
+        assert asyncio.run(svc.delete_webhook(db, _WID)) is True
+    assert db.deleted == [hook]
+    assert db.executed == [_GET_SQL]
+    assert db.flushes == 1
+    assert log.recs == [("INFO", "Deleted webhook w1", {"webhook_id": _WID})]
+
+
+def test_delete_webhook_missing() -> None:
+    svc = WebhookService()
+    db = _DB([None])
+    log = _Logger()
+    with _Env(logger=log, utc_now=_fixed_now):
+        assert asyncio.run(svc.delete_webhook(db, "missing")) is False
+    assert db.deleted == []
+    assert db.flushes == 0
+    assert log.recs == []
+
+
+# ==========================================================================
+# deliver_webhook
+# ==========================================================================
+
+
+def test_deliver_success() -> None:
+    svc = WebhookService()
+    w = _webhook(total_deliveries=2, successful_deliveries=1)
+    payload = _std_payload("alert_fired", {"k": 1})
+    log = _Logger()
+    fake = _SendSpy(result=(200, "body-x", 42))
+    db = _DB([])
+    with _Env(logger=log, utc_now=_fixed_now), fake:
+        d = asyncio.run(svc.deliver_webhook(db, w, _Event("alert_fired"), {"k": 1}, "evt-9"))
+    assert isinstance(d, WebhookDelivery)
+    assert db.added == [d]
+    assert d.webhook_id == _WID
+    assert d.event_type == "alert_fired"
+    assert d.event_id == "evt-9"
+    assert d.status == SchemaWebhookDeliveryStatus.SUCCESS
+    assert d.request_payload == payload
+    assert d.attempt_count == 1
+    assert d.status_code == 200
+    assert d.response_body == "body-x"
+    assert d.response_time_ms == 42
+    assert d.delivered_at == _FIXED
+    assert d.error_message is None
+    assert fake.calls == [(w, payload)]
+    assert w.total_deliveries == 3
+    assert w.successful_deliveries == 2
+    assert w.last_delivery_at == _FIXED
+    assert w.last_delivery_status == "success"
+    assert db.flushes == 2
+    assert db.refreshed == [d]
+    assert log.recs == [
+        (
+            "DEBUG",
+            "Webhook delivered successfully: w1 -> https://x.test/p",
+            {
+                "webhook_id": _WID,
+                "delivery_id": None,
+                "status_code": 200,
+                "response_time_ms": 42,
+            },
+        )
+    ]
+
+
+def test_deliver_string_event_and_upper_bound() -> None:
+    # an event_type with no .value takes the str-branch; 299 is the last
+    # success status
+    svc = WebhookService()
+    w = _webhook()
+    log = _Logger()
+    fake = _SendSpy(result=(299, "b", 1))
+    db = _DB([])
+    with _Env(logger=log, utc_now=_fixed_now), fake:
+        d = asyncio.run(svc.deliver_webhook(db, w, "x", {"k": 1}, "evt-9"))
+    assert d.event_type == "x"
+    assert d.status == SchemaWebhookDeliveryStatus.SUCCESS
+    assert fake.calls == [(w, _std_payload("x", {"k": 1}))]
+    assert log.recs[0][2]["status_code"] == 299
+
+
+def test_deliver_boundary_300_is_failure() -> None:
+    svc = WebhookService()
+    w = _webhook()
+    log = _Logger()
+    fake = _SendSpy(result=(300, "b", 1))
+    fail = _FailSpy()
+    db = _DB([])
+    with _Env(logger=log, utc_now=_fixed_now), fake, fail:
+        d = asyncio.run(svc.deliver_webhook(db, w, _Event("alert_fired"), {"k": 1}, "e"))
+    assert d.status_code == 300
+    assert d.error_message == "HTTP 300"
+    assert fake.calls == [(w, _std_payload("alert_fired", {"k": 1}))]
+    assert fail.calls == [(db, w, d)]
+
+
+def test_deliver_response_body_cap() -> None:
+    svc = WebhookService()
+    w = _webhook()
+    log = _Logger()
+    fake = _SendSpy(result=(200, "x" * 2001, 1))
+    db = _DB([])
+    with _Env(logger=log, utc_now=_fixed_now), fake:
+        d = asyncio.run(svc.deliver_webhook(db, w, _Event("alert_fired"), {"k": 1}, "e"))
+    assert d.response_body == "x" * 2000
+    fake2 = _SendSpy(result=(500, "y" * 2001, 1))
+    fail = _FailSpy()
+    db2 = _DB([])
+    with _Env(logger=log, utc_now=_fixed_now), fake2, fail:
+        d2 = asyncio.run(svc.deliver_webhook(db2, w, _Event("alert_fired"), {"k": 1}, "e"))
+    assert d2.response_body == "y" * 2000
+
+
+def test_deliver_http_error_schedules_retry() -> None:
+    svc = WebhookService()
+    w = _webhook(total_deliveries=2)
+    log = _Logger()
+    fake = _SendSpy(result=(500, "oops", 7))
+    db = _DB([])
+    retry_at = _FIXED + timedelta(seconds=10)
+    with _Env(logger=log, utc_now=_fixed_now), fake:
+        d = asyncio.run(svc.deliver_webhook(db, w, _Event("alert_fired"), {"k": 1}, "e"))
+    assert d.status == SchemaWebhookDeliveryStatus.RETRYING
+    assert d.status_code == 500
+    assert d.response_body == "oops"
+    assert d.response_time_ms == 7
+    assert d.error_message == "HTTP 500"
+    assert d.next_retry_at == retry_at
+    assert d.delivered_at is None
+    assert w.total_deliveries == 3
+    assert w.successful_deliveries == 0
+    assert w.last_delivery_at == _FIXED
+    assert w.last_delivery_status == "retrying"
+    assert db.flushes == 2
+    assert log.recs == [
+        (
+            "WARNING",
+            "Webhook delivery failed, scheduling retry 2/4",
+            {
+                "webhook_id": _WID,
+                "delivery_id": None,
+                "next_retry_at": retry_at.isoformat(),
+                "error": "HTTP 500",
+            },
+        )
+    ]
+
+
+def test_deliver_http_error_exhausts_retries() -> None:
+    svc = WebhookService()
+    w = _webhook(max_retries=1)
+    log = _Logger()
+    fake = _SendSpy(result=(500, "oops", 7))
+    db = _DB([])
+    with _Env(logger=log, utc_now=_fixed_now), fake:
+        d = asyncio.run(svc.deliver_webhook(db, w, _Event("alert_fired"), {"k": 1}, "e"))
+    assert d.status == SchemaWebhookDeliveryStatus.FAILED
+    assert d.next_retry_at is None
+    assert d.delivered_at is None
+    assert w.total_deliveries == 1
+    assert w.last_delivery_at == _FIXED
+    assert w.last_delivery_status == "failed"
+    assert log.recs == [
+        (
+            "ERROR",
+            "Webhook delivery failed after 1 attempts",
+            {"webhook_id": _WID, "delivery_id": None, "error": "HTTP 500"},
+        )
+    ]
+
+
+def test_deliver_network_error() -> None:
+    svc = WebhookService()
+    w = _webhook(total_deliveries=2)
+    log = _Logger()
+    fake = _SendSpy(error=httpx.RequestError("net-boom"))
+    db = _DB([])
+    retry_at = _FIXED + timedelta(seconds=10)
+    with _Env(logger=log, utc_now=_fixed_now), fake:
+        d = asyncio.run(svc.deliver_webhook(db, w, _Event("alert_fired"), {"k": 1}, "e"))
+    assert d.status == SchemaWebhookDeliveryStatus.RETRYING
+    assert d.error_message == "net-boom"
+    assert d.status_code is None
+    assert d.response_body is None
+    assert d.response_time_ms is None
+    assert d.next_retry_at == retry_at
+    assert w.total_deliveries == 3
+    assert w.last_delivery_status == "retrying"
+    assert db.flushes == 2
+    assert log.recs == [
+        (
+            "WARNING",
+            "Webhook delivery failed, scheduling retry 2/4",
+            {
+                "webhook_id": _WID,
+                "delivery_id": None,
+                "next_retry_at": retry_at.isoformat(),
+                "error": "net-boom",
+            },
+        )
+    ]
+
+
+def test_deliver_network_failure_call_shape() -> None:
+    # the RequestError arm's call-site db argument: the spy sees the WHOLE
+    # tuple, so db -> None diverges even though the callee ignores db
+    svc = WebhookService()
+    w = _webhook()
+    log = _Logger()
+    fake = _SendSpy(error=httpx.RequestError("dns"))
+    fail = _FailSpy()
+    db = _DB([])
+    with _Env(logger=log, utc_now=_fixed_now), fake, fail:
+        d = asyncio.run(svc.deliver_webhook(db, w, _Event("alert_fired"), {"k": 1}, "e"))
+    assert fail.calls == [(db, w, d)]
+    assert d.error_message == "dns"
+
+
+def test_deliver_error_message_truncation() -> None:
+    # kills the ``[:500] -> [:501]`` twins on both error arms
+    svc = WebhookService()
+    log = _Logger()
+    w1 = _webhook()
+    fake = _SendSpy(error=httpx.RequestError("y" * 600))
+    db1 = _DB([])
+    with _Env(logger=log, utc_now=_fixed_now), fake:
+        d1 = asyncio.run(svc.deliver_webhook(db1, w1, _Event("alert_fired"), {"k": 1}, "e"))
+    assert d1.error_message == "y" * 500
+    w2 = _webhook()
+    fake2 = _SendSpy(error=ValueError("z" * 600))
+    db2 = _DB([])
+    with _Env(logger=log, utc_now=_fixed_now), fake2:
+        d2 = asyncio.run(svc.deliver_webhook(db2, w2, _Event("alert_fired"), {"k": 1}, "e"))
+    assert d2.error_message == "z" * 500
+
+
+def test_deliver_unexpected_error() -> None:
+    svc = WebhookService()
+    w = _webhook(total_deliveries=2)
+    log = _Logger()
+    fake = _SendSpy(error=ValueError("kapow"))
+    db = _DB([])
+    with _Env(logger=log, utc_now=_fixed_now), fake:
+        d = asyncio.run(svc.deliver_webhook(db, w, _Event("alert_fired"), {"k": 1}, "e"))
+    assert d.status == SchemaWebhookDeliveryStatus.FAILED
+    assert d.error_message == "kapow"
+    assert d.delivered_at is None
+    assert w.total_deliveries == 3
+    assert w.last_delivery_at == _FIXED
+    assert w.last_delivery_status == "failed"
+    assert db.flushes == 2
+    assert log.recs == [
+        (
+            "ERROR",
+            "Webhook delivery failed unexpectedly: kapow",
+            {"webhook_id": _WID, "delivery_id": None, "exc_info": True},
+        )
+    ]
+
+
+# ==========================================================================
+# trigger_webhooks_for_event
+# ==========================================================================
+
+
+def test_trigger_webhooks_empty() -> None:
+    svc = WebhookService()
+    db = _DB([[]])
+    log = _Logger()
+    with _Env(logger=log, utc_now=_fixed_now):
+        out = asyncio.run(svc.trigger_webhooks_for_event(db, _Event("alert_fired"), {"d": 1}, "e1"))
+    assert out == []
+    assert db.executed == [_trigger_sql("alert_fired")]
+    assert log.recs == [
+        (
+            "DEBUG",
+            "No webhooks subscribed to event type: alert_fired",
+            {"event_type": "alert_fired"},
+        )
+    ]
+
+
+def test_trigger_webhooks_string_event() -> None:
+    svc = WebhookService()
+    db = _DB([[]])
+    log = _Logger()
+    with _Env(logger=log, utc_now=_fixed_now):
+        out = asyncio.run(svc.trigger_webhooks_for_event(db, "x", {"d": 1}, "e1"))
+    assert out == []
+    assert db.executed == [_trigger_sql("x")]
+    assert log.recs == [("DEBUG", "No webhooks subscribed to event type: x", {"event_type": "x"})]
+
+
+def test_trigger_webhooks_delivers_each() -> None:
+    svc = WebhookService()
+    w1 = _webhook(id="h1")
+    w2 = _webhook(id="h2")
+    db = _DB([[w1, w2]])
+    log = _Logger()
+    seen: list[Any] = []
+
+    async def _deliver(
+        db_: Any, hook: Any, event_type: Any, event_data: Any, event_id: Any = None
+    ) -> str:
+        seen.append((db_, hook, event_type, event_data, event_id))
+        return "d-" + str(hook.id)
+
+    svc.deliver_webhook = _deliver  # type: ignore[method-assign]
+    ev = _Event("alert_fired")
+    with _Env(logger=log, utc_now=_fixed_now):
+        out = asyncio.run(svc.trigger_webhooks_for_event(db, ev, {"d": 1}, "e1"))
+    assert out == ["d-h1", "d-h2"]
+    assert seen == [
+        (db, w1, ev, {"d": 1}, "e1"),
+        (db, w2, ev, {"d": 1}, "e1"),
+    ]
+    assert db.executed == [_trigger_sql("alert_fired")]
+    assert log.recs == [
+        (
+            "INFO",
+            "Triggering 2 webhooks for event type: alert_fired",
+            {"event_type": "alert_fired", "webhook_count": 2},
+        )
+    ]
+
+
+# ==========================================================================
+# test_webhook + _build_test_event_data
+# ==========================================================================
+
+
+_TEST_DATA: dict[str, dict[str, Any]] = {
+    "alert_fired": {
+        "alert_id": "test-alert-001",
+        "severity": "high",
+        "camera_id": "front_door",
+        "description": "Test alert triggered",
+    },
+    "alert_dismissed": {"alert_id": "test-alert-001"},
+    "alert_acknowledged": {"alert_id": "test-alert-001"},
+    "event_created": {
+        "event_id": "test-event-001",
+        "camera_id": "front_door",
+        "event_type": "motion_detected",
+    },
+    "entity_discovered": {
+        "entity_id": "test-entity-001",
+        "entity_type": "person",
+        "label": "Unknown Person",
+    },
+    "anomaly_detected": {
+        "anomaly_id": "test-anomaly-001",
+        "zone_id": "driveway",
+        "anomaly_type": "unusual_activity",
+        "score": 0.87,
+    },
+    "system_health_changed": {
+        "component": "ai-yolo26",
+        "status": "degraded",
+        "message": "High latency detected",
+    },
+}
+
+
+def _test_data(event_type: Any) -> dict[str, Any]:
+    spec = _TEST_DATA.get(str(getattr(event_type, "value", event_type)), {})
+    return {"test": True, "timestamp": _FIXED_ISO, **spec}
+
+
+def test_test_webhook_success_battery38() -> None:
+    svc = WebhookService()
+    hook = _webhook()
+    db = _DB([hook])
+    fake = _SendSpy(result=(204, "yay", 5))
+    with _Env(utc_now=_fixed_now), fake:
+        r = asyncio.run(svc.test_webhook(db, _WID, WebhookEventType.ALERT_FIRED))
+    assert isinstance(r, WebhookTestResponse)
+    assert r.model_dump() == {
+        "success": True,
+        "status_code": 204,
+        "response_time_ms": 5,
+        "response_body": "yay",
+        "error_message": None,
+    }
+    assert fake.calls == [(hook, _std_payload("alert_fired", _test_data("alert_fired")))]
+
+
+def test_test_webhook_matrix() -> None:
+    svc = WebhookService()
+    for key in _TEST_DATA:
+        hook = _webhook()
+        db = _DB([hook])
+        fake = _SendSpy(result=(200, "y", 5))
+        with _Env(utc_now=_fixed_now), fake:
+            asyncio.run(svc.test_webhook(db, _WID, WebhookEventType(key)))
+        assert fake.calls[0][1] == _std_payload(key, _test_data(key)), key
+
+
+def test_build_test_event_data_polarities() -> None:
+    # direct private calls with NON-StrEnum event objects: the value-branch
+    # must be taken (kills the branch-flip family), and a no-.value object
+    # must fall back to str (kills the or-True family)
+    svc = WebhookService()
+    with _Env(utc_now=_fixed_now):
+        via_value = svc._build_test_event_data(_Event("alert_fired"))
+        via_str = svc._build_test_event_data("alert_fired")
+    assert via_value == _test_data("alert_fired")
+    assert via_str == _test_data("alert_fired")
+
+
+def test_test_webhook_missing() -> None:
+    svc = WebhookService()
+    db = _DB([None])
+    with _Env(utc_now=_fixed_now):
+        r = asyncio.run(svc.test_webhook(db, _WID, WebhookEventType.ALERT_FIRED))
+    assert r.model_dump() == {
+        "success": False,
+        "status_code": None,
+        "response_time_ms": None,
+        "response_body": None,
+        "error_message": "Webhook not found",
+    }
+    # the lookup must carry the REAL id (get_webhook(db, None) renders
+    # ``id IS NULL`` -- the compiled mirror catches the call-arg flip)
+    assert db.executed == [_GET_SQL]
+
+
+def test_test_webhook_error_arms() -> None:
+    svc = WebhookService()
+    hook = _webhook()
+    et = WebhookEventType.ALERT_FIRED
+    db = _DB([hook])
+    fake = _SendSpy(result=(404, "nope", 5))
+    with _Env(utc_now=_fixed_now), fake:
+        r = asyncio.run(svc.test_webhook(db, _WID, et))
+    assert r.model_dump() == {
+        "success": False,
+        "status_code": 404,
+        "response_time_ms": 5,
+        "response_body": "nope",
+        "error_message": "HTTP 404",
+    }
+    db2 = _DB([hook])
+    fake2 = _SendSpy(error=httpx.RequestError("b" * 600))
+    with _Env(utc_now=_fixed_now), fake2:
+        r2 = asyncio.run(svc.test_webhook(db2, _WID, et))
+    assert r2.model_dump() == {
+        "success": False,
+        "status_code": None,
+        "response_time_ms": None,
+        "response_body": None,
+        "error_message": "b" * 500,
+    }
+    db3 = _DB([hook])
+    # 600-char message + FULL dump: the generic-except arm's success=False
+    # and the [:500] cap are both mutants (births m59/m60 of run 1)
+    fake3 = _SendSpy(error=RuntimeError("k" * 600))
+    with _Env(utc_now=_fixed_now), fake3:
+        r3 = asyncio.run(svc.test_webhook(db3, _WID, et))
+    assert r3.model_dump() == {
+        "success": False,
+        "status_code": None,
+        "response_time_ms": None,
+        "response_body": None,
+        "error_message": "Unexpected error: " + "k" * 482,
+    }
+    db4 = _DB([hook])
+    fake4 = _SendSpy(result=(200, "", 5))
+    with _Env(utc_now=_fixed_now), fake4:
+        r4 = asyncio.run(svc.test_webhook(db4, _WID, et))
+    assert r4.response_body is None
+    db5 = _DB([hook])
+    fake5 = _SendSpy(result=(200, "x" * 2001, 5))
+    with _Env(utc_now=_fixed_now), fake5:
+        r5 = asyncio.run(svc.test_webhook(db5, _WID, et))
+    assert r5.response_body == "x" * 2000
+
+
+# ==========================================================================
+# retry_delivery
+# ==========================================================================
+
+
+def _retryable(**over: Any) -> SimpleNamespace:
+    base: dict[str, Any] = {
+        "webhook_id": _WID,
+        "request_payload": {"old": True},
+        "attempt_count": 1,
+        "status": "stale",
+        "error_message": "boom",
+        "next_retry_at": "stale",
+        "status_code": None,
+        "response_body": None,
+        "response_time_ms": None,
+        "delivered_at": None,
+    }
+    base.update(over)
+    return SimpleNamespace(**base)
+
+
+def test_retry_delivery_success_battery38() -> None:
+    svc = WebhookService()
+    delivery = _retryable()
+    hook = _webhook(total_deliveries=5, successful_deliveries=2)
+    db = _DB([delivery, hook])
+    fake = _SendSpy(result=(200, "ok-2", 9))
+    with _Env(utc_now=_fixed_now), fake:
+        out = asyncio.run(svc.retry_delivery(db, "d1"))
+    assert out is delivery
+    assert db.executed == [_delivery_select_sql("d1"), _GET_SQL]
+    assert delivery.attempt_count == 2
+    assert delivery.status == SchemaWebhookDeliveryStatus.SUCCESS
+    assert delivery.error_message is None
+    assert delivery.next_retry_at is None
+    assert delivery.status_code == 200
+    assert delivery.response_body == "ok-2"
+    assert delivery.response_time_ms == 9
+    assert delivery.delivered_at == _FIXED
+    assert fake.calls == [(hook, {"old": True})]
+    assert hook.total_deliveries == 6
+    assert hook.successful_deliveries == 3
+    assert hook.last_delivery_at == _FIXED
+    assert hook.last_delivery_status == "success"
+    assert db.flushes == 1
+    assert db.refreshed == [delivery]
+
+
+def test_retry_delivery_http_error() -> None:
+    svc = WebhookService()
+    delivery = _retryable()
+    hook = _webhook(total_deliveries=5, successful_deliveries=2)
+    db = _DB([delivery, hook])
+    fake = _SendSpy(result=(503, "later", 9))
+    with _Env(utc_now=_fixed_now), fake:
+        out = asyncio.run(svc.retry_delivery(db, "d1"))
+    assert out is delivery
+    assert delivery.status == SchemaWebhookDeliveryStatus.FAILED
+    assert delivery.status_code == 503
+    assert delivery.response_body == "later"
+    assert delivery.response_time_ms == 9
+    assert delivery.error_message == "HTTP 503"
+    assert delivery.delivered_at is None
+    assert hook.total_deliveries == 6
+    assert hook.successful_deliveries == 2
+    assert hook.last_delivery_status == "failed"
+
+
+def test_retry_delivery_network_error() -> None:
+    svc = WebhookService()
+    delivery = _retryable()
+    hook = _webhook(total_deliveries=5, successful_deliveries=2)
+    db = _DB([delivery, hook])
+    # 600-char message: the arm's [:500] cap is a run-1 birth (m49)
+    fake = _SendSpy(error=httpx.RequestError("d" * 600))
+    with _Env(utc_now=_fixed_now), fake:
+        out = asyncio.run(svc.retry_delivery(db, "d1"))
+    assert out is delivery
+    assert delivery.status == SchemaWebhookDeliveryStatus.FAILED
+    assert delivery.error_message == "d" * 500
+    assert delivery.delivered_at is None
+    assert hook.total_deliveries == 6
+    assert hook.successful_deliveries == 2
+    assert hook.last_delivery_status == "failed"
+
+
+def test_retry_delivery_missing_rows() -> None:
+    svc = WebhookService()
+    db0 = _DB([None])
+    with _Env(utc_now=_fixed_now):
+        assert asyncio.run(svc.retry_delivery(db0, "d1")) is None
+    assert db0.executed == [_delivery_select_sql("d1")]
+    db1 = _DB([SimpleNamespace(webhook_id=_WID), None])
+    with _Env(utc_now=_fixed_now):
+        assert asyncio.run(svc.retry_delivery(db1, "d1")) is None
+    assert db1.executed == [_delivery_select_sql("d1"), _GET_SQL]
+
+
+def test_retry_delivery_falsy_payload() -> None:
+    svc = WebhookService()
+    delivery = _retryable(request_payload=None)
+    hook = _webhook()
+    db = _DB([delivery, hook])
+    fake = _SendSpy(result=(200, "ok", 1))
+    with _Env(utc_now=_fixed_now), fake:
+        asyncio.run(svc.retry_delivery(db, "d1"))
+    assert fake.calls == [(hook, {})]
+
+
+def test_retry_delivery_propagates_and_resets() -> None:
+    # retry_delivery has NO generic except: an unexpected error propagates
+    # after the reset block, so the interim state is observable
+    svc = WebhookService()
+    delivery = _retryable()
+    hook = _webhook()
+    db = _DB([delivery, hook])
+    fake = _SendSpy(error=RuntimeError("nope"))
+    raised = False
+    try:
+        with _Env(utc_now=_fixed_now), fake:
+            asyncio.run(svc.retry_delivery(db, "d1"))
+    except RuntimeError as e:
+        raised = str(e) == "nope"
+    assert raised
+    assert delivery.attempt_count == 2
+    assert delivery.status == SchemaWebhookDeliveryStatus.PENDING
+    assert delivery.error_message is None
+    assert delivery.next_retry_at is None
+    assert fake.calls == [(hook, {"old": True})]
+    assert db.flushes == 0
+
+
+# ==========================================================================
+# _build_payload + templates
+# ==========================================================================
+
+
+def test_build_payload_polarities() -> None:
+    svc = WebhookService()
+    w = _webhook()
+    with _Env(utc_now=_fixed_now):
+        via_enum = svc._build_payload(w, WebhookEventType.ALERT_FIRED, {"z": 1})
+        via_value = svc._build_payload(w, _Event("alert_fired"), {"z": 1})
+        via_str = svc._build_payload(w, "x", {"z": 1})
+    assert via_enum == _std_payload("alert_fired", {"z": 1})
+    assert via_value == _std_payload("alert_fired", {"z": 1})
+    assert via_str == _std_payload("x", {"z": 1})
+
+
+_TEMPLATE = (
+    '{"t": {{ event_type|tojson }}, "b": {{ data|tojson }},'
+    ' "c": {{ alert_id|tojson }}, "d": {{ webhook_id|tojson }},'
+    ' "e": {{ timestamp|tojson }}}'
+)
+
+
+def test_build_payload_template_renders() -> None:
+    svc = WebhookService()
+    w = _webhook(payload_template=_TEMPLATE)
+    with _Env(utc_now=_fixed_now):
+        p = svc._build_payload(w, _Event("alert_fired"), {"alert_id": "A"})
+    assert p == {
+        "t": "alert_fired",
+        "b": {"alert_id": "A"},
+        "c": "A",
+        "d": _WID,
+        "e": _FIXED_ISO,
+    }
+
+
+class _StrictEnv:
+    """Fake ``_jinja_env`` asserting the EXACT render kwargs."""
+
+    def __init__(self, expected: dict[str, Any], crash: bool = False) -> None:
+        self._expected = expected
+        self._crash = crash
+
+    def from_string(self, _src: str) -> _StrictEnv:
+        return self
+
+    def render(self, **kw: Any) -> str:
+        if self._crash:
+            raise ValueError("renderer exploded off the caught list")
+        assert kw == self._expected, f"render context drifted: {sorted(kw)}"
+        return '{"ok": 1}'
+
+
+class _BoomEnv:
+    def from_string(self, _src: str) -> Any:
+        raise ValueError("from_string exploded off the caught list")
+
+
+def test_build_payload_template_render_context() -> None:
+    svc = WebhookService()
+    w = _webhook(payload_template="whatever")
+    expected = {
+        "event_type": "alert_fired",
+        "timestamp": _FIXED_ISO,
+        "webhook_id": _WID,
+        "data": {"alert_id": "A"},
+        "alert_id": "A",
+    }
+    with _Env(_jinja_env=_StrictEnv(expected), utc_now=_fixed_now):
+        p = svc._build_payload(w, _Event("alert_fired"), {"alert_id": "A"})
+    assert p == {"ok": 1}
+
+
+def test_build_payload_template_uncrashed_paths_propagate() -> None:
+    svc = WebhookService()
+    w = _webhook(payload_template="whatever")
+    raised = False
+    try:
+        with _Env(_jinja_env=_StrictEnv({}, crash=True), utc_now=_fixed_now):
+            svc._build_payload(w, _Event("alert_fired"), {"alert_id": "A"})
+    except ValueError as e:
+        raised = str(e).startswith("renderer exploded")
+    assert raised
+    # a drifted render context raises AssertionError, also outside the
+    # module's except tuple -> propagates rather than falling back
+    raised_assert = False
+    try:
+        with _Env(_jinja_env=_StrictEnv({"bogus": 1}), utc_now=_fixed_now):
+            svc._build_payload(w, _Event("alert_fired"), {"alert_id": "A"})
+    except AssertionError:
+        raised_assert = True
+    assert raised_assert
+    raised2 = False
+    try:
+        with _Env(_jinja_env=_BoomEnv(), utc_now=_fixed_now):
+            svc._build_payload(w, _Event("alert_fired"), {"alert_id": "A"})
+    except ValueError as e:
+        raised2 = str(e).startswith("from_string exploded")
+    assert raised2
+
+
+def test_build_payload_template_json_failure() -> None:
+    svc = WebhookService()
+    w = _webhook(payload_template='{"not json"}')
+    log = _Logger()
+    with _Env(logger=log, utc_now=_fixed_now):
+        p = svc._build_payload(w, _Event("alert_fired"), {"k": 1})
+    assert p == _std_payload("alert_fired", {"k": 1})
+    assert log.recs == [
+        (
+            "WARNING",
+            "Failed to render payload template, using standard payload: "
+            "Expecting ':' delimiter: line 1 column 12 (char 11)",
+            {"webhook_id": _WID},
+        )
+    ]
+
+
+def test_build_payload_template_undefined() -> None:
+    svc = WebhookService()
+    w = _webhook(payload_template="{{ nope.x }}")
+    log = _Logger()
+    with _Env(logger=log, utc_now=_fixed_now):
+        p = svc._build_payload(w, _Event("alert_fired"), {"k": 1})
+    assert p == _std_payload("alert_fired", {"k": 1})
+    assert log.recs == [
+        (
+            "WARNING",
+            "Failed to render payload template, using standard payload: 'nope' is undefined",
+            {"webhook_id": _WID},
+        )
+    ]
+
+
+def test_build_payload_template_syntax_error() -> None:
+    svc = WebhookService()
+    w = _webhook(payload_template="{{ ")
+    log = _Logger()
+    with _Env(logger=log, utc_now=_fixed_now):
+        p = svc._build_payload(w, _Event("alert_fired"), {"k": 1})
+    assert p == _std_payload("alert_fired", {"k": 1})
+    assert log.recs == [
+        (
+            "WARNING",
+            "Failed to render payload template, using standard payload: "
+            "unexpected 'end of template'",
+            {"webhook_id": _WID},
+        )
+    ]
+
+
+# ==========================================================================
+# _format_for_integration + formatters
+# ==========================================================================
+
+
+def test_format_for_integration_routing() -> None:
+    svc = WebhookService()
+    payload = _std_payload("alert_fired", {"k": 1})
+    # _Event has .value but str() != .value: the value-branch must be taken
+    slack = svc._format_for_integration(_webhook(integration_type=_Event("slack")), payload)
+    assert slack["text"] == "*alert_fired*\n- k: 1\n"
+    discord = svc._format_for_integration(_webhook(integration_type=_Event("discord")), payload)
+    assert discord["embeds"][0]["title"] == "Alert Fired"
+    teams = svc._format_for_integration(_webhook(integration_type=_Event("teams")), payload)
+    assert teams["title"] == "Alert Fired"
+    assert teams["summary"] == "alert_fired"
+    # a real StrEnum routes by .value
+    enum_slack = svc._format_for_integration(
+        _webhook(integration_type=SchemaIntegrationType.SLACK), payload
+    )
+    assert enum_slack["text"] == "*alert_fired*\n- k: 1\n"
+    # an integration whose resolved name is not a literal falls through
+    assert (
+        svc._format_for_integration(_webhook(integration_type=_RawIT("nope")), payload) == payload
+    )
+    assert (
+        svc._format_for_integration(
+            _webhook(integration_type=SchemaIntegrationType.TELEGRAM), payload
+        )
+        == payload
+    )
+
+
+def test_format_slack_payload_battery38() -> None:
+    svc = WebhookService()
+    out = svc._format_slack_payload(
+        {
+            "event_type": "e2",
+            "data": {
+                "s": "str",
+                "i": 7,
+                "f": 2.5,
+                "b": False,
+                "d": {"x": 1},
+                "li": [1],
+                "n": None,
+            },
+        }
+    )
+    text = "*e2*\n- s: str\n- i: 7\n- f: 2.5\n- b: False\n"
+    assert out == {
+        "text": text,
+        "blocks": [{"type": "section", "text": {"type": "mrkdwn", "text": text}}],
+    }
+
+
+def test_format_discord_payload_battery38() -> None:
+    svc = WebhookService()
+    data = {f"k{i}": i for i in range(30)}
+    d = svc._format_discord_payload({"event_type": "alert_fired", "timestamp": "TS", "data": data})
+    assert d == {
+        "embeds": [
+            {
+                "title": "Alert Fired",
+                "timestamp": "TS",
+                "fields": [
+                    {"name": "K" + str(i), "value": str(i), "inline": True} for i in range(25)
+                ],
+            }
+        ]
+    }
+    with _Env(utc_now=_fixed_now):
+        mixed = svc._format_discord_payload(
+            {
+                "event_type": "e",
+                "data": {"s": "v", "i": 1, "f": 2.0, "b": True, "x": {}, "y": []},
+            }
+        )
+    assert mixed["embeds"][0]["fields"] == [
+        {"name": "S", "value": "v", "inline": True},
+        {"name": "I", "value": "1", "inline": True},
+        {"name": "F", "value": "2.0", "inline": True},
+        {"name": "B", "value": "True", "inline": True},
+    ]
+    assert mixed["embeds"][0]["timestamp"] == _FIXED_ISO
+
+
+def test_format_teams_payload_battery38() -> None:
+    svc = WebhookService()
+    data = {f"k{i}": i for i in range(30)}
+    t = svc._format_teams_payload({"event_type": "alert_fired", "data": data})
+    assert t == {
+        "@type": "MessageCard",
+        "@context": "https://schema.org/extensions",
+        "summary": "alert_fired",
+        "themeColor": "0076D7",
+        "title": "Alert Fired",
+        "sections": [{"facts": [{"title": "K" + str(i), "value": str(i)} for i in range(10)]}],
+    }
+    mixed = svc._format_teams_payload(
+        {"event_type": "e", "data": {"s": "v", "i": 1, "f": 2.0, "b": True, "x": {}}}
+    )
+    assert mixed["sections"][0]["facts"] == [
+        {"title": "S", "value": "v"},
+        {"title": "I", "value": "1"},
+        {"title": "F", "value": "2.0"},
+        {"title": "B", "value": "True"},
+    ]
+
+
+# ==========================================================================
+# _sign_payload
+# ==========================================================================
+
+
+def test_sign_payload_exact() -> None:
+    svc = WebhookService()
+    payload = {"b": 2, "a": 1}
+    want = _hmac_sig(payload, _SIG_SECRET)
+    assert svc._sign_payload(payload, _SIG_SECRET) == want
+    assert svc._sign_payload({"a": 1, "b": 2}, _SIG_SECRET) == want
+
+
+# ==========================================================================
+# _send_request (real httpx over a recording transport)
+# ==========================================================================
+
+
+class _CaptureTransport(httpx.AsyncBaseTransport):
+    def __init__(self) -> None:
+        self.seen: list[Any] = []
+
+    async def handle_async_request(self, request: httpx.Request) -> httpx.Response:
+        self.seen.append(
+            (
+                request.method,
+                str(request.url),
+                dict(request.headers),
+                request.content.decode(),
+            )
+        )
+        return httpx.Response(200, text="R")
+
+
+def _fake_httpx(transport: _CaptureTransport) -> ModuleType:
+    fake = ModuleType("httpx")
+
+    class Client(httpx.AsyncClient):
+        def __init__(self, *args: Any, **kw: Any) -> None:
+            kw["transport"] = transport
+            super().__init__(*args, **kw)
+
+    fake.AsyncClient = Client
+    fake.RequestError = httpx.RequestError
+    return fake
+
+
+_BASIC_ABSENT = base64.b64encode(b":").decode()
+
+_MATRIX: list[tuple[str, dict[str, Any], dict[str, str]]] = [
+    ("none", {"type": "none"}, {}),
+    ("bearer-full", {"type": "bearer", "token": "tk"}, {"authorization": "Bearer tk"}),
+    (
+        "basic-full",
+        {"type": "basic", "username": "u1", "password": "p1"},  # pragma: allowlist secret
+        {"authorization": "Basic " + base64.b64encode(b"u1:p1").decode()},
+    ),
+    (
+        "header-full",
+        {"type": "header", "header_name": "X-Key", "header_value": "hv"},
+        {"x-key": "hv"},
+    ),
+    ("unknown", {"type": "weird"}, {}),
+    ("empty", {}, {}),
+    ("no-type-key", {"token": "tk"}, {}),
+    ("bearer-absent-token", {"type": "bearer"}, {"authorization": "Bearer "}),
+    ("basic-absent", {"type": "basic"}, {"authorization": "Basic " + _BASIC_ABSENT}),
+    ("header-absent-name", {"type": "header"}, {}),
+    ("header-empty-name", {"type": "header", "header_name": "", "header_value": "hv"}, {}),
+    ("header-name-only", {"type": "header", "header_name": "X-Key"}, {"x-key": ""}),
+    ("header-empty-both", {"type": "header", "header_name": "", "header_value": ""}, {}),
+]
+
+
+def test_send_request_auth_matrix() -> None:
+    svc = WebhookService()
+    payload = {"b": 2, "a": 1}
+    sig = _hmac_sig(payload, _SIG_SECRET)
+    for label, auth, auth_hdrs in _MATRIX:
+        transport = _CaptureTransport()
+        w = _webhook(
+            auth_config=auth,
+            custom_headers={"X-C": "c1"},
+            signing_secret=_SIG_SECRET,
+        )
+        with _Env(httpx=_fake_httpx(transport), utc_now=_fixed_now, datetime=_FixedDT):
+            out = asyncio.run(svc._send_request(w, payload))
+        assert out == (200, "R", 0), label
+        method, url, headers, content = transport.seen[-1]
+        assert method == "POST", label
+        assert url == _URL, label
+        assert json.loads(content) == payload, label
+        expected = {
+            # httpx defaults (measured on the pinned version)
+            "host": "x.test",
+            "accept": "*/*",
+            "accept-encoding": "gzip, deflate",
+            "connection": "keep-alive",
+            # set by the module under test
+            "content-type": "application/json",
+            "user-agent": "NemotronWebhook/1.0",
+            "content-length": str(len(content)),
+            "x-c": "c1",
+            "x-webhook-signature": "sha256=" + sig,
+            "x-webhook-signature-256": sig,
+        }
+        expected.update(auth_hdrs)
+        assert headers == expected, label
+
+
+def test_send_request_bare_request() -> None:
+    svc = WebhookService()
+    payload = {"x": "y"}
+    transport = _CaptureTransport()
+    w = _webhook(auth_config=None, custom_headers=None, signing_secret=None)
+    with _Env(httpx=_fake_httpx(transport), utc_now=_fixed_now, datetime=_FixedDT):
+        out = asyncio.run(svc._send_request(w, payload))
+    assert out == (200, "R", 0)
+    _method, _url, headers, content = transport.seen[-1]
+    assert headers == {
+        "host": "x.test",
+        "accept": "*/*",
+        "accept-encoding": "gzip, deflate",
+        "connection": "keep-alive",
+        "content-type": "application/json",
+        "user-agent": "NemotronWebhook/1.0",
+        "content-length": str(len(content)),
+    }
+
+
+# ==========================================================================
+# _calculate_next_retry
+# ==========================================================================
+
+
+def test_calculate_next_retry_backoff() -> None:
+    svc = WebhookService()
+    cases = [
+        (1, 10, 10),
+        (2, 10, 20),
+        (3, 10, 40),
+        (6, 10, 320),
+        (30, 10, 3600),
+        (1, 3600, 3600),
+        (4, 1, 8),
+    ]
+    for attempt, base, delay in cases:
+        with _Env(utc_now=_fixed_now):
+            got = svc._calculate_next_retry(attempt, base)
+        assert got == _FIXED + timedelta(seconds=delay), (attempt, base)
+
+
+# ==========================================================================
+# get_health_summary
+# ==========================================================================
+
+
+def _health_mirrors() -> list[str]:
+    cutoff = _FIXED - timedelta(hours=24)
+    return [
+        _sql_b38x(select(func.count()).select_from(OutboundWebhook)),
+        _sql_b38x(
+            select(func.count())
+            .select_from(OutboundWebhook)
+            .where(OutboundWebhook.enabled.is_(True))
+        ),
+        _sql_b38x(
+            select(func.count())
+            .select_from(WebhookDelivery)
+            .where(WebhookDelivery.created_at >= cutoff)
+        ),
+        _sql_b38x(
+            select(func.count())
+            .select_from(WebhookDelivery)
+            .where(
+                and_(
+                    WebhookDelivery.created_at >= cutoff,
+                    WebhookDelivery.status == SchemaWebhookDeliveryStatus.SUCCESS,
+                )
+            )
+        ),
+        _sql_b38x(
+            select(func.count())
+            .select_from(WebhookDelivery)
+            .where(
+                and_(
+                    WebhookDelivery.created_at >= cutoff,
+                    WebhookDelivery.status == SchemaWebhookDeliveryStatus.FAILED,
+                )
+            )
+        ),
+        _sql_b38x(
+            select(func.avg(WebhookDelivery.response_time_ms)).where(
+                and_(
+                    WebhookDelivery.created_at >= cutoff,
+                    WebhookDelivery.response_time_ms.is_not(None),
+                )
+            )
+        ),
+        _sql_b38x(select(OutboundWebhook).order_by(OutboundWebhook.created_at.desc())),
+    ]
+
+
+def _run_health(rows: list[Any], results: list[Any]) -> tuple[Any, _DB]:
+    db = _DB(results)
+    svc = WebhookService()
+    with _Env(utc_now=_fixed_now):
+        h = asyncio.run(svc.get_health_summary(db))
+    return h, db
+
+
+def test_get_health_summary_exact() -> None:
+    rows = [
+        _webhook(total_deliveries=10, successful_deliveries=9),
+        _webhook(total_deliveries=10, successful_deliveries=8),
+        _webhook(total_deliveries=10, successful_deliveries=5),
+        _webhook(total_deliveries=10, successful_deliveries=4),
+        _webhook(total_deliveries=1, successful_deliveries=0),
+        _webhook(total_deliveries=0, successful_deliveries=0),
+        _webhook(total_deliveries=20, successful_deliveries=20),
+    ]
+    h, db = _run_health(rows, [7, 3, 11, 8, 2, 42.5, rows])
+    assert h == WebhookHealthSummary(
+        total_webhooks=7,
+        enabled_webhooks=3,
+        healthy_webhooks=2,
+        unhealthy_webhooks=2,
+        total_deliveries_24h=11,
+        successful_deliveries_24h=8,
+        failed_deliveries_24h=2,
+        average_response_time_ms=42.5,
+    )
+    assert db.executed == _health_mirrors()
+    assert db.flushes == 0
+
+
+def test_get_health_summary_zero_counts_and_none_avg() -> None:
+    rows = [_webhook(total_deliveries=10, successful_deliveries=9)]
+    h, db = _run_health(rows, [0, 0, 0, 0, 0, None, rows])
+    assert h == WebhookHealthSummary(
+        total_webhooks=0,
+        enabled_webhooks=0,
+        healthy_webhooks=1,
+        unhealthy_webhooks=0,
+        total_deliveries_24h=0,
+        successful_deliveries_24h=0,
+        failed_deliveries_24h=0,
+        average_response_time_ms=None,
+    )
+    assert db.executed == _health_mirrors()

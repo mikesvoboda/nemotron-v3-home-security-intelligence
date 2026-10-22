@@ -747,9 +747,15 @@ describe('useSettingsApi', () => {
 
     expect(result.current.settings).toBeDefined();
 
-    // Trigger failing mutation
+    // Trigger failing mutation. Only the PATCH fails: onSettled invalidates the
+    // settings query, whose refetch is a GET and must keep succeeding for the
+    // "mutation errors are independent of query state" premise to hold.
     const errorMessage = 'Invalid settings';
-    mockFetch.mockResolvedValue(createMockResponse({ detail: errorMessage }, 400, false));
+    mockFetch.mockImplementation((_url: unknown, init?: { method?: string }) =>
+      init?.method === 'PATCH'
+        ? Promise.resolve(createMockResponse({ detail: errorMessage }, 400, false))
+        : Promise.resolve(createMockResponse(mockSettingsResponse))
+    );
 
     result.current.updateMutation.mutate({
       detection: { confidence_threshold: -1 },

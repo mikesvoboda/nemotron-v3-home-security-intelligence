@@ -805,7 +805,7 @@ export default function EventTimeline({ onViewEventDetails, className = '' }: Ev
         onClick: handleEventCardClick,
         // Snooze functionality (NEM-3592)
         onSnooze: handleSnooze,
-        snoozedUntil: event.snooze_until || undefined,
+        snooze_until: event.snooze_until || undefined,
         // Clip generation functionality (NEM-3870)
         onGenerateClip: handleGenerateClipWrapper,
         onDownloadClip: handleDownloadClip,
