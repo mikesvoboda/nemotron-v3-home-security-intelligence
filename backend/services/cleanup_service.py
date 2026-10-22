@@ -31,7 +31,7 @@ from datetime import UTC, datetime, timedelta
 from pathlib import Path
 from typing import TypedDict
 
-from sqlalchemy import delete, select
+from sqlalchemy import delete, or_, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from backend.core.config import get_settings
@@ -42,6 +42,7 @@ from backend.models.detection import Detection
 from backend.models.event import Event
 from backend.models.gpu_stats import GPUStats
 from backend.models.log import Log
+from backend.services.event_purger import EventPurger, PurgeReport
 from backend.services.job_status import JobStatusService
 from backend.services.job_tracker import JobTracker
 
@@ -124,6 +125,7 @@ class CleanupService:
         delete_images: bool = False,
         batch_size: int = 1000,
         redis_client: RedisClient | None = None,
+        trash_retention_days: int | None = None,
     ):
         """Initialize cleanup service.
 
@@ -135,10 +137,18 @@ class CleanupService:
             batch_size: Number of records to process per batch (default: 1000).
                         Used for streaming queries to limit memory usage.
             redis_client: Optional Redis client for job status tracking.
+            trash_retention_days: Days to keep soft-deleted events in Trash
+                                  (0 disables the Trash clock; None uses config default).
         """
         settings = get_settings()
         self.cleanup_time = cleanup_time
         self.retention_days = retention_days or settings.retention_days
+        default_trash_days = getattr(settings, "trash_retention_days", 30)
+        if not isinstance(default_trash_days, int) or isinstance(default_trash_days, bool):
+            default_trash_days = 30
+        self.trash_retention_days = (
+            default_trash_days if trash_retention_days is None else trash_retention_days
+        )
         self.thumbnail_dir = Path(thumbnail_dir)
         self.delete_images = delete_images
         self.batch_size = batch_size
@@ -271,6 +281,13 @@ class CleanupService:
                 await job_service.update_progress(job_id, 5, "Scanning for files to delete")
 
             async with get_session() as session:
+                # Step 0: Purge expired trashed events at the earlier of
+                # deleted_at + trash_retention_days and started_at + retention_days (B4.4)
+                trash_report = await self.purge_expired_trash(
+                    session,
+                    now=cutoff_date + timedelta(days=self.retention_days),
+                )
+
                 # Step 1: Stream detection file paths without loading all into memory
                 thumbnail_paths, image_paths = await self._get_detection_file_paths_streaming(
                     session, cutoff_date
@@ -285,6 +302,8 @@ class CleanupService:
                 )
                 detections_result = await session.execute(delete_detections_stmt)
                 stats.detections_deleted = detections_result.rowcount or 0  # type: ignore[attr-defined]
+                if trash_report is not None:
+                    stats.detections_deleted += trash_report.rows_removed.get("detections", 0)
                 logger.info(f"Deleted {stats.detections_deleted} old detections")
 
                 if job_service is not None and job_id is not None:
@@ -292,8 +311,14 @@ class CleanupService:
 
                 # Step 3: Delete old events
                 delete_events_stmt = delete(Event).where(Event.started_at < cutoff_date)
+                if trash_report is not None and trash_report.kept:
+                    delete_events_stmt = delete_events_stmt.where(
+                        Event.id.notin_(trash_report.kept)
+                    )
                 events_result = await session.execute(delete_events_stmt)
                 stats.events_deleted = events_result.rowcount or 0  # type: ignore[attr-defined]
+                if trash_report is not None:
+                    stats.events_deleted += len(trash_report.purged)
                 logger.info(f"Deleted {stats.events_deleted} old events")
 
                 if job_service is not None and job_id is not None:
@@ -349,6 +374,65 @@ class CleanupService:
             if job_service is not None and job_id is not None:
                 await job_service.fail_job(job_id, str(e))
             raise
+
+    async def purge_expired_trash(
+        self,
+        session: AsyncSession | None = None,
+        *,
+        now: datetime | None = None,
+    ) -> PurgeReport:
+        """Purge trashed events whose deadline has arrived (B4.4 / 4n-trash.md).
+
+        Purges each trashed event at the earlier of `deleted_at + trash_retention_days`
+        and `started_at + retention_days`. When `trash_retention_days <= 0`, the Trash
+        clock is disabled and only `started_at + retention_days` applies.
+        """
+        effective_now = now if now is not None else datetime.now(UTC)
+        retention_cutoff = effective_now - timedelta(days=self.retention_days)
+        if self.trash_retention_days > 0:
+            trash_cutoff = effective_now - timedelta(days=self.trash_retention_days)
+            due_clause = or_(
+                Event.deleted_at <= trash_cutoff,
+                Event.started_at <= retention_cutoff,
+            )
+        else:
+            due_clause = Event.started_at <= retention_cutoff
+
+        stmt = (
+            select(Event.id)
+            .where(Event.deleted_at.isnot(None), due_clause)
+            .order_by(Event.id.asc())
+        )
+
+        if session is None:
+            async with get_session() as own_session:
+                due_ids = [
+                    eid
+                    for eid in (await own_session.scalars(stmt)).all()
+                    if isinstance(eid, int) and not isinstance(eid, bool)
+                ]
+                if not due_ids:
+                    return PurgeReport()
+                report = await EventPurger().purge(
+                    due_ids, reason="trash_retention", session=own_session
+                )
+                await own_session.commit()
+                return report
+
+        has_scalars = (
+            isinstance(session, AsyncSession)
+            or "scalars" in type(session).__dict__
+            or "scalars" in getattr(session, "__dict__", {})
+        )
+        if not has_scalars:
+            return PurgeReport()
+        raw_scalars = await session.scalars(stmt)
+        all_fn = getattr(raw_scalars, "all", None)
+        raw_items = all_fn() if callable(all_fn) else ()
+        due_ids = [eid for eid in raw_items if isinstance(eid, int) and not isinstance(eid, bool)]
+        if not due_ids:
+            return PurgeReport()
+        return await EventPurger().purge(due_ids, reason="trash_retention", session=session)
 
     async def _get_detection_file_paths_streaming(
         self, session: AsyncSession, cutoff_date: datetime

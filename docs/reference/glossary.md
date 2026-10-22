@@ -242,6 +242,10 @@ The end-to-end processing flow for security images:
 
 Timing metrics for each stage of the pipeline. Used to identify bottlenecks and monitor performance.
 
+### Purge
+
+A permanent delete of a soft-deleted [Event](#event) from Trash (`EventPurger.purge` in `backend/services/event_purger.py`), removing the event, its exclusive detections and their enrichment, any media files (`clip_path`, `thumbnail_path`, `file_path`) not referenced by surviving rows, `entities` whose `primary_detection_id` is purged, and legacy `face_detection_events` on the event's camera within its time window, while clearing enrolled reference links (`PersonEmbedding.source_event_id`, `FaceEmbedding.source_image_path`), repointing or removing affected [Alerts](#alert), and writing a content-free audit log entry.
+
 ---
 
 ## Q

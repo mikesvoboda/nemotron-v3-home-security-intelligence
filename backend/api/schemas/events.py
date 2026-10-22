@@ -569,3 +569,22 @@ class DeletedEventsListResponse(BaseModel):
 
     items: list[EventResponse] = Field(..., description="List of soft-deleted events")
     pagination: PaginationMeta = Field(..., description="Pagination metadata")
+
+
+class EmptyTrashResponse(BaseModel):
+    """Response schema for DELETE /api/events/deleted (Empty Trash, B4.4)."""
+
+    purged_count: int = Field(..., ge=0, description="Number of trashed events permanently purged")
+    deleted_count: int = Field(
+        ..., ge=0, description="Alias for purged_count (number of events permanently deleted)"
+    )
+    purged: list[int] = Field(
+        default_factory=list, description="Event IDs permanently purged from Trash"
+    )
+    kept: list[int] = Field(
+        default_factory=list,
+        description="Event IDs kept in Trash because a file deletion failed",
+    )
+    files_deleted: int = Field(0, ge=0, description="Number of media files deleted")
+    files_failed: int = Field(0, ge=0, description="Number of media files that failed to delete")
+    detections_removed: int = Field(0, ge=0, description="Number of detection rows deleted")

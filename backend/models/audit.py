@@ -17,6 +17,7 @@ class AuditAction(str, Enum):
     # Event actions
     EVENT_REVIEWED = "event_reviewed"
     EVENT_DISMISSED = "event_dismissed"
+    EVENT_PURGED = "event_purged"
 
     # Settings actions
     SETTINGS_CHANGED = "settings_changed"

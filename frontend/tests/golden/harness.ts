@@ -1958,18 +1958,17 @@ export async function hardDeleteFixtureRows(
   eventIds: number[]
 ): Promise<void> {
   if (eventIds.length === 0) return;
-  // The route caps a request at 100 ids (schemas/bulk.py:182-187).
-  for (let i = 0; i < eventIds.length; i += 100) {
-    const chunk = eventIds.slice(i, i + 100);
-    // Settle, don't throw: cleanup must not turn a green run red. A failure
-    // here leaks rows into the NEXT run, where the purge above removes them.
-    await fetch(`${h.api}/api/events/bulk`, {
+  for (const id of eventIds) {
+    // B4.4 requires an event to be in Trash before permanent purge: soft-delete
+    // first (no-op 409 if already in Trash), then purge with ?permanent=true.
+    // Using the per-row routes avoids spending the bulk-tier rate-limit budget.
+    await fetch(`${h.api}/api/events/${id}`, {
       method: 'DELETE',
-      headers: {
-        'Content-Type': 'application/json',
-        Cookie: `${session.name}=${session.value}`,
-      },
-      body: JSON.stringify({ event_ids: chunk, soft_delete: false }),
+      headers: { Cookie: `${session.name}=${session.value}` },
+    }).catch(() => undefined);
+    await fetch(`${h.api}/api/events/${id}?permanent=true`, {
+      method: 'DELETE',
+      headers: { Cookie: `${session.name}=${session.value}` },
     }).catch(() => undefined);
   }
 }
