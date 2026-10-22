@@ -877,7 +877,7 @@ passes, and `yolo26`'s health never reaches `ServiceStatusAlert` or the services
 ### [r299] The E2E global setup writes the tour keys under the origin the specs run
 
 **Flags:** none. **Assigned:** frontend, after `F3.3` (ruling 299). **Depends on:** none.
-**PR:** none yet. (ruling 299, record 6321779954; audit item Q-179 of `[r262]`)
+**PR:** #7349. (ruling 299, record 6321779954; audit item Q-179 of `[r262]`)
 
 `frontend/tests/e2e/global-setup.ts:30` writes the tour-suppression keys under the origin
 `https://localhost:8444`, but the specs run at `http://localhost:8444` (`global-setup.ts:71`,
