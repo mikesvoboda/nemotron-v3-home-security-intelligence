@@ -80,6 +80,27 @@ def _empty_planner(*args: Any, **kwargs: Any) -> Sequence[Any]:  # noqa: ARG001
     return ()
 
 
+def _normalise_planned(record: Any, now: datetime) -> dict[str, Any]:
+    """Normalise one planner record (dict or PlannedDelivery) to a dict."""
+    if isinstance(record, dict):
+        return {**record, "planned_at": now}
+    return {
+        "alert_id": getattr(record, "alert_id", None),
+        "recipient_id": record.recipient_id,
+        "channel_id": record.channel_id,
+        "channel_kind": (
+            record.channel_kind.value
+            if getattr(record.channel_kind, "value", None)
+            else record.channel_kind
+        ),
+        "status": (
+            record.status.value if getattr(record.status, "value", None) else record.status
+        ),
+        "include_names": getattr(record, "include_names", False),
+        "planned_at": now,
+    }
+
+
 @dataclass(frozen=True, slots=True)
 class PipelineResult:
     """Result of running AlertPipeline.process for one event."""
@@ -111,12 +132,17 @@ class AlertPipeline:
         broadcaster: Any | None = None,
         planner: Callable[..., Sequence[Any]] | None = None,
         memory_store: Any | None = None,
+        delivery_writer: Callable[..., Any] | None = None,
     ) -> None:
         self._session_factory = session_factory
         self._redis = redis_client
         self._broadcaster = broadcaster
         self._planner = planner or _empty_planner
         self._memory_store = memory_store
+        # B4.2: writes the planner's records as delivery rows in the SAME
+        # transaction as the alert ("the alert and its pending deliveries are
+        # written in one transaction"). None keeps the B4.1 shape (no rows).
+        self._delivery_writer = delivery_writer
 
     @classmethod
     def from_memory_store(
@@ -166,6 +192,12 @@ class AlertPipeline:
                 await owned_session.commit()
 
         await self._publish_alerts(result.created_alerts, result.updated_alerts)
+        # B4.2: the deliveries are committed — wake the worker so sends start
+        # immediately (the poll interval is only the fallback).
+        if result.planned_deliveries:
+            from backend.services.delivery_worker_registry import wake_delivery_worker
+
+            wake_delivery_worker()
         return result
 
     def _process_in_memory(
@@ -306,6 +338,7 @@ class AlertPipeline:
         )
         store.decisions[event.id] = decision
         store.committed += 1
+        self._record_planned_deliveries_in_store(store, planned_deliveries, now)
 
         return PipelineResult(
             event_id=event.id,
@@ -605,6 +638,7 @@ class AlertPipeline:
             now=now,
             is_postgres=is_postgres,
         )
+        await self._write_deliveries_in_session(session, planned_deliveries)
 
         return PipelineResult(
             event_id=event.id,
@@ -616,6 +650,34 @@ class AlertPipeline:
             planned_deliveries=tuple(planned_deliveries),
             already_processed=False,
         )
+
+    @staticmethod
+    def _record_planned_deliveries_in_store(
+        store: Any, planned_deliveries: list[Any], now: datetime
+    ) -> None:
+        """Memory path: append the planner's records to the store's history.
+
+        The fake planners in tests return dicts; the real planner returns
+        ``PlannedDelivery`` dataclasses — both are normalised to a dict with the
+        fields the history read needs.
+        """
+        if not planned_deliveries:
+            return
+        for record in planned_deliveries:
+            store.deliveries.append(_normalise_planned(record, now))
+
+    async def _write_deliveries_in_session(
+        self, session: AsyncSession, planned_deliveries: list[Any]
+    ) -> None:
+        """DB path: persist the planner's records inside the caller's transaction.
+
+        The planner records may be dicts (tests) or ``PlannedDelivery``
+        dataclasses (production). With no writer configured this is a no-op
+        (B4.1 shape preserved).
+        """
+        if not planned_deliveries or self._delivery_writer is None:
+            return
+        await self._delivery_writer(session, planned_deliveries)
 
     @staticmethod
     async def _find_open_alert(

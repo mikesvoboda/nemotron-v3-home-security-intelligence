@@ -1,0 +1,292 @@
+"""Alert delivery worker (B4.2).
+
+Claims pending/retrying deliveries past their next_attempt_at under a lease
+(``FOR UPDATE SKIP LOCKED`` — multiple workers never claim the same row), sends
+OUTSIDE any transaction under a per-channel-kind timeout, and records the
+outcome: sent, or retrying with the next backoff (30 s / 2 min / 10 min / 30 min),
+or failed after the ladder is exhausted.
+
+Browser rows: the pipeline publishes on commit; the worker's browser ladder is
+the republish — a browser delivery still pending 15 s later is re-broadcast
+(client-side notification tag dedups), and one still pending after 5 minutes
+expires.
+
+Wake: the pipeline calls ``worker.wake()`` after committing new deliveries;
+the poll interval is the fallback.
+"""
+
+from __future__ import annotations
+
+import asyncio
+import logging
+from collections.abc import Callable, Mapping
+from datetime import UTC, datetime, timedelta
+from typing import Any
+
+from sqlalchemy import text
+from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
+
+from backend.models.alert_delivery import DeliveryChannelKind, DeliveryStatus
+from backend.services.alerting.channels.base import Channel, DeliveryTask, SendResult
+
+logger = logging.getLogger(__name__)
+
+LEASE_SECONDS = 120  # the claim lease: next_attempt_at jumps forward this much
+POLL_INTERVAL_SECONDS = 15.0
+# Backoff ladder by ATTEMPTS ALREADY MADE when scheduling the next try:
+# after attempt 1 -> 30 s, 2 -> 2 min, 3 -> 10 min, 4 -> fail (30m was attempt-4's schedule).
+BACKOFF_SECONDS: tuple[int, ...] = (30, 120, 600)
+MAX_ATTEMPTS = 4  # attempts 1..4; a 4th failure marks the delivery failed
+BROWSER_REPUBLISH_AFTER = timedelta(seconds=15)
+BROWSER_EXPIRE_AFTER = timedelta(minutes=5)
+CHANNEL_TIMEOUT_SECONDS: Mapping[str, float] = {
+    DeliveryChannelKind.EMAIL.value: 40.0,
+    DeliveryChannelKind.WEBHOOK.value: 12.0,
+    DeliveryChannelKind.BROWSER.value: 5.0,
+    DeliveryChannelKind.WEBPUSH.value: 12.0,
+}
+
+_CLAIM_SQL = text(
+    """
+    UPDATE notification_deliveries
+    SET next_attempt_at = :lease_until, updated_at = timezone('utc', now())
+    WHERE id IN (
+        SELECT id FROM notification_deliveries
+        WHERE status IN ('pending', 'retrying')
+          AND (next_attempt_at IS NULL OR next_attempt_at <= :now)
+        ORDER BY next_attempt_at
+        LIMIT :batch
+        FOR UPDATE SKIP LOCKED
+    )
+    RETURNING id, alert_id, recipient_id, channel_id, kind, status, attempts,
+              idempotency_key
+    """
+)
+
+
+def next_backoff(attempts: int) -> timedelta | None:
+    """Backoff for the NEXT attempt given attempts already made.
+
+    Returns None when the ladder is exhausted (the delivery is failed).
+    attempts is 1-based count of sends already tried.
+    """
+    if attempts >= MAX_ATTEMPTS:
+        return None
+    return timedelta(seconds=BACKOFF_SECONDS[min(attempts, len(BACKOFF_SECONDS)) - 1])
+
+
+class NotificationDeliveryWorker:
+    """Claims and sends pending alert deliveries."""
+
+    def __init__(
+        self,
+        session_factory: async_sessionmaker[AsyncSession],
+        channels: Mapping[str, Channel],
+        *,
+        build_payload: Callable[[str, str, str, dict[str, Any]], DeliveryTask] | None = None,
+        known_names_loader: Callable[[], set[str]] | None = None,
+        poll_interval: float = POLL_INTERVAL_SECONDS,
+        batch_size: int = 20,
+    ) -> None:
+        self._session_factory = session_factory
+        self._channels = dict(channels)
+        self._build_payload = build_payload or self._default_task_builder
+        self._known_names_loader = known_names_loader or (lambda: set())
+        self._poll_interval = poll_interval
+        self._batch_size = batch_size
+        self._wake_event = asyncio.Event()
+        self._task: asyncio.Task[None] | None = None
+        self._stopping = False
+
+    # -- lifecycle ---------------------------------------------------------
+
+    def wake(self) -> None:
+        """Signal the loop to claim immediately (pipeline calls after commit)."""
+        self._wake_event.set()
+
+    async def start(self) -> None:
+        if self._task is None or self._task.done():
+            self._stopping = False
+            self._task = asyncio.create_task(self._run(), name="notification-delivery-worker")
+
+    async def stop(self) -> None:
+        self._stopping = True
+        self.wake()
+        if self._task is not None:
+            self._task.cancel()
+            try:
+                await self._task
+            except asyncio.CancelledError:
+                pass
+            self._task = None
+
+    async def _run(self) -> None:
+        while not self._stopping:
+            try:
+                await self.process_ready()
+            except Exception:  # noqa: BLE001 - the worker must survive any single failure
+                logger.exception("delivery worker cycle failed")
+            try:
+                await asyncio.wait_for(
+                    self._wake_event.wait(), timeout=self._poll_interval
+                )
+            except TimeoutError:
+                pass
+            finally:
+                self._wake_event.clear()
+
+    # -- claim + send ------------------------------------------------------
+
+    async def process_ready(self, now: datetime | None = None) -> int:
+        """One claim-send-record cycle. Returns the number of deliveries claimed."""
+        now = now or datetime.now(UTC)
+        claimed = await self._claim(now)
+        if not claimed:
+            return 0
+        known_names = self._known_names_loader()
+        results = await asyncio.gather(
+            *(self._send_one(row, known_names, now) for row in claimed),
+            return_exceptions=True,
+        )
+        for row, outcome in zip(claimed, results, strict=True):
+            if isinstance(outcome, BaseException):
+                await self._record_failure(row, now, f"worker_error: {outcome!r}")
+        return len(claimed)
+
+    async def _claim(self, now: datetime) -> list[dict[str, Any]]:
+        lease_until = now + timedelta(seconds=LEASE_SECONDS)
+        async with self._session_factory() as session:
+            result = await session.execute(
+                _CLAIM_SQL,
+                {"now": now, "lease_until": lease_until, "batch": self._batch_size},
+            )
+            rows = [dict(r._mapping) for r in result]
+            await session.commit()
+        return rows
+
+    async def _send_one(
+        self, row: dict[str, Any], known_names: set[str], now: datetime
+    ) -> None:
+        """Send one claimed delivery and record the outcome (no transaction held)."""
+        kind = str(row["kind"])
+        channel = self._channels.get(kind)
+        timeout = CHANNEL_TIMEOUT_SECONDS.get(kind, 15.0)
+        task = self._build_payload(
+            row["alert_id"],
+            row["channel_id"],
+            row["recipient_id"],
+            {"idempotency_key": row["idempotency_key"], "kind": kind},
+        )
+        if channel is None:
+            await self._record_failure(
+                row, now, f"no_adapter:{kind}"
+            )
+            return
+        try:
+            outcome = await asyncio.wait_for(channel.send(task), timeout=timeout)
+        except TimeoutError:
+            outcome = SendResult(success=False, error=f"channel_timeout after {timeout}s")
+        except Exception as exc:  # noqa: BLE001 - adapter crash is a send failure
+            outcome = SendResult(success=False, error=f"adapter_error: {exc!r}")
+        if outcome.success:
+            await self._record_success(row, kind)
+        else:
+            await self._record_failure(row, now, outcome.error or "send_failed")
+
+    # -- record ------------------------------------------------------------
+
+    async def _record_success(self, row: dict[str, Any], kind: str) -> None:
+        status = (
+            DeliveryStatus.BROADCAST
+            if kind == DeliveryChannelKind.BROWSER.value
+            else DeliveryStatus.SENT
+        )
+        await self._record(row, status)
+
+    async def _record_failure(
+        self,
+        row: dict[str, Any],
+        now: datetime | None,
+        error: str,
+    ) -> None:
+        attempts = int(row["attempts"]) + 1
+        backoff = next_backoff(attempts)
+        if backoff is None:
+            await self._record(
+                row,
+                DeliveryStatus.FAILED,
+                attempts=attempts,
+                error=error,
+            )
+        else:
+            await self._record(
+                row,
+                DeliveryStatus.RETRYING,
+                attempts=attempts,
+                error=error,
+                next_attempt_in=backoff,
+                now=now,
+            )
+
+    async def _record(
+        self,
+        row: dict[str, Any],
+        status: DeliveryStatus,
+        *,
+        attempts: int | None = None,
+        error: str | None = None,
+        next_attempt_in: timedelta | None = None,
+        now: datetime | None = None,
+    ) -> None:
+        sets = ["status = :status"]
+        params: dict[str, Any] = {"id": row["id"], "status": status.value}
+        if attempts is not None:
+            sets.append("attempts = :attempts")
+            params["attempts"] = attempts
+        if error is not None:
+            sets.append("last_error = :last_error")
+            params["last_error"] = error[:2000]
+        if next_attempt_in is not None:
+            # Backoff is measured from the cycle's claim clock (``now``), not DB
+            # wall clock, so a fixed-clock test and a real cycle agree.
+            when = now or datetime.now(UTC)
+            sets.append("next_attempt_at = :next_attempt_at")
+            params["next_attempt_at"] = when + next_attempt_in
+        if status in (DeliveryStatus.SENT, DeliveryStatus.BROADCAST):
+            sets.append("sent_at = timezone('utc', now())")
+        async with self._session_factory() as session:
+            await session.execute(
+                text(
+                    "UPDATE notification_deliveries SET "
+                    + ", ".join(sets)
+                    + ", updated_at = timezone('utc', now()) WHERE id = :id"
+                ),
+                params,
+            )
+            await session.commit()
+
+    def _default_task_builder(
+        self,
+        alert_id: str,
+        channel_id: str,
+        recipient_id: str,
+        extras: dict[str, Any],
+    ) -> DeliveryTask:
+        """Task builder the production wiring replaces; tests inject theirs."""
+        return DeliveryTask(
+            delivery_id=alert_id,
+            channel_id=channel_id,
+            channel_kind=DeliveryChannelKind(extras.get("kind", "email")),
+            recipient_id=recipient_id,
+            idempotency_key=extras.get("idempotency_key", ""),
+            payload={},
+            include_names=False,
+        )
+
+
+__all__ = [
+    "BACKOFF_SECONDS",
+    "MAX_ATTEMPTS",
+    "NotificationDeliveryWorker",
+    "next_backoff",
+]

@@ -1005,6 +1005,41 @@ async def lifespan(_app: FastAPI) -> AsyncGenerator[None]:
             f"WorkerSupervisor started with {worker_supervisor.worker_count} workers"
         )
 
+        # B4.2: the alert-delivery worker. Claims pending/retrying delivery rows
+        # under a lease and sends through the channel adapters; the pipeline
+        # wakes it after committing new deliveries.
+        try:
+            from backend.core.database import get_session_factory
+            from backend.services.alerting.channels.browser import BrowserChannel
+            from backend.services.alerting.channels.email import EmailChannel
+            from backend.services.alerting.worker import NotificationDeliveryWorker
+            from backend.services.delivery_worker_registry import get_delivery_worker
+
+            channels: dict[str, Any] = {
+                "browser": BrowserChannel(event_broadcaster),
+            }
+            if settings.smtp_host:
+                channels["email"] = EmailChannel(
+                    smtp_host=settings.smtp_host,
+                    smtp_port=settings.smtp_port,
+                    smtp_from=settings.smtp_from_address or "alerts@nemotron.local",
+                    use_tls=settings.smtp_use_tls,
+                )
+            delivery_worker = NotificationDeliveryWorker(
+                get_session_factory(),
+                channels,
+            )
+            set_delivery_worker(delivery_worker)
+            await worker_supervisor.register_worker(
+                "notification-delivery-worker",
+                delivery_worker.run,
+            )
+            await delivery_worker.start()
+            lifespan_logger.info("Alert delivery worker started (B4.2)")
+        except Exception as e:
+            lifespan_logger.error(f"Alert delivery worker startup failed: {e}")
+            lifespan_logger.warning("Continuing without the delivery worker")
+
     except Exception as e:
         lifespan_logger.error(f"Redis connection failed: {e}")
         lifespan_logger.warning("Continuing without Redis - some features may be unavailable")
