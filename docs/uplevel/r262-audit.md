@@ -5029,7 +5029,13 @@ reads, none by authorial preference.
   with the one true tree named (authoring 59ad5233e wrote :2911-2917 four hours AFTER mover
   e1c07ec8b pushed the block to :2974). (5) 7214_c2's ellipsis-cite mover corrected from the
   workflow's c82f9a6f5 to dfe9b4d5a (commit-walk blob greps; c82f9a6f5 is the NEXT commit and
-  doesn't touch the line), and the :881 def pre-existed on main (not PR-added). (6) b11b's frozen
+  doesn't touch the line), and the :881 def pre-existed on main (not PR-added — its pickaxe birth
+  lands at the shallow boundary d6344e031, 10-16 04:45). Confirmed independently by the
+  workflow's own verify pass (verify:7214_c2, holding=false against the AS-FILED provenance but
+  reaching the same dfe9b4d5a mover by its own re-derivation): it adds the coordinate correction
+  the as-filed blob cite was itself wrong (the sentence is the single line :5234 in dfe9b4d5a's
+  blob, :5298 in c82f9a6f5's — not :5034-5035 as filed — riding byte-identical to :5371 at the
+  pin; file blob 25b8613221 at 13f6be726 = 7adfa3949 = pin). (6) b11b's frozen
   "7225 SHA discrepancy" note was itself the error — scope file reads merge=bc97694730 plainly.
   (7) The batch-10 carriage map's position numbers are per-carrier-blob, not pin positions
   (7128_c6's ":3582" → :3722 on the pin blob; incidence count unaffected). (8) 7214 has 5 PR
