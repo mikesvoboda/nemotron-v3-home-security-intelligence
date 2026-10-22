@@ -321,6 +321,9 @@ package tagged `[rNNN]` is a fix that ruling NNN ordered.
 | 306    | UR-85; packages `[r306a]`, `[r306b]`; `[r252]`'s proving run now (record 6323748868)                        |
 | 307    | UR-86; packages `[r307a]`–`[r307d]`: small models in Triton, fast-alpr out (record 6323846997)              |
 | 308    | P1 packages `B4.1`–`B4.6`, `F4.1`–`F4.4`, `[r308a]`, `[r308b]`, spread (record 6326364266)                  |
+| 309    | package `[r309]`: real stills for `[r303]`, which goes to heavy-b (record 6327202214)                       |
+| 310    | #7336 (F-246's outbound webhooks) fixed inside `B4.2` (record 6327324775)                                   |
+| 311    | arming: `B4.7`, `B4.8`, `F4.5`, `[r311a]`, `[r311b]`; sensitivity leaves MQTT (record 6328311780)           |
 
 ## Owner records
 
