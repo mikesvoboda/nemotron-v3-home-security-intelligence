@@ -46,7 +46,10 @@ def test_b44_trash_purge_golden_path(logged_in_api: httpx.Client) -> None:
     assert cfg_res.json().get("trash_retention_days") == 30
 
     cam_id = _pick_camera_id(logged_in_api)
-    now = datetime.now(UTC)
+    # Use a 2020 timestamp far older than the 2026 smoke event so concurrent
+    # golden tests calling `GET /api/events?limit=1` (ordered by started_at DESC)
+    # always pick the persistent smoke event rather than these disposable rows.
+    base_ts = datetime(2020, 1, 1, 12, 0, tzinfo=UTC)
     tag = uuid.uuid4().hex[:8]
 
     # Create two disposable detections so the shared smoke event stays untouched
@@ -58,7 +61,7 @@ def test_b44_trash_purge_golden_path(logged_in_api: httpx.Client) -> None:
                     "camera_id": cam_id,
                     "object_type": "person",
                     "confidence": 0.91,
-                    "detected_at": (now - timedelta(minutes=10)).isoformat(),
+                    "detected_at": (base_ts - timedelta(minutes=10)).isoformat(),
                     "file_path": f"/cameras/b44-golden-{tag}-1.jpg",
                     "bbox_x": 10,
                     "bbox_y": 10,
@@ -69,7 +72,7 @@ def test_b44_trash_purge_golden_path(logged_in_api: httpx.Client) -> None:
                     "camera_id": cam_id,
                     "object_type": "person",
                     "confidence": 0.93,
-                    "detected_at": (now - timedelta(minutes=8)).isoformat(),
+                    "detected_at": (base_ts - timedelta(minutes=8)).isoformat(),
                     "file_path": f"/cameras/b44-golden-{tag}-2.jpg",
                     "bbox_x": 20,
                     "bbox_y": 20,
@@ -92,8 +95,8 @@ def test_b44_trash_purge_golden_path(logged_in_api: httpx.Client) -> None:
                 {
                     "batch_id": f"b44-golden-{tag}-1",
                     "camera_id": cam_id,
-                    "started_at": (now - timedelta(minutes=10)).isoformat(),
-                    "ended_at": (now - timedelta(minutes=9)).isoformat(),
+                    "started_at": (base_ts - timedelta(minutes=10)).isoformat(),
+                    "ended_at": (base_ts - timedelta(minutes=9)).isoformat(),
                     "risk_score": 55,
                     "risk_level": "medium",
                     "summary": f"B4.4 golden disposable event 1 ({tag})",
@@ -103,8 +106,8 @@ def test_b44_trash_purge_golden_path(logged_in_api: httpx.Client) -> None:
                 {
                     "batch_id": f"b44-golden-{tag}-2",
                     "camera_id": cam_id,
-                    "started_at": (now - timedelta(minutes=8)).isoformat(),
-                    "ended_at": (now - timedelta(minutes=7)).isoformat(),
+                    "started_at": (base_ts - timedelta(minutes=8)).isoformat(),
+                    "ended_at": (base_ts - timedelta(minutes=7)).isoformat(),
                     "risk_score": 60,
                     "risk_level": "medium",
                     "summary": f"B4.4 golden disposable event 2 ({tag})",
