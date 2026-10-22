@@ -1563,7 +1563,7 @@ approves.
 
 **Flags:** none. **Assigned:** ops-b, first on its queue, as `[r252]` was (ruling 312). Where it
 edits `ai/gateway/` (cell A's files), UR-9 applies. **Depends on:** none.
-**PR:** none yet. (ruling 312, record 6329693164)
+**PR:** #7355. (ruling 312, record 6329693164)
 
 Run 188.18 (`6327606735`) read 1.000000 under ONNX Runtime on CPU on the decomposed export, and
 0.346321 at its FP32 plan, as 188.17 did on the raw graph. The divergence sits inside the
