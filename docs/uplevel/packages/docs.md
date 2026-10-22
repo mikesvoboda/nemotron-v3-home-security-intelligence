@@ -29,7 +29,7 @@ Each package here starts on a lane's directories as UR-68 allows.
 
 **Flags:** none. **Depends on:** `R2`; the target lane's Phase 3 `done`.
 **Assigned:** heavy-a, one PR per lane; it moved from docs' queue (ruling 300, record 6322983128).
-**PR:** #7331 (PR 1). (rulings 241, 300)
+**PR:** #7331 (PR 1), #7351 (backend). (rulings 241, 300)
 
 heavy-a opens each draft PR itself, labelled `heavy` with no lane label (UR-59). Each PR names in
 its body the part of the boxes it completes and reports the files and lines it removed; the last PR

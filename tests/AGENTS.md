@@ -27,7 +27,7 @@ Each suite has its own `README.md`; `load/` has its own `AGENTS.md` with details
 
 ## Related Documentation
 
-- **backend/tests/AGENTS.md:** Backend test infrastructure
+- **backend/AGENTS.md:** Backend architecture and test conventions
 - **frontend/tests/e2e/:** E2E test documentation
 - **docs/developer/testing.md:** Comprehensive testing guide
 - **AGENTS.md:** TDD requirements and testing policy
