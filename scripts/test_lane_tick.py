@@ -241,6 +241,9 @@ class Fake:
         self.map = over.get("map", MAP)
         self.packages = over.get("packages", PKG)
         self.roster = over.get("roster", ROSTER)
+        # ruling 290: `""` is the seam's no-read default -- the in-progress offer cannot fire
+        # without a README read, so a test that never passes one exercises the safe arm.
+        self.readme = over.get("readme", "")
         self.behind = over.get("behind", "3")
         self.commits = over.get("commits", "")
         # the subset chain's per-commit parents lines (ruling 278): one author commit between
@@ -276,8 +279,13 @@ class Fake:
             # this arm once did: a fourth `git show` added to the tool would have read as an EMPTY
             # file and every section keyed off it would have passed while reading nothing.
             doc = cmd[-1].rsplit("/", 1)[-1]
-            docs = {"ruling-map.md": self.map, "lane.md": self.roster, "ops.md": self.packages}
-            if doc not in docs:
+            docs = {
+                "ruling-map.md": self.map,
+                "lane.md": self.roster,
+                "ops.md": self.packages,
+                "README.md": self.readme,
+            }
+            if doc not in docs or (doc == "README.md" and not self.readme):
                 raise AssertionError(f"unscripted git show: {cmd[-1]}")
             return docs[doc]
         if cmd[:2] == ["git", "branch"]:
@@ -1727,6 +1735,82 @@ def test_the_offer_names_ruling_269():
     # the hold line names UR-52 -- or a lane acting on it cites nothing.
     out = text(**waiting(), pr_comments={7164: [held_review(82)]})
     assert "ruling 269" in has(out, "next claimable")[0]
+
+
+# --- ruling 290: a merged block whose README row reads `in progress` is offered --------------
+
+
+def test_a_merged_block_with_in_progress_row_and_an_open_box_is_offered_with_its_box():
+    # The [r290] shape, on MY queue with MY PR holding [r181]: a block whose `**PR:**` names a
+    # merged PR (`#7244`, the UR-183 shape), whose README row reads `in progress` (UR-144's
+    # multi-PR package), and which carries one unticked box. `next_claimable` must offer it and
+    # NAME the box (the digest's whole point: the offer the lane can act on), and the offer must
+    # survive the hold gate the same way the none-yet offer does -- this world holds [r181] whose
+    # PR waits its turn, so the offer rides ruling 269.
+    b33 = (
+        "### B3.3 Settings and residue truth\n\n"
+        "**Flags:** none. **Depends on:** `R2`.\n"
+        "**PR:** #7244. (ruling 241)\n\n"
+        "- [x] ticked box\n"
+        "- [ ] `AIModelEnum` and the prompt-management schemas follow the prompt page's ruling.\n"
+    )
+    pkg = PKG + b33
+    # Ahead of `[r172]` on purpose: r172's own none-yet offer would otherwise win in queue order,
+    # and the assertion could never tell the in-progress branch fired at all.
+    queued = ROSTER.replace("`[r181]`, `[r172]`", "`[r181]`, `B3.3`, `[r172]`")
+    _, out = run_tick(
+        **waiting(),
+        packages=pkg,
+        roster=queued,
+        readme=README_ROWS,  # the README read box 2 needs, plumbed through build
+        pr_comments={7164: [held_review(83)]},
+    )
+    line = has(out, "next claimable")[0]
+    assert "B3.3" in line
+    assert "AIModelEnum" in line  # the digest names the box
+
+
+def test_a_merged_single_pr_block_with_an_unticked_post_merge_box_is_not_offered():
+    # r172's shape on main: unticked boxes, `**PR:** #7305` -- a MERGED single-PR block (verified
+    # merged). Ruling 283's read stands: the block is done, its unticked boxes are the owner
+    # partner's post-merge ticks, not open work -- and no README row reads `in progress` for it.
+    # The offer must stay silent even though [r172] sits on my queue behind the hold.
+    r172 = (
+        "### [r172] The import budget\n\n"
+        "**Flags:** none. **PR:** #7305. (ruling 172; issue #7102)\n\n"
+        "- [ ] a box the owner partner still has to tick post-merge\n"
+    )
+    out = text(
+        **waiting(),
+        packages=PKG + r172,
+        readme=README_ROWS,
+        pr_comments={7164: [held_review(84)]},
+    )
+    line = has(out, "next claimable")[0] if "next claimable" in out else ""
+    assert "r172" not in line  # the offer, if any, is the plain none-yet one, never r172
+
+
+def test_the_in_progress_offer_never_fires_without_the_readme_read():
+    # A failed or absent README read is not a decision (UR-154's direction): with `readme` unset
+    # -- the seam's empty default -- the same B3.3 block stays unoffered, so a digest whose
+    # README read failed can never claim open work it did not see. B3.3 must be the ONLY thing
+    # the queue can offer, or the pre-existing none-yet offer hides the branch under test.
+    b33 = (
+        "### B3.3 Settings and residue truth\n\n"
+        "**Flags:** none. **Depends on:** `R2`.\n"
+        "**PR:** #7244. (ruling 241)\n\n"
+        "- [ ] an open box\n"
+    )
+    assert tick.next_claimable(PKG + b33, ["B3.3"], []) is None  # no readme arg at all
+    assert tick.next_claimable(PKG + b33, ["B3.3"], [], readme="") is None
+
+
+README_ROWS = """\
+<!-- prettier-ignore -->
+| package | lane                    | phase      | name                                           | flags         | status      | PR  |
+| ------- | ----------------------- | ---------- | ---------------------------------------------- | ------------- | ----------- | --- |
+| B3.3    | backend                 | 3          | Settings and residue truth                     |               | in progress | #7244 |
+"""  # fmt: skip
 
 
 # --- the error shape the package names ------------------------------------------------------

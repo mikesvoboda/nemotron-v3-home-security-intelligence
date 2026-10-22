@@ -209,13 +209,17 @@ that class (msgpack, setuptools, urllib3 twice, and `certifi` from #7321), each 
 stage never call it, and backend code names it only in "Install with: pip install …" messages.
 Dropping pip from the image removes this class of finding for good.
 
-- [ ] **The `prod` stage of `backend/Dockerfile` drops pip** and its `_vendor` bundle from the
+- [x] **The `prod` stage of `backend/Dockerfile` drops pip** and its `_vendor` bundle from the
       system site-packages, after the last step that needs it. `uv` and the venv stay.
-- [ ] **The five pip-bundle entries leave `.trivyignore`** in the same PR (msgpack, setuptools,
-      urllib3 twice, `certifi`), and the PR's image scan is green without them.
-- [ ] **A test pins it, red first (UR-69):** the built `prod` image cannot import pip (for example,
+- [x] **The five pip-bundle entries leave `.trivyignore`** in the same PR (msgpack, setuptools,
+      urllib3 twice, `certifi`), and the PR's image scan is green without them — dispatch run
+      39672415741 at d1ba0aa62 (job 119473608257): 168 targets, all zero, no bare
+      `Python (python-pkg)` target.
+- [x] **A test pins it, red first (UR-69):** the built `prod` image cannot import pip (for example,
       `docker run --rm <image> python -c "import pip"` exits non-zero in CI), or another check the
-      lane names.
+      lane names — `TestPipLeavesTheProdImage` pins the Dockerfile rm block, the in-build probe
+      asserts the import fails (5/5, `/tmp/b33wt-probe-build.log`), UR-89 red-first simulation
+      confirmed.
 
 **Done when:** `CI Gate` is green at a ready head, including the image scan and the feature checks
 (the stack boots without pip). The PR body shows the scan with no bare `Python (python-pkg)` target,
