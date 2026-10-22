@@ -1232,7 +1232,7 @@ table row that `main` absorbs resets an approval (#7301 lost one this way, `6290
 ### [r290] The snapshot reads package balance, and `lane_tick` offers a multi-PR package's open box
 
 **Flags:** none. **Assigned:** `uplevel-ops-b`, after `[r278]` (both edit
-`coordinator_snapshot.py`), ahead of `O3.7` (ruling 290). **Depends on:** none. **PR:** none yet.
+`coordinator_snapshot.py`), ahead of `O3.7` (ruling 290). **Depends on:** none. **PR:** #7330.
 (ruling 290, record 6303479997)
 
 On 2026-10-20 three agents sat idle while ops-b held three Phase 3 packages with dependencies met,
@@ -1321,7 +1321,7 @@ to `[r297]`:
 
 **Flags:** `owner` (it changes what `CI Gate (Required Checks)` runs, UR-119, and a security check,
 UR-98). **Assigned:** `uplevel-ops-a`, after `[r282]`, behind `O2.5`'s venue fixes (rulings 287 and
-291). **Depends on:** none. **PR:** none yet. (ruling 291, record 6304527940)
+291). **Depends on:** none. **PR:** #7328. (ruling 291, record 6304527940)
 
 On 2026-10-20 three advisories published against unchanged code (certifi, Pillow, markdown-it) kept
 `main` red from 19:47Z until #7314 merged at 23:54Z. Each fix was a plain lockfile bump, yet the
@@ -1329,7 +1329,7 @@ fixes blocked each other, because one audit job covers both ecosystems, and 11 `
 the audit alone. UR-185 treats such an advisory as UR-116 treats a red nightly: raised and routed,
 without freezing the queue.
 
-- [ ] **The gate mode.** On a PR, the gate's audit leg audits both the tree CI tests and the PR's
+- [x] **The gate mode.** On a PR, the gate's audit leg audits both the tree CI tests and the PR's
       base commit in the same job, and fails only on an unexempted finding at the head that is not
       an unexempted finding at the base, keyed by advisory id (with aliases) and package. On a push
       to `main` the base is the previous `main` commit. The two registries
@@ -1338,17 +1338,17 @@ without freezing the queue.
       whose finding remains counts as adding that finding; an audit error on either side fails
       closed. A change that touches none of `pyproject.toml`, `uv.lock`, `frontend/package.json`,
       `frontend/package-lock.json` and the two registries may skip both audits.
-- [ ] **The full-lockfile mode** runs today's checks unchanged on every push to `main`, daily (the
+- [x] **The full-lockfile mode** runs today's checks unchanged on every push to `main`, daily (the
       Monday cron becomes daily) and on `workflow_dispatch`, as a check `CI Gate (Required Checks)`
       does not read (UR-119). Both modes live in `dependency-audit.yml` and the two checkers
       (OB.2), and `ci.yml`'s call job selects the gate mode (UR-122).
-- [ ] **Tests, red first (UR-69),** on recorded audit JSON for each checker: a finding shared by
+- [x] **Tests, red first (UR-69),** on recorded audit JSON for each checker: a finding shared by
       base and head passes the gate; a head that adds a vulnerable package fails; a head that
       removes an exemption whose finding remains fails; a head that adds an exemption with a past or
       missing REVIEW BY fails; a base exemption past its REVIEW BY that the change does not touch
       passes the gate and fails the full-lockfile mode; an audit error on either side fails; and the
       full-lockfile mode gives today's results (today's checker tests pass unchanged).
-- [ ] **Proof in the PR body,** with commands and output against live advisory data: the gate mode
+- [x] **Proof in the PR body,** with commands and output against live advisory data: the gate mode
       with base `fadeb1992` (red on markdown-it before #7314) and a head of `fadeb1992` plus a
       doc-only commit passes; the full-lockfile mode at `fadeb1992` fails on markdown-it; and a
       `workflow_dispatch` run of the full-lockfile mode on the PR branch is green.
@@ -1511,3 +1511,47 @@ Split out of `B4.2` so it is ready before `B4.2`'s build PR
 
 **Done when:** a smoke test sends one message to each sink and reads it back in CI, and the UR-89
 review approves.
+
+### [r309] The labelled frame set for `[r303]`
+
+**Flags:** none. **Assigned:** ops-b, after `[r308a]` (ruling 309). **Depends on:** none.
+**PR:** none yet. (ruling 309, record 6327202214)
+
+`[r303]`'s detector bake-off scores the candidates on about 400 real stills from the owner's
+cameras, stratified into day, night/IR and distant subjects, with at least 100 in each stratum that
+contain a person or a vehicle. An open-vocabulary detector from a different family than every
+candidate (OWLv2 or Grounding DINO, as synthbench's §4.1 rule requires) pre-boxes them, and the
+owner corrects the boxes. Classes: person and vehicle first; any other product class the pre-box
+finds is kept. The frames and labels stay on the host: no frame, crop or label file enters the
+repo, a PR, a CI artifact or any cloud service.
+
+- [ ] A stratified sampler over the camera upload tree, seeded and repeatable, that writes its
+      selection list (paths and strata only) on the host.
+- [ ] The independent pre-box pass, writing COCO-format boxes.
+- [ ] A locally run labelling tool loaded with the frames and pre-boxes, with a short guide for the
+      owner, and an export to the COCO file the bake-off reads.
+
+The PR says where each step runs (the owner's host login or a venue that mounts the camera tree);
+it never needs the frames in a sandbox's git tree.
+
+**Done when:** the owner has corrected the set, and the PR posts the counts per stratum and class
+(no images) and the labelled file's SHA-256.
+
+### [r311a] An MQTT broker in the CI harness
+
+**Flags:** none. **Assigned:** ops-b, after `[r309]` (ruling 311). **Depends on:** none.
+**PR:** none yet. (ruling 311, record 6328311780)
+
+`B4.8`'s golden path sends the arming commands through a real broker, beside `[r308a]`'s sinks
+([`../4n-arming.md`](../4n-arming.md), "What changes", ops).
+
+- [ ] The CI harness starts a Mosquitto broker with a password file, an ACL that lets only the
+      backend's user read `<prefix>/commands/#` and lets the sender read `<prefix>/results/#` (the
+      one the operator README gives with `B4.8`), and a TLS listener with a test CA. A golden test
+      can connect as the backend, as a command sender and as an unprivileged user. A second
+      listener accepts anonymous logins, for `B4.8`'s refusal step.
+
+**Done when:** `B4.8`'s golden path can run against it (ruling 311): a smoke test in CI publishes a
+command as the sender, receives it as the backend, sees nothing as the unprivileged user, connects
+over TLS with the test CA, and connects anonymously to the second listener; and the UR-89 review
+approves.

@@ -18,6 +18,7 @@ from __future__ import annotations
 import json
 import subprocess
 import sys
+from datetime import date, timedelta
 from pathlib import Path
 
 REPO = Path(__file__).resolve().parent
@@ -270,3 +271,297 @@ def test_workflow_python_leg_routes_through_the_checker() -> None:
     assert "check-pip-audit-exemptions.py" in leg
     assert ".pip-audit-exemptions.json" in leg
     assert "--ignore-vuln" not in executable
+
+
+# --- [r291] gate mode: fail a change only on a finding it adds ----------------
+#
+# --base-audit-json turns the checker into a DELTA: the same registry/audit
+# adjudication runs on both trees and only a finding unexempted at the head
+# that is not an unexempted finding at the base reddens. Everything below is
+# the package block's seven named cases, on recorded JSON (no pip-audit run).
+
+
+def run_delta(h: Harness, base_audit: str, head_audit: str, base_reg: dict, head_reg: dict):
+    """Feed two recorded audits + two registries through --base-audit-json.
+
+    The harness's single-audit runner takes one registry path; the delta
+    needs a second file, so the second registry lands beside it and the
+    checker gets both paths explicitly.
+    """
+    base_doc = h.tmp / "base-pa.json"
+    head_doc = h.tmp / "head-pa.json"
+    base_doc.write_text(base_audit)
+    head_doc.write_text(head_audit)
+    base_reg_path = h.tmp / "base-registry.json"
+    head_reg_path = h.tmp / "head-registry.json"
+    base_reg_path.write_text(json.dumps(base_reg if base_reg is not None else {"exceptions": []}))
+    head_reg_path.write_text(json.dumps(head_reg if head_reg is not None else {"exceptions": []}))
+    return subprocess.run(  # noqa: PLW1510 - the whole point is checking rc
+        [
+            sys.executable,
+            str(CHECKER),
+            "--audit-json",
+            str(head_doc),
+            "--base-audit-json",
+            str(base_doc),
+            "--registry",
+            str(head_reg_path),
+            "--base-registry",
+            str(base_reg_path),
+            "--warn-days",
+            "14",
+        ],
+        capture_output=True,
+        text=True,
+    )
+
+
+def test_gate_finding_shared_by_base_and_head_passes(tmp_path: Path) -> None:
+    """Package case 1: the advisory fires on BOTH trees, unexempted on both -
+    the change did not add it, the gate is green (full-lockfile mode would
+    still be red; that is the other mode's job)."""
+    h = Harness(tmp_path)
+    r = run_delta(
+        h,
+        audit_doc(FIXTURE_FINDING),
+        audit_doc(FIXTURE_FINDING),
+        {"exceptions": []},
+        {"exceptions": []},
+    )
+    assert r.returncode == 0, r.stdout + r.stderr
+
+
+def test_gate_head_adds_vulnerable_package_fails(tmp_path: Path) -> None:
+    """Package case 2: the head's audit reports a finding the base's does not -
+    the change added it, the gate is red naming the advisory and the package."""
+    h = Harness(tmp_path)
+    r = run_delta(
+        h,
+        audit_doc([]),
+        audit_doc(FIXTURE_FINDING),
+        {"exceptions": []},
+        {"exceptions": []},
+    )
+    assert r.returncode == 1
+    assert FIXTURE_ID in r.stderr
+    assert "UNEXEMPTED" in r.stderr
+
+
+def test_gate_removed_exemption_with_surviving_finding_fails(tmp_path: Path) -> None:
+    """Package case 3: base carries a valid exemption for a finding that
+    survives to the head, and the head's registry drops the entry. Removing
+    the exemption counts as ADDING that finding - keyed by id+package, the
+    finding is unexempted at head and not unexempted at base."""
+    h = Harness(tmp_path)
+    r = run_delta(
+        h,
+        audit_doc(FIXTURE_FINDING),
+        audit_doc(FIXTURE_FINDING),
+        {"exceptions": [entry(FIXTURE_ID)]},
+        {"exceptions": []},
+    )
+    assert r.returncode == 1
+    assert FIXTURE_ID in r.stderr
+    assert "UNEXEMPTED" in r.stderr
+
+
+def test_gate_added_exemption_past_review_by_fails(tmp_path: Path) -> None:
+    """Package case 4: the head's registry ADDS an entry whose REVIEW BY has
+    passed - an entry the change adds or edits must pass today's registry
+    rules, so the delta is red on the registry violation itself (an audit
+    error either side fails closed)."""
+    h = Harness(tmp_path)
+    r = run_delta(
+        h,
+        audit_doc([]),
+        audit_doc(FIXTURE_FINDING),
+        {"exceptions": []},
+        {"exceptions": [entry(FIXTURE_ID, review="2020-01-01")]},
+    )
+    assert r.returncode == 1
+    assert "PASSED" in r.stderr
+
+
+def test_gate_base_expired_review_by_untouched_passes_gate_fails_full_lockfile(
+    tmp_path: Path,
+) -> None:
+    """Package case 5: the base's registry has an entry past its REVIEW BY the
+    change does not touch. The gate is green (the change did not add the
+    violation; the same pair adjudicated in full-lockfile mode - no
+    --base-audit-json - must stay red, which is today's behavior pinned by
+    test_expired_review_by_is_red)."""
+    h = Harness(tmp_path)
+    r = run_delta(
+        h,
+        audit_doc(FIXTURE_FINDING),
+        audit_doc(FIXTURE_FINDING),
+        {"exceptions": [entry(FIXTURE_ID, review="2020-01-01")]},
+        {"exceptions": [entry(FIXTURE_ID, review="2020-01-01")]},
+    )
+    assert r.returncode == 0, r.stdout + r.stderr
+    # The full-lockfile leg of the same pair is NOT green: run today's
+    # checker on the head tree alone.
+    single = h.run(
+        audit_doc(FIXTURE_FINDING), {"exceptions": [entry(FIXTURE_ID, review="2020-01-01")]}
+    )
+    assert single.returncode == 1
+    assert "PASSED" in single.stderr
+
+
+def test_gate_audit_error_on_either_side_fails(tmp_path: Path) -> None:
+    """Package case 6: an unparsable audit - base or head - fails closed. A
+    delta that cannot adjudicate a side must never read as clean."""
+    h = Harness(tmp_path)
+    r = run_delta(
+        h,
+        "not json at all {{{",
+        audit_doc([]),
+        {"exceptions": []},
+        {"exceptions": []},
+    )
+    assert r.returncode == 1
+    assert "unparsable" in r.stderr
+    r = run_delta(
+        h,
+        audit_doc([]),
+        "not json at all {{{",
+        {"exceptions": []},
+        {"exceptions": []},
+    )
+    assert r.returncode == 1
+    assert "unparsable" in r.stderr
+
+
+def test_gate_exemption_added_at_head_covers_new_finding(tmp_path: Path) -> None:
+    """The flip side of case 3: the head adds BOTH the finding and a valid
+    exemption for it (reason + owner + REVIEW BY). The registry entry is
+    today's allowlist; the delta is green - the finding the change adds is
+    exempted, exactly as full-lockfile mode treats it today."""
+    h = Harness(tmp_path)
+    r = run_delta(
+        h,
+        audit_doc([]),
+        audit_doc(FIXTURE_FINDING),
+        {"exceptions": []},
+        {"exceptions": [entry(FIXTURE_ID)]},
+    )
+    assert r.returncode == 0, r.stdout + r.stderr
+
+
+def test_gate_alias_keyed_finding_shared_across_trees_passes(tmp_path: Path) -> None:
+    """The delta key is (id-with-aliases, package): base reports PYSEC-x with
+    CVE-y among aliases, head reports the same advisory under its GHSA - one
+    finding added before the base, not a new one at the head."""
+    h = Harness(tmp_path)
+    base = [{"id": "PYSEC-2099-0001", "pkg": FIXTURE_PKG, "aliases": [FIXTURE_ID]}]
+    head = [{"id": "GHSA-9999-8888-7777", "pkg": FIXTURE_PKG, "aliases": [FIXTURE_ID]}]
+    r = run_delta(h, audit_doc(base), audit_doc(head), {"exceptions": []}, {"exceptions": []})
+    assert r.returncode == 0, r.stdout + r.stderr
+
+
+def run_gate_without_head_registry(h: Harness):
+    """Delta invocation with the head's registry path pointing at nothing."""
+    base_doc = h.tmp / "base-pa.json"
+    head_doc = h.tmp / "head-pa.json"
+    base_doc.write_text(audit_doc([]))
+    head_doc.write_text(audit_doc([]))
+    base_reg_path = h.tmp / "base-registry.json"
+    base_reg_path.write_text(json.dumps({"exceptions": []}))
+    return subprocess.run(  # noqa: PLW1510 - the whole point is checking rc
+        [
+            sys.executable,
+            str(CHECKER),
+            "--audit-json",
+            str(head_doc),
+            "--base-audit-json",
+            str(base_doc),
+            "--registry",
+            str(h.tmp / "no-such-registry.json"),
+            "--base-registry",
+            str(base_reg_path),
+            "--warn-days",
+            "14",
+        ],
+        capture_output=True,
+        text=True,
+    )
+
+
+def test_gate_missing_head_registry_is_red(tmp_path: Path) -> None:
+    """A head tree whose registry file vanished fails closed, delta or not."""
+    r = run_gate_without_head_registry(Harness(tmp_path))
+    assert r.returncode == 1
+    assert "MISSING" in r.stderr
+
+
+def test_gate_resurrected_advisory_behind_dead_entry_fails(tmp_path: Path) -> None:
+    """r291 security pass: the base's audit does NOT report the advisory, the
+    head's does, and both registries carry an entry for it whose REVIEW BY
+    has passed. The PR touches no registry file - the finding resurrects the
+    dead entry by making its advisory live again. Strict coverage: a
+    violating entry does not cover the head's finding, so the delta is red,
+    not '0 finding(s) shared ... none added'."""
+    h = Harness(tmp_path)
+    dead = {"exceptions": [entry(FIXTURE_ID, review="2020-01-01")]}
+    r = run_delta(h, audit_doc([]), audit_doc(FIXTURE_FINDING), dead, dead)
+    assert r.returncode == 1
+    assert FIXTURE_ID in r.stderr
+    assert "UNEXEMPTED" in r.stderr
+
+
+def test_gate_sibling_advisory_sharing_an_id_is_red(tmp_path: Path) -> None:
+    """r291 security pass, key collapse: one CVE id carrying two advisories
+    (each its own GHSA with the shared CVE in aliases). The head reports
+    BOTH, the base one - min() gives both the same canonical key, so a bare
+    set-difference read them as 'shared'. The key counts advisories per
+    canonical key: head count 2 > base count 1 is an addition."""
+    base = [{"id": "CVE-2026-0001", "pkg": FIXTURE_PKG}]
+    head = [
+        {"id": "CVE-2026-0001", "pkg": FIXTURE_PKG},
+        {"id": "GHSA-zzzz-zzzz-zzzz", "pkg": FIXTURE_PKG, "aliases": ["CVE-2026-0001"]},
+    ]
+    h = Harness(tmp_path)
+    r = run_delta(h, audit_doc(base), audit_doc(head), {"exceptions": []}, {"exceptions": []})
+    assert r.returncode == 1
+    assert "UNEXEMPTED" in r.stderr
+
+
+def test_gate_shared_warn_keeps_delta_green_with_warning_note(tmp_path: Path) -> None:
+    """r291 security pass, verdict hygiene: a pre-existing entry expiring
+    within warn-days on BOTH trees (finding shared too) must not fail the
+    delta - and the OK line carries the warning count, so the log never
+    reads 'delta OK' beside a nonzero exit code."""
+    soon = (date.today() + timedelta(days=5)).isoformat()
+    h = Harness(tmp_path)
+    r = run_delta(
+        h,
+        audit_doc(FIXTURE_FINDING),
+        audit_doc(FIXTURE_FINDING),
+        {"exceptions": [entry(FIXTURE_ID, review=soon)]},
+        {"exceptions": [entry(FIXTURE_ID, review=soon)]},
+    )
+    assert r.returncode == 0, r.stdout + r.stderr
+    assert "shared expiry warning(s)" in r.stdout
+
+
+def test_gate_new_package_hit_by_already_exempted_advisory_fails(tmp_path: Path) -> None:
+    """r291 security re-pass, residual A: the base reports the advisory on
+    the package a valid entry names; the head reports the SAME advisory on
+    a NEW package too. Coverage was advisory-granular - one entry covered
+    the advisory on every package it touches, including ones the entry
+    never named - so a PR adding a vulnerable dependency green-lit without
+    touching the registry. The delta key is (advisory, package), so the
+    head's (CVE, new-pkg) is an addition and the delta is red."""
+    other = "newpkg"
+    base = [{"id": FIXTURE_ID, "pkg": FIXTURE_PKG}]
+    head = [
+        {"id": FIXTURE_ID, "pkg": FIXTURE_PKG},
+        {"id": FIXTURE_ID, "pkg": other},
+    ]
+    reg = {"exceptions": [entry(FIXTURE_ID, pkg=FIXTURE_PKG)]}
+    h = Harness(tmp_path)
+    r = run_delta(h, audit_doc(base), audit_doc(head), reg, reg)
+    assert r.returncode == 1
+    assert other in r.stderr
+    assert FIXTURE_ID in r.stderr
+    assert "UNEXEMPTED" in r.stderr
