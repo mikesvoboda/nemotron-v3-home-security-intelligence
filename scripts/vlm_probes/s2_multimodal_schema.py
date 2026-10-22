@@ -23,6 +23,7 @@ Verdicts: ENFORCED / IGNORED / INCONCLUSIVE (never "unsupported" on a bad A).
 Usage: uv run python scripts/vlm_probes/s2_multimodal_schema.py \
          --base-url http://host.docker.internal:PORT --image some.png
 """
+
 from __future__ import annotations
 
 import argparse
@@ -35,6 +36,7 @@ from pathlib import Path
 import httpx
 
 TEXT = "Describe what is in this image in one short sentence."
+
 
 # VlmVerdict-shaped (spec §4) + required const; NO minLength/minimum (their
 # grammar-level support is unverified at this pin - ranges are post-validated
@@ -95,8 +97,11 @@ def main() -> int:
     args = ap.parse_args()
 
     base = args.base_url.rstrip("/")
-    report: dict = {"probe": "S-2-multimodal-json-schema", "base_url": base,
-                    "image": args.image.name}
+    report: dict = {
+        "probe": "S-2-multimodal-json-schema",
+        "base_url": base,
+        "image": args.image.name,
+    }
 
     with httpx.Client(timeout=180.0) as c:
         try:
@@ -120,30 +125,40 @@ def main() -> int:
         report["arm_a"] = {"status": a.status_code, "content": a_content}
         if a.status_code != 200 or not a_content.strip():
             report["verdict"] = "INCONCLUSIVE"
-            report["why"] = ("arm A failed (400 about image input => server started "
-                             "without --mmproj) - not measuring enforcement")
+            report["why"] = (
+                "arm A failed (400 about image input => server started "
+                "without --mmproj) - not measuring enforcement"
+            )
             return _finish(report, args.report)
 
         nonce = __import__("uuid").uuid4().hex
-        rf_ok = {"type": "json_schema",
-                 "json_schema": {"name": "vlm_verdict", "schema": schema(nonce)}}
+        rf_ok = {
+            "type": "json_schema",
+            "json_schema": {"name": "vlm_verdict", "schema": schema(nonce)},
+        }
         b = c.post(f"{base}/v1/chat/completions", json=chat_body(uri, rf_ok))
         b_content = content_of(b)
         echoed = False
         try:
             echoed = json.loads(b_content).get("probe_const") == nonce
         except Exception:
-            pass
-        report["arm_b_enforced"] = {"status": b.status_code, "content": b_content,
-                                    "echoed_const": echoed}
+            echoed = False
+        report["arm_b_enforced"] = {
+            "status": b.status_code,
+            "content": b_content,
+            "echoed_const": echoed,
+        }
 
         # C: malformed wrapper -> grammar is literally "{}"; reply must NOT be "{}".
         rf_bad = {"type": "json_schema", "json_schema": {"name": "vlm_verdict"}}
         cc = c.post(f"{base}/v1/chat/completions", json=chat_body(uri, rf_bad))
         cc_content = content_of(cc)
         empty_object_reply = cc_content.strip().replace(" ", "") == "{}"
-        report["arm_c_malformed"] = {"status": cc.status_code, "content": cc_content,
-                                     "empty_object_reply": empty_object_reply}
+        report["arm_c_malformed"] = {
+            "status": cc.status_code,
+            "content": cc_content,
+            "empty_object_reply": empty_object_reply,
+        }
 
     if echoed:
         report["verdict"] = "ENFORCED"

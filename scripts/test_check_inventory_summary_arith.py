@@ -35,11 +35,14 @@ SCRIPT = REPO_ROOT / "scripts" / "check-inventory-summary-arith.py"
 REAL_DOC = REPO_ROOT / "docs" / "reference" / "feature-inventory.md"
 
 STATUSES = ["unverified", "half-built", "leftover", "awaiting real tier"]
-ROW_HEADER = ("| id | surface | action | API calls | backend | status | evidence "
-              "| modules | real tier | ruling | priority |")
+ROW_HEADER = (
+    "| id | surface | action | API calls | backend | status | evidence "
+    "| modules | real tier | ruling | priority |"
+)
 ROW_SEP = "| " + " | ".join(["---"] * 11) + " |"
-LEGEND = ("### Statuses\n\n| status | meaning here |\n| --- | --- |\n"
-          + "".join(f"| **{s}** | what {s} means |\n" for s in STATUSES))
+LEGEND = "### Statuses\n\n| status | meaning here |\n| --- | --- |\n" + "".join(
+    f"| **{s}** | what {s} means |\n" for s in STATUSES
+)
 SUMMARY = "## 2. Summary\n\nComputed, not stored (ruling 251).\n\n"
 
 
@@ -52,10 +55,14 @@ def counts(rows: list[tuple[str, ...]]) -> list[str]:
 
 
 def expected_table(sections: dict[str, list[tuple[str, ...]]]) -> list[str]:
-    out = ["| section | rows | " + " | ".join(STATUSES) + " |",
-           "| --- | --- | " + " | ".join("---" for _ in STATUSES) + " |"]
+    out = [
+        "| section | rows | " + " | ".join(STATUSES) + " |",
+        "| --- | --- | " + " | ".join("---" for _ in STATUSES) + " |",
+    ]
     for num, rows in sections.items():
-        out.append(f"| [3.{num} Section {num}](#3{num}-section-{num}) | " + " | ".join(counts(rows)) + " |")
+        out.append(
+            f"| [3.{num} Section {num}](#3{num}-section-{num}) | " + " | ".join(counts(rows)) + " |"
+        )
     every = [r for rows in sections.values() for r in rows]
     out.append("| **all** | " + " | ".join(f"**{c}**" for c in counts(every)) + " |")
     return out
@@ -64,8 +71,10 @@ def expected_table(sections: dict[str, list[tuple[str, ...]]]) -> list[str]:
 def row(spec: tuple[str, ...]) -> str:
     row_id, status = spec[0], spec[1]
     action = spec[2] if len(spec) > 2 else "views the panel"
-    return (f"| {row_id} | Some surface | {action} | GET /x | app.py:1 | {status} "
-            "| why | mod.py | — | complete | p1 |")
+    return (
+        f"| {row_id} | Some surface | {action} | GET /x | app.py:1 | {status} "
+        "| why | mod.py | — | complete | p1 |"
+    )
 
 
 def doc(sections: dict[str, list[tuple[str, ...]]]) -> str:
@@ -74,16 +83,25 @@ def doc(sections: dict[str, list[tuple[str, ...]]]) -> str:
     for num, rows in sections.items():
         parts.append(
             f"### 3.{num} Section {num}\n\n{ROW_HEADER}\n{ROW_SEP}\n"
-            + "\n".join(row(spec) for spec in rows) + "\n"
+            + "\n".join(row(spec) for spec in rows)
+            + "\n"
         )
-    return ("## 1. How to read this document\n\n" + LEGEND + "\nProse.\n\n" + SUMMARY
-            + "## 3. Sections\n\n" + "".join(parts))
+    return (
+        "## 1. How to read this document\n\n"
+        + LEGEND
+        + "\nProse.\n\n"
+        + SUMMARY
+        + "## 3. Sections\n\n"
+        + "".join(parts)
+    )
 
 
 def run(path: Path, *, as_json: bool = True) -> tuple[int, str, dict | None]:
     proc = subprocess.run(
         [sys.executable, str(SCRIPT), str(path), *(["--json"] if as_json else [])],
-        capture_output=True, text=True, check=False,
+        capture_output=True,
+        text=True,
+        check=False,
     )
     payload = json.loads(proc.stdout) if as_json and proc.stdout.strip().startswith("{") else None
     return proc.returncode, proc.stdout + proc.stderr, payload
@@ -114,10 +132,19 @@ def test_the_json_census_counts_the_rows(tmp_path):
     rc, out, payload = run(write(tmp_path, doc(TWO)))
     assert rc == 0, out
     assert payload["rows"] == 5 and payload["sections_derived"] == 2, payload
-    assert payload["statuses"] == {"unverified": 1, "half-built": 2, "leftover": 1,
-                                   "awaiting real tier": 1}, payload
-    assert payload["sections"]["3.2"] == {"rows": 2, "unverified": 0, "half-built": 0,
-                                          "leftover": 1, "awaiting real tier": 1}, payload
+    assert payload["statuses"] == {
+        "unverified": 1,
+        "half-built": 2,
+        "leftover": 1,
+        "awaiting real tier": 1,
+    }, payload
+    assert payload["sections"]["3.2"] == {
+        "rows": 2,
+        "unverified": 0,
+        "half-built": 0,
+        "leftover": 1,
+        "awaiting real tier": 1,
+    }, payload
 
 
 def test_sections_print_in_numeric_order_not_text_order(tmp_path):
@@ -136,8 +163,13 @@ def test_real_inventory_prints_and_passes():
     assert rc == 0, out
     assert payload["sections_derived"] == 13, payload
     assert payload["rows"] > 250, payload
-    assert list(payload["statuses"]) == ["unverified", "half-built", "leftover",
-                                         "awaiting real tier", "works"], payload
+    assert list(payload["statuses"]) == [
+        "unverified",
+        "half-built",
+        "leftover",
+        "awaiting real tier",
+        "works",
+    ], payload
     assert sum(payload["statuses"].values()) == payload["rows"], payload
     rc, table, _ = run(REAL_DOC, as_json=False)
     assert rc == 0, table
@@ -150,8 +182,9 @@ def test_real_inventory_prints_and_passes():
 def test_a_status_outside_the_legend_is_a_failure(tmp_path):
     """A row given a tier the legend does not name must FAIL, not be skipped: a
     tally of only known statuses silently loses rows."""
-    rc, out, payload = run(write(tmp_path, doc({"1": [("F-001", "unverified"),
-                                                      ("F-002", "shipped")]})))
+    rc, out, payload = run(
+        write(tmp_path, doc({"1": [("F-001", "unverified"), ("F-002", "shipped")]}))
+    )
     assert rc == 1, f"an unlisted status vanished from the count: {out}"
     assert "shipped" in out and "legend" in out, payload
 
@@ -180,7 +213,9 @@ def test_a_doc_without_a_legend_is_refused(tmp_path):
 
 
 def test_a_legend_without_a_status_column_is_refused(tmp_path):
-    rc, out, _ = run(write(tmp_path, doc(TWO).replace("| status | meaning here |", "| tier | meaning here |", 1)))
+    rc, out, _ = run(
+        write(tmp_path, doc(TWO).replace("| status | meaning here |", "| tier | meaning here |", 1))
+    )
     assert rc == 2, f"a legend with no `status` column was read: {out}"
     assert "no `status` column" in out, out
 
@@ -199,8 +234,13 @@ def test_a_section_number_used_twice_is_refused(tmp_path):
     """Two `### 3.2` headings: the later copy would replace the earlier, and its rows
     would vanish from the table and the `all` row with rc 0. The stored §2 used to
     catch this by disagreeing; now the script refuses it."""
-    text = doc({"1": [("F-001", "unverified")], "2": [("F-010", "leftover")],
-                "3": [("F-020", "half-built")]}).replace("### 3.3 Section 3", "### 3.2 Section 3", 1)
+    text = doc(
+        {
+            "1": [("F-001", "unverified")],
+            "2": [("F-010", "leftover")],
+            "3": [("F-020", "half-built")],
+        }
+    ).replace("### 3.3 Section 3", "### 3.2 Section 3", 1)
     assert text.count("### 3.2 ") == 2, "arm is a no-op"
     rc, out, _ = run(write(tmp_path, text))
     assert rc == 2, f"a duplicated section number was tallied: {out}"
@@ -213,16 +253,21 @@ def test_a_heading_with_punctuation_links_to_githubs_anchor(tmp_path):
     text = doc(TWO).replace("### 3.1 Section 1", "### 3.1 Settings: cameras, rules (and re-ID)", 1)
     rc, out, _ = run(write(tmp_path, text), as_json=False)
     assert rc == 0, out
-    assert "| [3.1 Settings: cameras, rules (and re-ID)](#31-settings-cameras-rules-and-re-id) |" in out, out
+    assert (
+        "| [3.1 Settings: cameras, rules (and re-ID)](#31-settings-cameras-rules-and-re-id) |"
+        in out
+    ), out
 
 
 def test_the_real_inventorys_links_are_the_ones_its_stored_table_used():
     """Three anchors the hand-kept §2 carried before ruling 251, as GitHub rendered them."""
     rc, out, _ = run(REAL_DOC, as_json=False)
     assert rc == 0, out
-    for slug in ("#35-alerts-entities-and-re-id",
-                 "#310-settings-cameras-rules-processing-notifications-access",
-                 "#312-zones-plates-household-faces-heatmaps-scene-changes-tracks"):
+    for slug in (
+        "#35-alerts-entities-and-re-id",
+        "#310-settings-cameras-rules-processing-notifications-access",
+        "#312-zones-plates-household-faces-heatmaps-scene-changes-tracks",
+    ):
         assert f"]({slug}) |" in out, (slug, out)
 
 
@@ -258,16 +303,18 @@ def test_two_legend_tables_are_refused(tmp_path):
 def test_a_wrapped_prose_line_starting_with_a_hash_does_not_end_the_legend(tmp_path):
     """The inventory wraps prose onto lines like `#6854) ...`; only a real heading
     (`#` to `######` then a space) ends the legend's body."""
-    text = doc(TWO).replace("### Statuses\n\n", "### Statuses\n\nAs ruled on\n#6854) the vocabulary is:\n\n", 1)
+    text = doc(TWO).replace(
+        "### Statuses\n\n", "### Statuses\n\nAs ruled on\n#6854) the vocabulary is:\n\n", 1
+    )
     rc, out, _ = run(write(tmp_path, text))
     assert rc == 0, f"a wrapped `#NNNN)` line cut the legend off: {out}"
 
 
-
 def test_duplicate_id_is_a_failure_not_a_count(tmp_path):
     """Renumbering can put one id in two sections; summing both double-counts."""
-    rc, out, _ = run(write(tmp_path, doc({"1": [("F-001", "unverified")],
-                                          "2": [("F-001", "leftover")]})))
+    rc, out, _ = run(
+        write(tmp_path, doc({"1": [("F-001", "unverified")], "2": [("F-001", "leftover")]}))
+    )
     assert rc == 2, f"a duplicated id was scored instead of refused: {out}"
     assert "duplicate id" in out, out
 
@@ -285,7 +332,9 @@ def test_non_row_line_in_a_table_is_refused_not_dropped(tmp_path):
     it against. Refusing is the only honest option — the checker cannot know
     whether the line was meant to be a row."""
     text = doc(TWO)
-    intruder = "| see the note below | prose | absorbed | — | — | half-built | — | — | — | — | — |\n"
+    intruder = (
+        "| see the note below | prose | absorbed | — | — | half-built | — | — | — | — | — |\n"
+    )
     anchor = row(TWO["1"][0]) + "\n"
     assert anchor in text, "fixture row anchor missing — the mutation would be a no-op"
     text = text.replace(anchor, anchor + intruder, 1)
@@ -301,8 +350,10 @@ def test_reordered_columns_still_score_the_right_column(tmp_path):
     integers while being wrong."""
     one = {"1": [("F-001", "unverified"), ("F-002", "half-built")]}
     text = doc(one)
-    swapped_header = ("| id | status | surface | action | API calls | backend | evidence "
-                      "| modules | real tier | ruling | priority |")
+    swapped_header = (
+        "| id | status | surface | action | API calls | backend | evidence "
+        "| modules | real tier | ruling | priority |"
+    )
     text = text.replace(ROW_HEADER, swapped_header)
     for spec in one["1"]:
         rid, status = spec
@@ -313,8 +364,12 @@ def test_reordered_columns_still_score_the_right_column(tmp_path):
     rc, out, payload = run(write(tmp_path, text))
     assert rc == 0, f"a column reorder broke the gate: {out}"
     assert payload["rows"] == 2, payload
-    assert payload["statuses"] == {"unverified": 1, "half-built": 1, "leftover": 0,
-                                   "awaiting real tier": 0}, payload
+    assert payload["statuses"] == {
+        "unverified": 1,
+        "half-built": 1,
+        "leftover": 0,
+        "awaiting real tier": 0,
+    }, payload
 
 
 def test_unrowed_short_row_is_a_refusal_not_a_wrong_answer(tmp_path):
@@ -349,21 +404,46 @@ def test_blank_table_line_is_refused_not_dropped(tmp_path):
 def test_section_table_without_status_column_is_refused(tmp_path):
     """A §3 table whose header lost `status` has nothing to tally; silently
     tallying zero statuses would print a table of zeros."""
-    rc, out, _ = run(write(tmp_path, doc(TWO).replace(ROW_HEADER, "| id | surface | action | API calls | backend | state | evidence | modules | real tier | ruling | priority |", 1)))
+    rc, out, _ = run(
+        write(
+            tmp_path,
+            doc(TWO).replace(
+                ROW_HEADER,
+                "| id | surface | action | API calls | backend | state | evidence | modules | real tier | ruling | priority |",
+                1,
+            ),
+        )
+    )
     assert rc == 2, f"a §3 table with no `status` column was tallied anyway: {out}"
     assert "no `status` column" in out, out
 
 
 def test_no_sections_at_all_is_refused(tmp_path):
-    rc, out, _ = run(write(tmp_path, doc(TWO).replace("### 3.1 Section 1", "### Section 1", 1)
-                                   .replace("### 3.2 Section 2", "### Section 2", 1)))
+    rc, out, _ = run(
+        write(
+            tmp_path,
+            doc(TWO)
+            .replace("### 3.1 Section 1", "### Section 1", 1)
+            .replace("### 3.2 Section 2", "### Section 2", 1),
+        )
+    )
     assert rc == 2, f"a doc with no `### 3.x` heading passed: {out}"
     assert "no corpus" in out, out
 
 
 def test_duplicate_column_name_in_a_header_is_refused(tmp_path):
-    rc, out, _ = run(write(tmp_path, doc(TWO).replace(ROW_HEADER, ROW_HEADER.replace("| evidence |", "| evidence |", 1)
-                                   .replace("| modules |", "| evidence |", 1), 1)))
+    rc, out, _ = run(
+        write(
+            tmp_path,
+            doc(TWO).replace(
+                ROW_HEADER,
+                ROW_HEADER.replace("| evidence |", "| evidence |", 1).replace(
+                    "| modules |", "| evidence |", 1
+                ),
+                1,
+            ),
+        )
+    )
     assert rc == 2, f"a header naming one column twice was resolved: {out}"
     assert "duplicate column name" in out, out
 
@@ -379,8 +459,12 @@ def test_escaped_pipe_inside_a_cell_is_not_a_column(tmp_path):
     one = {"1": [("F-001", "half-built", "shows `42% \\| 61°C` thresholds")]}
     rc, out, payload = run(write(tmp_path, doc(one)))
     assert rc == 0, f"an escaped pipe was read as a column break: {out}"
-    assert payload["statuses"] == {"unverified": 0, "half-built": 1, "leftover": 0,
-                                   "awaiting real tier": 0}, payload
+    assert payload["statuses"] == {
+        "unverified": 0,
+        "half-built": 1,
+        "leftover": 0,
+        "awaiting real tier": 0,
+    }, payload
 
 
 def test_a_later_section_may_own_its_own_id_table(tmp_path):
@@ -393,8 +477,15 @@ def test_a_later_section_may_own_its_own_id_table(tmp_path):
     "expected exactly 1 id-headed table". The bound is the fix; this arm is the
     control that proves it — the same doc reddens on the unbounded slice.
     """
-    later = ("\n## 4. Not a feature section\n\n" + ROW_HEADER + "\n" + ROW_SEP + "\n"
-             + row(("F-900", "leftover")) + "\n")
+    later = (
+        "\n## 4. Not a feature section\n\n"
+        + ROW_HEADER
+        + "\n"
+        + ROW_SEP
+        + "\n"
+        + row(("F-900", "leftover"))
+        + "\n"
+    )
     # Insert at the END of the LAST section's slice, so the `## 4.` table sits inside
     # the window the unbounded slice used to take (last `### 3.x` -> EOF) and outside
     # the bounded one (last `### 3.x` -> next `## `). Appending after the whole doc

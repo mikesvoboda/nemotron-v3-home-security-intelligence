@@ -60,6 +60,7 @@ import json
 import re
 import sys
 from pathlib import Path
+from typing import Any
 
 REPO_ROOT_DEFAULT = Path(__file__).resolve().parent.parent
 
@@ -140,7 +141,7 @@ def _count_decorators(tree_files: list[Path], marker: str) -> int:
     for path in tree_files:
         try:
             tree = ast.parse(path.read_text())
-        except SyntaxError, OSError:
+        except (SyntaxError, OSError):
             continue
         for node in ast.walk(tree):
             decorators = getattr(node, "decorator_list", [])
@@ -160,7 +161,7 @@ def count_pytest_skip_imperative(tree_files: list[Path]) -> int:
     for path in tree_files:
         try:
             tree = ast.parse(path.read_text())
-        except SyntaxError, OSError:
+        except (SyntaxError, OSError):
             continue
         for node in ast.walk(tree):
             if isinstance(node, ast.Call):
@@ -263,6 +264,7 @@ def _tpa_slow_list_locations(root: Path) -> list[dict]:
                 if not (isinstance(elt, ast.Constant) and isinstance(elt.value, str)):
                     continue
                 reason = ""
+                assert elt.end_lineno is not None
                 last = src_lines[elt.end_lineno - 1]
                 m = re.search(r"['\"],?\s*#\s*(.+?)\s*$", last)
                 if m:
@@ -327,7 +329,7 @@ def _module_str_constants(tree: ast.Module) -> dict[str, str]:
         ):
             try:
                 value = ast.literal_eval(node.value)
-            except ValueError, SyntaxError:
+            except (ValueError, SyntaxError):
                 continue
             if isinstance(value, str):
                 consts[node.targets[0].id] = value
@@ -380,7 +382,7 @@ def _decorator_locations(tree_files: list[Path], root: Path, marker: str) -> lis
     for path in tree_files:
         try:
             tree = ast.parse(path.read_text())
-        except SyntaxError, OSError:
+        except (SyntaxError, OSError):
             continue
         consts = _module_str_constants(tree)
         names = _qualified_names(tree)
@@ -465,7 +467,7 @@ def _skip_imperative_locations(tree_files: list[Path], root: Path) -> list[dict]
         try:
             src = path.read_text()
             tree = ast.parse(src)
-        except SyntaxError, OSError, UnicodeDecodeError:
+        except (SyntaxError, OSError, UnicodeDecodeError):
             continue
         consts = _module_str_constants(tree)
         guards = _guard_map(tree, src)
@@ -628,7 +630,7 @@ def _golden_first_arg(text: str, open_idx: int) -> str:
         elif c in ")]}":
             depth -= 1
             if depth == 0:
-                return text[open_idx + 1 : i].split(",")[0]
+                return text[open_idx + 1 : i].split(",", maxsplit=1)[0]
         elif c == "," and depth == 1:
             return text[open_idx + 1 : i]
         i += 1
@@ -670,6 +672,7 @@ def _golden_sites(text: str, rel: str) -> list[dict]:
                 )
             continue
         matched = head or fluent
+        assert matched is not None
         if _GOLDEN_SITE_RE.search(line, matched.end()):
             raise ValueError(
                 f"{rel}:{idx + 1}: a second golden suppression call site shares the "
@@ -687,14 +690,16 @@ def _golden_sites(text: str, rel: str) -> list[dict]:
                 )
             if root != "test":
                 continue  # rooted at a fixture/receiver, or unresolved: not a leg
-        mod = (head or fluent).group(1)
-        mod = re.search(r"(fixme|skip)", mod).group(1)
-        open_idx = starts[idx] + (head or fluent).end() - 1
+        mod = matched.group(1)
+        mod_match = re.search(r"(fixme|skip)", mod)
+        assert mod_match is not None
+        mod = mod_match.group(1)
+        open_idx = starts[idx] + matched.end() - 1
         arg = _golden_first_arg(text, open_idx).strip()
         if arg and arg[0] not in "'\"`":
             continue  # conditional guard form: runs when false, suppresses nothing
         title = re.fullmatch(r"(['\"`])((?:(?!\1).)*)\1", arg, re.S)
-        ident = title.group(2) if title else f"{idx + 1}:{(head or fluent).start() + 1}"
+        ident = title.group(2) if title else f"{idx + 1}:{matched.start() + 1}"
         out.append(
             {
                 "id": f"{rel}::{ident}",
@@ -807,7 +812,8 @@ def _unspecced_patch_locations(root: Path) -> list[dict]:
     assert spec and spec.loader
     mod = importlib.util.module_from_spec(spec)
     spec.loader.exec_module(mod)
-    return mod.sites_for_root(root)
+    res: list[dict[Any, Any]] = mod.sites_for_root(root)
+    return res
 
 
 def _coverage_omit_locations(root: Path) -> list[dict]:
@@ -903,7 +909,7 @@ def _module_literal_consts(tree: ast.Module) -> dict[str, object]:
         ):
             try:
                 consts[node.targets[0].id] = ast.literal_eval(node.value)
-            except ValueError, SyntaxError, TypeError:
+            except (ValueError, SyntaxError, TypeError):
                 continue
     return consts
 
@@ -935,7 +941,7 @@ def _param_product(fn: ast.FunctionDef | ast.AsyncFunctionDef, consts: dict) -> 
             if argvals.func.id == "range":
                 try:
                     n = len(range(*[ast.literal_eval(a) for a in argvals.args]))
-                except ValueError, SyntaxError, TypeError:
+                except (ValueError, SyntaxError, TypeError):
                     n = 1
             else:
                 n = 1
@@ -952,7 +958,7 @@ def _case_index(path: Path) -> dict:
     against the real tree's ~2k test files)."""
     try:
         tree = ast.parse(path.read_text())
-    except SyntaxError, OSError, UnicodeDecodeError:
+    except (SyntaxError, OSError, UnicodeDecodeError):
         return {}
     consts = _module_literal_consts(tree)
     by_name: dict[str, tuple[str, object]] = {}
@@ -972,7 +978,7 @@ def _case_index(path: Path) -> dict:
                     for owner in class_stack:
                         # every enclosing class claims this test (nested
                         # classes: the outer id hides it too)
-                        by_name[owner][1].append((qn, product))  # type: ignore[index]
+                        by_name[owner][1].append((qn, product))  # type: ignore[index,attr-defined]
                 for sub in ast.walk(child):
                     # ast.walk yields non-terminal nodes (arguments, …) with
                     # no lineno under 3.14 — positions are what we index.

@@ -61,7 +61,9 @@ def build_tree(root: Path) -> None:
     )
     (root / "docs" / "uplevel").mkdir()
     (root / "docs" / "uplevel" / "packages").mkdir()
-    (root / "docs" / "uplevel" / "packages" / "ops.md").write_text("retire the pose overlay\n", encoding="utf-8")
+    (root / "docs" / "uplevel" / "packages" / "ops.md").write_text(
+        "retire the pose overlay\n", encoding="utf-8"
+    )
     (root / "docs" / "goal-prompt-alpha.txt").write_text("pose and demographic\n", encoding="utf-8")
     (root / "docs" / "image.png").write_bytes(b"\x89PNG")
     (root / "backend").mkdir()
@@ -75,7 +77,9 @@ def build_tree(root: Path) -> None:
     (root / "AGENTS.md").write_text("The enrichment service is retired.\n", encoding="utf-8")
     (root / "backend" / "AGENTS.md").write_text("nothing retired here\n", encoding="utf-8")
     (root / "backend" / "tests").mkdir()
-    (root / "backend" / "tests" / "test_pose.py").write_text("def test_pose():\n    assert demographic\n", encoding="utf-8")
+    (root / "backend" / "tests" / "test_pose.py").write_text(
+        "def test_pose():\n    assert demographic\n", encoding="utf-8"
+    )
 
 
 def run_script(tree: Path) -> tuple[int, str, str]:
@@ -101,7 +105,9 @@ def test_fixture_tree_buckets(tmp_path: Path):
     # records exempt: docs/plans, docs/uplevel, goal-prompt txt; png skipped
     hit_paths = {f["path"] for f in result["files"]}
     assert "docs/architecture.md" in hit_paths
-    assert not any("plans/" in p or "uplevel/" in p or "goal-prompt" in p or ".png" in p for p in hit_paths)
+    assert not any(
+        "plans/" in p or "uplevel/" in p or "goal-prompt" in p or ".png" in p for p in hit_paths
+    )
 
 
 def test_whole_word_matching(tmp_path: Path):
@@ -162,7 +168,9 @@ def test_names_match_plan_text():
     and an audit census need not agree); this pin guards drift against the
     text this package's Done-when cites, nothing more.
     """
-    plan = (REPO_ROOT / "docs" / "uplevel" / "history" / "packages-done.md").read_text(encoding="utf-8")
+    plan = (REPO_ROOT / "docs" / "uplevel" / "history" / "packages-done.md").read_text(
+        encoding="utf-8"
+    )
     section = plan.split("### O1.7", 1)[1].split("### O1.8", 1)[0]
     for name in NAMES:
         assert f"`{name}`" in section, f"O1.7 plan text no longer names {name}"

@@ -29,38 +29,39 @@ Three properties this rewrite is obliged to carry, each one a trap this programm
 The batch arrives as already-transformed bytes: nothing here opens a crop file. Exit codes and the
 CLI contract are documented on ``main``.
 """
+
 from __future__ import annotations
 
 import hashlib
 import json
-import os
 import sys
 from pathlib import Path
+from typing import Any
 
 import numpy as np
 import onnx
 from onnx import numpy_helper
 
-GATE = 0.999                       # ruling 68, the same gate the plan table is judged by
-MIN_OPSET_AXES_INPUT = 18          # ReduceMean takes `axes` as an INPUT from opset 18 on
+GATE = 0.999  # ruling 68, the same gate the plan table is judged by
+MIN_OPSET_AXES_INPUT = 18  # ReduceMean takes `axes` as an INPUT from opset 18 on
 
 
 class Refusal(RuntimeError):
     """Refusal, not a fallback. A half-rewritten graph must never reach a builder."""
 
 
-def _opset(model) -> int:
+def _opset(model: Any) -> int:
     std = [o for o in model.opset_import if not o.domain or o.domain == "ai.onnx"]
     if len(std) != 1:
         raise Refusal(f"expected exactly one ai.onnx opset import, got {len(std)}")
-    return std[0].version
+    return int(std[0].version)
 
 
-def _count_in(model) -> int:
+def _count_in(model: Any) -> int:
     return sum(1 for n in model.graph.node if n.op_type == "InstanceNormalization")
 
 
-def decompose(model, want_in: int | None = None):
+def decompose(model: Any, want_in: int | None = None) -> tuple[Any, int]:
     """IN -> ReduceMean/Sub/Mul/ReduceMean/Add/Sqrt/Div/Mul/Add, channel-aligned by 1xCx1x1 shapes.
 
     Returns ``(new_model, n_replaced)``. Axes-as-input, per the opset guard: emitting the input form
@@ -71,27 +72,33 @@ def decompose(model, want_in: int | None = None):
     """
     opset = _opset(model)
     if opset < MIN_OPSET_AXES_INPUT:
-        raise Refusal(f"opset {opset} < {MIN_OPSET_AXES_INPUT}: ReduceMean's axes must be an "
-                      "attribute there and the input form emitted here would not validate")
+        raise Refusal(
+            f"opset {opset} < {MIN_OPSET_AXES_INPUT}: ReduceMean's axes must be an "
+            "attribute there and the input form emitted here would not validate"
+        )
     n_in = _count_in(model)
     if n_in == 0:
-        raise Refusal("ZERO InstanceNormalization nodes in the graph. This rewrite exists to replace "
-                      "them; an already-decomposed or different model reached it. Refusing rather "
-                      "than measuring the wrong graph.")
+        raise Refusal(
+            "ZERO InstanceNormalization nodes in the graph. This rewrite exists to replace "
+            "them; an already-decomposed or different model reached it. Refusing rather "
+            "than measuring the wrong graph."
+        )
     if want_in is not None and n_in != want_in:
-        raise Refusal(f"{n_in} InstanceNormalization nodes, want exactly {want_in}: the graph is not "
-                      "the one the recorded readings are comparable to. Refused.")
+        raise Refusal(
+            f"{n_in} InstanceNormalization nodes, want exactly {want_in}: the graph is not "
+            "the one the recorded readings are comparable to. Refused."
+        )
     g = model.graph
     inits = {i.name: i for i in g.initializer}
     n = 0
     k = 0
 
-    def uniq(p):
+    def uniq(p: str) -> str:
         nonlocal k
         k += 1
         return f"{p}_in{n}_{k}"
 
-    def const(name, arr, dtype=np.float32):
+    def const(name: str, arr: Any, dtype: Any = np.float32) -> Any:
         # DTYPE IS A PARAMETER, NOT A DEFAULT. A blanket float32 cast here silently stored the
         # int64 `axes` tensor as float; onnx.checker PASSED that graph and onnxruntime rejected it
         # ("Type 'tensor(float)' of input parameter (ax_in1_3) of operator (ReduceMean)"). So the
@@ -105,8 +112,10 @@ def decompose(model, want_in: int | None = None):
             new_nodes.append(node)
             continue
         if len(node.input) != 3:
-            raise Refusal(f"IN node {node.name!r} has {len(node.input)} inputs, want the 3-input "
-                          "affine form (X, scale, B) and nothing else")
+            raise Refusal(
+                f"IN node {node.name!r} has {len(node.input)} inputs, want the 3-input "
+                "affine form (X, scale, B) and nothing else"
+            )
         n += 1
         # SPEC ORDER, not intuition: InstanceNormalization's inputs are (input, scale, B). The first
         # draft unpacked them as (scale, B, input) and the refusal below fired on the REAL export --
@@ -115,12 +124,16 @@ def decompose(model, want_in: int | None = None):
         x, s_name, b_name = node.input
         eps = next((float(a.f) for a in node.attribute if a.name == "epsilon"), None)
         if eps is None:
-            raise Refusal(f"IN node {node.name!r} carries no epsilon attribute; this rewrite carries "
-                          "the graph's own value into the Add and will not assume one")
+            raise Refusal(
+                f"IN node {node.name!r} carries no epsilon attribute; this rewrite carries "
+                "the graph's own value into the Add and will not assume one"
+            )
         s_init, b_init = inits.get(s_name), inits.get(b_name)
         if s_init is None or b_init is None:
-            raise Refusal(f"IN node {node.name!r} has non-constant scale/bias; the channel-aligned "
-                          "rewrite needs the initializer bytes to reshape them")
+            raise Refusal(
+                f"IN node {node.name!r} has non-constant scale/bias; the channel-aligned "
+                "rewrite needs the initializer bytes to reshape them"
+            )
         s = numpy_helper.to_array(s_init).astype(np.float32).reshape(-1)
         b = numpy_helper.to_array(b_init).astype(np.float32).reshape(-1)
         if s.shape != b.shape:
@@ -138,16 +151,16 @@ def decompose(model, want_in: int | None = None):
         # the mistake was loud rather than silent, but the rule is the point: a unique-name generator
         # must never be called in two places that mean the same tensor.
         ax = uniq("ax")
-        new_inits.append(const(ax, [2, 3], np.int64))                   # H,W of NCHW
+        new_inits.append(const(ax, [2, 3], np.int64))  # H,W of NCHW
         eps_i = uniq("eps")
-        new_inits.append(const(eps_i, np.float32(eps)))   # 0-D, the form the design module measured
-        m1, m2 = uniq("mean1"), uniq("mean2")   # mean over H,W, then mean of squares
+        new_inits.append(const(eps_i, np.float32(eps)))  # 0-D, the form the design module measured
+        m1, m2 = uniq("mean1"), uniq("mean2")  # mean over H,W, then mean of squares
         v0, v1 = uniq("diff"), uniq("sq")
         var, sd = uniq("var"), uniq("std")
         sc, mul = uniq("scaled"), uniq("mul")
         mk = onnx.helper.make_node
         new_nodes += [
-            mk("ReduceMean", [x, ax], [m1], keepdims=1),        # axes as INPUT: opset >= 18
+            mk("ReduceMean", [x, ax], [m1], keepdims=1),  # axes as INPUT: opset >= 18
             mk("Sub", [x, m1], [v0]),
             mk("Mul", [v0, v0], [v1]),
             mk("ReduceMean", [v1, ax], [m2], keepdims=1),
@@ -166,7 +179,7 @@ def decompose(model, want_in: int | None = None):
     return out, n
 
 
-def superseded(before, after) -> int:
+def superseded(before: Any, after: Any) -> int:
     """Initializers the rewrite made dead: the original IN scale/bias tensors.
 
     onnxruntime's optimizer drops unused initializers at load, so they are harmless -- but they are
@@ -183,8 +196,9 @@ def superseded(before, after) -> int:
     return len(dead & in_sb)
 
 
-def embed(model_path, batch):
+def embed(model_path: str | Path, batch: Any) -> Any:
     import onnxruntime as ort
+
     # CPUExecutionProvider EXPLICIT: a production gateway image ships onnxruntime-gpu and a bare
     # session would ride CUDA, which is not the engine the parity claim is about.
     sess = ort.InferenceSession(str(model_path), providers=["CPUExecutionProvider"])
@@ -192,7 +206,7 @@ def embed(model_path, batch):
     return np.asarray(sess.run(None, {name: batch})[0], dtype=np.float32)
 
 
-def cosine_rows(a, b):
+def cosine_rows(a: Any, b: Any) -> Any:
     a = a / (np.linalg.norm(a, axis=1, keepdims=True) + 1e-9)
     b = b / (np.linalg.norm(b, axis=1, keepdims=True) + 1e-9)
     return np.einsum("ij,ij->i", a, b)
@@ -260,7 +274,7 @@ def _sidecar(model: Path) -> Path:
     return model.with_name(model.name + ".data")
 
 
-def _external_initializers(path) -> list:
+def _external_initializers(path: str | Path) -> list[str]:
     """Names of initializers the saved file still needs from a sidecar.
 
     Loaded with ``load_external_data=False`` ON PURPOSE. ``onnx.load()`` INLINES external data and
@@ -276,11 +290,20 @@ def _external_initializers(path) -> list:
     nothing). 32 stays the documented code for a save path that externalizes — reserved, not dead.
     """
     m = onnx.load(str(path), load_external_data=False)
-    return [i.name for i in m.graph.initializer
-            if i.HasField("data_location") and i.data_location == onnx.TensorProto.EXTERNAL]
+    return [
+        i.name
+        for i in m.graph.initializer
+        if i.HasField("data_location") and i.data_location == onnx.TensorProto.EXTERNAL
+    ]
 
 
-def surgery(model_path, predir, batch, out_json, want_in: int = 5) -> int:
+def surgery(
+    model_path: str | Path,
+    predir: str | Path,
+    batch: Any,
+    out_json: str | Path,
+    want_in: int = 5,
+) -> int:
     """Rewrite ``model_path`` in place and write the faithfulness row to ``out_json``.
 
     ``predir`` holds the pre-surgery snapshot (``model.onnx`` + ``model.onnx.data``); ``batch`` is a
@@ -291,15 +314,18 @@ def surgery(model_path, predir, batch, out_json, want_in: int = 5) -> int:
     model = Path(model_path)
     pre = Path(predir) / "model.onnx"
     if not pre.is_file():
-        raise SystemExit(f"no pre-surgery snapshot at {pre} (the layout is a DIRECTORY: model.onnx + "
-                         "model.onnx.data) - cannot print a faithful row")
+        raise SystemExit(
+            f"no pre-surgery snapshot at {pre} (the layout is a DIRECTORY: model.onnx + "
+            "model.onnx.data) - cannot print a faithful row"
+        )
     if _samefile(pre, model):
         raise SystemExit(
             f"pre-surgery snapshot {pre} IS the surgery target {model} (same inode). The module's own "
             "opening rule: a file compared against itself scores 1.0 by construction and certifies "
             "nothing — a pre-dir that is the export's own directory turns the recheck into that "
             "tautology AND the in-place save overwrites the snapshot before it is read. Stage the "
-            "snapshot in a separate directory before re-running.")
+            "snapshot in a separate directory before re-running."
+        )
     # out_json gets the SAME aliasing refusal the pre-snapshot got, for the same reason and one worse:
     # the row is written BEFORE the gate check, so if the destination resolves to the target, a gate
     # regression returns rc 30 — the code whose whole contract is "the target was not touched" — with
@@ -312,7 +338,8 @@ def surgery(model_path, predir, batch, out_json, want_in: int = 5) -> int:
         raise SystemExit(
             f"row destination {outj} IS the surgery target {model} - the faithfulness row would "
             "overwrite the export it describes, and on a gate regression it does exactly that under "
-            "rc 30, the code that promises the target survived. Point out_json at a separate file.")
+            "rc 30, the code that promises the target survived. Point out_json at a separate file."
+        )
     # The same refusal has to cover the PRE snapshot, not just the target, for the same reason and
     # with the same blast radius: the row is written before the gate check, so on a gate regression an
     # out_json aliased to the snapshot returns rc 30 having destroyed the one artifact the recheck is
@@ -322,7 +349,8 @@ def surgery(model_path, predir, batch, out_json, want_in: int = 5) -> int:
         raise SystemExit(
             f"row destination {outj} IS the pre-surgery snapshot {pre} - the faithfulness row would "
             "overwrite the baseline the recheck compares against, and a gate regression does exactly "
-            "that under rc 30. Point out_json at a separate file.")
+            "that under rc 30. Point out_json at a separate file."
+        )
     # ---- the rest of the write-target set, enumerated from the CODE, not from the prose (ruling 252,
     # round-4 finding B1). The clause above instantiates the general rationale - "the row is written
     # BEFORE the gate check" - against exactly TWO artifacts while this run depends on FIVE. Each arm
@@ -347,25 +375,29 @@ def surgery(model_path, predir, batch, out_json, want_in: int = 5) -> int:
             "move - the row would be written into the temp and then renamed ONTO the target by "
             "os.replace, returning rc 0 (the code that promises the rewrite was moved into place) "
             "with a JSON row that certifies a sha_after/size_after it does not have. Point out_json "
-            "at a separate file.")
+            "at a separate file."
+        )
     pre_side = _sidecar(pre)
     if _aliases(outj, pre_side):
         raise SystemExit(
             f"row destination {outj} IS the pre-snapshot sidecar {pre_side} - the snapshot graph is "
             "UNLOADABLE without it (external data), so the row would destroy the baseline the recheck "
             "loads through while leaving the snapshot file itself looking untouched. Point out_json at "
-            "a separate file.")
+            "a separate file."
+        )
     model_side = _sidecar(model)
     if _aliases(outj, model_side):
         raise SystemExit(
             f"row destination {outj} IS the target's sidecar {model_side} - the module writes and "
             "then drops that file, so the row would be deleted by the surgery that 'succeeded': rc 0 "
-            "with no witness anywhere. Point out_json at a separate file.")
+            "with no witness anywhere. Point out_json at a separate file."
+        )
     if isinstance(batch, (str, Path)) and _aliases(outj, Path(batch)):
         raise SystemExit(
             f"row destination {outj} IS the batch input {batch} - the row would replace the "
             "transformed bytes this rewrite was measured on, and the venue could not relaunch the "
-            "same command. Point out_json at a separate file.")
+            "same command. Point out_json at a separate file."
+        )
     batch = np.load(str(batch)) if isinstance(batch, (str, Path)) else np.asarray(batch)
     # shape[0] < 1 is its own clause because the tuple test below cannot see it: (0,3,256,128) has the
     # right ndim and the right trailing dims, so a ZERO-ROW batch passes the guard whose stated job is
@@ -373,8 +405,10 @@ def surgery(model_path, predir, batch, out_json, want_in: int = 5) -> int:
     # ValueError main() does not map (raw rc 1), stranding the .decomp.tmp beside the export. An empty
     # batch is precisely a layout that has not been witnessed: there is nothing in it to witness.
     if batch.ndim != 4 or batch.shape[1:] != (3, 256, 128) or batch.shape[0] < 1:
-        raise SystemExit(f"batch {batch.shape} is not (N,3,256,128) with N>=1 - refusing to feed the "
-                         "graphs a layout this rewrite has not witnessed")
+        raise SystemExit(
+            f"batch {batch.shape} is not (N,3,256,128) with N>=1 - refusing to feed the "
+            "graphs a layout this rewrite has not witnessed"
+        )
 
     sha_before, size_before = _sha(model), model.stat().st_size
     before = onnx.load(str(model))
@@ -390,9 +424,9 @@ def surgery(model_path, predir, batch, out_json, want_in: int = 5) -> int:
     # crashed with a raw rc 1 that main() does not map, AFTER it had already destroyed the input.
     # Save to a sibling temp path, let the recheck embed THAT, and only once it is faithful move it
     # over the target. A failure now leaves the original model.onnx intact and maps to a real code.
-    tmp = _decomp_tmp(model)                         # THE spelling, shared with the guard above
+    tmp = _decomp_tmp(model)  # THE spelling, shared with the guard above
     onnx.save(after, str(tmp))
-    decomp = onnx.load(str(tmp))                    # in-memory graph: witness counts, before ORT runs
+    decomp = onnx.load(str(tmp))  # in-memory graph: witness counts, before ORT runs
     ext = _external_initializers(tmp)
 
     # ---- the recheck row, BEFORE the target is overwritten and BEFORE the sidecar is touched ----
@@ -403,32 +437,47 @@ def surgery(model_path, predir, batch, out_json, want_in: int = 5) -> int:
     # not its name: ORT raises Fail / InvalidGraph / InvalidArgument, all under this module, with no
     # shared base, so a single-name catch would let the float-axes (InvalidGraph) case slip past.
     try:
-        a = embed(pre, batch)                        # ORIGINAL graph, its sidecar still beside it
-        b = embed(tmp, batch)                        # DECOMPOSED graph, the bytes the builder sees
-    except Exception as exc:                         # noqa: BLE001 - module-filtered, not blanket
+        a = embed(pre, batch)  # ORIGINAL graph, its sidecar still beside it
+        b = embed(tmp, batch)  # DECOMPOSED graph, the bytes the builder sees
+    except Exception as exc:
         tmp.unlink(missing_ok=True)
         if type(exc).__module__ != "onnxruntime.capi.onnxruntime_pybind11_state":
-            raise                                    # not an ORT load error: do not mislabel it 31
-        raise Refusal(f"the decomposed graph loaded by onnx.checker is REFUSED by onnxruntime at load "
-                      f"({type(exc).__name__}: {exc}). The checker is not the authority; the ORT load "
-                      "is. The original model.onnx was left untouched (nothing was moved into place).")
+            raise  # not an ORT load error: do not mislabel it 31
+        raise Refusal(
+            f"the decomposed graph loaded by onnx.checker is REFUSED by onnxruntime at load "
+            f"({type(exc).__name__}: {exc}). The checker is not the authority; the ORT load "
+            "is. The original model.onnx was left untouched (nothing was moved into place)."
+        ) from exc
     cos = cosine_rows(a, b)
     if not all(bool(np.isfinite(x)) and x >= 0.0 for x in cos):
         tmp.unlink(missing_ok=True)
-        raise SystemExit(f"cosine row is not interpretable: {[float(x) for x in cos]} contains a "
-                         "non-finite or negative value. A degenerate embedding row (0/0) reads as a "
-                         "PASS to a row[0]-only guard; nothing may be built from an unmeasured graph.")
+        raise SystemExit(
+            f"cosine row is not interpretable: {[float(x) for x in cos]} contains a "
+            "non-finite or negative value. A degenerate embedding row (0/0) reads as a "
+            "PASS to a row[0]-only guard; nothing may be built from an unmeasured graph."
+        )
     # the row describes the DECOMPOSED file, which is tmp until the faithful move renames it onto the
     # target; sha_after/size_after must therefore be measured on tmp, not on model (still pristine).
-    row = {
-        "n": int(cos.size), "min": float(cos.min()), "mean": float(cos.mean()),
+    row: dict[str, Any] = {
+        "n": int(cos.size),
+        "min": float(cos.min()),
+        "mean": float(cos.mean()),
         "max_abs_delta": float(np.abs(a - b).max()),
-        "witness": {"replaced": n, "nodes_before": nodes_before,
-                    "nodes_after": len(decomp.graph.node), "ir_version": decomp.ir_version,
-                    "opset": _opset(decomp), "superseded_inits": superseded(before, decomp)},
-        "sha_before": sha_before, "sha_after": _sha(tmp),
-        "size_before": size_before, "size_after": tmp.stat().st_size,
-        "external_left": len(ext), "gate": GATE, "cos": [float(x) for x in cos],
+        "witness": {
+            "replaced": n,
+            "nodes_before": nodes_before,
+            "nodes_after": len(decomp.graph.node),
+            "ir_version": decomp.ir_version,
+            "opset": _opset(decomp),
+            "superseded_inits": superseded(before, decomp),
+        },
+        "sha_before": sha_before,
+        "sha_after": _sha(tmp),
+        "size_before": size_before,
+        "size_after": tmp.stat().st_size,
+        "external_left": len(ext),
+        "gate": GATE,
+        "cos": [float(x) for x in cos],
     }
     # The row write is inside the SAME refusal discipline as every other exit: an unwritable
     # destination (a parent directory that does not exist is the ordinary slip) used to escape as a raw
@@ -440,31 +489,43 @@ def surgery(model_path, predir, batch, out_json, want_in: int = 5) -> int:
         outj.write_text(json.dumps(row))
     except OSError as exc:
         tmp.unlink(missing_ok=True)
-        raise Refusal(f"cannot write the faithfulness row to {outj} ({exc}). The original model.onnx "
-                      "was left untouched and the decomposed temp was removed.") from exc
+        raise Refusal(
+            f"cannot write the faithfulness row to {outj} ({exc}). The original model.onnx "
+            "was left untouched and the decomposed temp was removed."
+        ) from exc
 
     w = row["witness"]
-    print(f"  surgery: replaced {w['replaced']} IN · nodes {w['nodes_before']}→{w['nodes_after']}"
-          f" · ir {w['ir_version']} · opset {w['opset']} · superseded initializers {w['superseded_inits']}")
-    print(f"  model.onnx {size_before} B sha {sha_before[:12]}… → {row['size_after']} B sha "
-          f"{row['sha_after'][:12]}… · external initializers left: {len(ext)}")
-    print(f"  recheck (ORIGINAL vs DECOMPOSED, ORT CPU, {row['n']} rows): min {row['min']:.8f} "
-          f"mean {row['mean']:.8f} max|Δ| {row['max_abs_delta']:.3e}  gate {GATE}")
+    print(
+        f"  surgery: replaced {w['replaced']} IN · nodes {w['nodes_before']}→{w['nodes_after']}"
+        f" · ir {w['ir_version']} · opset {w['opset']} · superseded initializers {w['superseded_inits']}"
+    )
+    print(
+        f"  model.onnx {size_before} B sha {sha_before[:12]}… → {row['size_after']} B sha "
+        f"{row['sha_after'][:12]}… · external initializers left: {len(ext)}"
+    )
+    print(
+        f"  recheck (ORIGINAL vs DECOMPOSED, ORT CPU, {row['n']} rows): min {row['min']:.8f} "
+        f"mean {row['mean']:.8f} max|Δ| {row['max_abs_delta']:.3e}  gate {GATE}"
+    )
     if row["min"] < GATE:
-        tmp.unlink(missing_ok=True)                  # unfaithful: the target stays pristine
-        print(f"  THE SURGERY BROKE FAITHFULNESS at min {row['min']:.8f} < {GATE}. The plans must NOT "
-              "be built from this graph; nothing downstream may be read.")
+        tmp.unlink(missing_ok=True)  # unfaithful: the target stays pristine
+        print(
+            f"  THE SURGERY BROKE FAITHFULNESS at min {row['min']:.8f} < {GATE}. The plans must NOT "
+            "be built from this graph; nothing downstream may be read."
+        )
         return 30
 
     # ---- the graph is faithful and ORT-loadable: only NOW does the target change ----------------
-    os.replace(str(tmp), str(model))                 # atomic: the plans are built from THIS file
+    tmp.replace(model)  # atomic: the plans are built from THIS file
     # ---- the sidecar, dropped LAST and only if the moved file proves it needs nothing ------------
     # tmp and model share a directory, so the decomposed model's own sidecar (if it has one) is named
     # after model.name and is beside it. ext==0 means the moved file references no sidecar at all.
-    side = _sidecar(model)                           # THE spelling, shared with the guard above
+    side = _sidecar(model)  # THE spelling, shared with the guard above
     if ext:
-        print(f"  sidecar KEPT: {len(ext)} external initializer(s) still referenced "
-              f"({ext[0]}…). The plans still build; this is a tidiness loss, not a measurement loss.")
+        print(
+            f"  sidecar KEPT: {len(ext)} external initializer(s) still referenced "
+            f"({ext[0]}…). The plans still build; this is a tidiness loss, not a measurement loss."
+        )
         return 32
     if side.exists():
         side.unlink()
@@ -473,7 +534,7 @@ def surgery(model_path, predir, batch, out_json, want_in: int = 5) -> int:
     return 0
 
 
-def main(argv=None) -> int:
+def main(argv: list[str] | None = None) -> int:
     """CLI: decompose_instance_norm.py <model.onnx> <pre-dir> <batch-npy> <out-json> [want-in=5].
 
     The exit codes are mapped HERE, not only in the ``__main__`` guard: they are the contract the
@@ -497,8 +558,10 @@ def main(argv=None) -> int:
     """
     argv = list(sys.argv[1:] if argv is None else argv)
     if len(argv) not in (4, 5):
-        raise SystemExit("usage: decompose_instance_norm.py <model.onnx> <pre-dir> <batch-npy> "
-                         "<out-json> [want-in]")
+        raise SystemExit(
+            "usage: decompose_instance_norm.py <model.onnx> <pre-dir> <batch-npy> "
+            "<out-json> [want-in]"
+        )
     model, predir, batchnpy, outp = argv[:4]
     want_in = int(argv[4]) if len(argv) == 5 else 5
     try:

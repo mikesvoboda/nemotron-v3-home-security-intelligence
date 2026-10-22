@@ -141,7 +141,7 @@ def findings_for(paths: list[Path]) -> list[str]:
         if size == 0:
             out.append(f"{p}: zero bytes")
         elif p.suffix in PY_SUFFIXES:
-            ok, reason = py_collects_tests(p)
+            _ok, reason = py_collects_tests(p)
             if reason:
                 out.append(f"{p}: {reason}")
     return out

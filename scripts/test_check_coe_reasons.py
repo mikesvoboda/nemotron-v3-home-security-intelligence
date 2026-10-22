@@ -40,7 +40,6 @@ import re
 import sys
 from pathlib import Path
 
-import pytest
 import yaml
 
 REPO_ROOT = Path(__file__).resolve().parents[1]
@@ -76,16 +75,16 @@ def scan_workflows(workflow_dir: Path) -> list[str]:
             continue
         suppressing: list[dict] = []
 
-        def walk(node: object) -> None:
+        def walk(node: object, out: list[dict] = suppressing) -> None:
             if isinstance(node, dict):
                 for key, val in node.items():
                     if key == "continue-on-error" and _is_suppressing(_value_text(val)):
-                        suppressing.append({"value": _value_text(val), "at": 0})
+                        out.append({"value": _value_text(val), "at": 0})
                     else:
-                        walk(val)
+                        walk(val, out)
             elif isinstance(node, list):
                 for item in node:
-                    walk(item)
+                    walk(item, out)
 
         for doc in docs:
             walk(doc or {})
@@ -112,7 +111,7 @@ def scan_workflows(workflow_dir: Path) -> list[str]:
         # the same keys in file order, so zip is exact; surplus tree hits
         # (duplicate keys YAML merged away) leave their line unreached and
         # the line pass adjudicates them too.
-        for (i, m) in key_lines:
+        for i, m in key_lines:
             if not _is_suppressing(m.group(2)):
                 continue
             if not _commented(lines, i, m.group(3)):

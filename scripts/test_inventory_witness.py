@@ -462,7 +462,8 @@ F033_LEGS = (
 def f033_run(*outcomes: str) -> dict:
     return summary(
         playwright={
-            f"{JUNIT_FAKE}::summary cards @critical › {t}": o for t, o in zip(F033_LEGS, outcomes)
+            f"{JUNIT_FAKE}::summary cards @critical › {t}": o
+            for t, o in zip(F033_LEGS, outcomes, strict=False)
         }
     )
 

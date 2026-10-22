@@ -146,7 +146,9 @@ LEADING_TOKEN = re.compile(r"^\s*\[([\w-]+)\]")
 OPEN_BOX = re.compile(r"^\s*-\s\[\s\]", re.M)
 # A README status row: | package | lane | phase | name | flags | status | PR | -- the status field
 # is the sixth column; UR-144's statuses are words, `done` being the only one the balance reads.
-STATUS_ROW = re.compile(r"^\|\s*`?([\w.]+)`?\s*\|[^|]*\|[^|]*\|[^|]*\|[^|]*\|\s*`?([\w ]+?)`?\s*\|", re.M)
+STATUS_ROW = re.compile(
+    r"^\|\s*`?([\w.]+)`?\s*\|[^|]*\|[^|]*\|[^|]*\|[^|]*\|\s*`?([\w ]+?)`?\s*\|", re.M
+)
 
 
 def queue_entries(column: str) -> list[str]:
@@ -780,7 +782,7 @@ class Snapshot:
             # Stamped here so §2's items and the activity extra-read are judged by the SAME
             # signature rule (§6's signs_agent reads these two, never a re-parse).
             "head_name": head_name(line),
-            "review_lane": review_lane(c.get("body")),
+            "review_lane": review_lane(c.get("body") or ""),
         }
 
     def _binding_now(self) -> None:
@@ -847,7 +849,8 @@ class Snapshot:
                 "databaseId,status,conclusion,headSha,createdAt,event,url",
             ]
         )
-        return json.loads(out or "[]")
+        loaded: list[dict[str, Any]] = json.loads(out or "[]")
+        return loaded
 
     def _main(self) -> None:
         section: dict[str, Any] = {"errors": []}
@@ -1111,9 +1114,7 @@ class Snapshot:
         approved_base, head_base = own.get("approved_base") or "", own.get("head_base") or ""
         reads: dict[str, Any] = {"carry": None, "subset_lines": 0}
         try:
-            out = self.git(
-                "log", "--first-parent", "--format=%P", f"{approved}..{head}"
-            )
+            out = self.git("log", "--first-parent", "--format=%P", f"{approved}..{head}")
             chain = [line.split() for line in out.splitlines() if line.strip()]
         except Exception as exc:
             reads["error"] = f"subset chain: {error_text(exc)}"
@@ -1128,7 +1129,10 @@ class Snapshot:
             try:
                 return self.run(
                     [
-                        "git", "diff", f"{approved_base}..{head_base}", "--",
+                        "git",
+                        "diff",
+                        f"{approved_base}..{head_base}",
+                        "--",
                         *(f":(literal){f}" for f in files),
                     ]
                 )
@@ -1139,7 +1143,9 @@ class Snapshot:
         def on_main(parent: str) -> bool | None:
             return self._on_main(parent, item)
 
-        verdict, lines, why = ur106_subset_carry(own["approved_diff"], own["head_diff"], chain, main_change, on_main)
+        verdict, lines, why = ur106_subset_carry(
+            own["approved_diff"], own["head_diff"], chain, main_change, on_main
+        )
         if verdict is True:
             reads["carry"], reads["subset_lines"] = True, lines
         elif verdict is False:
@@ -1525,7 +1531,6 @@ class Snapshot:
             h["commit_errors"] = unread
             h["uncellated_prs"] = sorted(unnamed.get(h["lane"], []))
 
-
     # 9. package balance (ruling 290) -----------------------------------------------------------
 
     BALANCE_DOCS = (  # bounded: six git shows, whatever the roster's agent count is
@@ -1620,9 +1625,7 @@ class Snapshot:
                 ]
                 item["open_prs"] = [p["number"] for p in mine]
                 item["idle"] = not item["open_prs"] and any(f == "idle" for f in status_fields)
-                item["claimable"] = self._balance_claimable(
-                    m.group(2), anywhere, rows, mine
-                )
+                item["claimable"] = self._balance_claimable(m.group(2), anywhere, rows, mine)
             section["items"].append(item)
         self._balance_flag(section, heavy, lanes)
 
@@ -1679,6 +1682,7 @@ class Snapshot:
         printed why names the real reason. Nothing here acts: the section proposes, the
         coordinator's step 7 decides.
         """
+
         def met(it: dict[str, Any]) -> list[dict[str, Any]]:
             return [e for e in (it["claimable"] or []) if e["deps"] == "met"]
 
@@ -1725,6 +1729,8 @@ class Snapshot:
             "package": pkg["token"],
             "move": {"from": give["agent"], "to": receiver, "package": pkg["token"], "why": why},
         }
+
+
 def _run_summary(run: dict[str, Any]) -> dict[str, Any]:
     return {
         "id": run.get("databaseId"),
@@ -1979,12 +1985,15 @@ def render_text(data: dict[str, Any]) -> str:
             state = "idle" if it["idle"] else "not idle"
             claims = (
                 ", ".join(
-                    f"{e['token']} (deps {e['deps']})" + (f" -- open box: {e['box']}" if e.get("box") else "")
+                    f"{e['token']} (deps {e['deps']})"
+                    + (f" -- open box: {e['box']}" if e.get("box") else "")
                     for e in it["claimable"]
                 )
                 or "none"
             )
-        out.append(f"  {it['agent']} ({it['tier']}) · open package PRs: {open_prs} · {state} · claimable: {claims}")
+        out.append(
+            f"  {it['agent']} ({it['tier']}) · open package PRs: {open_prs} · {state} · claimable: {claims}"
+        )
     if bal["flag"]:
         f = bal["flag"]
         if f["move"]:

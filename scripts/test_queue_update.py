@@ -611,9 +611,7 @@ def _r278_stage(fake, head_extra=""):
     fake's default compare answer). Main's own change between the two merge-bases is
     then the real range ``base..tip``, what the roll brought in. Returns that base."""
     base = "9" * 40
-    fake.rules[f"compare/{TIP}..." + LISTED[:9]] = json.dumps(
-        {"merge_base_commit": {"sha": base}}
-    )
+    fake.rules[f"compare/{TIP}..." + LISTED[:9]] = json.dumps({"merge_base_commit": {"sha": base}})
     fake.compares[(LISTED, HEAD)] = _r278_chain()
     fake.compares[(TIP, TIP)] = _on_main_compare()
     fake.diffs = {
@@ -702,9 +700,7 @@ def test_step6_subset_carry_does_not_disarm_auto_merge():
     # between the merge-bases (LISTED-era base -> tip) holds it. HEAD forks from the
     # older main; NEW_HEAD sits ON the tip, so only HEAD's base is pinned.
     base = "9" * 40
-    fake.rules[f"compare/{TIP}..." + HEAD[:9]] = json.dumps(
-        {"merge_base_commit": {"sha": base}}
-    )
+    fake.rules[f"compare/{TIP}..." + HEAD[:9]] = json.dumps({"merge_base_commit": {"sha": base}})
     fake.compares[(HEAD, NEW_HEAD)] = _r278_chain(head=NEW_HEAD, left=HEAD)
     fake.compares[(TIP, TIP)] = _on_main_compare()
     fake.diffs = {
@@ -1060,8 +1056,6 @@ def test_carry_yes_comments_with_both_hashes():
     assert TIP[:9] in body
     assert "carry: yes" in body
     assert "https://example/run" in body
-
-
 
 
 # -- step 7's other half: the summary every fire -----------------------------

@@ -51,7 +51,8 @@ print(json.dumps(spec, indent=2))
         )
 
         if result.returncode == 0:
-            return json.loads(result.stdout)
+            data: dict[str, Any] = json.loads(result.stdout)
+            return data
         else:
             print(f"Error extracting OpenAPI spec: {result.stderr}")
             return None

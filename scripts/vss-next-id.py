@@ -65,7 +65,7 @@ def sources(repo: Path, paths: tuple[str, ...], pattern: re.Pattern[str]) -> dic
         # `git grep ... REF` prefixes nothing under -h; keep only lines that can matter
         found[ref] = "\n".join(line for line in text.splitlines() if pattern.search(line))
     for wt in worktrees(repo):
-        chunks = []
+        chunks: list[str] = []
         for rel in paths:
             base = wt / rel
             files = (
