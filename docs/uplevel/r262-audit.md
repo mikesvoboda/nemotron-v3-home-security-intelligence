@@ -5146,4 +5146,13 @@ reads, none by authorial preference.
   0a81bb3b7 +21, 08e182905 +10, 57174acf0 +4 via the ecec8843f merge resolution; then
   834d51097 −1 and the [r223] pair +35), the EventTimeline two-commit chain (28886660a +33 via
   #7210/5902cebce, e2d65dda3 −31 via F-058), and the api.ts five-node chain (834d51097 −15,
-  6b691302d −8, 516cffc98 −29).
+  6b691302d −8, 516cffc98 −29). verify:7225_c7 (holding=true, journal line 24) confirmed c7
+  whole at pin — the spec :54 cite "config.py:1180-1182" was exact at head f2d032a5c and merge
+  bc97694730 (field at :1180, declaration/default/ge exactly :1180-1182), the field sits at
+  :1085 at the pin (default=25.0 at :1086), the claim itself true (default 25.0 not overridden:
+  .env.example:256, docker-compose.prod.yml:590), movers af7690bfd −92 and 8c3c8a7f6 −3 both
+  post-merge (Oct 18) and ancestry fully above the shallow boundary — the same af7690bfd +
+  8c3c8a7f6 −16 pair as batch-5's Q-171; its two detail corrections: the faithful re-point is
+  :1085-1087 (default at :1086), not the proof's mid-description :1085-1092, and the −92 comes
+  entirely from the six hunks above the field (the named "-1199,70" hunk lies below the field
+  and moved nothing). c6's result is still pending at this fold.
