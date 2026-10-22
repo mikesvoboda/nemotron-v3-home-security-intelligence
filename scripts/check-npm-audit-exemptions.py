@@ -25,6 +25,13 @@ and fails when ANY of:
 
 The gate IS this checker; it runs after npm ci (fresh lockfile-faithful tree).
 Exit codes: 0 clean, 1 violations, 2 --warn-days advisory only.
+
+[r313] A failed `npm audit` (its error object: no auditReportVersion, or an
+"error" key) is not an audit with zero findings - run_audit retries it twice
+and then exits 1 (the audit gate fails closed) instead of adjudicating an
+empty found-map, which redded main 2026-10-22 02:57Z with "stale, remove it"
+for every registered entry after a 5m00.45s network timeout, and would have
+let a head-side timeout pass the gate's delta as "none added by the change".
 """
 
 from __future__ import annotations
@@ -41,26 +48,79 @@ from typing import Any
 
 GHSA_RE = re.compile(r"/GHSA-([0-9a-z]{4}-[0-9a-z]{4}-[0-9a-z]{4})$")
 
+# A real audit report always carries auditReportVersion + vulnerabilities +
+# metadata (npm emits them on both exit 0 and exit 1). npm ALSO exits 1 for its
+# own errors, printing an error object instead - e.g. a registry POST that hits
+# its 300000 ms fetch-timeout prints a "message" + "error" object (the exact
+# payload is reproduced in the test suite's TIMEOUT_AUDIT) with no
+# auditReportVersion and no vulnerabilities. Reading that shape as an
+# audit with zero findings redded main on 2026-10-22 02:57Z ("stale, remove
+# it" for every registered entry, 5m00.45s after the step started) and made the
+# gate's delta read "none added by the change" on a head-side timeout - both
+# wrong. This marker, not the exit code, distinguishes the two rc=1 shapes.
+AUDIT_REPORT_MARKER = "auditReportVersion"
+
+# [r313] box 2: retries ride out registry blips - a healthy registry answers
+# in ~2 s, so three attempts cost seconds and the third failure fails closed.
+AUDIT_ATTEMPTS = 3
+
+
+def _audit_failed_shape(loaded: Any) -> bool:
+    """True when the payload is npm's error object, not an audit report."""
+    return not isinstance(loaded, dict) or AUDIT_REPORT_MARKER not in loaded or "error" in loaded
+
 
 def run_audit(frontend: Path) -> dict:
-    r = subprocess.run(
-        ["npm", "audit", "--json"],
-        cwd=frontend,
-        capture_output=True,
-        text=True,
-        check=False,  # exit 1 means findings exist - parsed below, not a crash
+    message = ""
+    for attempt in range(1, AUDIT_ATTEMPTS + 1):
+        r = subprocess.run(
+            ["npm", "audit", "--json"],
+            cwd=frontend,
+            capture_output=True,
+            text=True,
+            check=False,  # exit 1 means findings exist - parsed below, not a crash
+        )
+        # npm exits 1 when vulns exist - that is data, not failure; exit 0
+        # (clean) and 1 (vulns) are both parseable candidates; >=2 is a real
+        # error.
+        if r.returncode not in (0, 1):
+            print(
+                f"npm audit --json failed rc={r.returncode}:\n{r.stderr[-800:]}",
+                file=sys.stderr,
+            )
+            sys.exit(1)
+        try:
+            loaded: Any = json.loads(r.stdout)
+        except json.JSONDecodeError:
+            print("npm audit --json produced unparsable output", file=sys.stderr)
+            sys.exit(1)
+        if not _audit_failed_shape(loaded):
+            return dict(loaded)
+        # rc in {0,1} but the payload is an error object, not a report: the
+        # audit FAILED (network timeout, EAI_AGAIN, ...). npm's message goes
+        # to the log on every attempt; the retry is bounded (box 2) and only
+        # ever re-runs a FAILED audit, never a parsed report.
+        err = loaded.get("error")
+        message = loaded.get("message") or (
+            f"{{summary: {err.get('summary')!r}, detail: {err.get('detail')!r}}}"
+            if isinstance(err, dict)
+            else f"unrecognized payload (exit {r.returncode})"
+        )
+        print(
+            f"npm audit --json failed (attempt {attempt}/{AUDIT_ATTEMPTS}, "
+            f"rc={r.returncode}): {message}",
+            file=sys.stderr,
+        )
+    # Fail closed: a failed audit adjudicates NOTHING. If the registry still
+    # holds entries, every one of them would otherwise read "stale, remove it"
+    # against an empty found-map; in gate mode a head-side failure would read
+    # "none added by the change". The exit makes both sides red instead.
+    print(
+        "npm audit failed after "
+        f"{AUDIT_ATTEMPTS} attempts - the audit gate fails closed: {message}",
+        file=sys.stderr,
     )
-    # npm exits 1 when vulns exist - that is data, not failure; exit 0 (clean)
-    # and 1 (vulns) are both parseable; >=2 is a real error.
-    if r.returncode not in (0, 1):
-        print(f"npm audit --json failed rc={r.returncode}:\n{r.stderr[-800:]}", file=sys.stderr)
-        sys.exit(1)
-    try:
-        loaded: dict[str, Any] = json.loads(r.stdout)
-        return loaded
-    except json.JSONDecodeError:
-        print("npm audit --json produced unparsable output", file=sys.stderr)
-        sys.exit(1)
+    sys.exit(1)
 
 
 def _fix_state(fix: Any) -> bool:
