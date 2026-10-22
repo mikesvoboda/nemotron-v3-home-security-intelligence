@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import asyncio
 import hashlib
 import hmac
 from datetime import UTC, datetime
@@ -12,7 +13,7 @@ from unittest.mock import patch
 
 import pytest
 from fastapi import HTTPException, status
-from sqlalchemy import create_engine, event, select
+from sqlalchemy import create_engine, event, func, select
 from sqlalchemy.dialects.postgresql import ARRAY, JSONB, TSVECTOR, UUID
 from sqlalchemy.ext.compiler import compiles
 from sqlalchemy.orm import Session, sessionmaker
@@ -439,9 +440,43 @@ class TestInboundAlertWebhookAndIdempotency:
         )
         assert r1.event_id == r2.event_id
         assert r1.notify is True
+        assert r2.notify is True
         assert len(r1.alert_ids) == 1
+        assert r2.alert_ids == r1.alert_ids
 
-        # 2. Same idempotency_key under a SECOND API key gives a second event
+        # 2. Two identical requests at once give one event and one alert
+        concurrent_payload = InboundAlertPayload(
+            camera_id="front_door",
+            source="motion_sensor",
+            message="Concurrent sensor trigger",
+            severity="medium",
+            idempotency_key="sensor-concurrent-1",
+        )
+        c1, c2 = await asyncio.gather(
+            create_alert(
+                concurrent_payload,
+                _request(),  # type: ignore[arg-type]
+                api_key=key_alpha,
+                db=db_session,  # type: ignore[arg-type]
+            ),
+            create_alert(
+                concurrent_payload,
+                _request(),  # type: ignore[arg-type]
+                api_key=key_alpha,
+                db=db_session,  # type: ignore[arg-type]
+            ),
+        )
+        assert c1.event_id == c2.event_id
+        assert c1.alert_ids == c2.alert_ids
+        assert len(c1.alert_ids) == 1
+        ev_count = (
+            await db_session.execute(
+                select(func.count()).select_from(Event).where(Event.id == c1.event_id)
+            )
+        ).scalar()
+        assert ev_count == 1
+
+        # 3. Same idempotency_key under a SECOND API key gives a second event
         r_other_key = await create_alert(
             payload,
             _request(),  # type: ignore[arg-type]
@@ -450,10 +485,16 @@ class TestInboundAlertWebhookAndIdempotency:
         )
         assert r_other_key.event_id != r1.event_id
 
-        # 3. Crash between external event commit and pipeline: sweep finds it and alerts
+        # 4. Crash between external event commit and pipeline: sweep finds it and alerts,
+        #    and a retry after the sweep returns the same event and its alert
         now = datetime.now(UTC)
+        crashed_idem = "crashed-seq-99"
+        crashed_batch_id = (
+            f"external:{key_fingerprint(key_alpha)}:"
+            f"{hashlib.sha256(crashed_idem.encode('utf-8')).hexdigest()}"
+        )
         crashed_ev = Event(
-            batch_id="external:crashed:1",
+            batch_id=crashed_batch_id,
             camera_id="front_door",
             started_at=now,
             ended_at=now,
@@ -481,6 +522,22 @@ class TestInboundAlertWebhookAndIdempotency:
         )
         assert len(alerts_for_crashed) == 1
         assert alerts_for_crashed[0].verdict_source == "external"
+
+        retry_after_sweep = await create_alert(
+            InboundAlertPayload(
+                camera_id="front_door",
+                source="zigbee",
+                message="Crashed external event",
+                severity="medium",
+                idempotency_key=crashed_idem,
+            ),
+            _request(),  # type: ignore[arg-type]
+            api_key=key_alpha,
+            db=db_session,  # type: ignore[arg-type]
+        )
+        assert retry_after_sweep.event_id == crashed_ev.id
+        assert retry_after_sweep.notify is True
+        assert retry_after_sweep.alert_ids == [alerts_for_crashed[0].id]
 
 
 class TestRouterDeclarationsAndHmac:

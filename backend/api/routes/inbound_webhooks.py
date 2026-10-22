@@ -22,13 +22,14 @@ from typing import Annotated, Any
 
 from fastapi import APIRouter, Depends, Header, HTTPException, Request, status
 from pydantic import BaseModel, Field
-from sqlalchemy import select
+from sqlalchemy import or_, select
 from sqlalchemy.dialects.postgresql import insert as pg_insert
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from backend.api.middleware.auth import require_api_key as _require_settings_api_key
 from backend.core.database import get_db
 from backend.core.logging import get_logger
+from backend.models.alert import Alert, AlertEvent
 from backend.models.api_key import APIKey
 from backend.models.arming import VALID_ARMING_MODES
 from backend.models.camera import Camera
@@ -306,9 +307,22 @@ async def create_alert(
     pipeline = AlertPipeline()
     result = await pipeline.process(event.id, session=db, now=now)
     await db.commit()
-    await pipeline._publish_alerts(result.created_alerts, result.updated_alerts)
 
     alert_ids = [a.id for a in (*result.created_alerts, *result.updated_alerts)]
+    if not alert_ids and result.notify:
+        rows = (
+            (
+                await db.execute(
+                    select(Alert.id)
+                    .outerjoin(AlertEvent, AlertEvent.alert_id == Alert.id)
+                    .where(or_(Alert.event_id == event.id, AlertEvent.event_id == event.id))
+                    .order_by(Alert.created_at.asc())
+                )
+            )
+            .scalars()
+            .all()
+        )
+        alert_ids = list(dict.fromkeys(rows))
     return InboundAlertWebhookResponse(
         status="ok",
         event_id=event.id,

@@ -69,14 +69,18 @@ def key_fingerprint(secret: str) -> str:
     return hashlib.sha256(secret.encode("utf-8")).hexdigest()[:12]
 
 
-async def _ensure_state_locked(session: AsyncSession) -> ArmingState:
+async def _ensure_state_locked(
+    session: AsyncSession,
+    *,
+    now: datetime | None = None,
+) -> ArmingState:
     """Ensure `arming_state` row `id=1` exists and lock it (`FOR UPDATE` on Postgres)."""
     await session.execute(
         pg_insert(ArmingState)
         .values(
             id=1,
             mode="home",
-            set_at=datetime(1970, 1, 1, tzinfo=UTC),
+            set_at=_ensure_utc(now),
             source_kind="system",
             source_name="system",
         )
@@ -226,7 +230,7 @@ async def set_mode(
         )
 
     ts = _ensure_utc(now)
-    state = await _ensure_state_locked(session)
+    state = await _ensure_state_locked(session, now=ts)
     from_mode = state.mode
     state.mode = normalized
     state.set_at = ts
@@ -302,7 +306,7 @@ async def set_mode_exclusions(
             raise ValueError(f"Unknown camera_id(s): {', '.join(missing)}")
 
     ts = _ensure_utc(now)
-    state = await _ensure_state_locked(session)
+    state = await _ensure_state_locked(session, now=ts)
     before_map = await _load_all_exclusions(session)
     prev_list = list(before_map.get(normalized, []))
 
@@ -428,7 +432,7 @@ async def set_schedule(
         validated.append((days, formatted_time, mode))
 
     ts = _ensure_utc(now)
-    state = await _ensure_state_locked(session)
+    state = await _ensure_state_locked(session, now=ts)
     state.schedule_updated_at = ts
 
     await session.execute(delete(ArmingScheduleEntry))
@@ -455,7 +459,7 @@ async def apply_schedule(
     both `arming_state.set_at` and `arming_state.schedule_updated_at` (4n-arming.md A3).
     """
     ts = _ensure_utc(now)
-    state = await _ensure_state_locked(session)
+    state = await _ensure_state_locked(session, now=ts)
     entries = await get_schedule(session)
     if not entries:
         return None
@@ -486,12 +490,12 @@ async def apply_schedule(
         return None
 
     occ_utc, _, target_mode = latest_occ
-    set_at_utc = _ensure_utc(state.set_at, datetime(1970, 1, 1, tzinfo=UTC))
+    set_at_utc = _ensure_utc(state.set_at, ts)
     sched_upd_utc = (
         _ensure_utc(state.schedule_updated_at) if state.schedule_updated_at is not None else None
     )
 
-    if occ_utc <= set_at_utc:
+    if state.source_kind != "system" and occ_utc <= set_at_utc:
         return None
     if sched_upd_utc is not None and occ_utc <= sched_upd_utc:
         return None
@@ -549,7 +553,7 @@ async def get_arming_status(
 ) -> dict[str, Any]:
     """Return the household's current arming status and next scheduled transition."""
     ts = _ensure_utc(now)
-    state = await _ensure_state_locked(session)
+    state = await _ensure_state_locked(session, now=ts)
     nxt = await next_scheduled(session, now=ts, household_tz=household_tz)
     return {
         "mode": state.mode,
@@ -624,8 +628,9 @@ class ArmingScheduler:
         self._wake_event.set()
 
     async def run_once(self, now: datetime | None = None) -> ArmingChange | None:
-        """Run `apply_schedule` once inside a session and commit."""
+        """Seed the External alerts rule, run `apply_schedule` once inside a session, and commit."""
         async with self._session_factory() as session:
+            await ensure_external_alerts_rule(session)
             change = await apply_schedule(session, now=now)
             await session.commit()
             return change

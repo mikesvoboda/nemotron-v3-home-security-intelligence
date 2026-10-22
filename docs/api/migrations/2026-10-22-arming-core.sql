@@ -31,6 +31,8 @@ CREATE TABLE IF NOT EXISTS arming_mode_exclusions (
     PRIMARY KEY (mode, camera_id)
 );
 
+CREATE INDEX IF NOT EXISTS idx_arming_mode_exclusions_mode ON arming_mode_exclusions (mode);
+
 CREATE TABLE IF NOT EXISTS arming_schedule (
     id SERIAL PRIMARY KEY,
     days JSONB NOT NULL,
@@ -50,6 +52,8 @@ CREATE TABLE IF NOT EXISTS arming_changes (
     source_name VARCHAR(255) NOT NULL,
     changed_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT timezone('utc', now())
 );
+
+CREATE INDEX IF NOT EXISTS idx_arming_changes_changed_at ON arming_changes (changed_at);
 
 ALTER TABLE alert_rules
     ADD COLUMN IF NOT EXISTS alert_on_rejected_modes JSONB;
