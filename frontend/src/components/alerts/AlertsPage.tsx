@@ -20,7 +20,6 @@ import EventDetailModal from '../events/EventDetailModal';
 import type { AlertRiskFilter } from '../../hooks';
 import type { Event } from '../../services/api';
 import type { RiskLevel } from '../../utils/risk';
-import type { Detection } from '../events/EventCard';
 import type { Event as ModalEvent } from '../events/EventDetailModal';
 
 /** Represents a group of alerts for a single camera */
@@ -251,7 +250,6 @@ export default function AlertsPage({ onViewEventDetails, className = '' }: Alert
   // Convert Event to EventCard props
   const getEventCardProps = (event: Event) => {
     const camera_name = cameraNameMap.get(event.camera_id) || 'Unknown Camera';
-    const detections: Detection[] = [];
 
     return {
       id: String(event.id),
@@ -263,7 +261,6 @@ export default function AlertsPage({ onViewEventDetails, className = '' }: Alert
       // the alerts surface is where "why was I not paged?" gets asked.
       notify: event.notify,
       summary: event.summary || 'No summary available',
-      detections,
       started_at: event.started_at,
       ended_at: event.ended_at,
       thumbnail_url: event.thumbnail_url ?? undefined,
@@ -322,7 +319,6 @@ export default function AlertsPage({ onViewEventDetails, className = '' }: Alert
       // ISS-001: persisted notify decision; absent key = no decision.
       notify: event.notify,
       summary: event.summary || 'No summary available',
-      detections: [], // Detections will be loaded by the modal
       started_at: event.started_at,
       ended_at: event.ended_at,
       reviewed: event.reviewed,

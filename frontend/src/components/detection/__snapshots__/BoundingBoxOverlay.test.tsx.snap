@@ -3,7 +3,7 @@
 exports[`BoundingBoxOverlay snapshots > renders with confidence hidden 1`] = `
 <svg
   class="pointer-events-none absolute inset-0 h-full w-full"
-  preserveAspectRatio="none"
+  preserveAspectRatio="xMidYMid meet"
   style="z-index: 10;"
   viewBox="0 0 800 600"
 >
@@ -83,7 +83,7 @@ exports[`BoundingBoxOverlay snapshots > renders with confidence hidden 1`] = `
 exports[`BoundingBoxOverlay snapshots > renders with custom colors 1`] = `
 <svg
   class="pointer-events-none absolute inset-0 h-full w-full"
-  preserveAspectRatio="none"
+  preserveAspectRatio="xMidYMid meet"
   style="z-index: 10;"
   viewBox="0 0 800 600"
 >
@@ -177,7 +177,7 @@ exports[`BoundingBoxOverlay snapshots > renders with custom colors 1`] = `
 exports[`BoundingBoxOverlay snapshots > renders with different image dimensions 1`] = `
 <svg
   class="pointer-events-none absolute inset-0 h-full w-full"
-  preserveAspectRatio="none"
+  preserveAspectRatio="xMidYMid meet"
   style="z-index: 10;"
   viewBox="0 0 1920 1080"
 >
@@ -271,7 +271,7 @@ exports[`BoundingBoxOverlay snapshots > renders with different image dimensions 
 exports[`BoundingBoxOverlay snapshots > renders with labels hidden 1`] = `
 <svg
   class="pointer-events-none absolute inset-0 h-full w-full"
-  preserveAspectRatio="none"
+  preserveAspectRatio="xMidYMid meet"
   style="z-index: 10;"
   viewBox="0 0 800 600"
 >
@@ -307,7 +307,7 @@ exports[`BoundingBoxOverlay snapshots > renders with labels hidden 1`] = `
 exports[`BoundingBoxOverlay snapshots > renders with minConfidence filter 1`] = `
 <svg
   class="pointer-events-none absolute inset-0 h-full w-full"
-  preserveAspectRatio="none"
+  preserveAspectRatio="xMidYMid meet"
   style="z-index: 10;"
   viewBox="0 0 800 600"
 >
@@ -359,7 +359,7 @@ exports[`BoundingBoxOverlay snapshots > renders with minConfidence filter 1`] = 
 exports[`BoundingBoxOverlay snapshots > renders with multiple bounding boxes 1`] = `
 <svg
   class="pointer-events-none absolute inset-0 h-full w-full"
-  preserveAspectRatio="none"
+  preserveAspectRatio="xMidYMid meet"
   style="z-index: 10;"
   viewBox="0 0 800 600"
 >
@@ -453,7 +453,7 @@ exports[`BoundingBoxOverlay snapshots > renders with multiple bounding boxes 1`]
 exports[`BoundingBoxOverlay snapshots > renders with single bounding box 1`] = `
 <svg
   class="pointer-events-none absolute inset-0 h-full w-full"
-  preserveAspectRatio="none"
+  preserveAspectRatio="xMidYMid meet"
   style="z-index: 10;"
   viewBox="0 0 800 600"
 >
@@ -505,7 +505,7 @@ exports[`BoundingBoxOverlay snapshots > renders with single bounding box 1`] = `
 exports[`BoundingBoxOverlay snapshots > renders with unknown object type (default color) 1`] = `
 <svg
   class="pointer-events-none absolute inset-0 h-full w-full"
-  preserveAspectRatio="none"
+  preserveAspectRatio="xMidYMid meet"
   style="z-index: 10;"
   viewBox="0 0 800 600"
 >
@@ -557,7 +557,7 @@ exports[`BoundingBoxOverlay snapshots > renders with unknown object type (defaul
 exports[`BoundingBoxOverlay snapshots > renders with various object types 1`] = `
 <svg
   class="pointer-events-none absolute inset-0 h-full w-full"
-  preserveAspectRatio="none"
+  preserveAspectRatio="xMidYMid meet"
   style="z-index: 10;"
   viewBox="0 0 1920 1080"
 >

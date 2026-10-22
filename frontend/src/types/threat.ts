@@ -44,21 +44,6 @@ export type ThreatSeverity = (typeof THREAT_SEVERITIES)[number];
 // ============================================================================
 
 /**
- * High-priority threat classes that should trigger immediate alerts.
- * These correspond to firearms and bladed weapons.
- */
-export const HIGH_PRIORITY_THREATS = new Set([
-  'gun',
-  'pistol',
-  'rifle',
-  'firearm',
-  'handgun',
-  'knife',
-  'machete',
-  'sword',
-]);
-
-/**
  * All known threat classes that the detection model may identify.
  */
 export const THREAT_CLASSES = new Set([
@@ -140,7 +125,7 @@ export interface ThreatSummary {
 
 /**
  * Single threat detection from the AI pipeline.
- * Used by ThreatIndicator, ThreatBoundingBox components.
+ * Used by ThreatIndicator and detection/BoundingBoxOverlay.
  *
  * Matches backend/services/threat_detection_loader.py::ThreatDetection
  */
