@@ -7911,8 +7911,8 @@ def test_a_failed_arm_leaves_no_socket_artifact(
         if getattr(self, "_arm_probe", False):
             raise OSError(5, "listen arm probe")  # ...then listen() fails
 
-    def _raise_arm_probe(self: socket.socket, backlog: int) -> None:
-        raise OSError(5, "listen arm probe")
+    def _raise_arm_probe(self: socket.socket, backlog: Any) -> None:
+        raise OSError(5, "listen arm probe")  # backlog unused; the stub only fails
 
     monkeypatch.setattr(socket.socket, "bind", lambda self, address: bind_then_die(self, address))
     monkeypatch.setattr(socket.socket, "listen", _raise_arm_probe)
