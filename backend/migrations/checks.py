@@ -183,6 +183,11 @@ _UNRECORDED_MODEL_COLUMNS: tuple[tuple[str, str], ...] = _add_column_pairs(
     "0005-add-unrecorded-model-columns"
 )
 
+#: The 6 columns 0012 (B4.1 alert pipeline core) adds, derived from its file.
+_B41_ALERT_PIPELINE_COLUMNS: tuple[tuple[str, str], ...] = _add_column_pairs(
+    "0012-alert-pipeline-core"
+)
+
 
 def _drop_columns_for_table(upgrade_id: str, table: str) -> tuple[str, ...]:
     """The columns an upgrade's own file drops from `table`, read from the shipped text."""
@@ -272,6 +277,9 @@ CHECKS: dict[str, Check] = {
     "0009-retire-gpu-devices-table": table_absent("gpu_devices"),
     "0010-retire-scheduled-reports-table": table_absent("scheduled_reports"),
     "0011-retire-vision-model-prompts": _prompt_versions_model_migrated(),
+    "0012-alert-pipeline-core": all_present(
+        [column_present(table, column) for table, column in _B41_ALERT_PIPELINE_COLUMNS]
+    ),
 }
 
 

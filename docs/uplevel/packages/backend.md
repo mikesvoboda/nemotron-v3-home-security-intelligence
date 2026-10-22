@@ -318,17 +318,17 @@ agents and the rest on the fast lanes.
 
 **Flags:** `heavy`. **Assigned:** heavy-a, after `[r305]`; `W3.1`'s per-lane PRs still slot in
 between (rulings 300, 308). It moves from backend, which closes #7287. **Depends on:** none.
-**PR:** #7335. (ruling 308, record 6326364266)
+**PR:** #7335, #7342. (ruling 308, record 6326364266)
 
 Design: [`../4n-alerting.md`](../4n-alerting.md), "Packages" row 1, with `alert_events` (re-scoped
 from "Snooze an event or alert"). Covers F-050, F-079, F-216, F-217.
 
 - [x] The test-only PR consolidates the tests of every module the package touches (step 2).
-- [ ] The build PR: `verdict`, `policy` and `pipeline` with an empty planner hook; the
+- [x] The build PR: `verdict`, `policy` and `pipeline` with an empty planner hook; the
       idempotency-path, recovery and sweep calls; the default rule; activity snoozes; the new
       alert columns, `alert_events` and the `open` status; an additive recorded upgrade; if
       `B4.4` landed first, Trash's alert steps (`../4n-trash.md`, "What changes").
-- [ ] Golden path (pytest): confirmed gives an alert row and an `alert_created` frame; repeats
+- [x] Golden path (pytest): confirmed gives an alert row and an `alert_created` frame; repeats
       fold; snooze holds; VLM failure gives unverified; a trusted face covering everyone gives no
       alert; rejected gives no alert.
 
@@ -419,12 +419,12 @@ Design: [`../4n-alerting.md`](../4n-alerting.md), "Packages" row 5.
 
 **Flags:** `heavy`. **Assigned:** heavy-b, after `O3.7` and `[r312b]`; `[r307a]` keeps its place
 ahead of it if O2.4 passes first (rulings 308, 312). **Depends on:** none.
-**PR:** none yet. (ruling 308, record 6326364266)
+**PR:** #7345. (ruling 308, record 6326364266)
 
 Design: [`../4n-restore.md`](../4n-restore.md), its `RestoreModal` part included (UR-9). Covers
 F-101.
 
-- [ ] The test-only PR (step 2).
+- [x] The test-only PR (step 2).
 - [ ] The build PR: the shared table list, per-table keys, the installation id, format `1.1` and
       its adapters, three sessions, the safety backup on the data volume, the narrowed undo; if
       `B4.2` landed first, recipients and channels join the backup without their secrets; if

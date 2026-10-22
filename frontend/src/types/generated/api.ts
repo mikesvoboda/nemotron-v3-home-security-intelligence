@@ -13054,6 +13054,21 @@ export interface components {
              */
             id: string;
             /**
+             * Last Event Id
+             * @description ID of latest folded event
+             */
+            last_event_id?: number | null;
+            /**
+             * Last Seen At
+             * @description Timestamp of latest folded event
+             */
+            last_seen_at?: string | null;
+            /**
+             * Match Count
+             * @description Number of folded event matches
+             */
+            match_count?: number | null;
+            /**
              * Metadata
              * @description Additional context
              */
@@ -13075,6 +13090,11 @@ export interface components {
              * @description Last update timestamp
              */
             updated_at: string;
+            /**
+             * Verdict Source
+             * @description Verdict source (local, cloud, detector)
+             */
+            verdict_source?: string | null;
             /**
              * Version Id
              * @description Optimistic locking version. Include in updates to prevent concurrent modification conflicts.
@@ -13173,6 +13193,11 @@ export interface components {
          */
         AlertRuleCreate: {
             /**
+             * Alert On Rejected
+             * @description Alert even if the AI verdict is rejected
+             */
+            alert_on_rejected?: boolean | null;
+            /**
              * Camera Ids
              * @description Camera IDs to apply rule to (empty = all cameras)
              */
@@ -13224,6 +13249,11 @@ export interface components {
              * @default false
              */
             exclude_household_members: boolean;
+            /**
+             * Excluded Camera Ids
+             * @description Camera IDs excluded from this rule
+             */
+            excluded_camera_ids?: string[] | null;
             /**
              * Min Confidence
              * @description Minimum detection confidence (0.0-1.0)
@@ -13358,6 +13388,11 @@ export interface components {
          */
         AlertRuleResponse: {
             /**
+             * Alert On Rejected
+             * @description Alert even if the AI verdict is rejected
+             */
+            alert_on_rejected?: boolean | null;
+            /**
              * Camera Ids
              * @description Camera IDs to apply to
              */
@@ -13412,6 +13447,11 @@ export interface components {
              * @default false
              */
             exclude_household_members: boolean;
+            /**
+             * Excluded Camera Ids
+             * @description Camera IDs excluded from this rule
+             */
+            excluded_camera_ids?: string[] | null;
             /**
              * Id
              * @description Alert rule UUID
@@ -13535,6 +13575,11 @@ export interface components {
          */
         AlertRuleUpdate: {
             /**
+             * Alert On Rejected
+             * @description Alert even if the AI verdict is rejected
+             */
+            alert_on_rejected?: boolean | null;
+            /**
              * Camera Ids
              * @description Camera IDs to apply rule to
              */
@@ -13581,6 +13626,11 @@ export interface components {
              * @description Whether to exclude household members from dwell time alerts
              */
             exclude_household_members?: boolean | null;
+            /**
+             * Excluded Camera Ids
+             * @description Camera IDs excluded from this rule
+             */
+            excluded_camera_ids?: string[] | null;
             /**
              * Min Confidence
              * @description Minimum detection confidence
@@ -13806,6 +13856,21 @@ export interface components {
              */
             id: string;
             /**
+             * Last Event Id
+             * @description ID of latest folded event
+             */
+            last_event_id?: number | null;
+            /**
+             * Last Seen At
+             * @description Timestamp of latest folded event
+             */
+            last_seen_at?: string | null;
+            /**
+             * Match Count
+             * @description Number of folded event matches
+             */
+            match_count?: number | null;
+            /**
              * Metadata
              * @description Additional context metadata
              */
@@ -13827,6 +13892,11 @@ export interface components {
              * @description Last update timestamp
              */
             updated_at: string;
+            /**
+             * Verdict Source
+             * @description Verdict source (local, cloud, detector)
+             */
+            verdict_source?: string | null;
         };
         /**
          * AlertServiceUpdateRequest
@@ -13870,7 +13940,7 @@ export interface components {
          * @description Alert status values.
          * @enum {string}
          */
-        AlertStatus: "pending" | "delivered" | "acknowledged" | "dismissed";
+        AlertStatus: "open" | "pending" | "delivered" | "acknowledged" | "dismissed";
         /**
          * AlertmanagerAlert
          * @description Schema for a single alert in Alertmanager webhook payload.
