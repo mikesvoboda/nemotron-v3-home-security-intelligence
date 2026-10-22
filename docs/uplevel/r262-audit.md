@@ -5108,7 +5108,15 @@ reads, none by authorial preference.
   identity/harness.ts:209→shared :102 — and its import re-point left every prose path stale);
   born-stale-in-its-own-commit (7154_c1's snapshot growth, 7164_c1's 1200-cap, 7184_c2/c6,
   7181_c2, 7214_c1, 7225_c1/c2/c4 — incl. c4's blob-identity base→pin proof that a cite can be
-  born stale with NO mover to name); authored-wrong-at-own-commit (7181_c1's never-true
+  born stale with NO mover to name — verify:7225_c4 (holding=true, journal line 20) confirmed
+  the defect, both fix sites (:28, :59), the :757-760 replacement span and the blob-identity
+  chain at pin, but scoped the "no mover can be named" universal to the cite's lifetime:
+  pre-boundary blob b56fabbb (parent of a8760714f [r199], 10-15 15:30) carried the guard+call
+  exactly at :755-756 and a8760714f moved the block +4 about five hours BEFORE the cite's birth
+  (59ad5233e 20:21:38), so the coordinates match the pre-mover layout and a mover CAN be named
+  pre-birth; born-stale-in-its-own-commit is unaffected (stale at birth, no mover within the
+  cite's lifetime, blob byte-identical base→pin at all six trees); minor proof slip: pin :755
+  closes the _notify_decision call opened at :748, not "the commit call"); authored-wrong-at-own-commit (7181_c1's never-true
   :654/:663/:423 offset); authored-true-then-moved-in-own-PR (7175_c1 — lane.md's step 6 was
   rewritten by the same PR's branch before the merge); pre-merge main-side drift (7160_c1/c2
   already stale at own merge 2d2cf7b7c); mixed born-not-verbatim + moved (7164_c6). The [r223]
