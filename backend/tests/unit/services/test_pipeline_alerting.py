@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 from datetime import UTC, datetime, timedelta
+from typing import Any
 from unittest.mock import AsyncMock
 
 import pytest
@@ -20,7 +21,7 @@ from backend.models.detection import Detection
 from backend.models.event import Event
 from backend.models.event_notify import EventNotifyDecision
 from backend.models.event_verification import EventVerification
-from backend.services.alerting.pipeline import AlertPipeline
+from backend.services.alerting.pipeline import AlertPipeline, _normalise_planned
 from backend.services.alerting.verdict import FaceCandidate, SpecialistEvidence
 
 
@@ -44,6 +45,8 @@ class _InMemoryPipelineDB:
         self.master_enabled: bool = True
         self.risk_filters: tuple[str, ...] = ("critical", "high", "medium")
         self.household_tz: str = "UTC"
+        # B4.2: recorded planned deliveries (planner output, normalised dicts).
+        self.deliveries: list[dict[str, Any]] = []
 
     def add_event(
         self,
@@ -364,13 +367,101 @@ async def test_pipeline_sweep_processes_missing_decisions_and_marks_stale_events
     assert results[1].planned_deliveries == ({"status": "pending"},)
 
 
+# -- B4.2: delivery-row recording (planner output lands as rows) -------------
+
+
+class TestPlannedDeliveryRecording:
+    async def test_memory_path_records_planned_deliveries_in_store(self) -> None:
+        """The store records the planner's output so history reads see it."""
+        store = _InMemoryPipelineDB()
+        store.add_event(1, "front_door", risk_score=75, verdict="confirmed")
+        now = datetime(2026, 10, 22, 2, 0, tzinfo=UTC)  # not stale (within 1h cutoff)
+
+        def fake_planner(
+            alert: Alert, *, stale: bool = False, **kw: object
+        ) -> list[dict[str, str]]:
+            return [
+                {
+                    "status": "expired" if stale else "pending",
+                    "recipient_id": "r1",
+                    "channel_id": "c1",
+                    "channel_kind": "email",
+                    "alert_id": alert.id,
+                }
+            ]
+
+        pipeline = AlertPipeline.from_memory_store(store, planner=fake_planner)
+        result = await pipeline.process(1, now=now)
+
+        assert result.notify is True
+        assert len(store.deliveries) == 1
+        rec = store.deliveries[0]
+        assert rec["alert_id"] == store.alerts[0].id
+        assert rec["status"] == "pending"
+        assert rec["recipient_id"] == "r1"
+        assert rec["channel_id"] == "c1"
+
+    async def test_writer_hook_persists_records_in_one_transaction(self) -> None:
+        """The writer hook receives the session and the planned records.
+
+        DB-path shape is proven end-to-end in the DB-gated suite
+        (test_delivery_pipeline_db.py): the hook runs inside the caller's
+        transaction, so a rollback removes alert AND delivery rows together.
+        """
+        pipeline = AlertPipeline()
+
+        async def fake_writer(session: object, records: list[dict[str, str]]) -> None:
+            written.extend(records)
+
+        pipeline._delivery_writer = fake_writer
+        written: list[dict[str, str]] = []
+        await pipeline._write_deliveries_in_session(
+            session=None,  # type: ignore[arg-type]
+            planned_deliveries=[{"status": "pending", "recipient_id": "r1", "channel_id": "c1"}],
+        )
+        assert written == [{"status": "pending", "recipient_id": "r1", "channel_id": "c1"}]
+
+    async def test_no_writer_is_noop(self) -> None:
+        """Without a writer (B4.1 default), planning alone changes nothing."""
+        pipeline = AlertPipeline()
+        # _write_deliveries_in_session with writer None and records present: no-op.
+        await pipeline._write_deliveries_in_session(
+            session=None,  # type: ignore[arg-type]
+            planned_deliveries=[{"status": "pending"}],
+        )
+
+    async def test_normalise_planned_accepts_dataclass_and_dict(self) -> None:
+        from backend.models.alert_delivery import DeliveryChannelKind, DeliveryStatus
+        from backend.services.alerting.planner import PlannedDelivery
+
+        now = datetime(2026, 10, 22, 3, 0, tzinfo=UTC)
+        dc = PlannedDelivery(
+            alert_id="a1",
+            recipient_id="r1",
+            channel_id="c1",
+            channel_kind=DeliveryChannelKind.EMAIL,
+            status=DeliveryStatus.SUPPRESSED,
+            include_names=False,
+        )
+        rec = _normalise_planned(dc, now)
+        assert rec == {
+            "alert_id": "a1",
+            "recipient_id": "r1",
+            "channel_id": "c1",
+            "channel_kind": "email",
+            "status": "suppressed",
+            "include_names": False,
+            "planned_at": now,
+        }
+        assert _normalise_planned({"status": "pending"}, now)["planned_at"] == now
+
+
 @pytest.mark.asyncio
 async def test_pipeline_sqlalchemy_session_path_process_and_sweep(tmp_path) -> None:
     """Exercise AlertPipeline's SQLAlchemy session path (`_process_in_session`,
     `_find_open_alert`, `_link_alert_event`, `_upsert_decision`, and `sweep_unprocessed`).
     """
     import contextlib
-    from typing import Any
 
     from sqlalchemy import create_engine
     from sqlalchemy.dialects.postgresql import ARRAY, JSONB, TSVECTOR, UUID

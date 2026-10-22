@@ -1,6 +1,7 @@
 /**
- * F-142 + F-143 (inventory 3.8): the worker management section lists the four
- * supervised workers, and its controls actually control them.
+ * F-142 + F-143 (inventory 3.8): the worker management section lists the
+ * supervised workers (six pipeline workers plus B4.2's alert-delivery and
+ * webhook-retry workers), and its controls actually control them.
  *
  * F-143 was the trickiest green call in OP-1 and it rests on measurements:
  * POST /api/system/supervisor/workers/<name>/stop then /start round-trips
@@ -38,7 +39,7 @@ interface SupervisorBody {
 test.describe('golden path: worker management (F-142, F-143) @critical', () => {
   test.setTimeout(120_000); // round trip + panel polls
 
-  test('four supervised workers render, and stop/start round-trips the metrics worker', async ({
+  test('eight supervised workers render, and stop/start round-trips the metrics worker', async ({
     page,
   }) => {
     test.info().skip(!harness.ready, harness.ready ? '' : harness.why);
@@ -48,6 +49,7 @@ test.describe('golden path: worker management (F-142, F-143) @critical', () => {
 
     // Backend leg: the supervisor supervises PipelineWorkerManager's workers
     // (ruling 200: detection-0..1, analysis-0..1, batch_timeout, metrics)
+    // and B4.2's two own workers (notification-delivery, webhook-retry)
     // before the page draws a single card.
     const sup = await api<SupervisorBody>(h, session, '/api/system/supervisor');
     const names = sup.workers.map((w) => w.name).sort();
@@ -58,6 +60,8 @@ test.describe('golden path: worker management (F-142, F-143) @critical', () => {
       'detection-0',
       'detection-1',
       'metrics',
+      'notification-delivery-worker',
+      'webhook-retry-worker',
     ]);
     expect(sup.workers.every((w) => w.status === 'running')).toBe(true);
 
