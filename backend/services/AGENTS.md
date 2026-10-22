@@ -234,16 +234,16 @@ defined inside `model_zoo.py` itself.
 
 ### Event Services
 
-| Service             | Purpose                                        | Exported via `__init__.py` |
-| ------------------- | ---------------------------------------------- | -------------------------- |
-| `event_service.py`  | Event CRUD with cascade soft delete (NEM-1956) | No (import directly)       |
-| `export_service.py` | CSV/Excel/JSON export generation (NEM-1989)    | No (import directly)       |
+| Service             | Purpose                                                        | Exported via `__init__.py` |
+| ------------------- | -------------------------------------------------------------- | -------------------------- |
+| `event_service.py`  | Event soft delete, alert dismissal, and restore                | No (import directly)       |
+| `event_purger.py`   | Permanent purge of trashed events, detections, files, and rows | No (import directly)       |
+| `export_service.py` | CSV/Excel/JSON export generation (NEM-1989)                    | No (import directly)       |
 
 ### File Services
 
 | Service                     | Purpose                                              | Exported via `__init__.py` |
 | --------------------------- | ---------------------------------------------------- | -------------------------- |
-| `file_service.py`           | Scheduled file deletion with Redis queue (NEM-1988)  | No (import directly)       |
 | `file_cleanup_service.py`   | Cascade file deletion for events (NEM-2384)          | No (import directly)       |
 | `orphan_cleanup_service.py` | Cleanup orphaned files without DB records (NEM-2260) | No (import directly)       |
 | `orphan_scanner_service.py` | Scan for orphaned files on disk (NEM-2387)           | No (import directly)       |

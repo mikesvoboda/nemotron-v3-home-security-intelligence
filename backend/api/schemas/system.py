@@ -484,6 +484,12 @@ class ConfigResponse(BaseModel):
         ge=1,
         le=365,
     )
+    trash_retention_days: int = Field(
+        default_factory=lambda: 30,
+        description="Number of days to keep soft-deleted events in Trash before purging (0 disables the Trash clock)",
+        ge=0,
+        le=365,
+    )
     batch_window_seconds: int = Field(
         ...,
         description="Time window for batch processing detections",
@@ -531,6 +537,7 @@ class ConfigResponse(BaseModel):
                 "version": "0.1.0",
                 "retention_days": 30,
                 "log_retention_days": 7,
+                "trash_retention_days": 30,
                 "batch_window_seconds": 90,
                 "batch_idle_timeout_seconds": 30,
                 "detection_confidence_threshold": 0.5,
@@ -559,6 +566,12 @@ class ConfigUpdateRequest(BaseModel):
         None,
         description="Number of days to retain logs",
         ge=1,
+        le=365,
+    )
+    trash_retention_days: int | None = Field(
+        None,
+        description="Number of days to keep soft-deleted events in Trash before purging (0 disables the Trash clock)",
+        ge=0,
         le=365,
     )
     batch_window_seconds: int | None = Field(

@@ -1,5 +1,6 @@
 """API routes for events management."""
 
+import contextlib
 import json
 from datetime import UTC, datetime, timedelta
 from typing import Any
@@ -59,6 +60,7 @@ from backend.api.schemas.event_cluster import (
 from backend.api.schemas.event_verification import verification_payload
 from backend.api.schemas.events import (
     DeletedEventsListResponse,
+    EmptyTrashResponse,
     EventListResponse,
     EventResponse,
     EventStatsResponse,
@@ -97,6 +99,7 @@ from backend.services.audit import AuditService
 from backend.services.batch_fetch import batch_fetch_file_paths
 from backend.services.cache_service import SHORT_TTL, CacheKeys, CacheService
 from backend.services.clip_generator import ClipGenerator
+from backend.services.event_purger import EventPurger
 from backend.services.event_service import get_event_service
 from backend.services.search import SearchFilters, search_events
 from backend.services.vlm_analyzer import VlmAnalyzer
@@ -1608,6 +1611,58 @@ async def list_deleted_events(
     )
 
 
+@router.delete(
+    "/deleted",
+    response_model=EmptyTrashResponse,
+    status_code=status.HTTP_200_OK,
+    summary="Empty trash (permanently purge all soft-deleted events)",
+    responses={
+        200: {"description": "Trash emptied"},
+    },
+)
+async def empty_trash(
+    http_request: Request,
+    db: AsyncSession = Depends(get_db),
+    cache: CacheService = Depends(get_cache_service_dep),
+) -> EmptyTrashResponse:
+    """Permanently purge all soft-deleted events currently in Trash (B4.4)."""
+    trashed_ids = list(
+        (
+            await db.execute(
+                select(Event.id).where(Event.deleted_at.isnot(None)).order_by(Event.id.asc())
+            )
+        )
+        .scalars()
+        .all()
+    )
+    purger = EventPurger()
+    report = await purger.purge(
+        trashed_ids,
+        reason="user",
+        session=db,
+        request=http_request if isinstance(http_request, Request) else None,
+    )
+    await db.commit()
+
+    if report.purged:
+        try:
+            await cache.invalidate_events(reason="event_deleted")
+            await cache.invalidate_event_stats(reason="event_deleted")
+        except Exception as e:
+            logger.warning(f"Cache invalidation failed after empty trash: {e}")
+
+    purged_list = list(report.purged)
+    return EmptyTrashResponse(
+        purged_count=len(purged_list),
+        deleted_count=len(purged_list),
+        purged=purged_list,
+        kept=list(report.kept),
+        files_deleted=len(report.files_deleted),
+        files_failed=len(report.files_failed),
+        detections_removed=report.rows_removed.get("detections", 0),
+    )
+
+
 # =============================================================================
 # Bulk Operations (NEM-1433, NEM-2600)
 # =============================================================================
@@ -1689,6 +1744,11 @@ async def bulk_create_events(
             )
             db.add(event)
             await db.flush()  # Get the ID without committing
+
+            for det_id in item.detection_ids:
+                db.add(EventDetection(event_id=event.id, detection_id=det_id))
+            if item.detection_ids:
+                await db.flush()
 
             results.append(
                 {
@@ -1873,6 +1933,7 @@ async def bulk_update_events(
 )
 async def bulk_delete_events(
     request: EventBulkDeleteRequest,
+    http_request: Request = None,  # type: ignore[assignment]
     db: AsyncSession = Depends(get_db),
     cache: CacheService = Depends(get_cache_service_dep),
     _rate_limit: None = Depends(_bulk_rate_limiter),
@@ -1900,70 +1961,132 @@ async def bulk_delete_events(
     succeeded = 0
     failed = 0
 
-    event_service = get_event_service()
-
-    for idx, event_id in enumerate(request.event_ids):
+    if not request.soft_delete:
+        purger = EventPurger()
         try:
-            if request.soft_delete:
-                # Soft delete the event (cascade param preserved for future use)
+            report = await purger.purge(
+                request.event_ids,
+                reason="user",
+                session=db,
+                request=http_request if isinstance(http_request, Request) else None,
+            )
+            purged_set = set(report.purged)
+            refused_set = set(report.refused)
+            not_found_set = set(report.not_found)
+            kept_set = set(report.kept)
+            for idx, event_id in enumerate(request.event_ids):
+                if event_id in purged_set:
+                    results.append(
+                        {
+                            "index": idx,
+                            "status": BulkOperationStatus.SUCCESS,
+                            "id": event_id,
+                            "error": None,
+                        }
+                    )
+                    succeeded += 1
+                elif event_id in refused_set:
+                    results.append(
+                        {
+                            "index": idx,
+                            "status": BulkOperationStatus.FAILED,
+                            "id": event_id,
+                            "error": f"Event not in Trash: {event_id}",
+                        }
+                    )
+                    failed += 1
+                elif event_id in not_found_set:
+                    results.append(
+                        {
+                            "index": idx,
+                            "status": BulkOperationStatus.FAILED,
+                            "id": event_id,
+                            "error": f"Event not found: {event_id}",
+                        }
+                    )
+                    failed += 1
+                elif event_id in kept_set:
+                    results.append(
+                        {
+                            "index": idx,
+                            "status": BulkOperationStatus.FAILED,
+                            "id": event_id,
+                            "error": f"Failed to delete files for event: {event_id}",
+                        }
+                    )
+                    failed += 1
+                else:
+                    results.append(
+                        {
+                            "index": idx,
+                            "status": BulkOperationStatus.FAILED,
+                            "id": event_id,
+                            "error": f"Event not purged: {event_id}",
+                        }
+                    )
+                    failed += 1
+        except Exception as e:
+            logger.error(f"Bulk permanent delete failed: {e}")
+            await db.rollback()
+            for idx, event_id in enumerate(request.event_ids):
+                results.append(
+                    {
+                        "index": idx,
+                        "status": BulkOperationStatus.FAILED,
+                        "id": event_id,
+                        "error": str(e),
+                    }
+                )
+            return BulkOperationResponse(
+                total=len(request.event_ids),
+                succeeded=0,
+                failed=len(request.event_ids),
+                skipped=0,
+                results=results,
+            )
+    else:
+        event_service = get_event_service()
+
+        for idx, event_id in enumerate(request.event_ids):
+            try:
                 await event_service.soft_delete_event(
                     event_id=event_id,
                     db=db,
                     cascade=True,
                 )
-            else:
-                # Hard delete - delete files first, then delete from database
-                # The hard_delete_event method handles file cleanup
-                _files_deleted, files_failed = await event_service.hard_delete_event(
-                    event_id=event_id,
-                    db=db,
+
+                results.append(
+                    {
+                        "index": idx,
+                        "status": BulkOperationStatus.SUCCESS,
+                        "id": event_id,
+                        "error": None,
+                    }
                 )
-                if files_failed > 0:
-                    logger.warning(
-                        f"Hard delete event {event_id}: {files_failed} files failed to delete"
-                    )
+                succeeded += 1
 
-                # Now fetch and delete the event from the database
-                query = select(Event).where(Event.id == event_id)
-                result = await db.execute(query)
-                event = result.scalar_one_or_none()
-                if event is None:
-                    raise ValueError(f"Event not found: {event_id}")
-                await db.delete(event)
+            except ValueError as e:
+                results.append(
+                    {
+                        "index": idx,
+                        "status": BulkOperationStatus.FAILED,
+                        "id": event_id,
+                        "error": str(e),
+                    }
+                )
+                failed += 1
 
-            results.append(
-                {
-                    "index": idx,
-                    "status": BulkOperationStatus.SUCCESS,
-                    "id": event_id,
-                    "error": None,
-                }
-            )
-            succeeded += 1
-
-        except ValueError as e:
-            # Event not found or already deleted
-            results.append(
-                {
-                    "index": idx,
-                    "status": BulkOperationStatus.FAILED,
-                    "id": event_id,
-                    "error": str(e),
-                }
-            )
-            failed += 1
-
-        except Exception as e:
-            logger.error(f"Bulk delete event failed at index {idx}: {e}")
-            results.append(
-                {
-                    "index": idx,
-                    "status": BulkOperationStatus.FAILED,
-                    "id": event_id,
-                    "error": str(e),
-                }
-            )
-            failed += 1
+            except Exception as e:
+                logger.error(f"Bulk delete event failed at index {idx}: {e}")
+                results.append(
+                    {
+                        "index": idx,
+                        "status": BulkOperationStatus.FAILED,
+                        "id": event_id,
+                        "error": str(e),
+                    }
+                )
+                failed += 1
 
     # Commit all successful operations
     if succeeded > 0:
@@ -2812,40 +2935,73 @@ async def analyze_batch_streaming(
 @router.delete(
     "/{event_id}",
     status_code=status.HTTP_204_NO_CONTENT,
-    summary="Soft delete a single event",
+    summary="Soft delete or permanently purge a single event",
     responses={
         204: {"description": "Event deleted successfully"},
         404: {"description": "Event not found"},
-        409: {"description": "Event already deleted"},
+        409: {"description": "Event already deleted or not in Trash for permanent delete"},
     },
 )
 async def delete_event(
     event_id: int,
+    http_request: Request = None,  # type: ignore[assignment]
+    permanent: bool = Query(
+        False, description="If True, permanently purge a soft-deleted event from Trash"
+    ),
     cascade: bool = Query(True, description="Cascade soft delete to related detections"),
     db: AsyncSession = Depends(get_db),
     cache: CacheService = Depends(get_cache_service_dep),
 ) -> None:
-    """Soft delete a single event with optional cascade to related detections.
+    """Soft delete a live event or permanently purge a trashed event (`?permanent=true`)."""
+    is_permanent = permanent is True
+    if not is_permanent and isinstance(http_request, Request):
+        if http_request.query_params.get("soft_delete", "").lower() in ("false", "0"):
+            is_permanent = True
+        else:
+            with contextlib.suppress(Exception):
+                raw_body = await http_request.body()
+                if raw_body:
+                    payload = json.loads(raw_body)
+                    if isinstance(payload, dict) and payload.get("soft_delete") is False:
+                        is_permanent = True
 
-    By default, cascade=True soft deletes all related detections using the same
-    timestamp as the event. This enables cascade restore by matching timestamps.
+    if is_permanent:
+        purger = EventPurger()
+        report = await purger.purge(
+            [event_id],
+            reason="user",
+            session=db,
+            request=http_request if isinstance(http_request, Request) else None,
+        )
+        if event_id in report.not_found:
+            raise HTTPException(status_code=404, detail=f"Event not found: {event_id}")
+        if event_id in report.refused:
+            raise HTTPException(
+                status_code=409,
+                detail=f"Event {event_id} must be moved to Trash before permanent deletion",
+            )
+        if event_id in report.kept:
+            await db.commit()
+            raise HTTPException(
+                status_code=500,
+                detail=f"Failed to delete files for event {event_id}",
+            )
 
-    Args:
-        event_id: ID of the event to delete
-        cascade: If True, cascade soft delete to related detections
-        db: Database session
-        cache: Cache service for invalidation
+        await db.commit()
+        try:
+            await cache.invalidate_events(reason="event_deleted")
+            await cache.invalidate_event_stats(reason="event_deleted")
+        except Exception as e:
+            logger.warning(f"Cache invalidation failed after permanent delete: {e}")
+        return
 
-    Raises:
-        HTTPException: 404 if event not found, 409 if already deleted
-    """
     event_service = get_event_service()
 
     try:
         await event_service.soft_delete_event(
             event_id=event_id,
             db=db,
-            cascade=cascade,
+            cascade=cascade if isinstance(cascade, bool) else True,
         )
         await db.commit()
 

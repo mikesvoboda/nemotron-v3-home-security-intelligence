@@ -381,15 +381,15 @@ Design: [`../4n-alerting.md`](../4n-alerting.md), "Packages" row 3.
 
 **Flags:** `heavy`. **Assigned:** heavy-a, after `B4.1` (ruling 308). **Depends on:** none; the
 alert steps go with whichever of `B4.1` and `B4.4` lands second, the deliveries' with whichever of
-`B4.2` and `B4.4`. **PR:** #7347. (ruling 308, record 6326364266)
+`B4.2` and `B4.4`. **PR:** #7347, #7354. (ruling 308, record 6326364266)
 
 Design: [`../4n-trash.md`](../4n-trash.md), the `B4.4` parts. Covers F-087, F-088 with `F4.3`.
 
 - [x] The test-only PR (step 2).
-- [ ] The build PR: `EventPurger` and its four adapters; soft delete stops scheduling file
+- [x] The build PR: `EventPurger` and its four adapters; soft delete stops scheduling file
       deletion; the trash purge at the earlier deadline, before general retention;
       `trash_retention_days`.
-- [ ] Golden path (pytest, `backend/tests/golden/external/test_trash_purge.py`) as the design
+- [x] Golden path (pytest, `backend/tests/golden/external/test_trash_purge.py`) as the design
       gives it.
 
 **Done when:** its golden path is green on the fake stack and the real-tier check is posted;
@@ -419,17 +419,17 @@ Design: [`../4n-alerting.md`](../4n-alerting.md), "Packages" row 5.
 
 **Flags:** `heavy`. **Assigned:** heavy-b, after `O3.7` and `[r312b]`; `[r307a]` keeps its place
 ahead of it if O2.4 passes first (rulings 308, 312). **Depends on:** none.
-**PR:** #7345. (ruling 308, record 6326364266)
+**PR:** #7345, #7350. (ruling 308, record 6326364266)
 
 Design: [`../4n-restore.md`](../4n-restore.md), its `RestoreModal` part included (UR-9). Covers
 F-101.
 
 - [x] The test-only PR (step 2).
-- [ ] The build PR: the shared table list, per-table keys, the installation id, format `1.1` and
+- [x] The build PR: the shared table list, per-table keys, the installation id, format `1.1` and
       its adapters, three sessions, the safety backup on the data volume, the narrowed undo; if
       `B4.2` landed first, recipients and channels join the backup without their secrets; if
       `B4.7` landed first, the test that a restore keeps one "External alerts" rule.
-- [ ] Golden path: pytest steps in `backend/tests/golden/external/` and the modal step in
+- [x] Golden path: pytest steps in `backend/tests/golden/external/` and the modal step in
       Playwright, as the design gives them.
 
 **Done when:** steps 4–6 hold for F-101.

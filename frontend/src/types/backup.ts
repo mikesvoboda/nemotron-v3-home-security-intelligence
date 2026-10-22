@@ -52,7 +52,11 @@ export interface BackupManifest {
   created_at: string;
   /** Application version, or null if not recorded */
   app_version: string | null;
-  /** Map of content type to info (events, alerts, cameras, etc.) */
+  /** Installation identifier, or null on 1.0 archives */
+  installation_id?: string | null;
+  /** Optional backup label (e.g. 'before restore of <backup> at <time>') */
+  label?: string | null;
+  /** Map of content type to info */
   contents: Record<string, BackupContentInfo>;
 }
 
@@ -120,6 +124,8 @@ export interface BackupListItem {
   status: BackupJobStatus;
   /** Download URL if completed, or null otherwise */
   download_url: string | null;
+  /** Optional backup label (e.g. safety backup note) */
+  label?: string | null;
 }
 
 /**
@@ -151,6 +157,16 @@ export interface RestoreJobProgress {
 }
 
 /**
+ * Per-table restore statistics.
+ */
+export interface TableRestoreSummary {
+  updated: number;
+  inserted: number;
+  replaced: number;
+  kept: number;
+}
+
+/**
  * Full status response for a restore job.
  */
 export interface RestoreJob {
@@ -178,6 +194,18 @@ export interface RestoreJob {
   // Result (on completion)
   /** Count of restored items per table, or null if not completed */
   items_restored: Record<string, number> | null;
+  /** Automatic safety backup job ID created before restore */
+  safety_backup_id?: string | null;
+  /** Per-table restore breakdown */
+  tables?: Record<string, TableRestoreSummary> | null;
+  /** Added rows by name per table */
+  added_rows?: Record<string, string[]> | null;
+  /** Household member names whose known-person links were cleared */
+  cleared_known_person_links?: string[] | null;
+  /** Tables skipped by version adapter */
+  skipped_tables?: string[] | null;
+  /** Whether the restored archive came from this installation */
+  same_installation?: boolean | null;
 
   // Error (on failure)
   /** Error message if failed, or null otherwise */

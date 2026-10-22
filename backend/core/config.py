@@ -759,6 +759,11 @@ class Settings(BaseSettings):
         gt=0,
         description="Number of days to retain events and detections",
     )
+    trash_retention_days: int = Field(
+        default=30,
+        ge=0,
+        description="Number of days to keep soft-deleted events in Trash before purging (0 disables the Trash clock)",
+    )
 
     # Batch processing settings
     batch_window_seconds: int = Field(

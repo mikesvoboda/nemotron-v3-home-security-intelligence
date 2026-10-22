@@ -329,6 +329,7 @@ jobs:
           scripts/test_ai_surface_census.py
           scripts/test_check_npm_audit_exemptions.py
           scripts/test_check_pip_audit_exemptions.py
+          scripts/test_check_trivy_delta.py
           scripts/test_agents_md_validator.py
           scripts/test_validate_docs_symbol_context.py
           scripts/test_pipeline_vs_independent_arm.py
@@ -3683,6 +3684,13 @@ jobs:
       security-events: write
     secrets: inherit # pragma: allowlist secret
     if: github.event_name != 'pull_request' || github.event.pull_request.draft != true
+    # [r294] UR-122: the call SELECTS the gate mode, same shape as
+    # security-dependency-audit's audit-mode: gate above. A called workflow
+    # inherits the caller's event, so the mode must travel as an input -
+    # this call arrives there as event_name=push on PR merges, identical to
+    # trivy.yml's own full-scan push legs (its daily schedule + dispatch).
+    with:
+      trivy-mode: gate
     uses: ./.github/workflows/trivy.yml
 
   # OB.2: dependency audit joins the WP1.2 call set (four workflows now).
