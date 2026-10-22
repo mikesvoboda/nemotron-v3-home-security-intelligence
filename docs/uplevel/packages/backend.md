@@ -419,7 +419,7 @@ Design: [`../4n-alerting.md`](../4n-alerting.md), "Packages" row 5.
 
 **Flags:** `heavy`. **Assigned:** heavy-b, after `O3.7` and `[r312b]`; `[r307a]` keeps its place
 ahead of it if O2.4 passes first (rulings 308, 312). **Depends on:** none.
-**PR:** #7345, #7350. (ruling 308, record 6326364266)
+**PR:** #7345, #7350, #7358. (ruling 308, record 6326364266)
 
 Design: [`../4n-restore.md`](../4n-restore.md), its `RestoreModal` part included (UR-9). Covers
 F-101.
