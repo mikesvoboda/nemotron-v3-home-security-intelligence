@@ -1435,7 +1435,7 @@ Notes for the lane:
 
 **Flags:** none: it changes how fast the Feature check runs, not what `CI Gate` runs (UR-119).
 **Assigned:** `uplevel-ops-a`, after `[r294]` (ruling 297). **Depends on:** #7310 (`[r282]`) merged:
-it builds on its manifest. **PR:** none yet. (ruling 297, record 6315692389)
+it builds on its manifest. **PR:** #7356. (ruling 297, record 6315692389)
 
 At `a4cb3784a`, #7310's three full green runs gave a median critical path of 17.63 min (18.92 before
 `[r282]`) and a shard spread of 2.78 min (about 6 on the count split). Per-shard Playwright time
