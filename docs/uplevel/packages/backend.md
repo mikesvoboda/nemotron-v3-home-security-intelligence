@@ -60,11 +60,11 @@ measurement is posted on the PR (the row sits at `awaiting real tier` until then
 
 ### B2.3 Re-ID model bake-off
 
-**Flags:** `heavy`; label `cell:heavy-b` (ruling 258). **Depends on:** O2.4's pass (UR-85).
+**Flags:** `heavy`; label `cell:heavy-b` (ruling 258). **Depends on:** `O2.4`'s pass (UR-85).
 Approved by owner ruling 107 (issue #6854, comment `6109720693`, 2026-10-11). It may stay open past
 Phase 2's exit (UR-10, contract rule 5).
-**Assigned:** heavy-b, next once O2.4 passes (UR-85; ruling 312 point 4), after the PR heavy-b
-holds then (rulings 258 and 260). **PR:** none yet.
+**Assigned:** heavy-b, once `O2.4` passes (UR-85; ruling 312 point 4), after the PR heavy-b holds
+then and after `[r307a]` (rulings 258, 260 and 307). **PR:** none yet.
 
 - [ ] Export CLIP-ReID ViT-B/16 and PersonViT ViT-S/16 through `O2.4`'s TensorRT path.
 - [ ] Score them with OSNet-AIN x1.0 on a labelled set of person crops from the owner's setting:

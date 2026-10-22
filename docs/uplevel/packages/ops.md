@@ -144,7 +144,8 @@ It may stay open past Phase 2's exit (UR-10, contract rule 5).
       green in CI.
 
 **Done when:** O2.4 passes as UR-85 says: `[r312a]`'s second run reads every plan stage at or above
-0.999 on all 36 crops on the image `main` serves, posted on `[r312a]`'s PR (ruling 312 point 4).
+0.999 on all 36 crops on the image `main` serves, posted on #7238 and linked from #7002 (`[r312a]`;
+ruling 312 item 2 and point 4).
 `[r252]`'s run was spent without a pass (#7238 `6327606735`). The row reads `awaiting real tier`
 until then. It does not flip `REID_BACKEND`; production stays `local`.
 
