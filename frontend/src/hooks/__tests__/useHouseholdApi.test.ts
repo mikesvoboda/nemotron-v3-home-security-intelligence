@@ -461,7 +461,13 @@ describe('useUpdateMember', () => {
       }
     });
 
-    expect(result.current.error?.message).toContain('Member not found');
+    // Assert settled hook state through waitFor: act resolves when the
+    // mutateAsync promise settles, but React Query applies the error state
+    // in a follow-up render pass that act does not always flush before the
+    // next assert — asserting directly flakes (~1 in 18 solo runs).
+    await waitFor(() => {
+      expect(result.current.error?.message).toContain('Member not found');
+    });
   });
 
   it('allows partial updates', async () => {
@@ -507,7 +513,13 @@ describe('useDeleteMember', () => {
       await result.current.mutateAsync(1);
     });
 
-    expect(result.current.isSuccess).toBe(true);
+    // Assert settled hook state through waitFor: act resolves when the
+    // mutateAsync promise settles, but React Query applies the success state
+    // in a follow-up render pass that act does not always flush before the
+    // next assert — asserting directly flakes (~1 in 18 solo runs).
+    await waitFor(() => {
+      expect(result.current.isSuccess).toBe(true);
+    });
     expect(result.current.error).toBeNull();
   });
 

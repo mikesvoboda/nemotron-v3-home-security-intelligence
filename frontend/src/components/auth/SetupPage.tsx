@@ -5,7 +5,7 @@
  * Provides a registration form for creating the first admin user.
  *
  * Features:
- * - Full name, email, password, and confirm password fields
+ * - Username, email, password, and confirm password fields
  * - Client-side validation with real-time error feedback
  * - Redirects away if setup is not required
  * - On success, redirects to dashboard
