@@ -5057,7 +5057,17 @@ reads, none by authorial preference.
   no-proxy client (def redirect_request at :2911-2917), drop/copyfile/return sit at
   :2974/:2986/:2987, base-vs-pin blob diff is 19 lines all in the CLI region (:3152,
   :3193-3207) with zero edits to drop, and pickaxe gives the cite token exactly two carriers
-  (59ad5233e and ea6a69ff3, the latter r264, post-pin). (5) 7214_c2's ellipsis-cite mover corrected from the
+  (59ad5233e and ea6a69ff3, the latter r264, post-pin). The wave then cascaded further:
+  verify:7225_c5 (holding=true, journal line 21) confirmed 7225_c5 whole at pin — the
+  analytics-alerts/harness.ts constants pair correctly with golden/harness.ts :3378/:3380 after
+  the fold, the cites were exact-when-authored (59ad5233 [r196a]: analytics-alerts/harness.ts
+  :77/:78 held the same constants; merge tree bc97694730 still had them at :77/:78; 10d00a96e
+  [r148a] deleted the 373-line analytics-alerts/harness.ts and created golden/harness.ts with a
+  single import-block hunk on the spec, prose :44-:45 untouched), and -S walks find the cites'
+  complete non-grafted authoring history (rev-list count 3917). c4/c5 verify notes also logged
+  the wave's pattern: each verify corrected a proof-universal's scope (c3 the graft roots,
+  c4 the "no mover" universal) rather than the defect — all seven 7225 verify verdicts in the
+  wave to this point are holding=true. (5) 7214_c2's ellipsis-cite mover corrected from the
   workflow's c82f9a6f5 to dfe9b4d5a (commit-walk blob greps; c82f9a6f5 is the NEXT commit and
   doesn't touch the line), and the :881 def pre-existed on main (not PR-added — its pickaxe birth
   lands at the shallow boundary d6344e031, 10-16 04:45). Confirmed independently by the
@@ -5119,7 +5129,16 @@ reads, none by authorial preference.
   closes the _notify_decision call opened at :748, not "the commit call"); authored-wrong-at-own-commit (7181_c1's never-true
   :654/:663/:423 offset); authored-true-then-moved-in-own-PR (7175_c1 — lane.md's step 6 was
   rewritten by the same PR's branch before the merge); pre-merge main-side drift (7160_c1/c2
-  already stale at own merge 2d2cf7b7c); mixed born-not-verbatim + moved (7164_c6). The [r223]
+  already stale at own merge 2d2cf7b7c); mixed born-not-verbatim + moved (7164_c6; and
+  verify:7225_c5, journal line 21, holding=true — cites exact-when-authored at 59ad5233
+  [r196a] (:77/:78 held the constants), merge tree bc97694730 still had them at :77/:78, then
+  10d00a96e [r148a] deleted the 373-line analytics-alerts/harness.ts and created
+  golden/harness.ts with a single import-block hunk on the spec (prose :44-:45 untouched),
+  golden/harness.ts :3378/:3380 pairing correct with no swap; -S walk finds the complete
+  non-grafted authoring history, rev-list count 3917; c5's bonus find for the coordinator: the
+  same sentence's third cite ./download-media.spec.ts:199 reads " adminSession," (an import
+  line) at every observable tree while the claimed const sits at :240 — born-stale-in-its-own-
+  commit, a different mechanism, logged unnumbered pending the coordinator's intake check). The [r223]
   +61..+82 shift (361199a99) re-points every admin.py cite in 7189_c1's eleven-coordinate
   cluster; [r149d]/[r95]'s four-mover chain plus three post-merge movers re-point 7184_c4's
   events.py cites; api.ts re-points ride the EDM:1190 chain (834d51097 −12, 6b691302d −8);
