@@ -213,6 +213,7 @@ async def test_builder_graceful_when_secret_unavailable(
         side_effect=SecretBoxUnavailableError(
             "Stored secret does not decrypt under the current SECRETS_MASTER_KEY"
         ),
+        autospec=True,
     ):
         with pytest.raises(SecretBoxUnavailableError):
             await builder(
