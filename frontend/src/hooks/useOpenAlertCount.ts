@@ -31,5 +31,3 @@ export function useOpenAlertCount(enabled = true): number {
 
   return data?.pagination.total ?? 0;
 }
-
-export default useOpenAlertCount;
