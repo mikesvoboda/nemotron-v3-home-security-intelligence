@@ -1,7 +1,7 @@
 """Service for restoring system configuration from backup archives (B4.6 / 4n-restore.md).
 
 Features:
-- Shared table list with BackupService (12 configuration tables in FK order)
+- Shared table list with BackupService (14 configuration tables in FK order)
 - Format 1.1 with per-version import adapters (1.0 skips events/alerts/prompts)
 - Per-table merge keys and cross-installation remapping via installation_id
 - Baselines replaced for the archive's cameras without explicit IDs
@@ -200,6 +200,8 @@ class RestoreService:
         "prompt_versions": "backend.models.prompt_version.PromptVersion",
         "settings": "backend.models.gpu_config.SystemSetting",
         "alert_rules": "backend.models.alert.AlertRule",
+        "recipients": "backend.models.alert_delivery.Recipient",
+        "recipient_channels": "backend.models.alert_delivery.RecipientChannel",
     }
 
     def __init__(self) -> None:
@@ -938,7 +940,7 @@ class RestoreService:
             stats.kept = len(set(by_key) - touched_keys - {INSTALLATION_ID_SETTING_KEY})
             return
 
-        # UUID-keyed tables: zones, alert_rules
+        # UUID-keyed tables: zones, alert_rules, recipients, recipient_channels
         by_id = {getattr(r, "id", None): r for r in existing_rows}
         touched_ids = set()
         for idx, rec in enumerate(records):
