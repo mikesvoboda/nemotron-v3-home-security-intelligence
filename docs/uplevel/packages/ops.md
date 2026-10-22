@@ -1476,9 +1476,10 @@ The owner's maui discovery for `O2.5` item 2 (attempt 8, `hsi-check-202610202055
 ### [r307a] Face models in Triton
 
 **Flags:** `heavy`; label `cell:heavy-b`. **Assigned:** heavy-b, after `O3.7`, ahead of `B2.3` and
-`O3.2` (ruling 307). Where it edits `ai/gateway/`, UR-9 applies. **Depends on:** O2.4's
-`RESULT: PASS` (ruling 306 item 1), which proves the TensorRT parity path; `[r312a]`'s second run
-is the next proving run (ruling 312).
+`O3.2` (ruling 307). Where it edits `ai/gateway/`, UR-9 applies. **Depends on:** O2.4's pass (ruling
+306 item 1), which proves the TensorRT parity path: `[r252]`'s run was spent without one, and
+`[r312a]`'s second run, reading every plan stage at or above 0.999 on all 36 crops on the image
+`main` serves, is O2.4's evidence (ruling 312 point 4).
 **PR:** none yet. (ruling 307, record 6323846997)
 
 Every small model the product runs on the GPU is served by Triton (UR-86). The face leg runs on the
@@ -1584,7 +1585,8 @@ The operator runs it twice (UR-15): on `26.01-py3` and on the latest supported r
 agent-gpu venue, with the same 36 crops and production weights. Each run posts its tables verbatim
 on #7238 and links them from #7002. Ruling 306 item 3's stop on spend is lifted for these two runs
 only. If the latest release's plan reads every stage at or above 0.999 on all 36 crops, that run is
-O2.4's evidence; any other outcome goes to the owner through the coordinator before more spend.
+O2.4's evidence once `[r312b]` ships the image; any other outcome goes to the owner through the
+coordinator before more spend.
 
 **Done when:** both runs are posted, each naming the first diverging layer or reading every plan
 stage at or above 0.999; and the UR-89 review approves.
@@ -1607,8 +1609,11 @@ UR-187 starts here: the gateway built on `nvcr.io/nvidia/tritonserver:26.01-py3`
       `26.01-py3` follow.
 - [ ] Any further component the inventory shows behind is upgraded in the PR or named as its own
       follow-up package.
-- [ ] If the release needs a newer host driver than the owner's host runs, the PR stops there and
-      puts the driver step to the owner; changing the host is the owner's act.
+- [x] If the release needs a newer host driver than the owner's host runs, the PR stops there and
+      puts the driver step to the owner; changing the host is the owner's act. It needs none: the
+      operator's run at `f1e7fa50c` served every model on `26.09-py3` through the image's
+      forward-compatibility libraries (run 39702868586, operator `6330800872`, review
+      `6330317376`; ruling 312's amendment, record 6331303299).
 
 **Done when:** CI is green; the operator's real-tier run on the GB300 shows every served model
 loading and answering; and the UR-89 and UR-95 reviews approve. Re-ID's parity read on the new image

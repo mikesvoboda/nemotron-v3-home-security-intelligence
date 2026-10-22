@@ -237,8 +237,9 @@ Constraints on what you build; reopening one is a ruling (UR-44).
 - **UR-84** Out of scope: rewriting git history, renaming `setup.py`, and widening frontend Stryker
   beyond its three utility files. (the deleted README section "Rulings of record")
 - **UR-85** Production re-ID moves to the GPU: OSNet-AIN served by Triton through the gateway
-  (`REID_BACKEND=gateway`), once O2.4's proving run posts `RESULT: PASS`: `[r252]`'s was spent
-  without one, and `[r312a]`'s second run, on the latest supported Triton image, is the next.
+  (`REID_BACKEND=gateway`), once O2.4 passes: `[r252]`'s run was spent without a pass, and
+  `[r312a]`'s second run, reading every plan stage at or above 0.999 on all 36 crops on the image
+  `main` serves, is O2.4's evidence (ruling 312 point 4).
   `[r306a]` then flips the default and `[r306b]` removes the backend's CPU copy; until the flip it
   stays `local`. A proven GPU path stands without a CPU fallback. The parity gate stays at 0.999
   (ruling 68). Serving re-ID through ONNX Runtime instead of a TensorRT plan stays unauthorised;
@@ -254,11 +255,11 @@ Constraints on what you build; reopening one is a ruling (UR-44).
 - **UR-187** The AI stack runs the latest supported release of each component: the Triton server
   image, TensorRT, ONNX Runtime, CUDA, the VLM server and the ML frameworks in `ai/`. "Supported"
   means the vendor's support matrix covers the serving GPU (GB300: Blackwell, aarch64) and the
-  driver on the owner's host; an image's forward-compatibility libraries count, as `26.09-py3`'s did
-  on the GB300 (#7343, `6330800872`). A component behind its latest supported release is an upgrade
-  package, flagged `heavy`, with every affected model rebuilt, CI green and a real-tier run. A pin
-  held back gives its reason and a review date in the file that pins it. `[r312b]`'s inventory is
-  the list this rule tracks. (ruling 312)
+  driver on the owner's host; an image's forward-compatibility libraries count where the vendor
+  supports them on the host's driver branch. A component behind its latest supported release is an
+  upgrade package, flagged `heavy`, with every affected model rebuilt, CI green and a real-tier run.
+  A pin held back gives its reason and a review date in the file that pins it. `[r312b]`'s inventory
+  is the list this rule tracks. (ruling 312)
 - **UR-87** Future plans go in `docs/superpowers/<date>-<slug>/`; `docs/plans/` is frozen history,
   and a dated plan created anywhere else is a violation (OD-33). (ruling 89)
 - **UR-21** `AGENTS.md` files live only at boundaries, listed with a reason. `agents_md_validator.py`

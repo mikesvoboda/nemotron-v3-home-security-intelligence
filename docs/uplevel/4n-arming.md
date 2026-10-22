@@ -151,22 +151,22 @@ listed with who or what made it.
     the seeded "External alerts" rule; `alerts.raised_while_unarmed`; `events.source` (`camera` or
     `external`) and `events.external_source`.
 - **backend (`B4.7`):** `arming.py`; the policy and pipeline hook; the resolver's `external` source
-  and the sweep's external clause; the app routes; `inbound_webhooks.py` on the new vocabulary,
-  with `/alert`'s external event; the scheduler; the schemas and generated API types (regenerated,
+  and the sweep's external clause; the app routes; `inbound_webhooks.py` on the new vocabulary, with
+  `/alert`'s external event; the scheduler; the schemas and generated API types (regenerated,
   UR-83). Arming configuration (each mode's exclusions, the schedule) stays out of backups: a
   restore never changes arming, so a reinstalled system restored from an archive arms every camera
   in Home, Away and Night, the safe direction, and a restore in place keeps the local choices.
   `alert_rules.sources` defaults to `camera`, so an older archive's rules insert as camera rules and
   keep their local value on update (`4n-restore.md`, "Versions"); no restore adapter changes. The
-  seeded "External alerts" rule carries a fixed id, so a restore merges an archived copy into it by
-  id instead of inserting a second rule that would alert twice; an archive without it keeps the
+  seeded "External alerts" rule carries a fixed UUID, so a restore merges an archived copy into it
+  by id instead of inserting a second rule that would alert twice; an archive without it keeps the
   local one (`4n-restore.md`'s merge keeps rows not in the archive).
 - **backend (`B4.8`):** `mqtt_command_handler.py` (topics, token, id check, global rate limit,
   de-duplication, results, the id fix at `:378` and the same read at `:383`, `:393`, `:398`,
-  acknowledge, PTZ; sensitivity removed); `mqtt_client.py`
-  and `mqtt_config.py` merged onto one stored config with a CA path; the credential check on
-  enable; startup in `main.py`'s lifespan when enabled; the `keep.toml` entries removed once the
-  modules have a production importer.
+  acknowledge, PTZ; sensitivity removed); `mqtt_client.py` and `mqtt_config.py` merged onto one
+  stored config with a CA path; the credential check on enable and again at startup; startup in
+  `main.py`'s lifespan when enabled; the `keep.toml` entries removed once the modules have a
+  production importer.
 - **frontend (`F4.5`):** the header arming chip; Settings › Arming (cameras per mode, schedule,
   change history); the rules dialog's override gains "In chosen modes" (whichever of `F4.2` and
   `F4.5` lands second carries it); the Alerts page marks "raised while unarmed" on the alert rows
@@ -232,7 +232,8 @@ listed with who or what made it.
   unarmed; `/alert` with the default severity on an armed camera gives an external event and an
   alert from "External alerts".
 - **MQTT (pytest, `B4.8`):** a mode command with the token switches the mode and publishes a result;
-  one without it is refused; enabling against an anonymous broker is refused.
+  one without it is refused; enabling against an anonymous broker is refused, and an enabled
+  stored config against the anonymous listener stays off at startup.
 - **UI (Playwright, `F4.5`):** the header chip switches to Away and the change history shows it;
   Home's cameras are edited; a schedule entry is added; with the chip on Disarmed, a critical
   fixture's row on the Alerts page reads "raised while unarmed".
@@ -287,7 +288,7 @@ can let senders read them without reading the commands; and arming configuration
 backups, since a restored install that arms every camera fails safe and `sources` defaults to
 `camera` for older archives' rules. The next plan PR (#7338's round-3 notes) added three: the
 restore wording covers a restore in place; MQTT's startup re-runs the enable check; and the seeded
-"External alerts" rule carries a fixed id, so a restore cannot duplicate it.
+"External alerts" rule carries a fixed UUID, so a restore cannot duplicate it.
 
 ## Done when
 
