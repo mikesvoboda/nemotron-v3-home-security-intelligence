@@ -71,14 +71,23 @@ import TimeGroupedEvents from './TimeGroupedEvents';
 import TimelineScrubber, { type TimeRange, type ZoomLevel } from './TimelineScrubber';
 import ViewToggle, { type ViewMode } from './ViewToggle';
 
-import type { Detection } from './EventCard';
 import type { SearchFilters } from '../search';
 import type { Event as ModalEvent } from './EventDetailModal';
 import type { Camera, Event, SearchResult } from '../../services/api';
 import type { RiskLevel } from '../../utils/risk';
 
-// Confidence filter threshold options
+// Confidence filter threshold options. The values are the thresholds the
+// backend filter receives (F4.4): 'high' -> 0.85, 'medium' -> 0.70, 'any' ->
+// 0 (has at least one detection). The empty string means no confidence
+// filter at all.
 type ConfidenceFilter = '' | 'high' | 'medium' | 'any';
+
+// Server-side min_confidence value for each ConfidenceFilter choice (F4.4).
+const CONFIDENCE_THRESHOLD: Record<Exclude<ConfidenceFilter, ''>, number> = {
+  high: 0.85,
+  medium: 0.7,
+  any: 0,
+};
 
 // GroupBy options for organizing events in the timeline
 export type GroupByOption = 'time' | 'camera' | 'risk' | 'cluster';
@@ -308,9 +317,10 @@ export default function EventTimeline({ onViewEventDetails, className = '' }: Ev
     const cameraParam = searchParams.get('camera');
     const riskLevelParam = searchParams.get('risk_level');
     const verdictParam = searchParams.get('verdict');
+    const minConfidenceParam = searchParams.get('min_confidence');
 
     // Only update if we have at least one parameter
-    if (cameraParam || riskLevelParam || verdictParam) {
+    if (cameraParam || riskLevelParam || verdictParam || minConfidenceParam) {
       setEventFilters((prev) => ({
         ...prev,
         ...(cameraParam && { camera_id: cameraParam }),
@@ -320,7 +330,24 @@ export default function EventTimeline({ onViewEventDetails, className = '' }: Ev
         ...(verdictParam && {
           verdict: verdictParam as NonNullable<EventFilters['verdict']>,
         }),
+        // A deep link carries the raw 0..1 number; the server 422s values
+        // outside it, so an out-of-range deep link fails loud in the query.
+        // EventMinConfidenceFilter is already a bare number (the generated
+        // query type's null is NonNullable-stripped in api.ts), so no cast.
+        ...(minConfidenceParam !== null && {
+          min_confidence: Number(minConfidenceParam),
+        }),
       }));
+      // Keep the Confidence select honest: show the choice whose threshold
+      // matches the deep-linked value; a non-canonical value (the param is a
+      // raw 0..1 number) leaves the select at "All Confidence Levels" since
+      // no choice describes it - the active query still carries the filter.
+      if (minConfidenceParam !== null) {
+        const reverse = (
+          Object.entries(CONFIDENCE_THRESHOLD) as Array<[keyof typeof CONFIDENCE_THRESHOLD, number]>
+        ).find(([, threshold]) => threshold === Number(minConfidenceParam));
+        setConfidenceFilter(reverse ? reverse[0] : '');
+      }
       // Show filters panel when coming with URL parameters
       setShowFilters(true);
     }
@@ -384,6 +411,20 @@ export default function EventTimeline({ onViewEventDetails, className = '' }: Ev
       ...prev,
       [key]: value === '' ? undefined : value,
     }));
+    // Clear selections when filters change
+    setSelectedEventIds(new Set());
+  }, []);
+
+  // Confidence select (F4.4): maps the UI choice onto the server's
+  // min_confidence parameter via CONFIDENCE_THRESHOLD and clears the param
+  // for the "All Confidence Levels" choice. Before F4.4 this filter set
+  // state nothing ever sent; now it drives the list.
+  const handleConfidenceFilterChange = useCallback((choice: ConfidenceFilter) => {
+    setConfidenceFilter(choice);
+    setEventFilters((prev) => {
+      const { min_confidence: _dropped, ...rest } = prev;
+      return choice === '' ? rest : { ...rest, min_confidence: CONFIDENCE_THRESHOLD[choice] };
+    });
     // Clear selections when filters change
     setSelectedEventIds(new Set());
   }, []);
@@ -519,8 +560,8 @@ export default function EventTimeline({ onViewEventDetails, className = '' }: Ev
   }, []);
 
   // Apply sorting using functional pipeline pattern
-  // Note: Confidence filtering would ideally be done server-side with detection data.
-  // The filter UI still provides value as it indicates user intent and could be passed to backend.
+  // Confidence filtering is server-side since F4.4 (min_confidence in
+  // eventFilters); what remains here is sorting only.
   const filteredEvents = pipe(getSortTransform<Event>(sortOption))(events);
 
   // [r211f] The modal's row, resolved by id rather than only inside the browse
@@ -756,6 +797,8 @@ export default function EventTimeline({ onViewEventDetails, className = '' }: Ev
     eventFilters.camera_id ||
     eventFilters.risk_level ||
     eventFilters.verdict ||
+    // 0 is a real choice ("any detection") - falsy, so !== undefined
+    eventFilters.min_confidence !== undefined ||
     eventFilters.start_date ||
     eventFilters.end_date ||
     eventFilters.reviewed !== undefined ||
@@ -782,9 +825,6 @@ export default function EventTimeline({ onViewEventDetails, className = '' }: Ev
       // Use memoized camera name map for efficient lookup
       const camera_name = cameraNameMap.get(event.camera_id) || 'Unknown Camera';
 
-      // Convert detections (not available in list view, would need separate API call)
-      const detections: Detection[] = [];
-
       return {
         id: String(event.id),
         timestamp: event.started_at,
@@ -798,7 +838,6 @@ export default function EventTimeline({ onViewEventDetails, className = '' }: Ev
         notify: event.notify,
         summary: event.summary || 'No summary available',
         thumbnail_url: event.thumbnail_url || undefined,
-        detections,
         started_at: event.started_at,
         ended_at: event.ended_at,
         onViewDetails: onViewEventDetails ? () => onViewEventDetails(event.id) : undefined,
@@ -1046,7 +1085,6 @@ export default function EventTimeline({ onViewEventDetails, className = '' }: Ev
         notify: event.notify,
         summary: event.summary || 'No summary available',
         thumbnail_url: event.thumbnail_url || undefined,
-        detections: [], // Detections not available in list view
         started_at: event.started_at,
         ended_at: event.ended_at,
         onSwipeLeft: handleSwipeLeftWrapper,
@@ -1082,7 +1120,6 @@ export default function EventTimeline({ onViewEventDetails, className = '' }: Ev
       verification: event.verification,
       summary: event.summary || 'No summary available',
       reasoning: event.reasoning ?? undefined,
-      detections: [], // Detections fetched by modal via API
       started_at: event.started_at,
       ended_at: event.ended_at,
       reviewed: event.reviewed,
@@ -1364,13 +1401,41 @@ export default function EventTimeline({ onViewEventDetails, className = '' }: Ev
                   <select
                     id="confidence-filter"
                     value={confidenceFilter}
-                    onChange={(e) => setConfidenceFilter(e.target.value as ConfidenceFilter)}
+                    onChange={(e) =>
+                      handleConfidenceFilterChange(e.target.value as ConfidenceFilter)
+                    }
                     className="w-full rounded-md border border-gray-700 bg-[#1A1A1A] px-3 py-2 text-sm text-white focus:border-[#76B900] focus:outline-none focus:ring-1 focus:ring-[#76B900]"
                   >
                     <option value="">All Confidence Levels</option>
                     <option value="high">High Only (85%+)</option>
                     <option value="medium">Medium+ (70%+)</option>
                     <option value="any">Any Detection</option>
+                  </select>
+                </div>
+
+                {/* Verification Filter (F4.4): the VLM's verdict, the existing
+                    server-side `verdict` parameter. The vocabulary is the
+                    schema's own - an unknown value is a 422 server-side, so
+                    the options below are exactly the EventVerdictFilter set. */}
+                <div>
+                  <label
+                    htmlFor="verification-filter"
+                    className="mb-1 block text-sm font-medium text-gray-300"
+                  >
+                    Verification
+                  </label>
+                  <select
+                    id="verification-filter"
+                    value={eventFilters.verdict || ''}
+                    onChange={(e) => handleFilterChange('verdict', e.target.value)}
+                    className="w-full rounded-md border border-gray-700 bg-[#1A1A1A] px-3 py-2 text-sm text-white focus:border-[#76B900] focus:outline-none focus:ring-1 focus:ring-[#76B900]"
+                  >
+                    <option value="">All Verifications</option>
+                    <option value="confirmed">Confirmed</option>
+                    <option value="uncertain">Uncertain</option>
+                    <option value="rejected">Rejected</option>
+                    <option value="verification_failed">Failed</option>
+                    <option value="none">Never Verified</option>
                   </select>
                 </div>
 

@@ -50279,7 +50279,7 @@
     },
     "/api/events": {
       "get": {
-        "description": "List events with optional filtering and cursor-based pagination.\n\nSupports both cursor-based pagination (recommended) and offset pagination (deprecated).\nCursor-based pagination offers better performance for large datasets.\n\nBy default, soft-deleted events (events with deleted_at set) are excluded from results.\nUse include_deleted=true to include them.\n\nSparse Fieldsets (NEM-1434):\nUse the `fields` parameter to request only specific fields in the response,\nreducing payload size. Example: ?fields=id,camera_id,risk_level,summary,reviewed\n\nArgs:\n    camera_id: Optional camera ID to filter by\n    risk_level: Optional risk level to filter by (low, medium, high, critical)\n    verdict: Optional VLM verdict filter (confirmed/rejected/uncertain/\n        verification_failed, or 'none' for never-verified events). An\n        unrecognised value is a 422 from the Literal-typed param - never\n        an empty list, which would read as a false all-clear.\n    start_date: Optional start date for date range filter\n    end_date: Optional end date for date range filter\n    reviewed: Optional filter by reviewed status\n    object_type: Optional object type to filter by (person, vehicle, animal, etc.)\n    limit: Maximum number of results to return (1-100, default 50)\n    offset: Number of results to skip (deprecated, use cursor instead)\n    cursor: Pagination cursor from previous response's next_cursor field\n    fields: Comma-separated list of fields to include (sparse fieldsets)\n    include_deleted: Include soft-deleted events in results (default False)\n    db: Database session\n\nReturns:\n    EventListResponse containing filtered events and pagination info\n\nRaises:\n    HTTPException: 400 if start_date is after end_date\n    HTTPException: 400 if cursor is invalid\n    HTTPException: 400 if invalid fields are requested",
+        "description": "List events with optional filtering and cursor-based pagination.\n\nSupports both cursor-based pagination (recommended) and offset pagination (deprecated).\nCursor-based pagination offers better performance for large datasets.\n\nBy default, soft-deleted events (events with deleted_at set) are excluded from results.\nUse include_deleted=true to include them.\n\nSparse Fieldsets (NEM-1434):\nUse the `fields` parameter to request only specific fields in the response,\nreducing payload size. Example: ?fields=id,camera_id,risk_level,summary,reviewed\n\nArgs:\n    camera_id: Optional camera ID to filter by\n    risk_level: Optional risk level to filter by (low, medium, high, critical)\n    verdict: Optional VLM verdict filter (confirmed/rejected/uncertain/\n        verification_failed, or 'none' for never-verified events). An\n        unrecognised value is a 422 from the Literal-typed param - never\n        an empty list, which would read as a false all-clear.\n    min_confidence: Optional detector-confidence floor (0.0-1.0): the\n        event matches when any of its detections is at or above it; 0\n        means the event has at least one detection. Outside 0 to 1 is\n        a 422 from the Query bounds.\n    start_date: Optional start date for date range filter\n    end_date: Optional end date for date range filter\n    reviewed: Optional filter by reviewed status\n    object_type: Optional object type to filter by (person, vehicle, animal, etc.)\n    limit: Maximum number of results to return (1-100, default 50)\n    offset: Number of results to skip (deprecated, use cursor instead)\n    cursor: Pagination cursor from previous response's next_cursor field\n    fields: Comma-separated list of fields to include (sparse fieldsets)\n    include_deleted: Include soft-deleted events in results (default False)\n    db: Database session\n\nReturns:\n    EventListResponse containing filtered events and pagination info\n\nRaises:\n    HTTPException: 400 if start_date is after end_date\n    HTTPException: 400 if cursor is invalid\n    HTTPException: 400 if invalid fields are requested",
         "operationId": "events_list_events",
         "parameters": [
           {
@@ -50341,6 +50341,26 @@
               ],
               "description": "Filter by VLM verification verdict (confirmed, rejected, uncertain, verification_failed) or 'none' for events never verified. Anything else is a 422, never an empty list - a typo'd verdict must not read as a false all-clear.",
               "title": "Verdict"
+            }
+          },
+          {
+            "description": "Minimum detector confidence across the event's detections (0.0-1.0). An event matches when ANY of its detections is at or above the threshold. 0 means the event has at least one detection. Values outside 0 to 1 are a 422.",
+            "in": "query",
+            "name": "min_confidence",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "maximum": 1.0,
+                  "minimum": 0.0,
+                  "type": "number"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Minimum detector confidence across the event's detections (0.0-1.0). An event matches when ANY of its detections is at or above the threshold. 0 means the event has at least one detection. Values outside 0 to 1 are a 422.",
+              "title": "Min Confidence"
             }
           },
           {

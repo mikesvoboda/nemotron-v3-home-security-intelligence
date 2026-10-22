@@ -104,6 +104,17 @@ def test_the_medians_data_covers_every_golden_spec_file() -> None:
         f"disk-only={sorted(on_disk - measured)}"
     )
     for path, entry in medians["files"].items():
+        if entry["n"] == 0:
+            # [F4.4] An estimated row is permitted for one case only: a spec
+            # that has never run on a green leg yet (added with its package,
+            # before any CI run could measure it). Its provenance note must
+            # say so, or an estimate could sit beside real measurements
+            # unmarked. The next n=5 re-measure replaces it.
+            assert "ESTIMATED" in medians["provenance"]["note"], (
+                f"{path} claims n=0 without an ESTIMATED provenance note"
+            )
+            assert isinstance(entry["median"], (int, float)) and entry["median"] > 0
+            continue
         assert entry["n"] >= 5, f"{path} measured only {entry['n']} times"
 
 
