@@ -113,7 +113,8 @@ def save_json(data: dict[str, Any], path: Path) -> None:
 def load_json(path: Path) -> dict[str, Any]:
     """Load JSON data from a file."""
     with open(path, encoding="utf-8") as f:  # nosemgrep: path-traversal-open
-        return json.load(f)
+        data: dict[str, Any] = json.load(f)
+        return data
 
 
 def validate_scenario_spec(spec: dict[str, Any]) -> list[str]:
@@ -219,7 +220,7 @@ def cmd_generate_stock(
     print(f"Found {len(results)} matching clips, downloading {count}...")
 
     # Download the requested count
-    downloaded_files = []
+    downloaded_files: list[Any] = []
     failed = 0
 
     for _i, result in enumerate(results):

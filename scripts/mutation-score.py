@@ -116,7 +116,7 @@ def _mutmut_path_knobs(root: Path) -> tuple[list[str], list[str]]:
     """[tool.mutmut] only_mutate / do_not_mutate from the root pyproject."""
     try:
         cfg = tomllib.loads((root / "pyproject.toml").read_text(encoding="utf-8"))["tool"]["mutmut"]
-    except OSError, KeyError, tomllib.TOMLDecodeError:
+    except (OSError, KeyError, tomllib.TOMLDecodeError):
         return [], []
     return list(cfg.get("only_mutate", [])), list(cfg.get("do_not_mutate", []))
 
@@ -208,7 +208,7 @@ def repair_metas(root: Path) -> list[str]:
     for meta_path in _metas(root):
         try:
             json.loads(meta_path.read_text(encoding="utf-8"))
-        except json.JSONDecodeError, UnicodeDecodeError:
+        except (json.JSONDecodeError, UnicodeDecodeError):
             meta_path.unlink()
             mutant_copy = meta_path.with_suffix("")
             if mutant_copy.exists():
@@ -256,7 +256,7 @@ def _extract_source_function_shas(py_path: Path) -> dict[str, set[str]]:
         code = py_path.read_text(encoding="utf-8")
         lines = code.splitlines(keepends=True)
         tree = ast.parse(code, filename=str(py_path))
-    except OSError, SyntaxError:
+    except (OSError, SyntaxError):
         return {}
 
     out: dict[str, set[str]] = {}
@@ -298,7 +298,7 @@ def load_accepted_survivors(root: Path, survivors_path: Path | None = None) -> l
         return []
     try:
         data = tomllib.loads(path.read_text(encoding="utf-8"))
-    except OSError, tomllib.TOMLDecodeError:
+    except (OSError, tomllib.TOMLDecodeError):
         return []
     entries = data.get("survivor", [])
     if not isinstance(entries, list):
@@ -401,7 +401,7 @@ def aggregate(root: Path, survivors_path: Path | None = None) -> dict[str, Any]:
         rel = meta_path.relative_to(mutants).as_posix()[: -len(".meta")]
         try:
             meta = json.loads(meta_path.read_text(encoding="utf-8"))
-        except json.JSONDecodeError, UnicodeDecodeError:
+        except (json.JSONDecodeError, UnicodeDecodeError):
             torn_metas += 1
             print(f"torn meta (unparseable): {rel} -- run with --repair", file=sys.stderr)
             continue
@@ -662,7 +662,7 @@ def sync_floor_issues(
                     if isinstance(item, dict) and item.get("title") == title:
                         existing_num = int(item["number"])
                         break
-            except ValueError, KeyError, TypeError:
+            except (ValueError, KeyError, TypeError):
                 existing_num = None
 
         if existing_num is not None:
@@ -730,7 +730,7 @@ def append_history(path: Path, entry: dict[str, Any], cap: int = HISTORY_MAX_RUN
     try:
         data = json.loads(path.read_text(encoding="utf-8"))
         runs = list(data["runs"])
-    except OSError, KeyError, ValueError:
+    except (OSError, KeyError, ValueError):
         runs = []
 
     tot = entry.get("totals", {})
@@ -857,7 +857,7 @@ def main() -> int:
         try:
             hist_data = json.loads(floor_source.read_text(encoding="utf-8"))
             prev_entry = _find_previous_detailed_entry(list(hist_data.get("runs", [])))
-        except OSError, ValueError, KeyError, TypeError:
+        except (OSError, ValueError, KeyError, TypeError):
             prev_entry = None
         alerts = compare_floor(report, prev_entry, noise_band_pp=NOISE_BAND_PP)
         report["floor_alerts"] = alerts

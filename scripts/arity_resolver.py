@@ -40,7 +40,9 @@ def _params_are_all_absent(fn: ast.FunctionDef | ast.AsyncFunctionDef) -> bool:
     return total == 0 and a.vararg is None and a.kwarg is None
 
 
-def _funcs(node: ast.ClassDef | ast.Module):
+def _funcs(
+    node: ast.ClassDef | ast.Module,
+) -> list[ast.FunctionDef | ast.AsyncFunctionDef]:
     return [n for n in node.body if isinstance(n, ast.FunctionDef | ast.AsyncFunctionDef)]
 
 
@@ -88,7 +90,7 @@ class ArityResolver:
             self._imports[path] = out
         return self._imports[path]
 
-    def _resolve_in(self, mod_path: Path, names: list[str], depth: int):
+    def _resolve_in(self, mod_path: Path, names: list[str], depth: int) -> bool | None:
         """-> True/False (proven zero / proven nonzero), or None (unknown)."""
         if depth > 8:
             return None

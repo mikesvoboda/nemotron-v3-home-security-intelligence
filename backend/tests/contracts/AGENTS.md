@@ -20,8 +20,7 @@ service logic.
 ## Patterns
 
 - Run: `uv run pytest backend/tests/contracts/` (ci.yml runs this tier
-  directly; `scripts/validate.sh` includes it in the combined pass, and
-  `scripts/check-api-contracts.sh` wraps the API-shape check).
+  directly; `scripts/validate.sh` includes it in the combined pass).
 - When you add/change a route, fix the contract here too — CI drift failures
   originate from this tier, not the unit tier.
 - The `ai_providers/` subdir tests AI services against generated golden

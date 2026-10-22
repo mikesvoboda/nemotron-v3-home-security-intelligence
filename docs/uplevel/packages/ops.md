@@ -342,11 +342,11 @@ Box 1's **DECIDE** for `scripts/ai-quality-analysis.py` is answered: keep it, a 
 tool (`docs/reference/backend-entry-points.md:1471`) whose import #7319's `keep.toml` entry keeps
 (ruling 298 item 3).
 
-- [ ] Delete the scripts nothing references (~14 at `d6ba78d5`, `00 §7`) and the one-off
+- [x] Delete the scripts nothing references (~14 at `d6ba78d5`, `00 §7`) and the one-off
       investigation scripts. Scripts referenced only by `scripts/AGENTS.md`: **DECIDE** keep (a
       documented operator tool) or delete, one line each in the PR.
-- [ ] Extend the ruff and mypy pre-commit scope to `scripts/`. **MEASURE** the violations; fix them.
-- [ ] Wire into CI or delete the script tests no workflow runs (`test_gen_ai_contract.py`,
+- [x] Extend the ruff and mypy pre-commit scope to `scripts/`. **MEASURE** the violations; fix them.
+- [x] Wire into CI or delete the script tests no workflow runs (`test_gen_ai_contract.py`,
       `test_synthetic_media.py`, `test_vlm_probes.py`) and `tests/benchmark/`.
 
 **Done when:** every file in `scripts/` is referenced by CI, a hook, `setup.py`, another script, or

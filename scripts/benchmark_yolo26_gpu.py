@@ -155,7 +155,7 @@ def get_gpu_memory_mb() -> tuple[float, float]:
             return current, max(current, peak)
 
         return current, current
-    except subprocess.CalledProcessError, FileNotFoundError, ValueError:
+    except (subprocess.CalledProcessError, FileNotFoundError, ValueError):
         return 0.0, 0.0
 
 
@@ -179,7 +179,7 @@ def get_gpu_info() -> dict[str, Any]:
             "driver_version": parts[2] if len(parts) > 2 else "Unknown",
             "compute_capability": parts[3] if len(parts) > 3 else "Unknown",
         }
-    except subprocess.CalledProcessError, FileNotFoundError, ValueError, IndexError:
+    except (subprocess.CalledProcessError, FileNotFoundError, ValueError, IndexError):
         return {
             "name": "Unknown",
             "memory_total_mb": 0,
@@ -384,8 +384,9 @@ def benchmark_yolo26_pytorch(
 
         # Get model info
         result.file_size_mb = model_path.stat().st_size / (1024 * 1024)
-        if hasattr(model.model, "parameters"):
-            result.parameters_m = sum(p.numel() for p in model.model.parameters()) / 1e6
+        raw_model: Any = model.model
+        if hasattr(raw_model, "parameters"):
+            result.parameters_m = sum(p.numel() for p in raw_model.parameters()) / 1e6
 
         # Create test image
         test_image = create_test_image(input_size, input_size)
@@ -405,7 +406,7 @@ def benchmark_yolo26_pytorch(
 
         # Benchmark
         print(f"  Benchmarking {model_name} (PyTorch) - {benchmark_iterations} iterations...")
-        latencies = []
+        latencies: Any = []
         for _ in range(benchmark_iterations):
             torch.cuda.synchronize()
             start = time.perf_counter()
@@ -509,7 +510,7 @@ def benchmark_yolo26_onnx(
 
         # Benchmark
         print(f"  Benchmarking {model_name} ({ep_name}) - {benchmark_iterations} iterations...")
-        latencies = []
+        latencies: Any = []
         for _ in range(benchmark_iterations):
             if torch.cuda.is_available():
                 torch.cuda.synchronize()
@@ -588,7 +589,7 @@ def benchmark_yolo26_tensorrt(
 
         # Benchmark
         print(f"  Benchmarking {model_name} (TensorRT) - {benchmark_iterations} iterations...")
-        latencies = []
+        latencies: Any = []
         for _ in range(benchmark_iterations):
             torch.cuda.synchronize()
             start = time.perf_counter()
@@ -672,7 +673,7 @@ def benchmark_yolo26(
 
         # Benchmark
         print(f"  Benchmarking YOLO26 (PyTorch) - {benchmark_iterations} iterations...")
-        latencies = []
+        latencies: Any = []
         for _ in range(benchmark_iterations):
             inputs = processor(images=test_image, return_tensors="pt")
             inputs = {k: v.to(device) for k, v in inputs.items()}
@@ -781,7 +782,7 @@ def generate_gpu_benchmark_report(
         )
 
         # Group by model
-        models = {}
+        models: dict[str, list[BenchmarkResult]] = {}
         for r in successful_results:
             if r.model_name not in models:
                 models[r.model_name] = []
@@ -1081,27 +1082,27 @@ def main() -> None:
 
                 # Export to ONNX
                 if "onnx" in format_names:
-                    result = export_yolo26_onnx(model_path, args.export_path, args.input_size)
-                    export_results.append(result)
-                    if result.success:
+                    exp_result = export_yolo26_onnx(model_path, args.export_path, args.input_size)
+                    export_results.append(exp_result)
+                    if exp_result.success:
                         print(
-                            f"    ONNX: {result.file_size_mb:.2f} MB in {result.export_time_s:.1f}s"
+                            f"    ONNX: {exp_result.file_size_mb:.2f} MB in {exp_result.export_time_s:.1f}s"
                         )
                     else:
-                        print(f"    ONNX: FAILED - {result.error}")
+                        print(f"    ONNX: FAILED - {exp_result.error}")
 
                 # Export to TensorRT
                 if "tensorrt" in format_names:
-                    result = export_yolo26_tensorrt(
+                    exp_result = export_yolo26_tensorrt(
                         model_path, args.export_path, args.input_size, half=True
                     )
-                    export_results.append(result)
-                    if result.success:
+                    export_results.append(exp_result)
+                    if exp_result.success:
                         print(
-                            f"    TensorRT: {result.file_size_mb:.2f} MB in {result.export_time_s:.1f}s"
+                            f"    TensorRT: {exp_result.file_size_mb:.2f} MB in {exp_result.export_time_s:.1f}s"
                         )
                     else:
-                        print(f"    TensorRT: FAILED - {result.error}")
+                        print(f"    TensorRT: FAILED - {exp_result.error}")
 
         print()
 

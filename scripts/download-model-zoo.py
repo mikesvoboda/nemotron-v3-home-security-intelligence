@@ -160,13 +160,14 @@ def download_ultralytics_model(model: ModelSpec) -> bool:
 
         print_status(f"Downloading {model.name} ({model.hf_repo})...")
 
+        yolo_model: object
         if "world" in model.name.lower():
             yolo_model = YOLOWorld(model.hf_repo)
         else:
             yolo_model = YOLO(model.hf_repo)
 
         # Access model to trigger download
-        _ = yolo_model.model
+        _ = getattr(yolo_model, "model", None)
 
         # Move downloaded model to model-zoo
         # Ultralytics downloads to current dir or cache

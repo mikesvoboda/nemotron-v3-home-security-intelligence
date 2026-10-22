@@ -47,6 +47,7 @@ import json
 import re
 import sys
 from pathlib import Path
+from typing import Any
 
 REPO_ROOT = Path(__file__).resolve().parent.parent
 DEFAULT_DOC = REPO_ROOT / "docs" / "reference" / "feature-inventory.md"
@@ -131,11 +132,15 @@ def derive_sections(text: str) -> tuple[dict[str, dict[str, int]], dict[str, int
     seen_ids: dict[str, str] = {}
     vocab: dict[str, int] = {}
     for n, start in enumerate(heads):
-        num = SECTION_HEAD.match(lines[start]).group(1)
+        m = SECTION_HEAD.match(lines[start])
+        assert m is not None
+        num = m.group(1)
         if num in per_section:
             # Last copy would win: the first section's rows would vanish from the table
             # and the `all` row, with nothing left to compare the printed numbers to.
-            raise InventoryError(f"section {num} appears twice -- the later copy would replace the earlier")
+            raise InventoryError(
+                f"section {num} appears twice -- the later copy would replace the earlier"
+            )
         # The section's corpus ends at the next `### 3.x` AND at the next `## ` — the
         # last section's next `### 3.x` does not exist, and an unbounded slice handed
         # §4..§8 (7 tables, 414 pipe lines) to this section's tally.
@@ -145,7 +150,9 @@ def derive_sections(text: str) -> tuple[dict[str, dict[str, int]], dict[str, int
         table = id_tables(lines[start:end], f"section {num}")[0]
         cols = header_columns(table)
         if "status" not in cols:
-            raise InventoryError(f"section {num}: table header has no `status` column: {list(cols)}")
+            raise InventoryError(
+                f"section {num}: table header has no `status` column: {list(cols)}"
+            )
         status_i = cols["status"]
         tally: dict[str, int] = {}
         rows = 0
@@ -194,7 +201,7 @@ def legend_statuses(text: str) -> list[str]:
     match = STATUSES_HEAD.search(text)
     if not match:
         raise InventoryError("no '### Statuses' heading -- no legend to read the vocabulary from")
-    body = text[match.end():]
+    body = text[match.end() :]
     nxt = re.search(r"^#{1,6} ", body, re.M)
     body = body[: nxt.start()] if nxt else body
     found = [t for t in tables(body.splitlines()) if len(t) > 1 and is_separator(split_row(t[1]))]
@@ -232,8 +239,10 @@ def stored_summary(text: str) -> bool:
     """
     match = SUMMARY_HEAD.search(text)
     if not match:
-        raise InventoryError("no '## 2.' heading -- ruling 251 keeps it; the stored-table guard reads its body")
-    body = text[match.end():].split("\n## ", maxsplit=1)[0]
+        raise InventoryError(
+            "no '## 2.' heading -- ruling 251 keeps it; the stored-table guard reads its body"
+        )
+    body = text[match.end() :].split("\n## ", maxsplit=1)[0]
     return any(len(t) > 1 and is_separator(split_row(t[1])) for t in tables(body.splitlines()))
 
 
@@ -266,24 +275,27 @@ def check(text: str) -> tuple[list[str], dict[str, object]]:
         "rows": summed["rows"],
         "statuses": {s: summed[s] for s in vocabulary},
         "statuses_seen_in_rows": vocab,
-        "sections": {num: {key: s.get(key, 0) for key in ("rows", *vocabulary)} for num, s in sections.items()},
+        "sections": {
+            num: {key: s.get(key, 0) for key in ("rows", *vocabulary)}
+            for num, s in sections.items()
+        },
     }
     return problems, census
 
 
-def render(text: str, census: dict[str, object]) -> list[str]:
+def render(text: str, census: dict[str, Any]) -> list[str]:
     """§2's table as Markdown: one row per section, then the `all` row."""
     titles = section_titles(text)
-    statuses = list(census["statuses"])  # type: ignore[arg-type]
+    statuses = list(census["statuses"])
     out = [
         "| section | rows | " + " | ".join(statuses) + " |",
         "| --- | --- | " + " | ".join("---" for _ in statuses) + " |",
     ]
-    for num, counts in census["sections"].items():  # type: ignore[union-attr]
+    for num, counts in census["sections"].items():
         title = titles[num]
         cells = [str(counts["rows"])] + [str(counts[s]) for s in statuses]
         out.append(f"| [{title}](#{anchor(title)}) | " + " | ".join(cells) + " |")
-    total = [str(census["rows"])] + [str(census["statuses"][s]) for s in statuses]  # type: ignore[index]
+    total = [str(census["rows"])] + [str(census["statuses"][s]) for s in statuses]
     out.append("| **all** | " + " | ".join(f"**{c}**" for c in total) + " |")
     return out
 
@@ -305,7 +317,12 @@ def main(argv: list[str] | None = None) -> int:
         return 2
 
     if args.json:
-        print(json.dumps({"path": str(args.path), "ok": not problems, **census, "problems": problems}, indent=2))
+        print(
+            json.dumps(
+                {"path": str(args.path), "ok": not problems, **census, "problems": problems},
+                indent=2,
+            )
+        )
         return 1 if problems else 0
 
     print("\n".join(render(text, census)))

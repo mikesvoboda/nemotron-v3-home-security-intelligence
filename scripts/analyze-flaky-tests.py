@@ -160,7 +160,7 @@ def calculate_flakiness_score(test_data: dict, config: dict) -> float:
         rerun_penalty = min(total_reruns / total_runs, 1.0) * config["rerun_weight"]
 
     # Combine factors
-    flakiness_score = min(base_flakiness + rerun_penalty, 1.0)
+    flakiness_score = float(min(base_flakiness + rerun_penalty, 1.0))
 
     return flakiness_score
 

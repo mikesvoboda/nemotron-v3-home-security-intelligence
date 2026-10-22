@@ -61,11 +61,14 @@ def build_tree(root: Path) -> None:
     (root / "backend" / "core" / "config.py").write_text(CONFIG, encoding="utf-8")
     # a reader in production code
     (root / "backend" / "user.py").write_text(
-        "from backend.core.config import settings\n\nprint(settings.nested_live)\n", encoding="utf-8"
+        "from backend.core.config import settings\n\nprint(settings.nested_live)\n",
+        encoding="utf-8",
     )
     # a TEST reading an orphan must not rescue it
     (root / "backend" / "tests").mkdir()
-    (root / "backend" / "tests" / "test_orphan.py").write_text("assert settings.orphan_field\n", encoding="utf-8")
+    (root / "backend" / "tests" / "test_orphan.py").write_text(
+        "assert settings.orphan_field\n", encoding="utf-8"
+    )
     (root / "docker-compose.yml").write_text(COMPOSE, encoding="utf-8")
     (root / "setup.py").write_text(SETUP_PY, encoding="utf-8")
 

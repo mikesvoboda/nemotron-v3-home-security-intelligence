@@ -52,6 +52,7 @@ import urllib.request
 import zipfile
 from io import BytesIO
 from pathlib import Path
+from typing import Any
 
 
 class HarvestError(RuntimeError):
@@ -107,7 +108,7 @@ def _http_url(url: str) -> str:
     return url
 
 
-def _get_json(url: str, token: str) -> object:
+def _get_json(url: str, token: str) -> Any:
     # nosemgrep: ssrf-requests - scheme pinned by _http_url; CI-supplied URL
     req = urllib.request.Request(  # noqa: S310
         _http_url(url),
@@ -137,8 +138,16 @@ class _StripAuthOnCrossHost(urllib.request.HTTPRedirectHandler):
     call itself; the redirect target authenticates by signature.
     """
 
-    def redirect_request(self, req, fp, code, msg, headers, newurl):
-        new = super().redirect_request(req, fp, code, msg, headers, newurl)
+    def redirect_request(  # type: ignore[override]
+        self,
+        req: urllib.request.Request,
+        fp: object,
+        code: int,
+        msg: str,
+        headers: Any,
+        newurl: str,
+    ) -> urllib.request.Request | None:
+        new = super().redirect_request(req, fp, code, msg, headers, newurl)  # type: ignore[arg-type]
         if new is not None and req.has_header("Authorization"):
             from_host = urllib.parse.urlsplit(req.full_url).netloc
             to_host = urllib.parse.urlsplit(newurl).netloc
@@ -149,7 +158,7 @@ class _StripAuthOnCrossHost(urllib.request.HTTPRedirectHandler):
 
 def _opener() -> urllib.request.OpenerDirector:
     # built lazily: the CA bundle is read at call time, not import time
-    handlers: list[object] = [_StripAuthOnCrossHost()]
+    handlers: list[urllib.request.BaseHandler] = [_StripAuthOnCrossHost()]
     ctx = _ssl_context()
     if ctx is not None:
         handlers.append(urllib.request.HTTPSHandler(context=ctx))
@@ -168,7 +177,7 @@ def _get_bytes(url: str, token: str) -> bytes:
     )
     try:
         with _opener().open(req, timeout=180) as r:
-            return r.read()
+            return bytes(r.read())
     except (urllib.error.URLError, urllib.error.HTTPError, TimeoutError) as e:
         raise HarvestError(f"GET {url} failed: {e}") from e
 

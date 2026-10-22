@@ -153,22 +153,21 @@ uv run pytest backend/tests/unit/ -v --no-cov
 | `test_prompt_version.py`     | PromptVersion model        |
 | `test_zone.py`               | Zone model                 |
 
-### Routes (`routes/`) - 21 files
+### Routes (`routes/`) - 20 files
 
-| File                          | Tests For                  |
-| ----------------------------- | -------------------------- |
-| `test_admin_routes.py`        | Admin endpoints            |
-| `test_ai_audit_routes.py`     | AI audit routes            |
-| `test_alerts_routes.py`       | Alert rules CRUD           |
-| `test_audit_routes.py`        | Audit log endpoints        |
-| `test_cameras_routes.py`      | Camera CRUD endpoints      |
-| `test_detections_routes.py`   | Detection endpoints        |
-| `test_events_routes.py`       | Event management endpoints |
-| `test_media_routes.py`        | Media file serving         |
-| `test_notification_routes.py` | Notification endpoints     |
-| `test_system_routes.py`       | System health and config   |
-| `test_websocket_routes.py`    | WebSocket handlers         |
-| `test_zones_routes.py`        | Zone CRUD endpoints        |
+| File                        | Tests For                  |
+| --------------------------- | -------------------------- |
+| `test_admin_routes.py`      | Admin endpoints            |
+| `test_ai_audit_routes.py`   | AI audit routes            |
+| `test_alerts_routes.py`     | Alert rules CRUD           |
+| `test_audit_routes.py`      | Audit log endpoints        |
+| `test_cameras_routes.py`    | Camera CRUD endpoints      |
+| `test_detections_routes.py` | Detection endpoints        |
+| `test_events_routes.py`     | Event management endpoints |
+| `test_media_routes.py`      | Media file serving         |
+| `test_system_routes.py`     | System health and config   |
+| `test_websocket_routes.py`  | WebSocket handlers         |
+| `test_zones_routes.py`      | Zone CRUD endpoints        |
 
 ### Services (`services/`) - 254 files
 

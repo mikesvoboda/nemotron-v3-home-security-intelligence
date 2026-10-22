@@ -470,7 +470,7 @@ class TestFanInReplacesTheFakeJob(_CiYml):
         )
 
     def test_the_shard_setup_uv_tolerates_a_job_that_never_calls_uv(self) -> None:
-        # [r264] backend-once left shards 2–4 with no uv invocation, and
+        # [r264] backend-once left shards 2-4 with no uv invocation, and
         # setup-uv's post step (default ignore-nothing-to-cache: false) fails
         # "Cache path ... does not exist on disk" when nothing materialized the
         # cache dir — run 39209710736: three red jobs, every test leg green.
@@ -486,7 +486,7 @@ class TestFanInReplacesTheFakeJob(_CiYml):
         assert len(setup_uv) == 1, "the shard job carries more than one setup-uv"
         assert setup_uv[0].get("with", {}).get("ignore-nothing-to-cache") is True, (
             "the shard job's setup-uv errors in its post step when the job "
-            "never invokes uv (shards 2–4: nothing to cache)"
+            "never invokes uv (shards 2-4: nothing to cache)"
         )
 
     def test_the_reference_derivation_exports_an_absolute_scenario_path(self) -> None:
@@ -495,8 +495,7 @@ class TestFanInReplacesTheFakeJob(_CiYml):
         # repo-relative value dies as frontend/backend/... and
         # event-detail-modal's module-scope constants crash collection past
         # their own test.skip guard (run 39209710736: the fan-in reddened on
-        # "Cannot read properties of undefined (reading 'verdict')",
-        # event-detail-modal.spec.ts:377). feature_check.py:2349 exports an
+        # undefined verdict at event-detail-modal.spec.ts:377). feature_check.py:2349 exports an
         # ABSOLUTE path to the real leg, so the derivation must mirror that
         # shape — pinned by consequence: the value must start at the
         # workspace, and the relative literal must be gone.

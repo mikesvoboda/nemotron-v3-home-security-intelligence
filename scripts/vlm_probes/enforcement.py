@@ -136,9 +136,7 @@ async def _run_probe(
 
     schema, nonce = build_probe_schema(RISK_ANALYSIS_JSON_SCHEMA, nonce=str(uuid.uuid4()))
     try:
-        status, content, stop = await _probe_completion(
-            client, base, headers, PROBE_PROMPT, schema
-        )
+        status, content, stop = await _probe_completion(client, base, headers, PROBE_PROMPT, schema)
     except Exception as e:
         return _verdict(verdict="INCONCLUSIVE", why=f"completion request failed ({e!r})")
     if status != 200:
@@ -206,10 +204,8 @@ def main(argv: list[str] | None = None) -> int:
     # No schema-file flag on purpose: the probe schema IS the parser's schema
     # (single source, §3) - an operator override there would let CI prove
     # nothing about runtime.
-    result = asyncio.run(
-        run_probe(args.url, expect_build=args.expect_build, api_key=args.api_key)
-    )
-    print(json.dumps(result, indent=2))  # noqa: T201 - CLI output IS the product
+    result = asyncio.run(run_probe(args.url, expect_build=args.expect_build, api_key=args.api_key))
+    print(json.dumps(result, indent=2))
     return 0 if result["verdict"] == "ENFORCED" else 1
 
 
