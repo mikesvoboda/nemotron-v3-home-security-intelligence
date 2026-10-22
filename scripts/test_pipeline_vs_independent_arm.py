@@ -60,21 +60,27 @@ def test_the_shipped_pipeline_agrees_with_an_independent_fence_arm() -> None:
             if c.raw_text.startswith("`")
         ]
         if len(shipped) != len(positions):
-            drift.append(f"{doc.relative_to(PROJECT_ROOT)}: {len(positions)} positions vs {len(shipped)} cites")
+            drift.append(
+                f"{doc.relative_to(PROJECT_ROOT)}: {len(positions)} positions vs {len(shipped)} cites"
+            )
             continue
-        for pos, cite in zip(positions, shipped):
+        for pos, cite in zip(positions, shipped, strict=False):
             with_fences = md._extract_symbol_from_context(body, pos, fences=fences)
             bare = md._extract_symbol_from_context(body, pos, fences=[])
             if with_fences == bare:
                 continue  # the answer never reads the fence set
             dependents += 1
-            independent = md._extract_symbol_from_context(body, pos)  # self-sweep = pre-fix semantics
+            independent = md._extract_symbol_from_context(
+                body, pos
+            )  # self-sweep = pre-fix semantics
             compared += 1
             if cite.symbol_name != independent:
                 mismatches.append(
                     f"{doc.relative_to(PROJECT_ROOT)} pos={pos} shipped={cite.symbol_name!r} independent={independent!r}"
                 )
     assert not drift, f"arm alignment drifted (do NOT trust a silent skip): {drift[:4]}"
-    assert dependents >= 10, f"only {dependents} fence-dependent citations — corpus drifted, guard is vacuous"
+    assert dependents >= 10, (
+        f"only {dependents} fence-dependent citations — corpus drifted, guard is vacuous"
+    )
     assert compared == dependents
     assert not mismatches, f"pipeline disagrees at {len(mismatches)} positions: {mismatches[:5]}"

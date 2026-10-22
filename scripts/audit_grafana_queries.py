@@ -808,7 +808,7 @@ def analyze_query(expr: str) -> tuple[set[str], set[str], set[str]]:
     return known, unknown, not_impl
 
 
-def main():
+def main() -> None:
     """Main entry point."""
     dashboards_dir = Path(__file__).parent.parent / "monitoring" / "grafana" / "dashboards"
 

@@ -129,7 +129,8 @@ def load_expected_labels(labels_file: Path) -> dict[str, Any]:
     """Load expected labels from JSON file."""
     # nosemgrep: path-traversal-open - labels_file is validated to be under SYNTHETIC_DATA_DIR
     with open(labels_file) as f:
-        return json.load(f)
+        data: dict[str, Any] = json.load(f)
+        return data
 
 
 def group_detections_by_scenario(
@@ -158,8 +159,8 @@ def compare_detections(actual: list[dict[str, Any]], expected: dict[str, Any]) -
     }
 
     # Count actual detections by class
-    actual_counts = defaultdict(int)
-    actual_by_class = defaultdict(list)
+    actual_counts: defaultdict[str, int] = defaultdict(int)
+    actual_by_class: defaultdict[str, list[dict[str, Any]]] = defaultdict(list)
     for det in actual:
         obj_type = det["object_type"]
         actual_counts[obj_type] += 1
@@ -243,10 +244,12 @@ def calculate_metrics(all_results: dict[str, dict[str, Any]]) -> dict[str, Any]:
     false_negatives = 0
 
     # Per-class tracking
-    class_stats = defaultdict(lambda: {"tp": 0, "fp": 0, "fn": 0})
+    class_stats: defaultdict[str, dict[str, int]] = defaultdict(lambda: {"tp": 0, "fp": 0, "fn": 0})
 
     # Per-scenario-type tracking
-    scenario_stats = defaultdict(lambda: {"tp": 0, "fp": 0, "fn": 0, "count": 0})
+    scenario_stats: defaultdict[str, dict[str, int]] = defaultdict(
+        lambda: {"tp": 0, "fp": 0, "fn": 0, "count": 0}
+    )
 
     # Confidence tracking
     all_confidences = []
@@ -396,7 +399,7 @@ def _infer_scenario_type(scenario_name: str) -> str:
     return "normal"
 
 
-def main():
+def main() -> tuple[Any, ...]:
     """Main validation logic."""
     print("=" * 80)
     print("AI Pipeline Validation: YOLO26 Detection Analysis")

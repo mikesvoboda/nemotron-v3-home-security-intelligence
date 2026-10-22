@@ -22,15 +22,13 @@ from __future__ import annotations
 
 import argparse
 import json
-import os
 import re
-import socket
 import subprocess
-import sys
 import textwrap
 import time
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from pathlib import Path
+from typing import Any
 
 # ---------------------------------------------------------------------------
 # Colour helpers (ANSI)
@@ -69,15 +67,20 @@ def _sub(msg: str) -> str:
 # ---------------------------------------------------------------------------
 def _run(cmd: str, timeout: int = 15) -> tuple[int, str]:
     try:
-        r = subprocess.run(
-            cmd, shell=True, capture_output=True, text=True, timeout=timeout
+        r = subprocess.run(  # noqa: S602  # nosemgrep: shell-injection, python.lang.security.audit.subprocess-shell-true.subprocess-shell-true
+            cmd,  # nosemgrep: shell-injection, python.lang.security.audit.subprocess-shell-true.subprocess-shell-true
+            shell=True,  # nosemgrep: shell-injection, python.lang.security.audit.subprocess-shell-true.subprocess-shell-true
+            check=False,
+            capture_output=True,
+            text=True,
+            timeout=timeout,
         )
         return r.returncode, (r.stdout + r.stderr).strip()
     except subprocess.TimeoutExpired:
         return 1, "TIMEOUT"
 
 
-def _curl_json(url: str, timeout: int = 10) -> dict | list | None:
+def _curl_json(url: str, timeout: int = 10) -> Any:
     rc, out = _run(f"curl -s --max-time {timeout} {url}")
     if rc != 0 or not out:
         return None
@@ -143,7 +146,7 @@ def check_gpu() -> list[str]:
 
     parts = [p.strip() for p in out.split(",")]
     if len(parts) >= 7:
-        name, gpu_util, mem_util, mem_used, mem_total, temp, power = parts[:7]
+        name, gpu_util, _mem_util, mem_used, mem_total, temp, power = parts[:7]
         gpu_pct = int(gpu_util)
         mem_gb = int(mem_used) / 1024
         total_gb = int(mem_total) / 1024
@@ -154,7 +157,9 @@ def check_gpu() -> list[str]:
 
         lines.append(f"  {name}")
         lines.append(f"  GPU Utilization:  {gpu_color}{gpu_pct}%{_RESET}")
-        lines.append(f"  VRAM:             {mem_color}{mem_gb:.1f} / {total_gb:.1f} GB ({mem_pct:.0f}%){_RESET}")
+        lines.append(
+            f"  VRAM:             {mem_color}{mem_gb:.1f} / {total_gb:.1f} GB ({mem_pct:.0f}%){_RESET}"
+        )
         lines.append(f"  Temperature:      {temp}°C")
         lines.append(f"  Power:            {power} W")
     return lines
@@ -183,7 +188,7 @@ def check_ai_services() -> list[str]:
             params = meta.get("n_params", 0)
             ctx = meta.get("n_ctx_train", 0)
             lines.append(f"    {_ok(f'Model: {name}')}")
-            lines.append(f"      Params: {params/1e9:.1f}B  Context: {ctx:,}")
+            lines.append(f"      Params: {params / 1e9:.1f}B  Context: {ctx:,}")
 
     # llama.cpp slots
     slots = _curl_json("http://127.0.0.1:8091/slots")
@@ -192,7 +197,7 @@ def check_ai_services() -> list[str]:
         idle = len(slots) - active
         lines.append(f"    Slots: {active} active, {idle} idle (total {len(slots)})")
 
-    # ai-gateway (Triton)
+    # AI Gateway (Triton) status check
     lines.append(_sub("  AI Gateway (Triton):"))
     gw = _curl_json("http://127.0.0.1:8090/health")
     if gw:
@@ -232,8 +237,7 @@ def check_pipeline() -> list[str]:
     # Redis streams
     for stream in ["detections:stream", "analysis:stream"]:
         rc, out = _run(
-            f"podman exec nemotron-v3-home-security-intelligence_redis_1 "
-            f"redis-cli XLEN {stream}"
+            f"podman exec nemotron-v3-home-security-intelligence_redis_1 redis-cli XLEN {stream}"
         )
         count = out.strip() if rc == 0 else "ERR"
         lines.append(f"  {stream:30s} depth = {count}")
@@ -241,8 +245,7 @@ def check_pipeline() -> list[str]:
     # Redis DLQ
     for dlq in ["detections:dlq", "analysis:dlq"]:
         rc, out = _run(
-            f"podman exec nemotron-v3-home-security-intelligence_redis_1 "
-            f"redis-cli XLEN {dlq}"
+            f"podman exec nemotron-v3-home-security-intelligence_redis_1 redis-cli XLEN {dlq}"
         )
         count = out.strip() if rc == 0 else "N/A"
         if count not in ("N/A", "0", "(integer) 0"):
@@ -266,9 +269,7 @@ def check_circuit_breakers() -> list[str]:
     lines = []
     lines.append(_header("CIRCUIT BREAKERS & ERROR RATES"))
 
-    rc, out = _run(
-        "podman logs --since 60s nemotron-v3-home-security-intelligence_backend_1 2>&1"
-    )
+    rc, out = _run("podman logs --since 60s nemotron-v3-home-security-intelligence_backend_1 2>&1")
     if rc != 0:
         lines.append(_warn("Could not read backend logs"))
         return lines
@@ -331,7 +332,9 @@ def check_monitoring() -> list[str]:
     # Tempo
     tempo = _curl_text("http://127.0.0.1:3200/ready")
     lines.append(
-        f"  {_ok('Tempo: ready')}" if tempo and "ready" in tempo else f"  {_fail('Tempo: not ready')}"
+        f"  {_ok('Tempo: ready')}"
+        if tempo and "ready" in tempo
+        else f"  {_fail('Tempo: not ready')}"
     )
 
     # Pyroscope
@@ -353,8 +356,7 @@ def check_resources() -> list[str]:
     lines.append(_header("RESOURCE USAGE (TOP CONSUMERS)"))
 
     rc, out = _run(
-        "podman stats --no-stream --format "
-        "'{{.Name}}|{{.CPUPerc}}|{{.MemUsage}}|{{.MemPerc}}'"
+        "podman stats --no-stream --format '{{.Name}}|{{.CPUPerc}}|{{.MemUsage}}|{{.MemPerc}}'"
     )
     if rc != 0:
         lines.append(_fail("podman stats failed"))
@@ -399,9 +401,7 @@ def check_nemotron_inference() -> list[str]:
     lines.append(_header("NEMOTRON INFERENCE PERFORMANCE"))
 
     # Get recent completion stats from backend logs
-    rc, out = _run(
-        "podman logs --since 120s nemotron-v3-home-security-intelligence_ai-vlm_1 2>&1"
-    )
+    rc, out = _run("podman logs --since 120s nemotron-v3-home-security-intelligence_ai-vlm_1 2>&1")
     if rc != 0:
         lines.append(_warn("Cannot read ai-vlm logs"))
         return lines
@@ -425,10 +425,14 @@ def check_nemotron_inference() -> list[str]:
 
     if prompt_rates:
         avg_prompt = sum(prompt_rates) / len(prompt_rates)
-        lines.append(f"  Prompt throughput:  {avg_prompt:.0f} tok/s (avg of {len(prompt_rates)} completions)")
+        lines.append(
+            f"  Prompt throughput:  {avg_prompt:.0f} tok/s (avg of {len(prompt_rates)} completions)"
+        )
     if gen_rates:
         avg_gen = sum(gen_rates) / len(gen_rates)
-        lines.append(f"  Generation speed:   {avg_gen:.1f} tok/s (avg of {len(gen_rates)} completions)")
+        lines.append(
+            f"  Generation speed:   {avg_gen:.1f} tok/s (avg of {len(gen_rates)} completions)"
+        )
     if total_times:
         avg_total = sum(total_times) / len(total_times) / 1000
         lines.append(f"  Avg completion:     {avg_total:.1f}s")
@@ -444,7 +448,7 @@ def check_nemotron_inference() -> list[str]:
         for s in processing:
             prompt_n = s.get("n_past", 0)
             predicted = s.get("n_predicted", 0)
-            lines.append(f"    slot {s.get('id',0)}: {prompt_n} ctx tokens, {predicted} generated")
+            lines.append(f"    slot {s.get('id', 0)}: {prompt_n} ctx tokens, {predicted} generated")
 
     return lines
 
@@ -456,13 +460,13 @@ def analyze_validation_report(report_path: str) -> list[str]:
     lines = []
     lines.append(_header("VALIDATION REPORT ANALYSIS"))
 
-    path = Path(report_path)
+    path = Path(report_path).resolve()
     if not path.exists():
         lines.append(f"  {_DIM}Report not yet available: {report_path}{_RESET}")
         lines.append(f"  {_DIM}(will appear after seed --validate completes){_RESET}")
         return lines
 
-    with open(path) as f:
+    with path.open() as f:  # nosemgrep: path-traversal-open
         report = json.load(f)
 
     generated = report.get("generated_at", "?")
@@ -495,10 +499,7 @@ def analyze_validation_report(report_path: str) -> list[str]:
             em = data.get("events_matched", 0)
             dc = data.get("detection_correct", 0)
             sc = data.get("scoring_correct", 0)
-            lines.append(
-                f"    {cat:15s}  pass={p}/{t}  matched={em}  "
-                f"detect={dc}  score={sc}"
-            )
+            lines.append(f"    {cat:15s}  pass={p}/{t}  matched={em}  detect={dc}  score={sc}")
 
     # Enrichment quality
     eq = report.get("enrichment_quality", {})
@@ -514,12 +515,11 @@ def analyze_validation_report(report_path: str) -> list[str]:
         lat = eq.get("llm_latency_ms", {})
         if lat.get("count"):
             lines.append(
-                f"    LLM latency:  avg={lat['avg']}ms  "
-                f"p50={lat['p50']}ms  max={lat['max']}ms"
+                f"    LLM latency:  avg={lat['avg']}ms  p50={lat['p50']}ms  max={lat['max']}ms"
             )
         sections = eq.get("enrichment_sections_coverage", {})
         if sections:
-            lines.append(f"    Enrichment sections present:")
+            lines.append("    Enrichment sections present:")
             for sec, info in sections.items():
                 lines.append(f"      {sec:30s} {info['pct']:>6s} ({info['count']})")
 
@@ -565,7 +565,7 @@ def analyze_validation_report(report_path: str) -> list[str]:
             reverse=True,
         )
         if outliers:
-            lines.append(f"    Worst miscalibrations:")
+            lines.append("    Worst miscalibrations:")
             for o in outliers[:5]:
                 name = o["scenario"][:35]
                 lines.append(
@@ -581,7 +581,9 @@ def analyze_validation_report(report_path: str) -> list[str]:
             f for f in failures if any("eason" in e.lower() for e in f.get("errors", []))
         ]
         scoring_fails = [
-            f for f in failures if any("score" in e.lower() or "risk" in e.lower() for e in f.get("errors", []))
+            f
+            for f in failures
+            if any("score" in e.lower() or "risk" in e.lower() for e in f.get("errors", []))
         ]
         enrichment_fails = [f for f in failures if f.get("enrichment_errors")]
         detection_fails = [
@@ -640,7 +642,7 @@ def analyze_db_reasoning() -> list[str]:
     rc, out = _run(
         f"podman exec nemotron-v3-home-security-intelligence_postgres_1 "
         f"psql -U security -d security -t -A -F '|' "
-        f"-c \"{query}\"",
+        f'-c "{query}"',
         timeout=15,
     )
     if rc != 0:
@@ -711,7 +713,9 @@ def analyze_db_reasoning() -> list[str]:
 
     lines.append(_sub("  Reasoning Quality:"))
     lines.append(f"    Avg reasoning length:  {avg_reasoning:.0f} chars")
-    lines.append(f"    Avg prompt length:     {avg_prompt:.0f} chars (~{avg_prompt/4:.0f} tokens)")
+    lines.append(
+        f"    Avg prompt length:     {avg_prompt:.0f} chars (~{avg_prompt / 4:.0f} tokens)"
+    )
     color = _GREEN if short_reasoning == 0 else _YELLOW
     lines.append(f"    Short reasoning (<140): {color}{short_reasoning}/{total}{_RESET}")
     color = _GREEN if generic_count == 0 else _YELLOW
@@ -723,7 +727,9 @@ def analyze_db_reasoning() -> list[str]:
     lines.append(f"\n{_sub('  Risk Score Distribution:')}")
     if risk_scores:
         avg_risk = sum(risk_scores) / len(risk_scores)
-        lines.append(f"    Avg score: {avg_risk:.0f}  Min: {min(risk_scores)}  Max: {max(risk_scores)}")
+        lines.append(
+            f"    Avg score: {avg_risk:.0f}  Min: {min(risk_scores)}  Max: {max(risk_scores)}"
+        )
     for level, count in risk_levels.items():
         if count > 0:
             bar = "█" * min(count, 30)
@@ -733,14 +739,19 @@ def analyze_db_reasoning() -> list[str]:
     lines.append(f"\n{_sub('  Recent Reasoning Samples:')}")
     for row in rows[:5]:
         eid, summary, reasoning, risk_score, risk_level, camera = (
-            row[0], row[1], row[2], row[3], row[4], row[5],
+            row[0],
+            row[1],
+            row[2],
+            row[3],
+            row[4],
+            row[5],
         )
         r_len = int(row[6]) if row[6] else 0
         summary_trunc = (summary or "")[:80]
         reasoning_trunc = (reasoning or "")[:120]
 
-        score_color = _GREEN if risk_level in ("low",) else (
-            _YELLOW if risk_level == "medium" else _RED
+        score_color = (
+            _GREEN if risk_level in ("low",) else (_YELLOW if risk_level == "medium" else _RED)
         )
         lines.append(
             f"    Event #{eid} | {score_color}risk={risk_score} ({risk_level}){_RESET} "
@@ -798,8 +809,8 @@ def check_seed_progress() -> list[str]:
             else:
                 lines.append(f"  {_fail(f'Seed script exited with code {code}')}")
 
-    for line in tail_lines:
-        line = line.strip()
+    for raw_line in tail_lines:
+        line = raw_line.strip()
         if line and not line.startswith("---"):
             lines.append(f"  {_DIM}{line}{_RESET}")
 
@@ -814,7 +825,7 @@ def run_healthcheck(
     validation_report: str | None = None,
     include_db: bool = False,
 ) -> None:
-    timestamp = datetime.now(timezone.utc).strftime("%Y-%m-%d %H:%M:%S UTC")
+    timestamp = datetime.now(UTC).strftime("%Y-%m-%d %H:%M:%S UTC")
     print(f"\n{_BOLD}{'━' * 60}")
     print(f"  AI PIPELINE HEALTH CHECK — {timestamp}")
     print(f"{'━' * 60}{_RESET}")

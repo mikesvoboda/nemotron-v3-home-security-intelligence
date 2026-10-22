@@ -113,7 +113,7 @@ def check_files_for_integration_tests(file_paths: list[str]) -> tuple[bool, list
     return all_have_tests, warnings
 
 
-def print_integration_test_guide():
+def print_integration_test_guide() -> None:
     """Print helpful guide for writing integration tests."""
     print("\n" + "=" * 80)
     print("INTEGRATION TEST GUIDE")

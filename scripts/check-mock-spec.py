@@ -54,6 +54,7 @@ import subprocess
 import sys
 import tempfile
 from pathlib import Path
+from typing import Any
 
 REPO_ROOT_DEFAULT = Path(__file__).resolve().parent.parent
 _SWEEP = Path(__file__).resolve().parent / "autospec-sweep.py"
@@ -133,7 +134,7 @@ def patch_target(node: ast.Call, imports: dict[str, str]) -> str | None:
     return None
 
 
-def sites_with_lines(path: Path, resolver: ArityResolver | None = None) -> list[dict]:
+def sites_with_lines(path: Path, resolver: Any = None) -> list[dict]:
     """Convertible (unspecced, autospec-eligible) sites in line order, each
     with {id, reason, lineno, zero_arity}; the id's path segment is `path`
     as given. ORDINALS ARE MINTED OVER EVERY SITE even when a resolver
@@ -156,7 +157,7 @@ def sites_with_lines(path: Path, resolver: ArityResolver | None = None) -> list[
         and classify(node)[0] == "convertible"
     ]
     found.sort(key=lambda n: (n.lineno, n.col_offset))
-    imports = module_imports_of(path) if resolver is not None else {}
+    imports: dict[str, str] = module_imports_of(path) if resolver is not None else {}
     ordinals: dict[str, int] = {}
     out = []
     for node in found:

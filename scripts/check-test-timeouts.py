@@ -294,8 +294,8 @@ def main() -> int:
         print("  - Add comment: # mocked, # patched, # cancelled")
         print()
 
-        for filepath, line_no, message, line_content in all_issues:
-            print(f"{filepath}:{line_no}: {message}")
+        for bad_filepath, line_no, message, line_content in all_issues:
+            print(f"{bad_filepath}:{line_no}: {message}")
             print(f"    {line_content}")
             print()
 

@@ -94,7 +94,10 @@ def test_midword_let_does_not_infer_a_symbol() -> None:
     # Verbatim tail of feature-inventory.md row 159 (an earlier draft truncated the
     # prefix and the header's "verbatim" claim was then only half true — the shipped
     # row reads "…against a fresh Node read of the SAME endpoint, and bullet TEXT…").
-    assert infer("against a fresh Node read of the SAME endpoint, and bullet TEXT is asserted ") is None
+    assert (
+        infer("against a fresh Node read of the SAME endpoint, and bullet TEXT is asserted ")
+        is None
+    )
 
 
 def test_pattern_anchors_the_keyword_at_a_word_boundary() -> None:
@@ -283,9 +286,7 @@ def test_the_parser_itself_sets_the_inferred_flag_end_to_end() -> None:
     doc = "docs/reference/backend-entry-points.md"
     content = (PROJECT_ROOT / doc).read_text(encoding="utf-8")
     inferred = [
-        c
-        for c in extract_markdown_citations(content, doc)
-        if c.symbol_name and c.doc_line == 1436
+        c for c in extract_markdown_citations(content, doc) if c.symbol_name and c.doc_line == 1436
     ]
     assert inferred, "fixture drifted: line 1436 no longer carries an inferred-symbol cite"
     assert all(c.symbol_inferred for c in inferred), (

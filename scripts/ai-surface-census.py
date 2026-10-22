@@ -131,7 +131,9 @@ def py_files(root: Path) -> list[Path]:
     return sorted(out)
 
 
-def read_parse_extract(root_and_path: tuple[Path, Path]):
+def read_parse_extract(
+    root_and_path: tuple[Path, Path],
+) -> tuple[Path, str, set[str] | None, set[str]]:
     """Read, parse and extract one file's import facts in one ast.walk.
 
     Top-level so it can run in a forked process pool: the parse of ~980
@@ -270,8 +272,8 @@ def main() -> int:
             # (prefix walk covers `a.b.mod.thing` -> consumes a.b.mod)
 
     out_modules: dict[str, dict] = {}
-    for name, dotted in modules.items():
-        mpath = services.joinpath(*dotted[2:]).with_suffix(".py")  # strip backend.services
+    for name, dotted_parts in modules.items():
+        mpath = services.joinpath(*dotted_parts[2:]).with_suffix(".py")  # strip backend.services
         text = texts.get(mpath, "")
         imp = sorted(importers[name])
         heavy = sorted(root_sets.get(mpath, set()) & HEAVY_LIBS)

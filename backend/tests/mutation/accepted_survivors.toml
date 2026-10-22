@@ -237,3 +237,143 @@ body_sha256 = "b43ac0a9649aaafb1aca34291c814c0e4fc0ac5aeb572675cf457fc44ba1843f"
 kind = "equivalent"
 reason = "verification_payload reads only event.verifications and never reads _EventView.event_id (consolidated from test_vlm_analyzer_batch38_y.py header)."
 date = "2026-10-21"
+
+# --- Consolidated from test_notification_batch38_u.py (B4.2 step 2) ---
+
+[[survivor]]
+module = "backend.services.notification"
+mutant = "NotificationService._build_email_body matched_conditions = metadata.get(\"matched_conditions\", []) -> matched_conditions = metadata.get(\"matched_conditions\", None)"
+body_sha256 = "ae9c6be32eaf76f22fbd7c20d8124bc1951dcb8cf9d25054b3ae533502b45677"  # pragma: allowlist secret
+kind = "equivalent"
+reason = "The only consumer is the truthiness check ``if matched_conditions:``; None and [] are both falsy, and any truthy value comes from the metadata itself, so the default never fires on a truthy path (battery ledger preserved in backend/tests/unit/services/test_notification.py, Honesty ledger section; re-measured by the B4.2 baseline run, 8/616 survived)."
+date = "2026-10-22"
+
+[[survivor]]
+module = "backend.services.notification"
+mutant = "NotificationService._build_email_body matched_conditions = metadata.get(\"matched_conditions\", []) -> matched_conditions = metadata.get(\"matched_conditions\", )"
+body_sha256 = "70d5625b9252759d93a453d0a0c49eca9d920e55681023b4e1fda2d7efe31eef"  # pragma: allowlist secret
+kind = "equivalent"
+reason = "Trailing-comma get() is one-arg get() -> None, and None and [] are both falsy to the sole truthiness consumer (battery ledger preserved in backend/tests/unit/services/test_notification.py, Honesty ledger section; re-measured by the B4.2 baseline run, 8/616 survived)."
+date = "2026-10-22"
+
+[[survivor]]
+module = "backend.services.notification"
+mutant = "NotificationService._build_email_body conditions_html = \"\" -> conditions_html = None"
+body_sha256 = "9294681733950bb30959d7283e7a86649c18a57387ea5d9e91fd886a9099ac1f"  # pragma: allowlist secret
+kind = "equivalent"
+reason = "Dead assignment: the if/else below rebinds conditions_html on every path, so the mutated initial value never reaches the f-string (battery ledger preserved in backend/tests/unit/services/test_notification.py, Honesty ledger section; re-measured by the B4.2 baseline run, 8/616 survived)."
+date = "2026-10-22"
+
+[[survivor]]
+module = "backend.services.notification"
+mutant = "NotificationService._build_email_body conditions_html = \"\" -> conditions_html = \"XXXX\""
+body_sha256 = "686715744c73b5376cd6e314ce5e52553bb7a5dba2bbc68b4d7fd638df131087"  # pragma: allowlist secret
+kind = "equivalent"
+reason = "Dead assignment: the if/else below rebinds conditions_html on every path, so the mutated initial value never reaches the f-string (battery ledger preserved in backend/tests/unit/services/test_notification.py, Honesty ledger section; re-measured by the B4.2 baseline run, 8/616 survived)."
+date = "2026-10-22"
+
+[[survivor]]
+module = "backend.services.notification"
+mutant = "NotificationService.deliver_alert return DeliveryResult(alert_id=alert.id, deliveries=[], all_successful=True) -> return DeliveryResult(alert_id=alert.id, all_successful=True)"
+body_sha256 = "cbe13156d1078c47c2e851198c3ce3302653b6aa2b34e301fe9ec531cd7dca75"  # pragma: allowlist secret
+kind = "equivalent"
+reason = "deliveries is field(default_factory=list): deleting the kwarg reconstructs exactly []. First occurrence (disabled path) of the ledger's m7/m21 pair (battery ledger preserved in backend/tests/unit/services/test_notification.py, Honesty ledger section; re-measured by the B4.2 baseline run, 8/616 survived)."
+date = "2026-10-22"
+
+[[survivor]]
+module = "backend.services.notification"
+mutant = "NotificationService.deliver_alert return DeliveryResult(alert_id=alert.id, deliveries=[], all_successful=True) -> return DeliveryResult(alert_id=alert.id, all_successful=True)"
+body_sha256 = "97c3415044e8c72bcc3af7b38bbf3b50fb3741039fc75e68a41c5afe7c7e6aa7"  # pragma: allowlist secret
+kind = "equivalent"
+reason = "deliveries is field(default_factory=list): deleting the kwarg reconstructs exactly []. Second occurrence (no-channels path) of the ledger's m7/m21 pair (battery ledger preserved in backend/tests/unit/services/test_notification.py, Honesty ledger section; re-measured by the B4.2 baseline run, 8/616 survived)."
+date = "2026-10-22"
+
+# --- Consolidated from test_webhook_service.py battery ledgers (B4.2 step 2) ---
+
+[[survivor]]
+module = "backend.services.webhook_service"
+mutant = "WebhookService.create_webhook signing_secret = secrets.token_hex(32) -> signing_secret = secrets.token_hex(None)"
+body_sha256 = "2d6b8d5b61735c2d3a4edf84f84782476f741e8075ea642417e1976b0a07cb58"  # pragma: allowlist secret
+kind = "equivalent"
+reason = "token_hex(None) defaults to 32 bytes, producing the same 64-char hex string; the value is only stored and logged, never compared (batch38_x Honesty ledger preserved in backend/tests/unit/services/test_webhook_service.py; re-measured by the B4.2 baseline run, 13/1100 survived)."
+date = "2026-10-22"
+
+[[survivor]]
+module = "backend.services.webhook_service"
+mutant = "WebhookService.deliver_webhook status=WebhookDeliveryStatus.PENDING, -> status=None,"
+body_sha256 = "7c18f23be69d752d7ac7ab924ad7fa2ca687fac2e9d69384f34d519132e77765"  # pragma: allowlist secret
+kind = "equivalent"
+reason = "Every reachable arm overwrites delivery.status (SUCCESS, RETRYING or FAILED) before the object is observed, and the fake session records the same object either way (batch38_x Honesty ledger preserved in backend/tests/unit/services/test_webhook_service.py; re-measured by the B4.2 baseline run, 13/1100 survived)."
+date = "2026-10-22"
+
+[[survivor]]
+module = "backend.services.webhook_service"
+mutant = "WebhookService.deliver_webhook status=WebhookDeliveryStatus.PENDING, -> request_payload=payload,"
+body_sha256 = "d1273c190333fead9734a6df0da316e40e3f939caff9661957f5501f906c9fc0"  # pragma: allowlist secret
+kind = "equivalent"
+reason = "The m18 kwarg deletion: the model default is None (measured), and every reachable arm overwrites delivery.status before the object is observed (batch38_x Honesty ledger preserved in backend/tests/unit/services/test_webhook_service.py; re-measured by the B4.2 baseline run, 13/1100 survived)."
+date = "2026-10-22"
+
+[[survivor]]
+module = "backend.services.webhook_service"
+mutant = "WebhookService._format_discord_payload event_type = payload.get(\"event_type\", \"event\") -> event_type = payload.get(\"event_type\", \"EVENT\")"
+body_sha256 = "768e0e80fb2a608e1265a23b0ee6e9976d09ae197618ce443ff5acafbc42b197"  # pragma: allowlist secret
+kind = "equivalent"
+reason = "The default is consumed only when the payload lacks the key, and both spellings pass through .replace(\"_\", \" \").title() which measures identically (\"Event\"); the reachable callers always set the key (batch38_x Honesty ledger preserved in backend/tests/unit/services/test_webhook_service.py, matching batch15's Provable-EQUIVALENT paragraph; re-measured by the B4.2 baseline run, 13/1100 survived)."
+date = "2026-10-22"
+
+[[survivor]]
+module = "backend.services.webhook_service"
+mutant = "WebhookService._sign_payload payload_bytes = json.dumps(payload, sort_keys=True, separators=(\",\", \":\")).encode(\"utf-8\") -> payload_bytes = json.dumps(payload, sort_keys=True, separators=(\",\", \":\")).encode(\"UTF-8\")"
+body_sha256 = "1a45906593d6978a6f1951e25acd9cd8c152b7bfd37cf6d69ba5edd6be97b885"  # pragma: allowlist secret
+kind = "equivalent"
+reason = "Codec names are case-insensitive; the digest is measured identical (batch38_x Honesty ledger preserved in backend/tests/unit/services/test_webhook_service.py; re-measured by the B4.2 baseline run, 13/1100 survived)."
+date = "2026-10-22"
+
+[[survivor]]
+module = "backend.services.webhook_service"
+mutant = "WebhookService._send_request auth_type = webhook.auth_config.get(\"type\", \"none\") -> auth_type = webhook.auth_config.get(\"type\", None)"
+body_sha256 = "383b44708dcb36fb62d5cb1ae5a3be1acac4d9fa40cb36120739c18b0f8981d5"  # pragma: allowlist secret
+kind = "equivalent"
+reason = "The default is consumed only when auth_config is truthy but carries no type key, and the value's only consumer is the bearer/basic/header equality chain: None matches none of the three arms, so the auth section is skipped identically (batch38_x Honesty ledger preserved in backend/tests/unit/services/test_webhook_service.py; re-measured by the B4.2 baseline run, 13/1100 survived)."
+date = "2026-10-22"
+
+[[survivor]]
+module = "backend.services.webhook_service"
+mutant = "WebhookService._send_request auth_type = webhook.auth_config.get(\"type\", \"none\") -> auth_type = webhook.auth_config.get(\"type\", )"
+body_sha256 = "5094f476c596d3f32c167c73b860a725c119e6d491efddb9983e86e65368fd8c"  # pragma: allowlist secret
+kind = "equivalent"
+reason = "Trailing-comma get() is one-arg get() -> None (not a KeyError, measured on the shipped tree); None matches none of the bearer/basic/header arms, so the auth section is skipped identically (batch38_x Honesty ledger preserved in backend/tests/unit/services/test_webhook_service.py; re-measured by the B4.2 baseline run, 13/1100 survived)."
+date = "2026-10-22"
+
+[[survivor]]
+module = "backend.services.webhook_service"
+mutant = "WebhookService._send_request auth_type = webhook.auth_config.get(\"type\", \"none\") -> auth_type = webhook.auth_config.get(\"type\", \"XXnoneXX\")"
+body_sha256 = "44c66651f17cee58335897ad6b33a24c8a03d0849ab24401c64927926b484f2f"  # pragma: allowlist secret
+kind = "equivalent"
+reason = "\"XXnoneXX\" matches none of the bearer/basic/header equality arms, so the auth section is skipped identically (batch38_x Honesty ledger preserved in backend/tests/unit/services/test_webhook_service.py; re-measured by the B4.2 baseline run, 13/1100 survived)."
+date = "2026-10-22"
+
+[[survivor]]
+module = "backend.services.webhook_service"
+mutant = "WebhookService._send_request auth_type = webhook.auth_config.get(\"type\", \"none\") -> auth_type = webhook.auth_config.get(\"type\", \"NONE\")"
+body_sha256 = "c77fcdf91418fd3a2ae2f9ac32a39393307ce8727d6d8e56a016abcaa1732192"  # pragma: allowlist secret
+kind = "equivalent"
+reason = "\"NONE\" matches none of the bearer/basic/header equality arms, so the auth section is skipped identically (batch38_x Honesty ledger preserved in backend/tests/unit/services/test_webhook_service.py; re-measured by the B4.2 baseline run, 13/1100 survived)."
+date = "2026-10-22"
+
+[[survivor]]
+module = "backend.services.webhook_service"
+mutant = "WebhookService._send_request header_name = webhook.auth_config.get(\"header_name\", \"\") -> header_name = webhook.auth_config.get(\"header_name\", None)"
+body_sha256 = "d5c4e7add9a013889fae37806a52c1ee205c14d80db5f9ef8b335f8a6d5fc5f1"  # pragma: allowlist secret
+kind = "equivalent"
+reason = "The default is only ever consumed on the key-absent polarity, and its use is the falsiness check if header_name: — \"\" and None are both falsy, so no header is written either way (batch38_x Honesty ledger preserved in backend/tests/unit/services/test_webhook_service.py; re-measured by the B4.2 baseline run, 13/1100 survived)."
+date = "2026-10-22"
+
+[[survivor]]
+module = "backend.services.webhook_service"
+mutant = "WebhookService._send_request header_name = webhook.auth_config.get(\"header_name\", \"\") -> header_name = webhook.auth_config.get(\"header_name\", )"
+body_sha256 = "ccf725719b08acc2f6a8eea2e6970fced425cb25343c403ccf2abc090152b949"  # pragma: allowlist secret
+kind = "equivalent"
+reason = "Trailing-comma get() is one-arg get() -> None; None and \"\" are both falsy to the if header_name: consumer, so no header is written either way (batch38_x Honesty ledger preserved in backend/tests/unit/services/test_webhook_service.py; re-measured by the B4.2 baseline run, 13/1100 survived)."
+date = "2026-10-22"

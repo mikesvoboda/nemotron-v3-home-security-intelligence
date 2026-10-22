@@ -69,9 +69,9 @@ def junit_to_nodeid(classname: str | None, name: str | None) -> str | None:
     if not idx or not name:
         return None
     i = idx[0]
-    path = "/".join(parts[:i] + [parts[i]]) + ".py"
-    tail = parts[i + 1:] + [name]
-    nodeid = "::".join([path] + tail)
+    path = "/".join([*parts[:i], parts[i]]) + ".py"
+    tail = [*parts[i + 1 :], name]
+    nodeid = "::".join([path, *tail])
     return nodeid if nodeid.startswith(ALLOWED_PREFIXES) else None
 
 

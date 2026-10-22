@@ -362,7 +362,7 @@ def find_camera_images(base_path: str = FOSCAM_BASE_PATH, limit: int = 500) -> l
         print(f"Warning: Camera base path {base_path} does not exist")
         return []
 
-    images = []
+    images: list[Path] = []
     for pattern in ["**/*.jpg", "**/*.JPG", "**/*.png", "**/*.PNG"]:
         images.extend(base.glob(pattern))
 
@@ -449,7 +449,7 @@ class ValidationResult:
 
     scenario: SyntheticScenario
     success: bool
-    event_id: uuid.UUID | None = None
+    event_id: int | uuid.UUID | None = None
     actual_risk_score: int | None = None
     expected_risk_range: tuple[int, int] | None = None
     detection_matches: dict[str, bool] = field(default_factory=dict)
@@ -494,8 +494,9 @@ def _safe_read_json(file_path: Path, base_path: Path) -> dict[str, Any] | None:
             return None
 
         with resolved.open() as f:  # nosemgrep: path-traversal-open
-            return json.load(f)
-    except OSError, json.JSONDecodeError:
+            loaded: dict[str, Any] | None = json.load(f)
+            return loaded
+    except (OSError, json.JSONDecodeError):
         return None
 
 
@@ -541,7 +542,7 @@ def discover_synthetic_scenarios(
     Returns:
         List of SyntheticScenario objects with loaded metadata
     """
-    scenarios = []
+    scenarios: list[SyntheticScenario] = []
 
     if not SYNTHETIC_DATA_PATH.exists():
         print(f"Warning: Synthetic data path {SYNTHETIC_DATA_PATH} does not exist")
@@ -984,7 +985,7 @@ async def _fix_selinux_context(file_path: Path) -> None:
             stderr=asyncio.subprocess.DEVNULL,
         )
         await asyncio.wait_for(proc.wait(), timeout=5)
-    except TimeoutError, FileNotFoundError, OSError:
+    except (TimeoutError, FileNotFoundError, OSError):
         pass  # Best-effort; batch fix at end will catch stragglers
 
 
@@ -1021,7 +1022,7 @@ async def flush_redis_queues() -> None:
             await c.ping()
             client = c
             break
-        except Exception:
+        except Exception:  # noqa: S112
             continue
 
     if client is None:
@@ -1068,7 +1069,7 @@ async def flush_redis_queues() -> None:
             # id="$": consumer group starts after current end (no replay of old messages)
             await client.xgroup_create(stream_key, group_name, id="$", mkstream=True)
             print(f"  Recreated consumer group {group_name} on {stream_key}")
-        except Exception:
+        except Exception:  # noqa: S110
             # Group already exists (stream was not deleted) — safe to ignore
             pass
 
@@ -1096,7 +1097,7 @@ async def flush_redis_queues() -> None:
             result = await session.execute(
                 sa_delete(Detection).where(Detection.id.in_(unlinked_subq))
             )
-            removed = result.rowcount
+            removed = getattr(result, "rowcount", 0) or 0
             await session.commit()
 
         if removed:
@@ -1165,6 +1166,7 @@ async def seed_synthetic_scenarios(
             # Video-based scenario: extract frames from video
             with tempfile.TemporaryDirectory() as temp_dir:
                 temp_path = Path(temp_dir)
+                assert scenario.video_path is not None
 
                 frames = extract_video_frames(
                     scenario.video_path,
@@ -1185,13 +1187,13 @@ async def seed_synthetic_scenarios(
                         try:
                             dest_path.unlink()
                         except PermissionError:
-                            subprocess.run(
+                            subprocess.run(  # noqa: ASYNC221
                                 ["podman", "unshare", "rm", "-f", str(dest_path)], check=True
                             )
                     try:
                         shutil.copyfile(frame_path, dest_path)
                     except PermissionError:
-                        subprocess.run(
+                        subprocess.run(  # noqa: ASYNC221
                             ["podman", "unshare", "cp", "-f", str(frame_path), str(dest_path)],
                             check=True,
                         )
@@ -1208,6 +1210,7 @@ async def seed_synthetic_scenarios(
                     dest_path.touch()
         else:
             # Image-based scenario (COCO): copy image directly to watch folder
+            assert scenario.image_path is not None
             suffix = scenario.image_path.suffix
             dest_name = f"{scenario.video_id}_{scenario.category}_img{suffix}"
             dest_path = scenario_watch_folder / dest_name
@@ -1216,11 +1219,11 @@ async def seed_synthetic_scenarios(
                 try:
                     dest_path.unlink()
                 except PermissionError:
-                    subprocess.run(["podman", "unshare", "rm", "-f", str(dest_path)], check=True)
+                    subprocess.run(["podman", "unshare", "rm", "-f", str(dest_path)], check=True)  # noqa: ASYNC221
             try:
                 shutil.copyfile(scenario.image_path, dest_path)
             except PermissionError:
-                subprocess.run(
+                subprocess.run(  # noqa: ASYNC221
                     ["podman", "unshare", "cp", "-f", str(scenario.image_path), str(dest_path)],
                     check=True,
                 )
@@ -1359,7 +1362,7 @@ async def validate_synthetic_results(
         all_recent_events = list(result.scalars().all())
 
         # Pre-fetch detections for all events
-        event_detection_map: dict[uuid.UUID, list[Detection]] = {}
+        event_detection_map: dict[Any, list[Detection]] = {}
         for event in all_recent_events:
             det_result = await session.execute(
                 select(Detection)
@@ -1369,7 +1372,7 @@ async def validate_synthetic_results(
             event_detection_map[event.id] = list(det_result.scalars().all())
 
         # Pre-fetch LLMInteractions for all events
-        llm_interaction_map: dict[uuid.UUID, LLMInteraction | None] = {}
+        llm_interaction_map: dict[Any, LLMInteraction | None] = {}
         for event in all_recent_events:
             llm_int_result = await session.execute(
                 select(LLMInteraction).where(LLMInteraction.event_id == event.id)
@@ -1377,7 +1380,7 @@ async def validate_synthetic_results(
             llm_interaction_map[event.id] = llm_int_result.scalars().first()
 
         # Track which events have been used, to avoid reusing them
-        used_event_ids: set[uuid.UUID] = set()
+        used_event_ids: set[Any] = set()
 
         for scenario in scenarios:
             expected = scenario.expected_labels
@@ -1457,7 +1460,7 @@ async def validate_synthetic_results(
             used_event_ids.add(matched_event.id)
 
             # Validate risk score range (Nemotron)
-            errors = []
+            errors: list[str] = []
             detection_errors_list: list[str] = []
             scoring_errors_list: list[str] = []
             enrichment_results = {}
@@ -2455,24 +2458,24 @@ async def verify_pipeline_data() -> dict[str, int]:
         counts["detections"] = result.scalar() or 0
 
         # Count events by risk level
-        result = await session.execute(
+        risk_result = await session.execute(
             select(Event.risk_level, func.count())
             .where(Event.deleted_at.is_(None))
             .group_by(Event.risk_level)
         )
-        risk_levels = dict(result.fetchall())
+        risk_levels: dict[Any, int] = dict(risk_result.tuples().all())
         counts["events_critical"] = risk_levels.get("critical", 0)
         counts["events_high"] = risk_levels.get("high", 0)
         counts["events_medium"] = risk_levels.get("medium", 0)
         counts["events_low"] = risk_levels.get("low", 0)
 
         # Count events by camera
-        result = await session.execute(
+        cam_result = await session.execute(
             select(Event.camera_id, func.count())
             .where(Event.deleted_at.is_(None))
             .group_by(Event.camera_id)
         )
-        cameras = dict(result.fetchall())
+        cameras: dict[Any, int] = dict(cam_result.tuples().all())
         counts["cameras_with_events"] = len(cameras)
 
         # Count activity baselines
@@ -2545,7 +2548,7 @@ async def seed_entities_from_detections(max_entities: int = 30) -> int:
         return 0
 
     # Group detections by object type for entity creation
-    by_type = {}
+    by_type: dict[str, list[Detection]] = {}
     for det in real_detections:
         obj_type = det.object_type or "unknown"
         if obj_type not in by_type:
@@ -2722,7 +2725,7 @@ async def seed_alerts_from_events(num_alerts: int = 20) -> int:
 
             # Weighted random status
             status_roll = random.random()  # noqa: S311
-            cumulative = 0
+            cumulative: float = 0.0
             status = AlertStatus.PENDING
             for s, weight in status_weights:
                 cumulative += weight
@@ -2911,7 +2914,7 @@ async def seed_application_logs(num_logs: int = 100) -> int:
         for i in range(num_logs):
             # Weighted random level
             level_roll = random.random()  # noqa: S311
-            cumulative = 0
+            cumulative: float = 0.0
             level = "INFO"
             for lv, weight in level_weights:
                 cumulative += weight
@@ -3261,7 +3264,7 @@ async def seed_class_baselines(min_samples_per_slot: int = 15) -> int:
 
     baselines_upserted = 0
 
-    class_patterns = {
+    class_patterns: dict[str, dict[str, Any]] = {
         "person": {"base_freq": 3.0, "peak_hours": range(7, 22)},
         "vehicle": {"base_freq": 2.0, "peak_hours": range(6, 20)},
         "animal": {"base_freq": 0.5, "peak_hours": list(range(5, 8)) + list(range(18, 22))},
@@ -3344,7 +3347,7 @@ async def seed_pipeline_latency(num_samples: int = 100, time_span_hours: int = 2
             if response.status_code == 200:
                 data = response.json()
                 stages = len(data.get("stages_seeded", []))
-                samples = data.get("samples_per_stage", 0)
+                samples = int(data.get("samples_per_stage", 0))
                 print(f"  Seeded {samples} samples for {stages} pipeline stages")
                 return samples * stages
             elif response.status_code == 403:
@@ -3419,7 +3422,7 @@ async def seed_properties(household_ids: list[int], num_properties: int = 4) -> 
         print("  Warning: No households found. Create households first.")
         return []
 
-    property_templates = [
+    property_templates: list[dict[str, Any]] = [
         {
             "name": "Main Residence",
             "address": "123 Oak Street, Suburbia, CA 94102",
@@ -3485,7 +3488,7 @@ async def seed_household_members(household_ids: list[int], num_members: int = 8)
         print("  Warning: No households found. Create households first.")
         return []
 
-    member_templates = [
+    member_templates: list[dict[str, Any]] = [
         # Smith Family members
         {
             "name": "John Smith",
@@ -3598,7 +3601,7 @@ async def seed_registered_vehicles(household_ids: list[int], num_vehicles: int =
         print("  Warning: No households found. Create households first.")
         return []
 
-    vehicle_templates = [
+    vehicle_templates: list[dict[str, Any]] = [
         {
             "description": "Silver Toyota Camry 2022",
             "license_plate": "ABC-1234",
@@ -3706,7 +3709,7 @@ async def seed_quiet_hours() -> int:
     """
     from datetime import time
 
-    quiet_hour_templates = [
+    quiet_hour_templates: list[dict[str, Any]] = [
         # Standard overnight quiet hours
         {
             "start_time": "23:00",
@@ -5786,8 +5789,8 @@ async def seed_zone_anomalies(num_anomalies: int = 20) -> int:
 
     # Get existing camera zones
     async with get_session() as session:
-        result = await session.execute(select(CameraZone))
-        zones = list(result.scalars().all())
+        zones_result = await session.execute(select(CameraZone))
+        zones: list[CameraZone] = list(zones_result.scalars().all())
 
     if not zones:
         print("  Warning: No camera zones found.")
@@ -6073,7 +6076,7 @@ async def seed_action_recognition_metrics(num_samples: int = 40) -> dict[str, in
 
         # Select action type based on weighted probability
         rand = random.random()  # noqa: S311
-        cumulative = 0
+        cumulative: float = 0.0
         action_type = "walking"  # default
         for action, prob in action_types:
             cumulative += prob
@@ -7152,9 +7155,6 @@ async def clear_all_data() -> None:
         print("  Clearing zone household configs...")
         await session.execute(delete(ZoneHouseholdConfig))
 
-        print("  Clearing user calibration...")
-        await session.execute(delete(UserCalibration))
-
         print("  Clearing camera calibrations...")
         await session.execute(delete(CameraCalibration))
 
@@ -7493,7 +7493,12 @@ This generates real data including:
     total_created = {}
 
     # Store IDs for use across phases
-    foundation_ids = {"property_ids": [], "household_ids": [], "member_ids": [], "vehicle_ids": []}
+    foundation_ids: dict[str, list[Any]] = {
+        "property_ids": [],
+        "household_ids": [],
+        "member_ids": [],
+        "vehicle_ids": [],
+    }
 
     # ==========================================================================
     # PHASE 1: FOUNDATION LAYER (unless --minimal)
