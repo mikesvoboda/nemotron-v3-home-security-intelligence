@@ -114,7 +114,7 @@ class TestWebSocketAlertStatus:
 
     def test_all_status_values_exist(self) -> None:
         """Test that all expected status values exist."""
-        expected_statuses = {"pending", "delivered", "acknowledged", "dismissed"}
+        expected_statuses = {"open", "pending", "delivered", "acknowledged", "dismissed"}
         actual_statuses = {s.value for s in WebSocketAlertStatus}
         assert actual_statuses == expected_statuses
 

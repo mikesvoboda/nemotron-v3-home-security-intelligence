@@ -200,7 +200,7 @@ class TestRecordedDecisionReachesASurface:
         row = await _decision_row(db_session, event.id)
         assert row is not None, "no event_notify_decisions row - ISS-001 is not closed"
         assert row.notify is True
-        assert row.decided_by == "vlm"
+        assert row.decided_by == "default"
 
         # --- and the same answer on both surfaces, from the row
         item, detail = await _surfaces(client, camera, event.id)

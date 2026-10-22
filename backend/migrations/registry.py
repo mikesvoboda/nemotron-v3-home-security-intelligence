@@ -151,6 +151,11 @@ UPGRADES: tuple[Upgrade, ...] = (
         filename="2026-10-21-retire-vision-model-prompts.sql",
         source="B3.3 R2a row 27 (retire the four vision models' prompt_versions rows and the native aimodel enum)",
     ),
+    Upgrade(
+        id="0012-alert-pipeline-core",
+        filename="2026-10-22-alert-pipeline-core.sql",
+        source="B4.1 (alert pipeline core additive columns, open status, alert_events, activity_snoozes)",
+    ),
 )
 
 
