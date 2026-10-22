@@ -29,6 +29,7 @@ from sqlalchemy.orm import undefer
 from backend.core.logging import get_logger
 from backend.core.time_utils import utc_now
 from backend.models.alert import AlertRule
+from backend.models.alert_delivery import Recipient, RecipientChannel
 from backend.models.area import Area, camera_areas
 from backend.models.baseline import ActivityBaseline, ClassBaseline
 from backend.models.camera import Camera
@@ -63,6 +64,8 @@ SHARED_BACKUP_TABLES: tuple[tuple[str, Any], ...] = (
     ("prompt_versions", PromptVersion),
     ("settings", SystemSetting),
     ("alert_rules", AlertRule),
+    ("recipients", Recipient),
+    ("recipient_channels", RecipientChannel),
 )
 
 
@@ -235,6 +238,17 @@ class BackupService:
 
     BACKUP_TABLES: ClassVar[list[tuple[str, Any]]] = list(SHARED_BACKUP_TABLES)
 
+    # Columns excluded from the backup export (4n-restore.md §Privacy and security:
+    # "Recipient channels arrive without their secrets"). An absent key never
+    # overwrites a merged row's live value, so the local secret survives a
+    # same-installation restore and a fresh insert gets the model default (None).
+    # user_id points at users, which are not backed up, so it is excluded for the
+    # same reason: carrying it would fail the whole restore on a dangling FK.
+    EXCLUDED_EXPORT_COLUMNS: ClassVar[dict[str, frozenset[str]]] = {
+        "recipient_channels": frozenset({"signing_secret_encrypted", "signing_secret_hint"}),
+        "recipients": frozenset({"user_id"}),
+    }
+
     def __init__(self, backup_dir: Path | None = None) -> None:
         """Initialize the backup service.
 
@@ -278,7 +292,7 @@ class BackupService:
                 )
 
                 output_file = temp_path / f"{table_name}.json"
-                count = await self._export_table(db, model, output_file)
+                count = await self._export_table(db, model, output_file, table_name=table_name)
                 checksum = self._calculate_checksum(output_file)
                 contents[table_name] = BackupContentInfo(count=count, checksum=checksum)
 
@@ -365,8 +379,19 @@ class BackupService:
         db: AsyncSession,
         model: Any,
         output_path: Path,
+        table_name: str | None = None,
     ) -> int:
-        """Export a single ORM model or SQLAlchemy Table to a JSON file."""
+        """Export a single ORM model or SQLAlchemy Table to a JSON file.
+
+        Columns named in EXCLUDED_EXPORT_COLUMNS[table_name] are omitted from the
+        exported rows entirely, so a restore merge never overwrites the live value
+        and a fresh insert keeps the model default.
+        """
+        excluded = (
+            self.EXCLUDED_EXPORT_COLUMNS.get(table_name, frozenset())
+            if table_name is not None
+            else frozenset()
+        )
         rows: list[dict[str, Any]] = []
 
         if isinstance(model, Table):
@@ -377,7 +402,7 @@ class BackupService:
                 raw_rows = list(result.all())
             else:
                 raw_rows = list(result.scalars().all())
-            col_names = [col.name for col in model.columns]
+            col_names = [col.name for col in model.columns if col.name not in excluded]
             for raw in raw_rows:
                 if isinstance(raw, Mapping):
                     rows.append({col: self._serialize_value(raw.get(col)) for col in col_names})
@@ -387,7 +412,7 @@ class BackupService:
                     )
         else:
             mapper = inspect(model)
-            column_names = [col.key for col in mapper.columns]
+            column_names = [col.key for col in mapper.columns if col.key not in excluded]
             attr_names = {col.key: attr.key for attr in mapper.column_attrs for col in attr.columns}
 
             stmt = select(model)

@@ -186,6 +186,15 @@ class QuietHoursPeriod(Base):
     start_time: Mapped[time] = mapped_column(Time, nullable=False)
     end_time: Mapped[time] = mapped_column(Time, nullable=False)
 
+    # B4.2: the recipient this period belongs to (the recorded upgrade seeds the
+    # "Household" recipient and points existing rows at it). Nullable: rows
+    # created before the delivery upgrade have no owner until the seed runs.
+    recipient_id: Mapped[str | None] = mapped_column(
+        UUID(as_uuid=False),
+        ForeignKey("recipients.id", ondelete="CASCADE"),
+        nullable=True,
+    )
+
     # Days of week when this period is active
     # Stored as array of day strings (e.g., ['monday', 'tuesday'])
     days: Mapped[list[str]] = mapped_column(ARRAY(String), nullable=False)

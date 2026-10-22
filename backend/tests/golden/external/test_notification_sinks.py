@@ -22,9 +22,10 @@ Three roads, one per channel, each the road its consumer drives:
   notification route's own leg validates every URL through
   ``validate_webhook_url_for_request`` and the CI backend holds no
   ``is_development`` attribute, so a private URL there is refused by design —
-  the per-channel "on this network" flag that would open it is B4.2's build,
-  not this package's. The sink is marked ``on-this-network`` by the compose
-  label ``uplevel.r308a/sink`` (pinned in ``test_ci_sinks_overlay.py``).
+  the per-channel "on this network" flag that opens it is B4.2's build, and
+  this spec's create payload now carries it (B4.2, #7346). The sink is marked
+  ``on-this-network`` by the compose label ``uplevel.r308a/sink`` (pinned in
+  ``test_ci_sinks_overlay.py``).
 * **push** directly to the service fake (``FEATURE_CHECK_SINK_PUSH_URL``):
   ``send_push`` is a stub returning "Push notifications are not yet
   implemented", so there is no product path yet — B4.3's adapter is the
@@ -158,6 +159,10 @@ def test_the_webhook_sink_receives_the_acknowledgement_payload(
             "name": f"golden-r308a-{uuid.uuid4().hex[:8]}",
             "url": f"http://{sink_host}",
             "event_types": ["alert_acknowledged"],
+            # The sink sits on the compose network (plain HTTP, private
+            # address) — B4.2's per-channel flag is what admits exactly this
+            # target, as this docstring's webhook paragraph anticipated.
+            "on_local_network": True,
             "max_retries": 0,
             "retry_delay_seconds": 1,
         },
