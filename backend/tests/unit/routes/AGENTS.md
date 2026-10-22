@@ -22,7 +22,6 @@ backend/tests/unit/routes/
 ├── test_events_routes.py              # Event management endpoints
 ├── test_logs_routes.py                # Log management endpoints
 ├── test_media_routes.py               # Media file serving
-├── test_notification_routes.py        # Notification endpoints
 ├── test_restore_endpoints.py          # Restore endpoint tests
 ├── test_system_anomaly_config.py      # Anomaly config endpoints
 ├── test_system_performance_history.py # Performance history endpoints
@@ -31,7 +30,7 @@ backend/tests/unit/routes/
 └── test_zones_routes.py               # Zone CRUD endpoints
 ```
 
-## Test Files (21 files)
+## Test Files (20 files)
 
 | File                                    | Tests For                | Endpoints                |
 | --------------------------------------- | ------------------------ | ------------------------ |
@@ -47,7 +46,6 @@ backend/tests/unit/routes/
 | `test_events_routes.py`                 | Event management         | `/api/events/*`          |
 | `test_logs_routes.py`                   | Log management           | `/api/logs/*`            |
 | `test_media_routes.py`                  | Media file serving       | `/api/media/*`           |
-| `test_notification_routes.py`           | Notification endpoints   | `/api/notifications/*`   |
 | `test_restore_endpoints.py`             | Restore operations       | `/api/restore/*`         |
 | `test_system_anomaly_config.py`         | Anomaly configuration    | `/api/system/anomaly/*`  |
 | `test_system_performance_history.py`    | Performance history      | `/api/system/perf/*`     |
