@@ -681,3 +681,373 @@ def test_the_runner_exposes_a_plan_timeout_with_the_600_default(script_text: str
         "compile_plan builds the container argv without forwarding --plan-timeout "
         "$PLAN_TIMEOUT, so the flag exists and does nothing on the run that needs it"
     )
+
+
+# ---------------------------------------------------------------------------
+# [r312a] (ruling 312): the Triton image as a parameter, the layer-compare
+# mode, and the onnxruntime-backend GPU probe. CPU-only pins on the same
+# machine-readable surfaces the pins above use: the runner's own argv parse,
+# its embedded programs (extracted by _heredoc, executed where they are
+# stdlib-only), and the bodies of the functions the modes dispatch to.
+# ---------------------------------------------------------------------------
+
+
+def test_the_runner_accepts_a_triton_image_and_threads_it_to_the_build(script_text: str) -> None:
+    """[r312a] box 2: "The runner takes the Triton image as a parameter."
+    [r312b] made the base image an ARG (``TRITON_IMAGE``,
+    ai/gateway/Dockerfile:1) so a venue can pin it by digest without a fork;
+    the runner reaches that ARG with ``--build-arg`` on the ONE build line.
+
+    Default stays EMPTY, not a restated tag: the Dockerfile's own default
+    (`26.09-py3`) is the single place the current release lives, and a runner
+    default that restates it goes stale exactly when the image moves — the
+    drift the version-consistency gate exists for. Empty means the flag is
+    OMITTED (``${TRITON_IMAGE:+...}``), so today's behaviour is unchanged and
+    the two operator runs pass the image explicitly (26.01-py3, then the
+    latest supported release).
+
+    The build line is pinned inside STEP 1's own statement, not the whole
+    file: the module has exactly one ``podman build`` and a second one would
+    be a different image contract."""
+    assert "--triton-image)" in script_text, (
+        "--triton-image is not an accepted argument (the arg parser rejects it)"
+    )
+    init = re.search(r'^TRITON_IMAGE="\$\{REID_TIER_TRITON_IMAGE:-\}"$', script_text, re.M)
+    assert init is not None, (
+        "TRITON_IMAGE must default to empty via REID_TIER_TRITON_IMAGE — a "
+        "restated tag here goes stale when the Dockerfile's own default moves"
+    )
+    build = script_text[script_text.index("podman build") :]
+    build = build[: build.index("\n")]
+    assert '--build-arg TRITON_IMAGE="$TRITON_IMAGE"' in build, (
+        "the build never threads the image parameter through: the operator's "
+        "26.01-py3 run would silently build the Dockerfile's default release"
+    )
+    assert "${TRITON_IMAGE:+" in build, (
+        "an empty --triton-image must OMIT the build-arg, not pass an empty "
+        "value that overrides the Dockerfile's own default"
+    )
+
+
+def test_layercompare_mode_is_accepted_and_dispatched(script_text: str) -> None:
+    """[r312a] box 1: the runner "gains a layer-compare mode". Three surfaces:
+    the --mode validator accepts it, the case dispatch has its arm, and the
+    arm runs the stages sequence first (box 2: on the latest release the run
+    produces "the stage table and the layer compare" — the layer compare is a
+    superset, not a replacement, or the second operator run would lose the
+    stage table the Done-when quotes)."""
+    assert "--mode is parity or stages" not in script_text or re.search(
+        r"layercompare", script_text[script_text.index("--mode is") :][:200]
+    ) or _code(script_text).count("layercompare") >= 1, "mode validator never mentions layercompare"
+    validator = [ln for ln in _code(script_text).splitlines() if "--mode is" in ln]
+    assert validator and any("layercompare" in ln for ln in validator), (
+        "the --mode validation line refuses layercompare: the operator's run "
+        "dies at argument validation before any measurement"
+    )
+    arm = _arm(script_text, "layercompare")
+    # The arm routes to run_layercompare; the stages sequence lives in that
+    # function (the runner's structure: every mode's full sequence is its one
+    # mode function -- run_parity, run_stages, run_layercompare). Follow the
+    # route and read the sequence there: a pin that read only the arm would
+    # pin a call-graph shape, not the behaviour.
+    assert "run_layercompare" in arm, "the layercompare arm never dispatches"
+    seq_body = _fn_body(_code(script_text), "run_layercompare")
+    assert "run_stages" in seq_body, (
+        "the layercompare sequence must run the stages sequence (the stage "
+        "table is part of box 2's second run), not only the layer compare"
+    )
+
+
+def _lc_body(script_text: str) -> str:
+    """Body of ``run_layercompare()``, the layer-compare mode's own block."""
+    return _fn_body(script_text, "run_layercompare")
+
+
+def test_layercompare_never_rewrites_the_cache_onnx(script_text: str) -> None:
+    """[r312a] box 1 runs the DECOMPOSED onnx ("Polygraphy runs the decomposed
+    ONNX") but the decomposer rewrites its target IN PLACE (scripts/
+    decompose_instance_norm.py ``tmp.replace(model)``). The cache's model.onnx
+    is the artifact the stage table's stage 2 measures and the one the two
+    operator runs must share: rewrite it inside the layer-compare and stage 2
+    of the SAME run measures a different graph than 188.17/188.18 did, and the
+    run's own stage rows stop being comparable to the history they quote. So
+    the compare must stage its own COPY under the run dir and decompose that.
+
+    Read through _code: the module's docs name model.onnx in prose, so a raw
+    substring needle would satisfy itself on a comment."""
+    body = _lc_body(_code(script_text))
+    assert "layercompare/" in body and "cp " in body, (
+        "run_layercompare must copy the export into its own directory "
+        "(layercompare/) before the decomposer rewrites it — the module's "
+        "surgery is in-place, and the cache ONNX is what the stage table "
+        "measures"
+    )
+    mounts = [spec for _, spec in _bind_mounts(body)]
+    # The decomposer's own podman line, read statement-first: the invocation
+    # that names the module is the one whose mounts this pin audits.
+    dec_line = next(ln for ln in body.splitlines() if "decompose_instance_norm" in ln)
+    dec_block = body[body.index(dec_line) - 400 : body.index(dec_line)]
+    dec_mounts = [spec for _, spec in _bind_mounts(dec_block)]
+    assert dec_mounts, "the decomposer call carries no bind mount: nothing was staged"
+    for spec in dec_mounts:
+        if spec.endswith(":ro"):
+            continue  # a read-only mount cannot receive the rewrite
+        assert "layercompare" in spec, (
+            f"the decomposer mounts {spec} writable: the in-place rewrite would "
+            "land on the cache ONNX the stage table measures (comparability loss)"
+        )
+
+
+def test_layercompare_uses_the_repo_decomposer_not_a_reimplementation(script_text: str) -> None:
+    """The decompose rewrite's exit codes (0/30/31/32), its aliasing guards and
+    its faithfulness gate live in scripts/decompose_instance_norm.py and are
+    already CI-pinned there. A layer-compare arm that reimplements the rewrite
+    would ship a second, unpinned decomposer into the very measurement that
+    must inherit the first one's guarantees — so the runner must invoke the
+    module (python3 -m or by path) and branch on ITS exit code: 0 continues,
+    30/31/32 stop the compare (a graph that moved its own function, refused
+    structurally, or still needs its sidecar has no faithful layer table to
+    print), and the refusing numbers must not be folded into a success."""
+    body = _lc_body(_code(script_text))
+    assert "decompose_instance_norm" in body, (
+        "run_layercompare never invokes scripts/decompose_instance_norm.py: "
+        "the decomposition the box-1 text assumes would be reimplemented here"
+    )
+    assert re.search(r"decompose.*\|\| true|decompose.*rc=|rc=\$\?\n.*decompose", body) or (
+        "|| rc=$?" in body or re.search(r"decompose[^\n]*\n\s*rc=", body)
+    ), "the decomposer's exit code is neither captured nor branched on"
+    # The mapped refusals stop the compare: folded into success, a graph whose
+    # rewrite moved its own function would print a layer table nobody can trust.
+    for code in ("30", "31", "32"):
+        assert re.search(rf"rc -eq {code}|\b{code}\b", body), (
+            f"decompose's exit {code} is not named: the refusing codes must stop "
+            "the compare, not be read as a faithful decomposition"
+        )
+
+
+def test_the_layer_compare_marks_every_layer_and_prints_the_first_diverging_one(
+    script_text: str,
+) -> None:
+    """[r312a] box 1's deliverable, verbatim-shaped: "with every layer's output
+    marked, on the same 36 crops, and prints the first layer under 0.999 cosine
+    with its op type and name."
+
+    Polygraphy is named in the box text but exists NOWHERE in the image (the
+    gateway installs onnx/onnxscript/onnxruntime-gpu/torch; Dockerfile:32-46)
+    or the repo — only this box names it — and the probe container runs
+    --network none, so pip cannot fetch it at run time. The marked-layer
+    compare is therefore implemented from what the image has: the same onnx
+    graph rewrite every layer's output tensor as a graph output (the marking
+    decompose_instance_norm.py already proves feasible in-repo), run under ORT
+    CPU vs the TensorRT plan via the engine's per-tensor debug API. The
+    substitution is named in the PR body for the UR-89 review to judge.
+
+    The program is CPU-only HERE (this test), like cosine_table.py: its
+    PARSING/REPORTING half runs on plain python3 against fixture layer JSONs,
+    so the pin executes the shipped code."""
+    probe = _heredoc(script_text, "layer_compare.py", "LAYERCMP")
+    # The marking: the program walks the ONNX graph and adds intermediate
+    # tensors as outputs (clear_output + graph outputs), not a fixed list.
+    assert "clear_output" in probe or "graph.output" in probe, (
+        "the layer compare never marks intermediate outputs: 'every layer's "
+        "output marked' is the box-1 deliverable"
+    )
+    # Same 36 crops: the batch is built from the run's crops dir, the same
+    # sort/suffix order the stage probe uses — the cosine table's
+    # crop-order guard depends on it.
+    assert 'RUN / "crops"' in probe or 'run / "crops"' in probe, (
+        "the layer compare must build its batch from the run's own crops "
+        "(same crops as the stage table) — the box names 'the same 36 crops'"
+    )
+    # Word-boundary on the op type: 'INCONCLUSIVE' contains the substring
+    # 'IN', so a bare-substring negative would fire on the report's own
+    # wording. The op type is a whole token.
+    assert "InstanceNormalization" in probe or not re.search(r"\bIN\b", probe), (
+        "the marked graph is the DECOMPOSED one (box 1: 'runs the decomposed "
+        "ONNX'); the program must not re-measure the raw IN graph"
+    )
+    # The deliverable print: first layer under the gate, WITH op type and name.
+    gate = re.search(r"GATE\s*=\s*0\.999", probe)
+    assert gate, "the layer compare's gate is not the ruling-68 0.999"
+    tail = probe[probe.index("GATE") :]
+    assert "op_type" in tail and re.search(r"first|FIRST", tail), (
+        "the report must name the FIRST layer under 0.999 with its op type "
+        "and name (box 1's exact deliverable)"
+    )
+
+
+def _run_layer_report(report_src: str, tmp_path: Path, rows: list[dict]) -> tuple[int, str]:
+    """Run the shipped layer-compare report over synthetic per-layer cosine
+    rows and return (rc, output). The rows are what the in-image measure half
+    emits; the report half — the box-1 deliverable — is the part that must be
+    CPU-testable, exactly as cosine_table.py is."""
+    run = tmp_path / "run"
+    run.mkdir(exist_ok=True)  # two calls per test: broken rows, then clean
+    (run / "layers.json").write_text(json.dumps(rows))
+    script = tmp_path / "layer_report.py"
+    script.write_text(report_src)
+    done = subprocess.run(  # real: the shipped report IS the test  # noqa: S603 - fixed argv
+        [sys.executable, "-I", str(script), str(run)],
+        capture_output=True,
+        text=True,
+        check=False,
+    )
+    return done.returncode, done.stdout + done.stderr
+
+
+def test_the_layer_report_executes_and_names_first_diverging_layer(
+    script_text: str, tmp_path: Path
+) -> None:
+    """Positive execution control for the report half: given measured rows with
+    one layer under the gate, the shipped report exits 0 (naming a divergence
+    IS this mode succeeding, same shape as a located stage failure) and prints
+    that layer's index, op type and name. Given all layers at or above the
+    gate, it prints the clean reading — the OTHER Done-when outcome ('reading
+    every plan stage at or above 0.999' at layer granularity)."""
+    probe = _heredoc(script_text, "layer_compare.py", "LAYERCMP")
+    assert 'if __name__ == "__main__"' in probe or "__main__" in probe, (
+        "the report half is not an executable entry point"
+    )
+    rows = [
+        {"index": i, "name": f"n{i}", "op_type": "Conv", "min_cos": 0.9999, "mean_cos": 0.99995}
+        for i in range(3)
+    ]
+    broken = dict(rows[1], min_cos=0.987, op_type="ReduceMean", name="mean_in1_1")
+    rc, out = _run_layer_report(probe, tmp_path, rows[:1] + [broken] + rows[2:])
+    assert str(1) in out and ("ReduceMean" in out or "mean_in1_1" in out), (
+        f"the report did not name the first diverging layer with its op/name:\n{out}"
+    )
+    assert rc == 0, f"naming a divergence is a successful diagnostic, got rc {rc}:\n{out}"
+    clean = [
+        {"index": i, "name": f"n{i}", "op_type": "Conv", "min_cos": 0.9999, "mean_cos": 0.99995}
+        for i in range(4)
+    ]
+    rc2, out2 = _run_layer_report(probe, tmp_path, clean)
+    assert rc2 == 0 and "ReduceMean" not in out2, f"clean rows misreported:\n{out2}"
+
+
+def test_the_layer_compare_runs_only_after_the_fp32_plan_is_measured(script_text: str) -> None:
+    """Ordering: the layer compare measures the FP32 plan (box 1), which exists
+    only after run_stages' STEP S3a copied model-fp32.plan. The compare must
+    sit AFTER that copy in the layercompare arm — before it, the compare would
+    refuse (stage_plan's own no-fallback refusal, now at layer granularity) or
+    silently measure nothing."""
+    body = _lc_body(_code(script_text))
+    fp32 = body.index("model-fp32.plan")
+    lc = body.index("layer_compare.py")
+    assert fp32 < lc, "the layer compare runs before the FP32 plan it measures exists"
+
+
+def test_the_ort_probe_is_a_dedicated_container_on_its_own_repo(script_text: str) -> None:
+    """[r312a] box 2: "it adds a stage serving the ONNX through Triton's
+    onnxruntime backend on the GPU (CUDA execution provider), as a probe
+    only."
+
+    Why a dedicated container: the served repository is baked into the image
+    and entrypoint.sh §0c only links cache dirs whose REPO config already
+    exists, while §0d's residency prune MOVES every non-set model to
+    .retired (GATEWAY_MODEL_SET=vlm) — an ORT-backend reid cannot appear in
+    the served repository without editing ai/triton (cell A's files, UR-9) or
+    re-pruning the served footprint. A probe needs none of that: its own
+    model-repository directory under $RUN, its own tritonserver invocation.
+
+    "as a probe only" is pinned as its negative too: the probe writes no
+    config into the served cache/repository and its model name is its own
+    (reid-ort), so nothing can collide with the served reid."""
+    body = _lc_body(_code(script_text))
+    assert "reid-ort" in body, "the probe model must carry its own name, not collide with reid"
+    assert "--model-repository" in body, "the probe never points tritonserver at a repository"
+    assert "$RUN" in body, "the probe's repository must live under the run directory"
+    for tok in ("entrypoint.sh", "GATEWAY_MODEL_SET"):
+        assert tok not in body, (
+            f"the probe must not reuse the gateway entrypoint ({tok}): §0d's "
+            "residency prune and §0c's link precondition belong to the served "
+            "repository, not a probe"
+        )
+    mounts = _bind_mounts(body)
+    assert any("/models/repository" in spec for _, spec in mounts), (
+        "no probe container mounts anything that could rewrite the SERVED "
+        "repository — 'as a probe only' means the served footprint is untouched"
+    )
+
+
+def test_the_ort_probe_declares_the_cuda_execution_provider(script_text: str) -> None:
+    """The box names the mechanism: Triton's onnxruntime backend ON THE GPU
+    "(CUDA execution provider)". yolo26/config.pbtxt:14 is the in-repo
+    precedent for backend "onnxruntime"; the probe's config must declare the
+    same backend and KIND_GPU, and the ONNX it serves must be the
+    layer-compare's decomposed one — the raw export's InstanceNormalization
+    nodes are the graph ORT's builder chokes on in the first place."""
+    body = _lc_body(_code(script_text))
+    cfg = body[body.index("config.pbtxt") :]
+    cfg = cfg[: cfg.index("\n", cfg.index("backend"))]
+    assert 'backend: "onnxruntime"' in cfg, (
+        "the probe config is not the onnxruntime backend — the box's whole "
+        "point is serving the ONNX through Triton's ORT backend"
+    )
+    assert "KIND_GPU" in body, "the probe must run on the GPU (KIND_GPU), not CPU"
+    assert "decomp" in body or "layercompare" in body, (
+        "the probe must serve the DECOMPOSED onnx (the layer-compare's own "
+        "copy), not the raw export"
+    )
+
+
+def test_the_ort_probe_fetches_embeddings_and_the_stage_table_reads_them(script_text: str) -> None:
+    """A stage that serves and is never read is decoration; the box says "adds
+    a STAGE" — a measured leg. The probe runs its own container whose HTTP
+    port is NOT published to the host (the same topology as the served
+    Triton's 8000), so the embeddings are fetched from inside the container
+    (podman exec) over the same crop set, and the cosine table's stage list
+    gains that leg."""
+    body = _lc_body(_code(script_text))
+    probe_fetch = body[body.index("reid-ort") :]
+    assert "podman exec" in probe_fetch, (
+        "the probe's port is not published to the host; the embeddings must be "
+        "fetched from inside the container"
+    )
+    table = _heredoc(script_text, "cosine_table.py", "TABLE")
+    assert '"6"' in table or "'6'" in table, (
+        "the cosine table never reads the ORT probe's stage leg: the probe "
+        "would serve embeddings nothing measures"
+    )
+
+
+def test_the_ort_probe_stays_contained_and_never_blocks_the_table(script_text: str) -> None:
+    """The probe is box 2's LAST clause, "as a probe only" — it must not be a
+    hard dependency of the run the way the parity arm's gateway is. The
+    ruling-180 shape applies one frame up: a probe container that fails to
+    come up must leave its stage unknown (the table exits 2 — an incomplete
+    diagnostic cannot post clean) rather than abort the layercompare arm under
+    set -e before the layer report prints. The stage-probe leg that reads the
+    probe is '|| true'-contained and the layer report sits after it."""
+    body = _lc_body(_code(script_text))
+    # The probe's own container lines (its name is on every podman line that
+    # touches it) and the stage-6 readiness/teardown lines: each must carry
+    # its own containment. The container LAUNCH is -d || true; the readiness
+    # poll and the rm are inside the (not ready) branch, which returns 0; the
+    # stage-6 leg itself is run_stages' probe call, already '|| true'-shaped.
+    lines = [ln for ln in body.splitlines() if "ortprobe" in ln and "podman" in ln]
+    probe_lines = [ln for ln in body.splitlines() if "stage6-armed" in ln]
+    # Containment is per STATEMENT, not per line: a multi-line podman
+    # invocation carries '|| true' on its last line, and the exec poll sits
+    # inside the readiness branch whose failure path returns 0 with the rm
+    # itself contained. So group the physical lines into statements: a line
+    # ending in \\ continues the previous one; a continuation chain is
+    # contained iff its LAST line is.
+    stmts: list[str] = []
+    for ln in lines:
+        if stmts and stmts[-1].rstrip().endswith("\\"):
+            stmts[-1] = stmts[-1].rstrip() + " " + ln
+        else:
+            stmts.append(ln)
+    bare = [s for s in stmts if "|| true" not in s and "podman exec" not in s]
+    assert stmts and not bare, (
+        f"every podman statement naming the probe must be contained; bare: {bare}"
+    )
+    assert probe_lines, "the stage-6 leg was never armed"
+    report = body.index("layer_compare.py")
+    for ln in lines + probe_lines:
+        assert body.index(ln.strip()) < report, (
+            f"{ln.strip()!r} sits after the layer report — the probe must not "
+            "delay the box-1 deliverable"
+        )
