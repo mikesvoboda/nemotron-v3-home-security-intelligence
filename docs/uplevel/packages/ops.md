@@ -143,9 +143,10 @@ It may stay open past Phase 2's exit (UR-10, contract rule 5).
 - [ ] Keep `B2.2`'s provenance and model-ID behaviour unchanged; `test_reid_path_parity.py` stays
       green in CI.
 
-**Done when:** the owner's host run (`B2.2`'s command, #6970) prints `RESULT: PASS` on the GB300
-host with OSNet-AIN at the PR's head, posted on the PR; the row reads `awaiting real tier` until
-then. It does not flip `REID_BACKEND`; production stays `local`.
+**Done when:** O2.4 passes as UR-85 says: `[r312a]`'s second run reads every plan stage at or above
+0.999 on all 36 crops on the image `main` serves, posted on `[r312a]`'s PR (ruling 312 point 4).
+`[r252]`'s run was spent without a pass (#7238 `6327606735`). The row reads `awaiting real tier`
+until then. It does not flip `REID_BACKEND`; production stays `local`.
 
 ### O2.5 Production-shape real tier
 
@@ -1595,26 +1596,96 @@ stage at or above 0.999; and the UR-89 review approves.
 
 **Flags:** `heavy`, `owner` (it changes what ships, UR-98); label `cell:heavy-b`. **Assigned:**
 heavy-b, after `O3.7`, ahead of `[r307a]` and `B4.6` (ruling 312). **Depends on:** none.
-**PR:** none yet. (ruling 312, records 6329693164 and 6331303299)
+**PR:** #7343. (ruling 312, records 6329693164 and 6331303299)
 
 UR-187 starts here: the gateway built on `nvcr.io/nvidia/tritonserver:26.01-py3`
 (`ai/gateway/Dockerfile:1`), on which ONNX Runtime's CUDA execution provider had failed on the GB300
 (ruling 106).
 
-- [ ] An inventory of the AI stack's pinned components, each with its pinned version, its latest
+- [x] An inventory of the AI stack's pinned components, each with its pinned version, its latest
       supported release for the GB300 and the host driver, and its source, in the PR body; it is
-      the list UR-187 tracks.
-- [ ] The gateway's Triton image moves to the latest supported release; every model it serves is
+      the list UR-187 tracks. #7343's body, section 1.
+- [x] The gateway's Triton image moves to the latest supported release; every model it serves is
       rebuilt for it (plans and engines on the serving host, as today), and the tests pinning
-      `26.01-py3` follow.
-- [ ] Any further component the inventory shows behind is upgraded in the PR or named as its own
-      follow-up package.
+      `26.01-py3` follow. #7343 moved it to `26.09-py3` (Triton 2.73.0, TensorRT 11.3).
+- [x] Any further component the inventory shows behind is upgraded in the PR or named as its own
+      follow-up package. The two it named are `[r314a]` and `[r314b]` (ruling 314).
 - [x] If the release needs a newer host driver than the owner's host runs, the PR stops there and
       puts the driver step to the owner; changing the host is the owner's act. It needs none: the
       operator's run at `f1e7fa50c` served every model on `26.09-py3` through the image's
-      forward-compatibility libraries (run 39702868586, operator `6330800872`, review
-      `6330317376`; ruling 312's amendment, record 6331303299).
+      forward-compatibility libraries (CI run 39702868586, operator `6330800872`, review
+      `6330317376`; ruling 312's amendment, record 6331303299). NVIDIA documents that path, a
+      newer CUDA on an older data-center driver through the `cuda-compat` libraries, in "CUDA
+      Compatibility" (https://docs.nvidia.com/deploy/cuda-compatibility/).
 
 **Done when:** CI is green; the operator's real-tier run on the GB300 shows every served model
 loading and answering; and the UR-89 and UR-95 reviews approve. Re-ID's parity read on the new image
 is `[r312a]`'s second run and O2.4's, not this package's (the amendment, record 6331303299).
+
+### [r313] The npm audit checker fails closed on a failed audit
+
+**Flags:** `owner` (a security check that `CI Gate (Required Checks)` runs, UR-98, as `[r291]`).
+**Assigned:** ops-a (ruling 313's correction). **Depends on:** none.
+**PR:** #7348. (ruling 313, records 6332025973 and 6332789646)
+
+On 2026-10-22 at 02:57Z `main`'s full dependency audit read GHSA-vfj7-8cjw-p6xm (`braces`) as a
+stale exemption. Ruling 313 first routed the entry's removal. Its correction replaced that: the
+step had run five minutes, npm's `fetch-timeout`, and `run_audit()` read npm's error object as an
+audit with no findings. The finding was current, so the entry stays. In the gate's delta mode the
+same flaw failed open: a timed-out audit of the change's own tree read "none added by the change".
+
+- [x] `run_audit()` treats a payload with no `auditReportVersion`, or with an `error` key, as a
+      failed audit and exits 1 with npm's message, on the registry check and on both sides of the
+      gate's delta (#7348).
+- [x] It retries only that shape, at most twice, never a parsed report (#7348).
+- [x] Tests on the reproduced timeout payload, red first (UR-69), cover each path (#7348).
+- [x] The PR body says whether a failed `pip-audit` can reach its checker as an empty report. It
+      cannot: pip-audit writes nothing to stdout on an error, and `load_audit()` exits 1 on that.
+
+**Done when:** the PR's gate and a `workflow_dispatch` full dependency audit on its branch are
+green, the review approves, and the delegated approval is posted. CI run 39724646879, dispatch run
+39725520649, review `6333277172`, approval `6333563511`; #7348 merged 2026-10-22 at 06:07Z.
+
+### [r314a] `ai-vlm` on its latest supported CUDA base and `llama.cpp` release
+
+**Flags:** `heavy`, `owner` (it changes what ships, UR-98); label `cell:heavy-b`. **Assigned:**
+heavy-b, after `B4.6`'s real-tier revision (ruling 314). **Depends on:** none to build; it merges
+only after both `O2.5` runs are posted.
+**PR:** none yet. (ruling 314, record 6342032031)
+
+UR-187's first follow-up, named in #7343's inventory. `ai/vlm/Dockerfile` builds on
+`docker.io/nvidia/cuda:13.3.1-devel-ubuntu22.04` and `13.3.1-runtime-ubuntu22.04` (`:19`, `:86`)
+with `llama.cpp` at `b7972` (`:46`); the inventory found `13.4.3` and `b11803`. #7343 held it out
+because `O2.5`'s runs use the retained `ai-vlm:c61a573d1` image, which `ai/vlm`'s tree tags.
+
+- [ ] The builder and runtime bases move to the latest `nvidia/cuda` release that runs on the GB300
+      on the host's driver: Ubuntu 24.04 if it runs, 22.04 if not, and the PR says which and why.
+      If the release needs a newer host driver, the PR stops there and puts the driver step to the
+      owner; changing the host is the owner's act.
+- [ ] `LLAMA_CPP_REF` moves to the latest release tag at build time, still built for `sm_103`.
+- [ ] Tests and docs that pin the old tags or ref follow, the docs lane's files in the same PR, as
+      #7343's were (UR-9, UR-81).
+- [ ] It merges only after both `O2.5` runs are posted, unless the owner lifts the hold. Building,
+      the review and the operator's run do not wait on it.
+
+**Done when:** CI is green; the UR-89 and UR-95 reviews approve; the operator's GB300 run builds the
+image `--no-cache`, loads the VLM model production serves in `llama-server` and has it answer one
+image-and-text request through the backend's client path, posting tokens per second and peak GPU
+memory beside the current image's on the same request (no bar is set; the review and the owner read
+the two); and the delegated approval (ruling 281) is posted.
+
+### [r314b] The synthbench renderer on its latest supported base
+
+**Flags:** `heavy`; label `cell:heavy-b`. **Assigned:** heavy-b, after `[r314a]` (ruling 314); a
+gated item that becomes claimable goes ahead of it. **Depends on:** none.
+**PR:** none yet. (ruling 314, record 6342032031)
+
+UR-187's second follow-up, named in #7343's inventory. It is lane tier: synthbench does not ship.
+
+- [ ] `synthbench/generate/comfy/Containerfile:3` moves from `nvcr.io/nvidia/pytorch:26.08-py3` to
+      the latest supported release (the inventory found `26.09-py3`), and `COMFYUI_REF` and
+      `TORCHAUDIO_REF` move to the latest releases that build on it.
+- [ ] Renders already made stay as they are; the change affects only later renders.
+
+**Done when:** CI is green, the UR-89 review approves, and the operator's GB300 run builds the image
+`--no-cache` and renders one frame of an existing scene.

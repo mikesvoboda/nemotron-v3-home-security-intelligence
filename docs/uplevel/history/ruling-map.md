@@ -325,6 +325,8 @@ package tagged `[rNNN]` is a fix that ruling NNN ordered.
 | 310    | #7336 (F-246's outbound webhooks) fixed inside `B4.2` (record 6327324775)                                   |
 | 311    | arming: `B4.7`, `B4.8`, `F4.5`, `[r311a]`, `[r311b]`; sensitivity leaves MQTT (record 6328311780)           |
 | 312    | UR-187; packages `[r312a]`, `[r312b]`; amended: #7343 merges on its smoke (records 6329693164, 6331303299)  |
+| 313    | package `[r313]`: the npm audit checker fails closed; corrected (records 6332025973, 6332789646)            |
+| 314    | packages `[r314a]`, `[r314b]`: UR-187's two follow-ups to heavy-b (record 6342032031)                       |
 
 ## Owner records
 
