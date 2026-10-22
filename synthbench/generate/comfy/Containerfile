@@ -1,8 +1,8 @@
 # synthbench ComfyUI renderer (spec §3.1). arm64 + sm_103 via the NGC PyTorch base.
 # Build: python -m synthbench.generate.comfy.serve build
-FROM nvcr.io/nvidia/pytorch:26.08-py3
+FROM nvcr.io/nvidia/pytorch:26.09-py3
 
-ARG COMFYUI_REF=v0.37.0
+ARG COMFYUI_REF=v0.42.1
 ENV PIP_DISABLE_PIP_VERSION_CHECK=1 \
     PYTHONUNBUFFERED=1
 
@@ -11,7 +11,7 @@ RUN git clone --depth 1 --branch "${COMFYUI_REF}" https://github.com/comfyanonym
 WORKDIR /opt/ComfyUI
 
 # Never let pip replace the base image's CUDA builds of torch & friends.
-# The base ships no torchaudio, yet v0.37.0 imports it at module level (comfy.sd,
+# The base ships no torchaudio, yet ComfyUI imports it at module level (comfy.sd,
 # the Gemma 4 text encoder, the LTX nodes). PyPI's aarch64 wheel is a CUDA 13.0
 # build that refuses the base's CUDA 13.4 torch, so torchaudio is compiled
 # against the base torch, then pinned with it for every later pip install.
