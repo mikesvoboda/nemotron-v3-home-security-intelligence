@@ -162,7 +162,7 @@ class AlertServiceResponse(BaseModel):
                 camera_id = None
             try:
                 data.camera_id = camera_id
-            except (AttributeError, TypeError):
+            except AttributeError, TypeError:
                 pass
         return data
 

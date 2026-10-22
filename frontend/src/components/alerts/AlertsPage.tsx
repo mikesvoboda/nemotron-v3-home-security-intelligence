@@ -8,7 +8,6 @@ import { FeatureErrorBoundary } from '../common/FeatureErrorBoundary';
 import SafeErrorMessage from '../common/SafeErrorMessage';
 import { AlertCardSkeleton } from '../common/skeletons';
 
-
 import type { AlertStatusFilter } from '../../hooks';
 import type { AlertServiceResponse } from '../../services/alertsApi';
 
