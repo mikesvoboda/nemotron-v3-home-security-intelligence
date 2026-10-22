@@ -309,8 +309,8 @@ def verify_detections(
 
         for img in test_images:
             # Run inference on both models
-            pt_results = pt_model(str(img), verbose=False)[0]
-            export_results = export_model(str(img), verbose=False)[0]
+            pt_results: Any = next(iter(pt_model(str(img), verbose=False)))
+            export_results: Any = next(iter(export_model(str(img), verbose=False)))
 
             # Compare detections
             pt_boxes = pt_results.boxes

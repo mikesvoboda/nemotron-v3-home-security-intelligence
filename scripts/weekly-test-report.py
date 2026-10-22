@@ -333,7 +333,7 @@ def generate_report(
     )
 
 
-def print_report(report: WeeklyReport):
+def print_report(report: WeeklyReport) -> None:
     """Print formatted report to stdout.
 
     Args:

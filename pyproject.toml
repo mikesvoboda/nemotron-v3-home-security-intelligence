@@ -338,6 +338,7 @@ exclude = ["vulture_whitelist.py", "mutants/"]
 # (ai/gateway/tests/test_py312_compat.py).
 "ai/gateway/**/*.py" = "py312"
 "ai/triton/**/*.py" = "py312"
+"scripts/**/*.py" = "py312"
 # The fake VLM, ruled 3.13-parseable by ruling 96 item 11 so the reachability
 # toolchain is not coupled to 3.14 (scripts/reachability.py ast.parses the whole
 # candidate tree with the HOST interpreter and catches no SyntaxError). It ships
@@ -535,6 +536,15 @@ ignore = [
     "S603",  # subprocess with a fixed argv list (podman/docker/nvidia-smi); never a shell
     "S607",  # those tools are resolved from PATH on purpose
 ]
+# Playwright's junit title separator is U+203A (`›`), not `>`.
+"scripts/uplevel/inventory_witness.py" = [
+    "RUF001",
+    "RUF002",
+    "RUF003",
+]
+"scripts/test_inventory_witness.py" = [
+    "RUF001",
+]
 
 [tool.ruff.format]
 quote-style = "double"
@@ -548,6 +558,8 @@ warn_return_any = true
 warn_unused_configs = true
 disallow_untyped_defs = true
 ignore_missing_imports = true
+explicit_package_bases = true
+exclude = ["^scripts/(?:audit/)?test_.*\\.py$"]
 plugins = ["pydantic.mypy"]
 
 [[tool.mypy.overrides]]

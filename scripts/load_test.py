@@ -66,19 +66,19 @@ GET_ENDPOINTS = [
 ]
 
 # POST endpoints that are safe to call
-POST_ENDPOINTS = [
+POST_ENDPOINTS: list[tuple[str, dict[str, object]]] = [
     ("/api/debug/memory/gc", {}),  # Trigger garbage collection
 ]
 
 
 class LoadStats:
-    def __init__(self):
+    def __init__(self) -> None:
         self.requests = 0
         self.errors = 0
         self.total_time = 0.0
         self.start_time = time.time()
 
-    def record(self, elapsed: float, error: bool = False):
+    def record(self, elapsed: float, error: bool = False) -> None:
         self.requests += 1
         self.total_time += elapsed
         if error:
@@ -100,7 +100,7 @@ async def make_request(
     endpoint: str,
     method: str = "GET",
     data: dict | None = None,
-):
+) -> None:
     """Make a single HTTP request and record stats."""
     start = time.time()
     try:
@@ -117,7 +117,7 @@ async def make_request(
 
 async def worker(
     client: httpx.AsyncClient, stats: LoadStats, stop_event: asyncio.Event, worker_id: int
-):
+) -> None:
     """Worker that continuously makes requests."""
     while not stop_event.is_set():
         # Randomly pick an endpoint (random module is fine for load testing - not security-sensitive)
@@ -167,14 +167,14 @@ def get_backend_memory_mb() -> float | None:
                         if line.startswith("VmRSS:"):
                             rss_kb = int(line.split()[1])
                             return rss_kb / 1024
-            except FileNotFoundError, ValueError, PermissionError:
+            except (FileNotFoundError, ValueError, PermissionError):
                 continue
 
     # Couldn't find process or read memory
     return None
 
 
-async def memory_monitor(stats: LoadStats, stop_event: asyncio.Event):
+async def memory_monitor(stats: LoadStats, stop_event: asyncio.Event) -> None:
     """Monitor and report memory usage periodically."""
     initial_memory = None
     while not stop_event.is_set():
@@ -197,7 +197,7 @@ async def memory_monitor(stats: LoadStats, stop_event: asyncio.Event):
         await asyncio.sleep(5)
 
 
-async def main(duration: int, concurrency: int):
+async def main(duration: int, concurrency: int) -> None:
     """Run the load test."""
     print(f"Starting load test: {concurrency} workers for {duration} seconds")
     print(f"Target: {BASE_URL}")

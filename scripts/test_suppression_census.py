@@ -410,16 +410,28 @@ GOLDEN_SHAPES = [
     ("test\n  .skip('chained fluent', async () => {});\n", 1, "chain rooted at test"),
     ("test.skip(!harness.ready, 'no stack');\n", 0, "condition first = guard, runs when false"),
     ("test.skip(a ? b : c, 'why');\n", 0, "ternary first = guard"),
-    ("test('t', async () => { test.info().skip(c, 'why'); });\n", 0, "runtime guard, not a registration"),
+    (
+        "test('t', async () => { test.info().skip(c, 'why'); });\n",
+        0,
+        "runtime guard, not a registration",
+    ),
     ("test\n  .info()\n  .skip(true, 'runtime');\n", 0, "chained runtime guard: root is .info()"),
     # The dangerous neighbour of the line above: same chain, but a STRING first
     # arg, which is the shape a walk-back that treats .info() as an ordinary
     # step miscounts as a registration (it reads the chain root back to `test`).
     # Kept at 0 by the .info() terminator, NOT by the guard rule, so this row
     # reddens if that terminator is ever dropped.
-    ("test\n  .info()\n  .skip('looks like a leg', 'runtime');\n", 0, "runtime .info() chain never a registration"),
+    (
+        "test\n  .info()\n  .skip('looks like a leg', 'runtime');\n",
+        0,
+        "runtime .info() chain never a registration",
+    ),
     ("fixtures\n  .skip('not a test', fn);\n", 0, "chain rooted at a receiver"),
-    ("const t = pick();\nt\n  .skip('unknown root', fn);\n", 0, "unresolvable root reads as not-ours"),
+    (
+        "const t = pick();\nt\n  .skip('unknown root', fn);\n",
+        0,
+        "unresolvable root reads as not-ours",
+    ),
     ("// test.skip('disabled in a comment', fn);\n", 0, "commented-out leg is prose"),
     (" * history: test.fixme('x', fn) was restored\n", 0, "jsdoc mention is prose"),
     ("// test.describe.skip('was disabled', () => {});\n", 0, "commented suite form stays prose"),
@@ -458,9 +470,7 @@ def test_golden_scans_registration_not_guards(tmp_path, src, want, why):
     assert found == want, f"{why}: {src!r} counted {found}, want {want}"
 
 
-@pytest.mark.parametrize(
-    "src,label", GOLDEN_REFUSALS, ids=[w for _, w in GOLDEN_REFUSALS]
-)
+@pytest.mark.parametrize("src,label", GOLDEN_REFUSALS, ids=[w for _, w in GOLDEN_REFUSALS])
 def test_golden_refuses_to_silently_undercount(tmp_path, src, label):
     """The dangerous direction is covered by failing loud, not by parsing deeper.
 
@@ -481,7 +491,9 @@ def test_golden_refuses_to_silently_undercount(tmp_path, src, label):
         check=False,
     )
     assert r.returncode != 0, f"{label}: census exited 0 and reported {r.stdout.strip()[-200:]}"
-    assert "shape.spec.ts" in r.stderr, f"{label}: failure does not name the file: {r.stderr[-300:]}"
+    assert "shape.spec.ts" in r.stderr, (
+        f"{label}: failure does not name the file: {r.stderr[-300:]}"
+    )
 
 
 def test_golden_scans_by_test_file_convention_not_one_suffix(tmp_path):
@@ -497,7 +509,9 @@ def test_golden_scans_by_test_file_convention_not_one_suffix(tmp_path):
     got = run_census(root)
     assert got["golden_fixme"] == EXPECTED["golden_fixme"] + 1, got
     ids = [r["id"] for r in run_locations(root)["golden_fixme"]]
-    assert any(r.endswith("renamed.test.ts::F-009 named .test.ts, still governed") for r in ids), ids
+    assert any(r.endswith("renamed.test.ts::F-009 named .test.ts, still governed") for r in ids), (
+        ids
+    )
     # and the count is INDEPENDENT of the suffix: drop the file, back to baseline
     spec.unlink()
     assert run_census(root)["golden_fixme"] == EXPECTED["golden_fixme"]
@@ -514,7 +528,9 @@ def test_golden_arm_is_inventory_not_just_a_tally(tmp_path):
             assert row["reason"], f"reason drives classification: {row}"
     # The e2e decoy must not leak into the golden arm (or vice versa): same
     # runner, opposite governance.
-    assert not any("e2e" in row["id"] for cat in ("golden_skip", "golden_fixme") for row in got[cat])
+    assert not any(
+        "e2e" in row["id"] for cat in ("golden_skip", "golden_fixme") for row in got[cat]
+    )
 
 
 def test_counts_only_move_with_the_suppression(tmp_path):
@@ -860,7 +876,7 @@ def test_real_tree_matches_spec_baselines():
         # to the 7 MEASURED breaches over 18 main junit datasets; the channel
         # is counted from here on and the ratchet's one-way rule owns it.
         # 7→8 (2026-09-23): license-plate household-matching test admitted with
-        # measured corpus breaches (4.18s ×2 #6667 head, 4.297s main junit;
+        # measured corpus breaches (4.18s x2 #6667 head, 4.297s main junit;
         # 1.20s solo → -n8 contention), registry entry same commit.
         # 8→9 (2026-10-06): r8-s2b full-tree import sweep admitted with measured
         # corpus breaches (4.40s PR #6826 head run 37560500061, 4.116s main

@@ -125,7 +125,7 @@ def build_tree(root: Path) -> None:
         "def test_only():\n"
         "    assert OnlyTestedError\n\n\n"
         "class TestRateLimitError:\n"
-        "    \"\"\"A collected test class, NOT an exception declaration.\"\"\"\n\n"
+        '    """A collected test class, NOT an exception declaration."""\n\n'
         "    def test_it(self):\n"
         "        assert True\n",
         encoding="utf-8",

@@ -108,7 +108,8 @@ class LinearClient:
         data = response.json()
         if "errors" in data:
             raise Exception(f"GraphQL errors: {data['errors']}")
-        return data["data"]
+        res_data: dict[Any, Any] = data["data"]
+        return res_data
 
     def get_all_issues(self, team_id: str) -> list[LinearTask]:
         """Fetch all issues from Linear for a team."""
@@ -270,7 +271,8 @@ def close_issues_in_batches(
             linear_id = r.linear_task.identifier if r.linear_task else "N/A"
 
             try:
-                reason = f"Matched to {linear_id} (status: {r.linear_task.status})"
+                status_str = r.linear_task.status if r.linear_task else "unknown"
+                reason = f"Matched to {linear_id} (status: {status_str})"
                 close_github_issue(issue_num, reason, rate_limit)
                 closed += 1
                 print(f"  [{closed}/{total}] Closed #{issue_num} -> {linear_id}")

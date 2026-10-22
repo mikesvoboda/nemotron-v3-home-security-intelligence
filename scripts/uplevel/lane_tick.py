@@ -33,6 +33,7 @@ import sys
 from collections.abc import Callable, Sequence
 from datetime import timedelta
 from pathlib import Path
+from typing import Any
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 import coordinator_snapshot as snap  # sibling: the shared readers, helpers and the one runner
@@ -116,15 +117,15 @@ class LaneSnap(snap.Snapshot):
     rollup is remembered, because ``arm auto-merge`` asks whether the gate's run was a draft run.
     ``_comments`` is kept because it sets ``self.now``, which ``_binding_now``/``_heartbeats`` read."""
 
-    def __init__(self, *args, **kwargs) -> None:
+    def __init__(self, *args: Any, **kwargs: Any) -> None:
         super().__init__(*args, **kwargs)
-        self.rollups: dict[int, list[dict]] = {}
+        self.rollups: dict[int, list[dict[str, Any]]] = {}
 
-    def _review(self, item: dict) -> None:
+    def _review(self, item: dict[str, Any]) -> None:
         """The coordinator's verdict read over every PR; ``build`` reads it for mine (``judge``)."""
 
-    def _rollup(self, pr: dict, errors: list[str]) -> list[dict]:
-        rollup = super()._rollup(pr, errors)
+    def _rollup(self, pr: dict[str, Any], errors: list[str]) -> list[dict[str, Any]]:
+        rollup: list[dict[str, Any]] = super()._rollup(pr, errors)
         self.rollups[pr["number"]] = rollup
         return rollup
 
@@ -145,7 +146,7 @@ class LaneSnap(snap.Snapshot):
 # --- the lane's own readings -----------------------------------------------------------------
 
 
-def identities(roster: str, sandbox: str) -> dict[str, str]:
+def identities(roster: str, sandbox: str) -> dict[str, Any]:
     """My lane/cell/review-label and my queue, from the roster row keyed by the sandbox name.
 
     Every agent signs with the owner's login (UR-168), so the roster row -- not the author -- is
@@ -215,7 +216,7 @@ def records_for(me: str, binding: list[dict], owner: list[dict]) -> list[str]:
     return out
 
 
-def pointer_window(now, beat):
+def pointer_window(now: Any, beat: Any) -> Any:
     """Where the pointer read starts: ``POINTER_FLOOR`` before my beat (before now, with no beat),
     never further back than a record lives (``BINDING_LIFE``).
 
@@ -231,7 +232,7 @@ def pointer_window(now, beat):
     return max(start, now - snap.BINDING_LIFE)
 
 
-def pointers_for(me: str, comments: list[dict], start) -> list[str]:
+def pointers_for(me: str, comments: list[dict[str, Any]], start: Any) -> list[str]:
     """``for you:`` per owner pointer naming me, posted after ``start`` (``pointer_window``).
 
     GitHub's ``since`` filters by update time, so the posting time is checked here, as
@@ -251,7 +252,7 @@ def pointers_for(me: str, comments: list[dict], start) -> list[str]:
     return out
 
 
-def my_beat(items, sandbox: str) -> dict | None:
+def my_beat(items: Any, sandbox: str) -> dict[str, Any] | None:
     """My heartbeat row among ``items`` (each with ``agent`` and ``updated_at``): freshest, by identity.
 
     Matched by AGENT IDENTITY (``agent_key``), not by the string an agent happened to pass:
@@ -369,7 +370,7 @@ def review_marker(s: snap.Snapshot, p: dict, reviews: list[dict]) -> str:
     return ""
 
 
-def raises_urgent(record: dict, now) -> bool:
+def raises_urgent(record: dict[str, Any], now: Any) -> bool:
     """A live UR-162 raise on #6854 -- a RAISE, not a close.
 
     Measured live: closes begin ``**URGENT PATH closed — coordinator stale`` and share the first
@@ -536,14 +537,14 @@ def next_claimable(
     return None
 
 
-def behind(run, repo: str, number: int) -> str:
+def behind(run: Any, repo: str, number: int) -> str:
     """Commits ``origin/main`` has that this head lacks -- the number a rebase decision needs.
 
     The reversed range (``head..origin/main``) counts the head's own work ahead of main, which is a
     different number and the wrong one here.
     """
-    return run(
-        ["git", "rev-list", "--count", f"refs/remotes/origin/pr/{number}..origin/main"]
+    return str(
+        run(["git", "rev-list", "--count", f"refs/remotes/origin/pr/{number}..origin/main"])
     ).strip()
 
 
@@ -611,8 +612,9 @@ def build(
             extra.append(f"  ERROR {tag}: {snap.error_text(exc)}")
             return None
 
-    def api(path: str, tag: str) -> list:
-        return snap.parse_json_stream(call(["gh", "api", path, "--paginate"], tag) or "")
+    def api(path: str, tag: str) -> list[Any]:
+        res: list[Any] = snap.parse_json_stream(call(["gh", "api", path, "--paginate"], tag) or "")
+        return res
 
     def show(path: str, tag: str) -> str:
         return call(["git", "show", path], tag) or ""
@@ -713,7 +715,7 @@ def build(
     def gate(p: dict) -> str:
         """The gate's verdict, named by its in-flight jobs when it is still running."""
         if p["gate"] != "IN_PROGRESS" or not p.get("gate_run"):
-            return p["gate"]
+            return str(p["gate"])
         rows = api(f"repos/{repo}/actions/runs/{p['gate_run']}/jobs?per_page=100", "jobs")
         jobs = rows[0].get("jobs", []) if rows and isinstance(rows[0], dict) else []
         # The gate is a leg of its OWN run, so it is never the thing a lane is waiting on.
@@ -722,7 +724,7 @@ def build(
             for j in jobs
             if j.get("status") != "completed" and j.get("name") != snap.GATE_CHECK
         )
-        return f"IN_PROGRESS({snap.truncate(running, 60)})" if running else p["gate"]
+        return f"IN_PROGRESS({snap.truncate(running, 60)})" if running else str(p["gate"])
 
     def row(p: dict, tail: str = "") -> str:
         errs = "".join(f" ERROR {e}" for e in p.get("errors", []))
@@ -791,19 +793,14 @@ def build(
     # the digest should then offer the next claimable package -- not instead of the hold line, which
     # stays true, but beside it, naming the ruling the way the hold line names UR-52.
     held = held_claims(pkgs, mine)
-    all_waiting = all(
-        waiting_its_turn(s, p, reviews_of.get(p["number"], [])) for p in mine
-    )
+    all_waiting = all(waiting_its_turn(s, p, reviews_of.get(p["number"], [])) for p in mine)
     if held and all_waiting and len(held) < 2:
         names = ", ".join(f"[{t}]" for t in held)
         out.append(f"  holding open claim: {names} (waiting its merge turn, ruling 269)")
         if nxt := next_claimable(pkgs, ids["queue"], mine, readme=read_me):
             token, box = nxt if isinstance(nxt, tuple) else (nxt, None)
             tail = " (ruling 269: your open PR waits its merge turn)"
-            out.append(
-                f"  next claimable: {token}{tail}"
-                + (f" -- open box: {box}" if box else "")
-            )
+            out.append(f"  next claimable: {token}{tail}" + (f" -- open box: {box}" if box else ""))
     elif held:
         names = ", ".join(f"[{t}]" for t in held)
         out.append(

@@ -34,6 +34,7 @@ import re
 import sys
 import time
 from pathlib import Path
+from typing import Any
 
 _LOG = logging.getLogger("vss-eval-media")
 # Transient upstream failures (throttling, blips) are the norm on a run that
@@ -56,11 +57,13 @@ PACE_SECONDS = 0.5
 # fingerprint on identical requests (verified 2026-09-24: curl/urllib/requests
 # all 200, httpx 403 with any UA); requests is only a transitive dep here, so
 # urllib is the zero-new-dependency choice.
-import urllib.error
-import urllib.parse
-import urllib.request
+import urllib.error  # noqa: E402
+import urllib.parse  # noqa: E402
+import urllib.request  # noqa: E402
 
 API = "https://commons.wikimedia.org/w/api.php"
+
+
 def _license_ok(low: str) -> bool:
     """Case-folded license short name -> free-culture enough to ship?
     (G0 close-out audit #19.) The old substring marks admitted `CC BY-NC 4.0`
@@ -77,23 +80,64 @@ def _license_ok(low: str) -> bool:
         or "public domain" in low
         or re.search(r"\bpd\b|\bpd-|\bpdm\b", low)
     )
+
+
 UA = "vss-eval-media/1.0 (synthetic eval corpus; contact: repo owner)"
 
 # One or more Commons searches per scenario (spec 5's 13). Queries name the
 # SCENE, not a gore wish-list: what a doorbell camera plausibly frames.
 SCENARIO_QUERIES: dict[str, list[str]] = {
-    "delivery_driver": ["delivery driver package porch", "courier handing package", "delivery van driveway"],
+    "delivery_driver": [
+        "delivery driver package porch",
+        "courier handing package",
+        "delivery van driveway",
+    ],
     "pet_activity": ["dog in backyard", "cat on porch", "dog running lawn"],
-    "resident_arrival": ["person unlocking front door", "person walking to house entrance", "car arriving driveway garage"],
-    "vehicle_parking": ["car parked driveway house", "vehicle parked residential street", "minivan driveway"],
-    "yard_maintenance": ["lawn mowing residential", "gardening backyard", "person raking leaves yard", "pressure washing driveway"],
-    "casing": ["person photographing house", "person looking at house from street", "suspicious person notebook neighborhood"],
+    "resident_arrival": [
+        "person unlocking front door",
+        "person walking to house entrance",
+        "car arriving driveway garage",
+    ],
+    "vehicle_parking": [
+        "car parked driveway house",
+        "vehicle parked residential street",
+        "minivan driveway",
+    ],
+    "yard_maintenance": [
+        "lawn mowing residential",
+        "gardening backyard",
+        "person raking leaves yard",
+        "pressure washing driveway",
+    ],
+    "casing": [
+        "person photographing house",
+        "person looking at house from street",
+        "suspicious person notebook neighborhood",
+    ],
     "loitering": ["person standing street night", "person sitting porch alone", "loiterer"],
-    "prowling": ["person walking yard night", "flashlight backyard night", "person between houses fence"],
+    "prowling": [
+        "person walking yard night",
+        "flashlight backyard night",
+        "person between houses fence",
+    ],
     "tailgating": ["car following car gate", "vehicle behind vehicle driveway gate", "tailgating"],
-    "break_in_attempt": ["crowbar door", "broken window glass door", "forced entry door", "person climbing window"],
-    "package_theft": ["person carrying away package porch", "stolen delivery box street", "person taking parcel"],
-    "vandalism": ["graffiti house wall", "broken window vandalism", "spray paint wall", "damaged car residential"],
+    "break_in_attempt": [
+        "crowbar door",
+        "broken window glass door",
+        "forced entry door",
+        "person climbing window",
+    ],
+    "package_theft": [
+        "person carrying away package porch",
+        "stolen delivery box street",
+        "person taking parcel",
+    ],
+    "vandalism": [
+        "graffiti house wall",
+        "broken window vandalism",
+        "spray paint wall",
+        "damaged car residential",
+    ],
     "weapon_visible": ["knife on table", "handgun case", "baseball bat grip", "crowbar held hand"],
 }
 
@@ -186,20 +230,32 @@ class _AllowListRedirectHandler(urllib.request.HTTPRedirectHandler):
     unchecked. Commons itself redirects (Special:FilePath -> upload.wikimedia),
     so hops are revalidated, not forbidden."""
 
-    def redirect_request(self, req, fp, code, msg, headers, newurl):  # noqa: D102
+    def redirect_request(  # type: ignore[override]
+        self,
+        req: urllib.request.Request,
+        fp: object,
+        code: int,
+        msg: str,
+        headers: Any,
+        newurl: str,
+    ) -> urllib.request.Request | None:
         _assert_allowed(newurl)
-        return super().redirect_request(req, fp, code, msg, headers, newurl)
+        return super().redirect_request(req, fp, code, msg, headers, newurl)  # type: ignore[arg-type]
 
 
 _OPENER = urllib.request.build_opener(_AllowListRedirectHandler)
 
 
 def _get(url: str, params: dict[str, str] | None = None) -> bytes:
-    full = f"{_assert_allowed(url)}?{urllib.parse.urlencode(params)}" if params else _assert_allowed(url)
-    req = urllib.request.Request(full, headers={"User-Agent": UA})
+    full = (
+        f"{_assert_allowed(url)}?{urllib.parse.urlencode(params)}"
+        if params
+        else _assert_allowed(url)
+    )
+    req = urllib.request.Request(full, headers={"User-Agent": UA})  # noqa: S310
     # nosemgrep: ssrf-requests - every hop passes _assert_allowed via _OPENER's
     # redirect handler (tests pin off-list + plain-http hops and the opener wiring)
-    with _OPENER.open(req, timeout=30) as resp:  # noqa: S310 - allow-listed per hop
+    with _OPENER.open(req, timeout=30) as resp:
         time.sleep(PACE_SECONDS)  # gentle on the keyless API, every request
         # Bound the read at MAX_BYTES (G0 close-out audit #20): the 4 MB size
         # filter ran AFTER resp.read(), so a thumburl-less fallback to a
@@ -207,7 +263,7 @@ def _get(url: str, params: dict[str, str] | None = None) -> bytes:
         # byte over the cap; `fetch_scenario`'s size check then rejects it.
         # Search bodies are small JSON; the +1 headroom only matters for the
         # frame path, where the size filter rejects anything over MAX_BYTES.
-        return resp.read(MAX_BYTES + 1)
+        return bytes(resp.read(MAX_BYTES + 1))
 
 
 def _get_with_retry(url: str, params: dict[str, str] | None = None) -> bytes:
@@ -306,7 +362,8 @@ def _manifest_entry(jpg: Path) -> dict:
     never hidden)."""
     sidecar = jpg.with_suffix(".json")
     try:
-        return json.loads(sidecar.read_text())
+        data: dict[Any, Any] = json.loads(sidecar.read_text())
+        return data
     except (OSError, json.JSONDecodeError):
         return {"file": str(jpg), "attribution": "MISSING"}
 

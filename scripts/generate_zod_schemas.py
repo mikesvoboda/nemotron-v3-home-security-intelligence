@@ -821,7 +821,7 @@ class ZodSchemaGenerator:
 
     def _get_constraints(self, field: FieldInfo) -> list[str]:
         """Get constraint method calls for a field."""
-        constraints = []
+        constraints: list[str] = []
 
         # Don't add constraints to z.unknown() - they won't work
         if field.zod_type == "z.unknown()":

@@ -24,7 +24,7 @@ from pathlib import Path
 REPO_ROOT = Path(__file__).resolve().parents[2]
 SCRIPT = REPO_ROOT / "scripts" / "audit" / "literal_groups.py"
 
-FIXTURE = '''\
+FIXTURE = """\
 import pytest
 
 
@@ -70,7 +70,7 @@ def test_mod_b():
 
 def test_mod_c():
     assert top("z")
-'''
+"""
 
 
 def build_tree(root: Path) -> None:
@@ -93,9 +93,7 @@ def run_script(tree: Path, extra: list[str] = ()) -> dict:
 def test_fixture_groups(tmp_path: Path):
     build_tree(tmp_path)
     result = run_script(tmp_path)
-    groups = {
-        (g["class"], tuple(g["members"])): g for g in result["groups_detail"]
-    }
+    groups = {(g["class"], tuple(g["members"])): g for g in result["groups_detail"]}
     # the 3-method literal cluster, excluding the different-call method
     dupes = [g for (cls, _), g in groups.items() if cls == "TestSmallDupes"]
     assert len(dupes) == 1 and dupes[0]["size"] == 3
@@ -149,13 +147,13 @@ def test_installed_packages_are_not_scanned(tmp_path: Path):
     vendored.mkdir(parents=True)
     vendored.joinpath("test_vendor.py").write_text(FIXTURE, encoding="utf-8")
     (tmp_path / "node_modules" / "pkg").mkdir(parents=True)
-    (tmp_path / "node_modules" / "pkg" / "test_js.py").write_text(
-        FIXTURE, encoding="utf-8"
-    )
+    (tmp_path / "node_modules" / "pkg" / "test_js.py").write_text(FIXTURE, encoding="utf-8")
     result = run_script(tmp_path)
     assert result["groups"] == 3  # the fixture tree's trio count, unchanged
     assert result["files"] == 1
-    assert not any(".venv" in g["file"] or "node_modules" in g["file"] for g in result["groups_detail"])
+    assert not any(
+        ".venv" in g["file"] or "node_modules" in g["file"] for g in result["groups_detail"]
+    )
 
 
 def test_parse_failure_is_loud(tmp_path: Path):
