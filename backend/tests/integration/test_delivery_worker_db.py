@@ -12,7 +12,6 @@ from datetime import UTC, datetime, timedelta
 from typing import Any
 from uuid import uuid7
 
-import pytest
 import pytest_asyncio
 from sqlalchemy import text
 from sqlalchemy.ext.asyncio import async_sessionmaker, create_async_engine
@@ -166,7 +165,7 @@ async def test_two_workers_never_claim_the_same_row(session_factory, clean_deliv
     got2 = await w2.process_ready()
     # No overlap: every row claimed exactly once across the two workers.
     assert got1 + got2 == 6
-    claimed = [c for c in channel.calls]
+    claimed = list(channel.calls)
     assert len(claimed) == 6
 
 
@@ -179,7 +178,9 @@ async def test_sent_delivery_records_status_and_sent_at(session_factory, clean_d
     async with session_factory() as session:
         row = (
             await session.execute(
-                text("SELECT status, sent_at, attempts FROM notification_deliveries WHERE id = :id"),
+                text(
+                    "SELECT status, sent_at, attempts FROM notification_deliveries WHERE id = :id"
+                ),
                 {"id": seed["delivery_id"]},
             )
         ).one()
@@ -194,7 +195,9 @@ async def test_failure_schedules_backoff_then_fails(session_factory, clean_deliv
 
     seed = await _seed_delivery(session_factory)
     w = NotificationDeliveryWorker(
-        session_factory, {"email": _fake_channel(result_success=False, error="boom")}, poll_interval=9999
+        session_factory,
+        {"email": _fake_channel(result_success=False, error="boom")},
+        poll_interval=9999,
     )
     clock = datetime(2026, 10, 22, 12, 0, 0, tzinfo=UTC)
 

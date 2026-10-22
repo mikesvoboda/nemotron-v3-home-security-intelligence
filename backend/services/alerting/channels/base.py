@@ -38,6 +38,9 @@ class DeliveryTask:
     idempotency_key: str
     payload: dict[str, Any]
     include_names: bool
+    # Gallery names for F13 redaction, resolved per alert at claim time; the
+    # payload builder redacts against this set unless include_names is on.
+    known_names: set[str] = field(default_factory=set)
     on_local_network: bool = False
     target: str = ""
     signing_secret: str | None = None  # plaintext, resolved at send time only
@@ -53,7 +56,7 @@ class Channel(ABC):
     async def send(self, task: DeliveryTask) -> SendResult:
         """Send one delivery. No DB access; returns the outcome for the worker to record."""
 
-    def close(self) -> None:
+    def close(self) -> None:  # noqa: B027 — optional teardown; not every adapter holds a client
         """Release resources (HTTP clients). Default: nothing to close."""
 
 

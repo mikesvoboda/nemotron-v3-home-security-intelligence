@@ -31,7 +31,9 @@ def build_message(
     """Build the email for one delivery. HTML-escaped body (F13)."""
     payload = task.payload
     msg = EmailMessage()
-    msg["Subject"] = f"[{str(payload.get('severity', '')).upper()}] {payload.get('title', 'Security alert')}"
+    msg["Subject"] = (
+        f"[{str(payload.get('severity', '')).upper()}] {payload.get('title', 'Security alert')}"
+    )
     msg["From"] = smtp_from
     msg["To"] = task.target
     # Message-ID is the idempotency key: re-sends are dedupable end to end.
@@ -47,7 +49,7 @@ def build_message(
         f"<p><strong>Severity:</strong> {severity} &nbsp; <strong>Camera:</strong> {camera}</p>"
         f"<p>{summary}</p>"
         + (f'<p><a href="{escape_html(link)}">View in dashboard</a></p>' if link else "")
-        + f"</body></html>"
+        + "</body></html>"
     )
     msg.set_content(summary)
     msg.add_alternative(html_body, subtype="html")
@@ -59,7 +61,9 @@ class EmailChannel(Channel):
 
     kind = DeliveryChannelKind.EMAIL
 
-    def __init__(self, *, smtp_host: str, smtp_port: int, smtp_from: str, use_tls: bool = True) -> None:
+    def __init__(
+        self, *, smtp_host: str, smtp_port: int, smtp_from: str, use_tls: bool = True
+    ) -> None:
         self._smtp_host = smtp_host
         self._smtp_port = smtp_port
         self._smtp_from = smtp_from

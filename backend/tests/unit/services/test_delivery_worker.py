@@ -7,12 +7,9 @@ and skip without TEST_DATABASE_URL.
 
 from __future__ import annotations
 
-import os
-from datetime import UTC, datetime, timedelta
+from datetime import timedelta
 
-import pytest
-
-from backend.models.alert_delivery import DeliveryChannelKind, DeliveryStatus
+from backend.models.alert_delivery import DeliveryChannelKind
 from backend.services.alerting.worker import (
     BACKOFF_SECONDS,
     BROWSER_EXPIRE_AFTER,
@@ -38,8 +35,8 @@ class TestBackoffLadder:
         assert MAX_ATTEMPTS == 4
 
     def test_browser_ladder_constants(self) -> None:
-        assert BROWSER_REPUBLISH_AFTER == timedelta(seconds=15)
-        assert BROWSER_EXPIRE_AFTER == timedelta(minutes=5)
+        assert timedelta(seconds=15) == BROWSER_REPUBLISH_AFTER
+        assert timedelta(minutes=5) == BROWSER_EXPIRE_AFTER
 
 
 class _FakeChannel:
@@ -55,16 +52,18 @@ class _FakeChannel:
 
 
 def _worker(channel: object, **kw: object) -> NotificationDeliveryWorker:
-    from types import SimpleNamespace
 
     factory = kw.pop("session_factory", None)
     if factory is None:
+
         async def factory():  # type: ignore[misc]
             raise AssertionError("no DB in this test")
 
     channels = kw.pop("channels", {DeliveryChannelKind.EMAIL.value: channel})
     return NotificationDeliveryWorker(
-        factory, channels, **kw  # type: ignore[arg-type]
+        factory,
+        channels,
+        **kw,  # type: ignore[arg-type]
     )
 
 

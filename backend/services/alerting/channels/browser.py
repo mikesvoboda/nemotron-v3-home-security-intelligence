@@ -14,14 +14,22 @@ from __future__ import annotations
 
 from typing import Any, Protocol
 
+from backend.api.schemas.websocket import WebSocketAlertEventType
 from backend.models.alert_delivery import DeliveryChannelKind
 from backend.services.alerting.channels.base import Channel, DeliveryTask, SendResult
 
 
 class AlertBroadcaster(Protocol):
-    """The slice of EventBroadcaster the adapter needs."""
+    """The slice of EventBroadcaster the adapter needs.
 
-    async def broadcast_alert(self, alert_data: dict[str, Any], event_type: str) -> int:
+    ``event_type`` is a ``WebSocketAlertEventType`` member: EventBroadcaster
+    validates each alert payload against the schema for its event type, and
+    the republish pass re-broadcasts the same "created" shape.
+    """
+
+    async def broadcast_alert(
+        self, alert_data: dict[str, Any], event_type: WebSocketAlertEventType
+    ) -> int:
         """Broadcast an alert payload; returns the number of clients reached."""
         ...
 
@@ -36,7 +44,7 @@ class BrowserChannel(Channel):
 
     async def send(self, task: DeliveryTask) -> SendResult:
         reached = await self._broadcaster.broadcast_alert(
-            dict(task.payload), "alert_created"
+            dict(task.payload), WebSocketAlertEventType.ALERT_CREATED
         )
         if reached <= 0:
             # Nobody is listening — the row stays pending and the ladder retries.

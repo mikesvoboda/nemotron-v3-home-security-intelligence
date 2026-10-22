@@ -245,7 +245,9 @@ def resolve_hostname(hostname: str) -> list[str]:
         raise SSRFValidationError(f"Cannot resolve hostname '{hostname}': {e}") from e
 
 
-def _validate_ip_address(hostname: str, allow_dev_http: bool, allow_local_network: bool = False) -> bool:
+def _validate_ip_address(
+    hostname: str, allow_dev_http: bool, allow_local_network: bool = False
+) -> bool:
     """Check if hostname is an IP address and validate it.
 
     Args:
@@ -285,7 +287,9 @@ def _validate_ip_address(hostname: str, allow_dev_http: bool, allow_local_networ
     return True
 
 
-def _validate_scheme(scheme: str, hostname: str, allow_dev_http: bool, allow_local_network: bool = False) -> None:
+def _validate_scheme(
+    scheme: str, hostname: str, allow_dev_http: bool, allow_local_network: bool = False
+) -> None:
     """Validate URL scheme.
 
     Args:
@@ -312,7 +316,9 @@ def _validate_scheme(scheme: str, hostname: str, allow_dev_http: bool, allow_loc
         raise SSRFValidationError(f"URL scheme '{scheme}' is not allowed. Only HTTPS is permitted.")
 
 
-def _validate_resolved_ips(hostname: str, resolved_ips: list[str], allow_dev_http: bool, allow_local_network: bool = False) -> None:
+def _validate_resolved_ips(
+    hostname: str, resolved_ips: list[str], allow_dev_http: bool, allow_local_network: bool = False
+) -> None:
     """Validate resolved IP addresses.
 
     Args:
@@ -434,7 +440,9 @@ def validate_webhook_url(
     return url
 
 
-def _resolve_and_validate_dns(hostname: str, allow_dev_http: bool, allow_local_network: bool = False) -> None:
+def _resolve_and_validate_dns(
+    hostname: str, allow_dev_http: bool, allow_local_network: bool = False
+) -> None:
     """Resolve DNS and validate resolved IPs.
 
     Args:

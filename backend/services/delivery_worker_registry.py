@@ -19,7 +19,7 @@ _worker: NotificationDeliveryWorker | None = None
 
 def set_delivery_worker(worker: NotificationDeliveryWorker) -> None:
     """Register the running worker (main lifespan calls this once)."""
-    global _worker
+    global _worker  # noqa: PLW0603 — module singleton is the point of this registry
     _worker = worker
 
 
@@ -37,5 +37,5 @@ def wake_delivery_worker() -> None:
 
 def reset_delivery_worker() -> None:
     """Clear the registration (shutdown / tests)."""
-    global _worker
+    global _worker  # noqa: PLW0603 — module singleton is the point of this registry
     _worker = None

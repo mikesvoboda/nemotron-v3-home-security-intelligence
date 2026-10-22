@@ -9,8 +9,6 @@ from __future__ import annotations
 
 from types import SimpleNamespace
 
-import pytest
-
 from backend.services.alerting.wiring import (
     household_timezone,
     load_recipients_with_channels,

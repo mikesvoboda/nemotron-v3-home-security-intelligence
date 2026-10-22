@@ -125,7 +125,9 @@ class WebhookChannel(Channel):
             "X-Delivery-Idempotency-Key": task.idempotency_key,
         }
         if task.signing_secret:
-            headers["X-Webhook-Signature"] = f"sha256={sign_payload(task.payload, task.signing_secret)}"
+            headers["X-Webhook-Signature"] = (
+                f"sha256={sign_payload(task.payload, task.signing_secret)}"
+            )
 
         parsed = urlparse(url)
         hostname = parsed.hostname or ""

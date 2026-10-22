@@ -93,9 +93,7 @@ def _normalise_planned(record: Any, now: datetime) -> dict[str, Any]:
             if getattr(record.channel_kind, "value", None)
             else record.channel_kind
         ),
-        "status": (
-            record.status.value if getattr(record.status, "value", None) else record.status
-        ),
+        "status": (record.status.value if getattr(record.status, "value", None) else record.status),
         "include_names": getattr(record, "include_names", False),
         "planned_at": now,
     }

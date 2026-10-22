@@ -38,7 +38,8 @@ def _fernet() -> Fernet:
 
 def encrypt_secret(plaintext: str) -> str:
     """Encrypt a plaintext secret into a storable Fernet token."""
-    return _fernet().encrypt(plaintext.encode("utf-8")).decode("utf-8")
+    token: bytes = _fernet().encrypt(plaintext.encode("utf-8"))
+    return token.decode("utf-8")
 
 
 def decrypt_secret(token: str) -> str:
@@ -49,7 +50,8 @@ def decrypt_secret(token: str) -> str:
             current master key (key rotated or ciphertext corrupted).
     """
     try:
-        return _fernet().decrypt(token.encode("utf-8")).decode("utf-8")
+        plain: bytes = _fernet().decrypt(token.encode("utf-8"))
+        return plain.decode("utf-8")
     except InvalidToken as exc:
         raise SecretBoxUnavailableError(
             "Stored secret does not decrypt under the current SECRETS_MASTER_KEY "

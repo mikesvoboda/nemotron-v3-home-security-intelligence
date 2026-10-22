@@ -17,6 +17,7 @@ Model notes:
 
 from datetime import datetime
 from enum import StrEnum
+from typing import TYPE_CHECKING
 from uuid import uuid7
 
 from sqlalchemy import (
@@ -37,6 +38,10 @@ from sqlalchemy.orm import Mapped, mapped_column, relationship
 from backend.core.time_utils import utc_now
 
 from .camera import Base
+
+if TYPE_CHECKING:
+    from .alert import Alert
+    from .notification_preferences import QuietHoursPeriod
 
 
 class DeliveryChannelKind(StrEnum):
@@ -87,9 +92,7 @@ class Recipient(Base):
     """
 
     __tablename__ = "recipients"
-    __table_args__ = (
-        UniqueConstraint("name", name="uq_recipients_name"),
-    )
+    __table_args__ = (UniqueConstraint("name", name="uq_recipients_name"),)
 
     id: Mapped[str] = mapped_column(
         UUID(as_uuid=False),
@@ -104,9 +107,7 @@ class Recipient(Base):
         ForeignKey("users.id", ondelete="SET NULL"),
         nullable=True,
     )
-    critical_breaks_quiet: Mapped[bool] = mapped_column(
-        Boolean, nullable=False, default=True
-    )
+    critical_breaks_quiet: Mapped[bool] = mapped_column(Boolean, nullable=False, default=True)
 
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), default=utc_now, nullable=False
@@ -115,10 +116,20 @@ class Recipient(Base):
         DateTime(timezone=True), default=utc_now, onupdate=utc_now, nullable=False
     )
 
-    channels: Mapped[list["RecipientChannel"]] = relationship(
+    channels: Mapped[list[RecipientChannel]] = relationship(
         back_populates="recipient",
         cascade="all, delete-orphan",
         passive_deletes=True,
+    )
+
+    # B4.2: the quiet-hours periods this recipient owns. The rows live in the
+    # pre-existing quiet_hours_periods table (the recorded upgrade added
+    # recipient_id there); loaded explicitly by the planner wiring rather than
+    # lazily through this relationship, which exists for API reads.
+    quiet_periods: Mapped[list[QuietHoursPeriod]] = relationship(
+        "QuietHoursPeriod",
+        primaryjoin="foreign(QuietHoursPeriod.recipient_id) == Recipient.id",
+        viewonly=True,
     )
 
 
@@ -179,9 +190,7 @@ class RecipientChannel(Base):
     include_names: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False)
     enabled: Mapped[bool] = mapped_column(Boolean, nullable=False, default=True)
 
-    last_success_at: Mapped[datetime | None] = mapped_column(
-        DateTime(timezone=True), nullable=True
-    )
+    last_success_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
     last_error: Mapped[str | None] = mapped_column(Text, nullable=True)
 
     signing_secret_encrypted: Mapped[str | None] = mapped_column(Text, nullable=True)
@@ -194,7 +203,7 @@ class RecipientChannel(Base):
         DateTime(timezone=True), default=utc_now, onupdate=utc_now, nullable=False
     )
 
-    recipient: Mapped["Recipient"] = relationship(back_populates="channels")
+    recipient: Mapped[Recipient] = relationship(back_populates="channels")
 
 
 class NotificationDelivery(Base):
@@ -223,8 +232,7 @@ class NotificationDelivery(Base):
     __tablename__ = "notification_deliveries"
     __table_args__ = (
         CheckConstraint(
-            "status IN ('pending','sent','broadcast','retrying','failed',"
-            "'suppressed','expired')",
+            "status IN ('pending','sent','broadcast','retrying','failed','suppressed','expired')",
             name="ck_notification_deliveries_status",
         ),
         CheckConstraint("attempts >= 0", name="ck_notification_deliveries_attempts"),
@@ -271,14 +279,10 @@ class NotificationDelivery(Base):
         default=DeliveryStatus.PENDING,
     )
     attempts: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
-    next_attempt_at: Mapped[datetime | None] = mapped_column(
-        DateTime(timezone=True), nullable=True
-    )
+    next_attempt_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
     last_error: Mapped[str | None] = mapped_column(Text, nullable=True)
     idempotency_key: Mapped[str] = mapped_column(String(255), nullable=False)
-    sent_at: Mapped[datetime | None] = mapped_column(
-        DateTime(timezone=True), nullable=True
-    )
+    sent_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
 
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), default=utc_now, nullable=False
@@ -287,6 +291,6 @@ class NotificationDelivery(Base):
         DateTime(timezone=True), default=utc_now, onupdate=utc_now, nullable=False
     )
 
-    alert: Mapped["Alert"] = relationship()
-    recipient: Mapped["Recipient"] = relationship()
-    channel: Mapped["RecipientChannel"] = relationship()
+    alert: Mapped[Alert] = relationship()
+    recipient: Mapped[Recipient] = relationship()
+    channel: Mapped[RecipientChannel] = relationship()

@@ -10,6 +10,7 @@ from __future__ import annotations
 import hashlib
 import hmac
 import json
+from types import MappingProxyType
 from typing import Any
 
 import pytest
@@ -68,10 +69,12 @@ class TestWebhookHeaders:
         import backend.services.alerting.channels.webhook as wh
 
         for mod in (uv, wh):
-            monkeypatch.setattr(mod, "resolve_hostname", lambda host: ["93.184.216.34"])
+            monkeypatch.setattr(mod, "resolve_hostname", lambda host: ["93.184.216.34"])  # noqa: ARG005
 
     @pytest.mark.asyncio
-    async def test_idempotency_and_signature_headers_present(self, monkeypatch: pytest.MonkeyPatch) -> None:
+    async def test_idempotency_and_signature_headers_present(
+        self, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
         """Headers are built before the request; capture them with a fake post."""
         captured: dict[str, Any] = {}
 
@@ -83,7 +86,7 @@ class TestWebhookHeaders:
             def __init__(self, *a: Any, **kw: Any) -> None:
                 pass
 
-            async def __aenter__(self) -> "FakeClient":
+            async def __aenter__(self) -> FakeClient:
                 return self
 
             async def __aexit__(self, *a: Any) -> None:
@@ -94,7 +97,9 @@ class TestWebhookHeaders:
                 captured["headers"] = headers
                 return FakeResponse()
 
-        monkeypatch.setattr("backend.services.alerting.channels.webhook.httpx.AsyncClient", FakeClient)
+        monkeypatch.setattr(
+            "backend.services.alerting.channels.webhook.httpx.AsyncClient", FakeClient
+        )
         channel = WebhookChannel()
         task = _task(signing_secret="ab" * 32)
         result = await channel.send(task)
@@ -114,7 +119,7 @@ class TestWebhookHeaders:
             def __init__(self, *a: Any, **kw: Any) -> None:
                 pass
 
-            async def __aenter__(self) -> "FakeClient":
+            async def __aenter__(self) -> FakeClient:
                 return self
 
             async def __aexit__(self, *a: Any) -> None:
@@ -123,7 +128,9 @@ class TestWebhookHeaders:
             async def post(self, url: str, json: Any = None, headers: Any = None) -> FakeResponse:
                 return FakeResponse()
 
-        monkeypatch.setattr("backend.services.alerting.channels.webhook.httpx.AsyncClient", FakeClient)
+        monkeypatch.setattr(
+            "backend.services.alerting.channels.webhook.httpx.AsyncClient", FakeClient
+        )
         channel = WebhookChannel()
         result = await channel.send(_task())
         assert result.success is False
@@ -152,7 +159,7 @@ class TestWebhookUrlPolicy:
             def __init__(self, *a: Any, **kw: Any) -> None:
                 captured["kw"] = kw
 
-            async def __aenter__(self) -> "FakeClient":
+            async def __aenter__(self) -> FakeClient:
                 return self
 
             async def __aexit__(self, *a: Any) -> None:
@@ -168,7 +175,7 @@ class TestWebhookUrlPolicy:
         import backend.services.alerting.channels.webhook as wh
 
         for mod in (uv, wh):
-            monkeypatch.setattr(mod, "resolve_hostname", lambda host: ["192.168.1.50"])
+            monkeypatch.setattr(mod, "resolve_hostname", lambda host: ["192.168.1.50"])  # noqa: ARG005
         channel = WebhookChannel()
         result = await channel.send(_task(target="http://192.168.1.50/hook", on_local_network=True))
         assert result.success is True
@@ -176,14 +183,18 @@ class TestWebhookUrlPolicy:
     @pytest.mark.asyncio
     async def test_metadata_blocked_even_with_flag(self) -> None:
         channel = WebhookChannel()
-        result = await channel.send(_task(target="http://169.254.169.254/latest/meta-data", on_local_network=True))
+        result = await channel.send(
+            _task(target="http://169.254.169.254/latest/meta-data", on_local_network=True)
+        )
         assert result.success is False
         assert result.error and result.error.startswith("url_policy")
 
     @pytest.mark.asyncio
     async def test_link_local_blocked_even_with_flag(self) -> None:
         channel = WebhookChannel()
-        result = await channel.send(_task(target="http://169.254.10.10/hook", on_local_network=True))
+        result = await channel.send(
+            _task(target="http://169.254.10.10/hook", on_local_network=True)
+        )
         assert result.success is False
 
     @pytest.mark.asyncio
@@ -196,7 +207,7 @@ class TestWebhookUrlPolicy:
             def __init__(self, *a: Any, **kw: Any) -> None:
                 pass
 
-            async def __aenter__(self) -> "FakeClient":
+            async def __aenter__(self) -> FakeClient:
                 return self
 
             async def __aexit__(self, *a: Any) -> None:
@@ -213,9 +224,11 @@ class TestWebhookUrlPolicy:
         import backend.services.alerting.channels.webhook as wh
 
         for mod in (uv, wh):
-            monkeypatch.setattr(mod, "resolve_hostname", lambda host: ["192.168.1.77"])
+            monkeypatch.setattr(mod, "resolve_hostname", lambda host: ["192.168.1.77"])  # noqa: ARG005
         channel = WebhookChannel()
-        result = await channel.send(_task(target="http://nas.home.arpa/hook", on_local_network=True))
+        result = await channel.send(
+            _task(target="http://nas.home.arpa/hook", on_local_network=True)
+        )
         assert result.success is True
 
 
@@ -231,7 +244,9 @@ class TestEmailMessage:
         assert msg["To"] == task.target
 
     def test_body_is_html_escaped(self) -> None:
-        task = self._mail_task(payload={"title": "t", "summary": "<script>alert(1)</script> & done"})
+        task = self._mail_task(
+            payload={"title": "t", "summary": "<script>alert(1)</script> & done"}
+        )
         msg = build_message(task, smtp_from="a@b.c")
         html_part = next(p for p in msg.walk() if p.get_content_type() == "text/html")
         content = html_part.get_content()
@@ -246,6 +261,10 @@ class TestEmailMessage:
 
 class TestBuildPayload:
     def test_payload_redacts_names_by_default(self) -> None:
+        stub_metadata = MappingProxyType(
+            {"rule_name": "Front door", "summary": "known person Jane at the door"}
+        )
+
         class A:
             id = "a-1"
             severity = "medium"
@@ -253,7 +272,7 @@ class TestBuildPayload:
             event_id = 7
             created_at = None
             description = ""
-            alert_metadata = {"rule_name": "Front door", "summary": "known person Jane at the door"}
+            alert_metadata = stub_metadata
 
         p = build_payload(A(), idempotency_key="k1", include_names=False, known_names={"Jane"})
         assert "Jane" not in p["summary"]
@@ -261,6 +280,10 @@ class TestBuildPayload:
         assert p["idempotency_key"] == "k1"
 
     def test_payload_includes_names_when_opted_in(self) -> None:
+        stub_metadata = MappingProxyType(
+            {"rule_name": "Front door", "summary": "known person Jane at the door"}
+        )
+
         class A:
             id = "a-1"
             severity = "medium"
@@ -268,7 +291,7 @@ class TestBuildPayload:
             event_id = 7
             created_at = None
             description = ""
-            alert_metadata = {"rule_name": "Front door", "summary": "known person Jane at the door"}
+            alert_metadata = stub_metadata
 
         p = build_payload(A(), idempotency_key="k1", include_names=True, known_names={"Jane"})
         assert "Jane" in p["summary"]

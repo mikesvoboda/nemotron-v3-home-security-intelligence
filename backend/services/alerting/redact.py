@@ -11,6 +11,7 @@ from __future__ import annotations
 
 import html
 import re
+from collections.abc import Sequence
 
 _REDACTED = "a known person"
 
@@ -46,16 +47,12 @@ def redact_names(text: str, known_names: set[str], include_names: bool) -> str:
     """
     if include_names or not text:
         return text
-    redacted = _NAME_PATTERN.sub(
-        lambda m: f"{m.group('label')} {_REDACTED}", text
-    )
+    redacted = _NAME_PATTERN.sub(lambda m: f"{m.group('label')} {_REDACTED}", text)
     if known_names:
         for name in known_names:
             if not name:
                 continue
-            pattern = re.compile(
-                r"\b" + re.escape(name) + r"\b", re.IGNORECASE
-            )
+            pattern = re.compile(r"\b" + re.escape(name) + r"\b", re.IGNORECASE)
             redacted = pattern.sub(_REDACTED, redacted)
     return redacted
 
@@ -66,9 +63,9 @@ def escape_html(text: str) -> str:
 
 
 def known_name_set(
-    known_people: "Sequence[str] | None" = None,
-    household_members: "Sequence[str] | None" = None,
-    vehicle_owners: "Sequence[str] | None" = None,
+    known_people: Sequence[str] | None = None,
+    household_members: Sequence[str] | None = None,
+    vehicle_owners: Sequence[str] | None = None,
 ) -> set[str]:
     """Build the gallery-name set from the recognisers' name sources."""
     names: set[str] = set()

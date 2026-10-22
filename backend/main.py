@@ -1013,7 +1013,7 @@ async def lifespan(_app: FastAPI) -> AsyncGenerator[None]:
             from backend.services.alerting.channels.browser import BrowserChannel
             from backend.services.alerting.channels.email import EmailChannel
             from backend.services.alerting.worker import NotificationDeliveryWorker
-            from backend.services.delivery_worker_registry import get_delivery_worker
+            from backend.services.delivery_worker_registry import set_delivery_worker
 
             channels: dict[str, Any] = {
                 "browser": BrowserChannel(event_broadcaster),
@@ -1032,7 +1032,7 @@ async def lifespan(_app: FastAPI) -> AsyncGenerator[None]:
             set_delivery_worker(delivery_worker)
             await worker_supervisor.register_worker(
                 "notification-delivery-worker",
-                delivery_worker.run,
+                delivery_worker._run,
             )
             await delivery_worker.start()
             lifespan_logger.info("Alert delivery worker started (B4.2)")

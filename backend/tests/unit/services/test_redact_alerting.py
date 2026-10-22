@@ -2,8 +2,6 @@
 
 from __future__ import annotations
 
-import pytest
-
 from backend.services.alerting.redact import (
     escape_html,
     known_name_set,
@@ -61,7 +59,7 @@ class TestEscape:
         )
 
     def test_redact_then_escape_composes(self) -> None:
-        text = 'known person <Jane> & dog'
+        text = "known person <Jane> & dog"
         out = escape_html(redact_names(text, set(), include_names=False))
         assert "<Jane>" not in out
         assert "&amp;" in out
@@ -69,9 +67,7 @@ class TestEscape:
 
 class TestNameSet:
     def test_known_name_set_strips_and_skips_empty(self) -> None:
-        names = known_name_set(
-            known_people=[" Jane ", ""], household_members=[None, "Sam"]
-        )
+        names = known_name_set(known_people=[" Jane ", ""], household_members=[None, "Sam"])
         assert names == {"Jane", "Sam"}
 
 

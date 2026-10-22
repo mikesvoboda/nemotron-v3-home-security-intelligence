@@ -83,7 +83,7 @@ class NotificationDeliveryWorker:
         session_factory: async_sessionmaker[AsyncSession],
         channels: Mapping[str, Channel],
         *,
-        build_payload: Callable[[str, str, str, dict[str, Any]], DeliveryTask] | None = None,
+        build_payload: Callable[..., DeliveryTask] | None = None,
         known_names_loader: Callable[[], set[str]] | None = None,
         poll_interval: float = POLL_INTERVAL_SECONDS,
         batch_size: int = 20,
@@ -91,7 +91,7 @@ class NotificationDeliveryWorker:
         self._session_factory = session_factory
         self._channels = dict(channels)
         self._build_payload = build_payload or self._default_task_builder
-        self._known_names_loader = known_names_loader or (lambda: set())
+        self._known_names_loader = known_names_loader or set
         self._poll_interval = poll_interval
         self._batch_size = batch_size
         self._wake_event = asyncio.Event()
@@ -124,12 +124,10 @@ class NotificationDeliveryWorker:
         while not self._stopping:
             try:
                 await self.process_ready()
-            except Exception:  # noqa: BLE001 - the worker must survive any single failure
+            except Exception:
                 logger.exception("delivery worker cycle failed")
             try:
-                await asyncio.wait_for(
-                    self._wake_event.wait(), timeout=self._poll_interval
-                )
+                await asyncio.wait_for(self._wake_event.wait(), timeout=self._poll_interval)
             except TimeoutError:
                 pass
             finally:
@@ -164,9 +162,7 @@ class NotificationDeliveryWorker:
             await session.commit()
         return rows
 
-    async def _send_one(
-        self, row: dict[str, Any], known_names: set[str], now: datetime
-    ) -> None:
+    async def _send_one(self, row: dict[str, Any], known_names: set[str], now: datetime) -> None:
         """Send one claimed delivery and record the outcome (no transaction held)."""
         kind = str(row["kind"])
         channel = self._channels.get(kind)
@@ -176,17 +172,16 @@ class NotificationDeliveryWorker:
             row["channel_id"],
             row["recipient_id"],
             {"idempotency_key": row["idempotency_key"], "kind": kind},
+            known_names=known_names,
         )
         if channel is None:
-            await self._record_failure(
-                row, now, f"no_adapter:{kind}"
-            )
+            await self._record_failure(row, now, f"no_adapter:{kind}")
             return
         try:
             outcome = await asyncio.wait_for(channel.send(task), timeout=timeout)
         except TimeoutError:
             outcome = SendResult(success=False, error=f"channel_timeout after {timeout}s")
-        except Exception as exc:  # noqa: BLE001 - adapter crash is a send failure
+        except Exception as exc:
             outcome = SendResult(success=False, error=f"adapter_error: {exc!r}")
         if outcome.success:
             await self._record_success(row, kind)
@@ -257,7 +252,7 @@ class NotificationDeliveryWorker:
         async with self._session_factory() as session:
             await session.execute(
                 text(
-                    "UPDATE notification_deliveries SET "
+                    "UPDATE notification_deliveries SET "  # noqa: S608 nosemgrep — SET-list is internal; values are bound params
                     + ", ".join(sets)
                     + ", updated_at = timezone('utc', now()) WHERE id = :id"
                 ),
@@ -271,8 +266,15 @@ class NotificationDeliveryWorker:
         channel_id: str,
         recipient_id: str,
         extras: dict[str, Any],
+        *,
+        known_names: set[str] | None = None,
     ) -> DeliveryTask:
-        """Task builder the production wiring replaces; tests inject theirs."""
+        """Task builder the production wiring replaces; tests inject theirs.
+
+        ``known_names`` is accepted so the production builder (payload.py)
+        can redact; the default builds no payload, so it only carries the
+        names through to the task's redaction metadata.
+        """
         return DeliveryTask(
             delivery_id=alert_id,
             channel_id=channel_id,
@@ -281,6 +283,7 @@ class NotificationDeliveryWorker:
             idempotency_key=extras.get("idempotency_key", ""),
             payload={},
             include_names=False,
+            known_names=known_names or set(),
         )
 
 

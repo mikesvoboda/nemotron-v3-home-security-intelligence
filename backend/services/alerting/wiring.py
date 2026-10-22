@@ -54,9 +54,7 @@ async def load_recipients_with_channels(session: AsyncSession) -> Sequence[Any]:
         .scalars()
         .all()
     )
-    periods = (
-        (await session.execute(select(QuietHoursPeriod))).scalars().all()
-    )
+    periods = (await session.execute(select(QuietHoursPeriod))).scalars().all()
     by_recipient: dict[str, list[Any]] = {}
     for period in periods:
         if period.recipient_id:

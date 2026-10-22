@@ -10,8 +10,6 @@ from __future__ import annotations
 from datetime import UTC, datetime, time
 from types import SimpleNamespace
 
-import pytest
-
 from backend.models.alert_delivery import DeliveryChannelKind, DeliveryStatus
 from backend.services.alerting.planner import (
     PlannedDelivery,
@@ -63,7 +61,19 @@ def _alert(severity: str = "medium", **kw) -> SimpleNamespace:
     return SimpleNamespace(**base)
 
 
-def _quiet(start: str, end: str, days: tuple[str, ...] = ("monday", "tuesday", "wednesday", "thursday", "friday", "saturday", "sunday")) -> SimpleNamespace:
+def _quiet(
+    start: str,
+    end: str,
+    days: tuple[str, ...] = (
+        "monday",
+        "tuesday",
+        "wednesday",
+        "thursday",
+        "friday",
+        "saturday",
+        "sunday",
+    ),
+) -> SimpleNamespace:
     return SimpleNamespace(
         start_time=time.fromisoformat(start),
         end_time=time.fromisoformat(end),
@@ -109,7 +119,10 @@ class TestQuietHours:
         assert planned[0].status is DeliveryStatus.SUPPRESSED
 
     def test_browser_channel_ignores_quiet_hours(self) -> None:
-        rec = _recipient(quiet_periods=(_quiet("10:00", "14:00"),), channels=(_channel("browser"), _channel("email")))
+        rec = _recipient(
+            quiet_periods=(_quiet("10:00", "14:00"),),
+            channels=(_channel("browser"), _channel("email")),
+        )
         planned = plan(_alert(), (rec,), now=_tz_hour(12), tz="UTC")
         by_kind = {p.channel_kind: p.status for p in planned}
         assert by_kind[DeliveryChannelKind.BROWSER] is DeliveryStatus.PENDING
@@ -123,7 +136,10 @@ class TestQuietHours:
 
     def test_quiet_period_inactive_day_is_ignored(self) -> None:
         # 2026-10-21 is a Wednesday; make the window Sunday-only.
-        rec = _recipient(quiet_periods=(_quiet("00:00", "23:59", days=("sunday",)),), channels=(_channel("email"),))
+        rec = _recipient(
+            quiet_periods=(_quiet("00:00", "23:59", days=("sunday",)),),
+            channels=(_channel("email"),),
+        )
         planned = plan(_alert(), (rec,), now=_tz_hour(12), tz="UTC")
         assert planned[0].status is DeliveryStatus.PENDING
 

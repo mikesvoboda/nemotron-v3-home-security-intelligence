@@ -11,7 +11,7 @@ from __future__ import annotations
 
 from collections.abc import Callable, Sequence
 from dataclasses import dataclass
-from datetime import datetime, time
+from datetime import datetime
 from typing import Any
 from zoneinfo import ZoneInfo
 
@@ -52,7 +52,7 @@ def plan(
     planned: list[PlannedDelivery] = []
     try:
         local_now = now.astimezone(ZoneInfo(tz))
-    except (ValueError, KeyError):
+    except ValueError, KeyError:
         local_now = now
     for recipient in recipients:
         if not getattr(recipient, "enabled", True):
@@ -62,7 +62,16 @@ def plan(
         for channel in getattr(recipient, "channels", ()) or ():
             if not getattr(channel, "enabled", True):
                 continue
-            kind = getattr(channel, "kind", None)
+            # A channel row's kind is stored as the enum's value; coerce both
+            # the enum member and the bare string to the member the dataclass
+            # carries. An unknown kind is skipped — the worker has no adapter
+            # for it, so planning it would only ladder it to failed.
+            kind_raw: Any = getattr(channel, "kind", None)
+            kind_name = getattr(kind_raw, "value", kind_raw)
+            try:
+                kind = DeliveryChannelKind(kind_name)
+            except (ValueError, TypeError):
+                continue
             status = DeliveryStatus.PENDING
             if stale:
                 status = DeliveryStatus.EXPIRED

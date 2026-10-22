@@ -377,7 +377,9 @@ class TestPlannedDeliveryRecording:
         store.add_event(1, "front_door", risk_score=75, verdict="confirmed")
         now = datetime(2026, 10, 22, 2, 0, tzinfo=UTC)  # not stale (within 1h cutoff)
 
-        def fake_planner(alert: Alert, *, stale: bool = False, **kw: object) -> list[dict[str, str]]:
+        def fake_planner(
+            alert: Alert, *, stale: bool = False, **kw: object
+        ) -> list[dict[str, str]]:
             return [
                 {
                     "status": "expired" if stale else "pending",

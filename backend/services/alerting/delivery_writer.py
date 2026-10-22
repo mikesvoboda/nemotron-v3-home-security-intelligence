@@ -43,14 +43,17 @@ async def write_delivery_rows(
             channel_id = record.channel_id
             kind = record.channel_kind.value
             status = record.status.value
-            include_names = record.include_names
+            _include_names = record.include_names
         else:
             alert_id = record.get("alert_id")
             recipient_id = record["recipient_id"]
             channel_id = record["channel_id"]
             kind = str(record.get("channel_kind", "email"))
             status = str(record.get("status", "pending"))
-            include_names = bool(record.get("include_names", False))
+            # include_names rides on the recipient channel at send time (the
+            # row does not carry it); the dict form carries it only for the
+            # in-memory path, so the DB path reads and drops it.
+            _include_names = bool(record.get("include_names", False))
         if not alert_id:
             # Planner records on the in-memory path carry alert ids; a record
             # without one cannot become a row (would violate the FK).
