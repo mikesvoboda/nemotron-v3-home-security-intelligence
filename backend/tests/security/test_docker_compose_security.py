@@ -291,6 +291,12 @@ TRACKED_COMPOSE_FILES: tuple[str, ...] = (
     # join silently -- `test_the_tracked_compose_list_is_what_git_tracks` reddens when
     # `git ls-files` and this tuple disagree, in either direction.
     "scripts/uplevel/docker-compose.prodshape.yml",
+    # [r308a] (PR #7340): the CI notification sinks' overlay — mail-sink,
+    # webhook-sink, push-sink beside FAKE_SERVICES, started by the fake stack
+    # and read back by the golden sink smoke specs. An OVERLAY on the CI stack,
+    # never a default (UR-18): no compose file, env template or include names
+    # it, which is why the tracked-list pin above is what admits it here.
+    "docker-compose.sinks.yml",
 )
 
 # Tracked compose files that DECLARE NO SERVICE on purpose ([r243]): prod.yml's
