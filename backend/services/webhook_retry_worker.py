@@ -21,14 +21,18 @@ incremented count and stops at ``max_retries``.
 from __future__ import annotations
 
 import asyncio
+import time
 from datetime import UTC, datetime, timedelta
-from typing import Any
+from typing import TYPE_CHECKING, Any
 
 from sqlalchemy import text
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
 
 from backend.core.logging import get_logger
 from backend.services.webhook_service import WebhookService
+
+if TYPE_CHECKING:
+    from backend.services.worker_supervisor import WorkerSupervisor
 
 logger = get_logger(__name__)
 
@@ -86,6 +90,9 @@ class WebhookRetryWorker:
         self._wake_event = asyncio.Event()
         self._task: asyncio.Task[None] | None = None
         self._stopping = False
+        # NEM-4148: the supervisor reads a heartbeat from the loop below.
+        # Set by main.py at registration; None in tests (the check is skipped).
+        self._supervisor: WorkerSupervisor | None = None
 
     def wake(self) -> None:
         """Signal the loop to claim immediately (the service calls on failure)."""
@@ -108,8 +115,17 @@ class WebhookRetryWorker:
             self._task = None
 
     async def _run(self) -> None:
+        # NEM-4148: heartbeat the supervisor every 20 s (the pipeline workers'
+        # cadence). A cycle here is one send batch under the webhook timeout,
+        # so the loop is never silent past its heartbeat_timeout (120 s).
+        last_heartbeat = time.monotonic()
+        HEARTBEAT_INTERVAL_S = 20.0
         while not self._stopping:
             try:
+                if self._supervisor is not None:
+                    if time.monotonic() - last_heartbeat >= HEARTBEAT_INTERVAL_S:
+                        self._supervisor.record_heartbeat("webhook-retry-worker")
+                        last_heartbeat = time.monotonic()
                 await self.process_due()
             except Exception:
                 logger.exception("webhook retry worker cycle failed")

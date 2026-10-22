@@ -17,7 +17,7 @@ import ssl
 import sys
 import threading
 import traceback
-from collections.abc import AsyncGenerator
+from collections.abc import AsyncGenerator, Awaitable, Callable
 from contextlib import asynccontextmanager
 from functools import lru_cache
 from typing import Any
@@ -780,6 +780,53 @@ async def run_constrained_startup_check(container: Any) -> str:
     return "enforced"
 
 
+# --- B4.2 supervised workers (alert delivery + outbound webhook retry) ------
+#
+# Both workers register with the WorkerSupervisor BEFORE ``start()`` — a worker
+# registered after it never gets a ``_start_worker`` call and sits STOPPED
+# forever (the monitor loop only reacts to CRASHED/RUNNING), which is exactly
+# how the first wiring shipped. The runner closure is the
+# ``PipelineWorkerManager._make_supervised_runner`` pattern (owner ruling 200):
+# the supervisor's factory starts the real worker instance, awaits it under
+# ``asyncio.shield`` so a force-restart cancels the *runner* and not the send
+# mid-flight, and translates a cancelled task into ``worker.stop()``.
+#
+# The workers have no ``running`` property (the pipeline workers' runner keys
+# on one), so the closure keys on the task itself. The workers record
+# heartbeats from their loops (pipeline_workers.py:334-338 shape) — without a
+# heartbeat the supervisor's NEM-4148 check force-restarts a HEALTHY worker
+# once ``heartbeat_timeout`` passes, since ``last_heartbeat_at`` is only
+# stamped at start.
+
+_B42_HEARTBEAT_TIMEOUT = 120.0  # a full cycle is one send (<=30 s) + DB work
+
+_b42_delivery_worker: Any = None
+_b42_retry_worker: Any = None
+
+
+def _make_supervised_b42_runner(worker: Any, supervisor: Any) -> Callable[[], Awaitable[None]]:
+    """Supervise an existing B4.2 worker instance (ruling 200's runner shape)."""
+
+    async def _run_managed_b42_worker() -> None:
+        if worker._task is None or worker._task.done():
+            await worker.start()
+        task = worker._task
+        if task is None:
+            return
+        try:
+            await asyncio.shield(task)
+        except asyncio.CancelledError:
+            if not supervisor.is_running or worker._task is None or worker._task.done():
+                raise
+            # The supervisor cancelled the runner (force-restart), not the
+            # worker task: stop the worker so the inner loop exits, then
+            # re-raise so the supervisor counts the restart.
+            await worker.stop()
+            raise
+
+    return _run_managed_b42_worker
+
+
 @asynccontextmanager
 async def lifespan(_app: FastAPI) -> AsyncGenerator[None]:
     """Manage application lifecycle - startup and shutdown events.
@@ -1000,11 +1047,6 @@ async def lifespan(_app: FastAPI) -> AsyncGenerator[None]:
             if asyncio.iscoroutine(maybe_coro):
                 await maybe_coro
 
-        await worker_supervisor.start()
-        lifespan_logger.info(
-            f"WorkerSupervisor started with {worker_supervisor.worker_count} workers"
-        )
-
         # B4.2: the alert-delivery worker. Claims pending/retrying delivery rows
         # under a lease and sends through the channel adapters; the pipeline
         # wakes it after committing new deliveries. The task builder is the
@@ -1036,12 +1078,15 @@ async def lifespan(_app: FastAPI) -> AsyncGenerator[None]:
                 build_payload=build_delivery_task(get_session_factory()),
             )
             set_delivery_worker(delivery_worker)
+            delivery_worker._supervisor = worker_supervisor
+            global _b42_delivery_worker  # noqa: PLW0603 — shutdown handle
+            _b42_delivery_worker = delivery_worker
             await worker_supervisor.register_worker(
                 "notification-delivery-worker",
-                delivery_worker._run,
+                _make_supervised_b42_runner(delivery_worker, worker_supervisor),
+                heartbeat_timeout=_B42_HEARTBEAT_TIMEOUT,
             )
-            await delivery_worker.start()
-            lifespan_logger.info("Alert delivery worker started (B4.2)")
+            lifespan_logger.info("Alert delivery worker registered (B4.2)")
         except Exception as e:
             lifespan_logger.error(f"Alert delivery worker startup failed: {e}")
             lifespan_logger.warning("Continuing without the delivery worker")
@@ -1056,15 +1101,23 @@ async def lifespan(_app: FastAPI) -> AsyncGenerator[None]:
             webhook_retry_worker = WebhookRetryWorker(
                 get_session_factory(), service=WebhookService()
             )
+            webhook_retry_worker._supervisor = worker_supervisor
+            global _b42_retry_worker  # noqa: PLW0603 — shutdown handle
+            _b42_retry_worker = webhook_retry_worker
             await worker_supervisor.register_worker(
                 "webhook-retry-worker",
-                webhook_retry_worker._run,
+                _make_supervised_b42_runner(webhook_retry_worker, worker_supervisor),
+                heartbeat_timeout=_B42_HEARTBEAT_TIMEOUT,
             )
-            await webhook_retry_worker.start()
-            lifespan_logger.info("Outbound webhook retry worker started (B4.2)")
+            lifespan_logger.info("Outbound webhook retry worker registered (B4.2)")
         except Exception as e:
             lifespan_logger.error(f"Outbound webhook retry worker startup failed: {e}")
             lifespan_logger.warning("Continuing without the webhook retry worker")
+
+        await worker_supervisor.start()
+        lifespan_logger.info(
+            f"WorkerSupervisor started with {worker_supervisor.worker_count} workers"
+        )
 
     except Exception as e:
         lifespan_logger.error(f"Redis connection failed: {e}")
@@ -1364,6 +1417,18 @@ async def lifespan(_app: FastAPI) -> AsyncGenerator[None]:
     lifespan_logger.info("Cleanup service stopped")
     await gpu_monitor.stop()
     lifespan_logger.info("GPU monitor stopped")
+
+    # B4.2 workers stop before the supervisor: ``worker_supervisor.stop()``
+    # clears ``_running`` first, so the supervised runner's cancelled-runner
+    # branch would leave the inner worker task orphaned (its ``worker.stop()``
+    # never fires) — the explicit stops own the inner loop, the supervisor's
+    # stop owns its own bookkeeping.
+    if _b42_delivery_worker is not None:
+        await _b42_delivery_worker.stop()
+        lifespan_logger.info("Alert delivery worker stopped")
+    if _b42_retry_worker is not None:
+        await _b42_retry_worker.stop()
+        lifespan_logger.info("Outbound webhook retry worker stopped")
 
     # Stop WorkerSupervisor first to prevent restart attempts during shutdown (NEM-2460)
     worker_supervisor = get_worker_supervisor()
