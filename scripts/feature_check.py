@@ -2166,6 +2166,8 @@ class Run:
         seeded: bool = False,
         shard: tuple[int, int] | None = None,
         golden_specs: tuple[str, ...] | None = None,
+        pytest_k: str | None = None,
+        playwright_grep: str | None = None,
     ) -> None:
         stamp = datetime.now(UTC).strftime("%Y%m%d%H%M%S")
         self.project = f"{PROJECT_PREFIX}{stamp}-{secrets.token_hex(3)}"
@@ -2182,6 +2184,10 @@ class Run:
         # existing caller and pin passes no specs, and None must leave every
         # byte of the leg's argv and record unchanged.
         self.golden_specs = golden_specs
+        # Phase 4 real-tier witness selectors (UR-140, pointer 6340852534):
+        # None is the unlimited run -- absent from summary when unset.
+        self.pytest_k = pytest_k
+        self.playwright_grep = playwright_grep
         # A run record that does not say WHICH compose shape was rendered cannot
         # witness ruling 127's 12 real-tier rows, which is the whole point of the
         # O2.5 run. The tier strings for --fake/--real are unchanged -- only the
@@ -2218,6 +2224,10 @@ class Run:
             # option's own order -- same discipline as the shard above: absent
             # when unset, so today's records byte-match today's.
             self.summary["golden_specs"] = list(golden_specs)
+        if pytest_k is not None:
+            self.summary["pytest_k"] = pytest_k
+        if playwright_grep is not None:
+            self.summary["playwright_grep"] = playwright_grep
         self.started = False
 
     # -- processes -----------------------------------------------------------
@@ -3184,17 +3194,23 @@ asyncio.run(main())
         # report, so it calls neither junit_results nor golden_execution_problems
         # -- nothing to judge: the leg's verdict lives in shard 1's summary,
         # whose own in-run call already covered the execution-problems check.
-        runs_backend = self.shard is None or self.shard[0] == 1
+        runs_backend = (self.shard is None or self.shard[0] == 1) and (
+            self.playwright_grep is None or self.pytest_k is not None
+        )
         if not self.seeded and runs_backend and sorted(BACKEND_GOLDEN.glob("**/test_*.py")):
             junit = self.artifacts / "golden-backend.xml"
+            pytest_argv = [
+                "uv",
+                "run",
+                "pytest",
+                str(BACKEND_GOLDEN.relative_to(REPO_ROOT)),
+                f"--junitxml={junit}",
+            ]
+            if self.pytest_k is not None:
+                pytest_argv.extend(["-k", self.pytest_k])
+                results["pytest_k"] = self.pytest_k
             result = self._run(
-                [
-                    "uv",
-                    "run",
-                    "pytest",
-                    str(BACKEND_GOLDEN.relative_to(REPO_ROOT)),
-                    f"--junitxml={junit}",
-                ],
+                pytest_argv,
                 check=False,
                 timeout=1800,
                 env=env,
@@ -3211,12 +3227,17 @@ asyncio.run(main())
             problems += golden_execution_problems("backend", results["backend_specs"])
         elif self.seeded:
             results["backend"] = "skipped on seeded"
+        elif self.playwright_grep is not None and self.pytest_k is None:
+            results["backend"] = "skipped on playwright-grep"
         elif not runs_backend:
             i, total = self.shard  # type: ignore[misc]
             results["backend"] = f"skipped on shard {i}/{total}"
         else:
             results["backend"] = "no specs yet"
-        if PLAYWRIGHT_CONFIG.exists() and re.search(
+        runs_playwright = self.pytest_k is None or self.playwright_grep is not None
+        if not runs_playwright:
+            results["playwright"] = "skipped on pytest-k"
+        elif PLAYWRIGHT_CONFIG.exists() and re.search(
             rf"name:\s*['\"]{re.escape(project_name)}['\"]",
             PLAYWRIGHT_CONFIG.read_text(encoding="utf-8"),
         ):
@@ -3424,6 +3445,9 @@ asyncio.run(main())
                 # leg's `-w frontend` cwd is the same file.
                 for spec in self.golden_specs:
                     inner_parts.append(shlex.quote(spec))
+            if self.playwright_grep is not None:
+                inner_parts.extend(["--grep", shlex.quote(self.playwright_grep)])
+                results["playwright_grep"] = self.playwright_grep
             inner = " ".join(inner_parts)
             result = self._run(
                 golden_container_command(
@@ -3973,6 +3997,8 @@ def run_check(args: argparse.Namespace, *, mode: str) -> int:
         seeded=seeded,
         shard=getattr(args, "shard", None),
         golden_specs=getattr(args, "golden_spec", None),
+        pytest_k=getattr(args, "pytest_k", None),
+        playwright_grep=getattr(args, "playwright_grep", None),
     )
     before = run.prepare()
     vlm = AgentGpu(run) if mode == "real" else None
@@ -4150,6 +4176,20 @@ def main(argv: Sequence[str] | None = None) -> int:
         "Prod-shape-only: the limit exists so the maui run can witness named specs "
         "(F-176/F-178/F-182); on any other shape it refuses at parse time.",
     )
+    parser.add_argument(
+        "--pytest-k",
+        type=str,
+        default=None,
+        help="run only backend golden pytest specs matching this -k expression (--real only). "
+        "When given without --playwright-grep, skips the Playwright leg.",
+    )
+    parser.add_argument(
+        "--playwright-grep",
+        type=str,
+        default=None,
+        help="run only Playwright golden specs matching this --grep pattern (--real only). "
+        "When given without --pytest-k, skips the backend leg.",
+    )
     drop_parser = sub.add_parser("drop", help="drop an image into a camera folder of a run")
     drop_parser.add_argument("image", type=Path)
     drop_parser.add_argument("camera")
@@ -4265,6 +4305,25 @@ def main(argv: Sequence[str] | None = None) -> int:
         args.golden_spec = tuple(normalized)
     else:
         args.golden_spec = None
+
+    if args.pytest_k is not None:
+        if not args.real or args.prod_shape or args.seeded:
+            parser.error(
+                "--pytest-k is the real-tier witness selector (--real only, without "
+                "--prod-shape or --seeded)"
+            )
+        if not args.pytest_k.strip():
+            parser.error("--pytest-k takes a non-empty pytest -k expression")
+        args.pytest_k = args.pytest_k.strip()
+    if args.playwright_grep is not None:
+        if not args.real or args.prod_shape:
+            parser.error(
+                "--playwright-grep is the real-tier witness selector (--real only, "
+                "without --prod-shape)"
+            )
+        if not args.playwright_grep.strip():
+            parser.error("--playwright-grep takes a non-empty Playwright --grep pattern")
+        args.playwright_grep = args.playwright_grep.strip()
 
     if args.real:
         unavailable = real_unavailable(os.environ)
