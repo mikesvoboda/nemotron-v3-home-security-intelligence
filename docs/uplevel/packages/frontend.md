@@ -236,7 +236,7 @@ paths; the inventory row reads **works** once the operator records the real-tier
 
 **Flags:** none. **Assigned:** frontend, after `[r299]` (ruling 308). **Depends on:** none; its
 small backend part (`min_confidence`) rides in the same PR (UR-9).
-**PR:** none yet. (ruling 308, record 6326364266)
+**PR:** #7352. (ruling 308, record 6326364266)
 
 Design: [`../4n-timeline.md`](../4n-timeline.md). Covers F-044, F-055.
 
