@@ -377,3 +377,37 @@ body_sha256 = "ccf725719b08acc2f6a8eea2e6970fced425cb25343c403ccf2abc090152b949"
 kind = "equivalent"
 reason = "Trailing-comma get() is one-arg get() -> None; None and \"\" are both falsy to the if header_name: consumer, so no header is written either way (batch38_x Honesty ledger preserved in backend/tests/unit/services/test_webhook_service.py; re-measured by the B4.2 baseline run, 13/1100 survived)."
 date = "2026-10-22"
+
+# --- Consolidated from test_cleanup_service_batch35_l.py (B4.4 step 2) ---
+
+[[survivor]]
+module = "backend.services.cleanup_service"
+mutant = "format_bytes if size < 0: -> if size <= 0:"
+body_sha256 = "3bfdc6e16e8bb24df9e605990c0e155b2336275d0c3f6bd2080c59d56f0bc239"  # pragma: allowlist secret
+kind = "equivalent"
+reason = "0 formats as '0 B' in both arms: the guard returns '0 B' directly, and the loop after it renders f'{int(0)} B' == '0 B' (consolidated from test_cleanup_service_batch35_l.py header)."
+date = "2026-10-22"
+
+[[survivor]]
+module = "backend.services.cleanup_service"
+mutant = "format_bytes if size < 0: -> if size < 1:"
+body_sha256 = "147cede5287f595e665bc2b9bd35c5ccb5006335ae7875588b3668a1c634a693"  # pragma: allowlist secret
+kind = "equivalent"
+reason = "size is an integer byte count; for size <= 0 both arms return '0 B', and for size >= 1 neither guard triggers (consolidated from test_cleanup_service_batch35_l.py header)."
+date = "2026-10-22"
+
+[[survivor]]
+module = "backend.services.cleanup_service"
+mutant = 'CleanupService.run_cleanup job_id: str | None = None -> job_id: str | None = ""'
+body_sha256 = "90ee0d4f76afb7fb8cc8c45dc747f36cab068aada2c4636ba86725c5f9a6e306"  # pragma: allowlist secret
+kind = "equivalent"
+reason = "job_id is overwritten by start_job when job_service is present, and every downstream consumer guards on `if job_service and job_id:` which short-circuits on falsy job_service or falsy '' (consolidated from test_cleanup_service_batch35_l.py header)."
+date = "2026-10-22"
+
+[[survivor]]
+module = "backend.services.cleanup_service"
+mutant = 'OrphanedFileCleanup.run_cleanup job_id: str | None = None -> job_id: str | None = ""'
+body_sha256 = "7f273119beb284d40e237a868f09bc397d9ad9302c5a887bd8b8cbf2b03c1cd2"  # pragma: allowlist secret
+kind = "equivalent"
+reason = "job_id is overwritten by create_job when _job_tracker is present, and every downstream consumer guards on `if self._job_tracker and job_id:` which short-circuits on falsy tracker or falsy '' (consolidated from test_cleanup_service_batch35_l.py header)."
+date = "2026-10-22"
