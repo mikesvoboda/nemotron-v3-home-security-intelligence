@@ -245,10 +245,10 @@ flags are cleared once. Code reversal is a revert; the upgrades stay.
 
 ## Packages
 
-| package | lane (proposed) | depends on | contents                                                                                                                                                                                                                              | its own golden path       |
-| ------- | --------------- | ---------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------- |
-| `B4.11` | backend         | none       | Expand: the health module and its readers, the new fields beside the old, the latency histograms, restart only under the admin session with its audit, the never-probed VLM, the alerts proxy, the retirements, the mode-aware flush. | Backend pytest of routes. |
-| `F4.8`  | frontend        | `B4.11`    | Contract: the badge, row, cards, panel with its sign-in prompt, chart, banner, the alert badge's socket and load, the palette, Tracing; removes the old fields (UR-9).                                                                | Playwright above.         |
+| package | lane (ruling 317) | depends on | contents                                                                                                                                                                                                                              | its own golden path       |
+| ------- | ----------------- | ---------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------- |
+| `B4.11` | heavy-b           | none       | Expand: the health module and its readers, the new fields beside the old, the latency histograms, restart only under the admin session with its audit, the never-probed VLM, the alerts proxy, the retirements, the mode-aware flush. | Backend pytest of routes. |
+| `F4.8`  | frontend          | `B4.11`    | Contract: the badge, row, cards, panel with its sign-in prompt, chart, banner, the alert badge's socket and load, the palette, Tracing; removes the old fields (UR-9).                                                                | Playwright above.         |
 
 Each runs the six steps as two PRs: a test-only consolidation PR, then the build.
 

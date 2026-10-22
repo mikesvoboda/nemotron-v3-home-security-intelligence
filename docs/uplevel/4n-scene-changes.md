@@ -272,10 +272,10 @@ so this design asks that they be strings that older readers treat as unknown.
 
 ## Packages
 
-| package | lane (proposed) | depends on                                          | contents                                                                                                                      | its own golden path   |
-| ------- | --------------- | --------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------- | --------------------- |
-| `B4.9`  | backend         | `B4.7` merged (the event source and rule `sources`) | The module, the hook, baselines, incidents and their event, the source and seeded rule, the routes, the live messages, audit. | Backend pytest above. |
-| `F4.6`  | frontend        | `B4.9`; `F4.1` for the alert rows                   | The badge, dashboard indicator and toasts, camera modal, Scene changes page and its Acknowledge dialog.                       | Playwright above.     |
+| package | lane (ruling 317) | depends on                                          | contents                                                                                                                      | its own golden path   |
+| ------- | ----------------- | --------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------- | --------------------- |
+| `B4.9`  | heavy-b           | `B4.7` merged (the event source and rule `sources`) | The module, the hook, baselines, incidents and their event, the source and seeded rule, the routes, the live messages, audit. | Backend pytest above. |
+| `F4.6`  | frontend          | `B4.9`; `F4.1` for the alert rows                   | The badge, dashboard indicator and toasts, camera modal, Scene changes page and its Acknowledge dialog.                       | Playwright above.     |
 
 Each runs the six steps as two PRs: a test-only consolidation PR, then the build.
 

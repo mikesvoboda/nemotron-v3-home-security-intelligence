@@ -314,6 +314,11 @@ note. OD-36 (debug tooling) and OD-37 ("Clear All Test Data") packages are flagg
 is step 1. Ruling 308 put the four with concurrency, erasure or data-migration risk on the heavy
 agents and the rest on the fast lanes.
 
+**The P2 packages** (ruling 317, record 6347331324): scene changes, exports and system status,
+designed in [`../4n-scene-changes.md`](../4n-scene-changes.md),
+[`../4n-exports.md`](../4n-exports.md) and [`../4n-status.md`](../4n-status.md) with their review.
+Debug tooling (OD-36) waits for a keep-or-retire ruling, and F-063 for the Easy/Advanced design.
+
 ### B4.1 Alert pipeline core
 
 **Flags:** `heavy`. **Assigned:** heavy-a, after `[r305]`; `W3.1`'s per-lane PRs still slot in
@@ -488,6 +493,77 @@ Design: [`../4n-arming.md`](../4n-arming.md), "Packages" row `B4.8`. Covers F-29
 
 **Done when:** steps 4–6 hold. F-291 reads **works** once the MQTT section of Settings has landed
 too, and its row records that sensitivity left MQTT (ruling 311).
+
+### B4.9 Scene changes
+
+**Flags:** `heavy`. **Assigned:** heavy-b, once `B4.7` merges (ruling 317). **Depends on:** `B4.7`
+merged for the build PR (the event source and rules' `sources`); the test-only PR may open first.
+**PR:** none yet. (ruling 317, record 6347331324)
+
+Design: [`../4n-scene-changes.md`](../4n-scene-changes.md), "Packages" row `B4.9`. Covers F-208 and
+F-287 with `F4.6`.
+
+- [ ] The test-only PR (step 2): `scene_change_detector.py`, the scene-change model and routes,
+      `pipeline_workers.py`'s image path, the emitter's scene branches, and the event readers'
+      thumbnail code in `events.py` and `search.py`.
+- [ ] The build PR: `scene_watch.py` (`observe` with featureless frames checked first, day and
+      night baselines with their anchors and the 0.75 drift cap, and frames in capture order;
+      `classify`; `set_normal`; `acknowledge`; `close`); the worker hook; `scene_baselines` and the
+      new `scene_changes` columns and types in one additive recorded upgrade; the incident's picture
+      file, its route and the source-aware thumbnails; the event with source `scene_change`, the
+      resolver's source, rules' `sources` and the seeded "Camera tampering" rule with a fixed UUID;
+      the sweep's clause; the routes; the live messages through `get_broadcaster`; the audit
+      action; Trash's close and the purger's file; `scene_change_enabled` read again, and
+      `SCENE_CHANGE_SIMILARITY_THRESHOLD`.
+- [ ] Golden path (pytest, `backend/tests/golden/external/`) as the design gives it.
+
+**Done when:** steps 4–6 hold for its rows.
+
+### B4.10 Exports
+
+**Flags:** none. **Assigned:** backend, after `B4.3` (ruling 317). **Depends on:** `B4.1` and `B4.2`
+merged. **PR:** none yet. (ruling 317, record 6347331324)
+
+Design: [`../4n-exports.md`](../4n-exports.md), "Packages" row `B4.10`. Covers F-051, F-098 and
+F-099 with `F4.7`.
+
+- [ ] The test-only PR (step 2): `export_service.py`, `exports.py`, `job_tracker.py`'s export path,
+      the export routes in `jobs.py` and `events.py`, and `detections.py`'s export.
+- [ ] The build PR: per-job files written as `.part` and renamed on completion; the Events and
+      Alerts types; ZIP thumbnails up to 1,000 events; `expires_at` checked on every download, and
+      the hourly expiry; cancel between batches with conditional status writes; every timeline
+      filter; audit and rate limit; `cancelled` and `expired` through `ADD VALUE IF NOT EXISTS`;
+      the request's three compliance fields removed; bulk cancel refusing export jobs; the Trash
+      filter in `detections.py`, without `file_path`; `EXPORT_DIR` on the data volume. The two old
+      export routes stay until `F4.7`.
+- [ ] Golden path (pytest) as the design gives it.
+
+**Done when:** steps 4–6 hold for its rows.
+
+### B4.11 System status (expand)
+
+**Flags:** `heavy`, `owner` (it changes an auth check and host-privileged tooling, UR-98); label
+`cell:heavy-b`. **Assigned:** heavy-b, now (ruling 317). **Depends on:** none.
+**PR:** none yet. (ruling 317, record 6347331324)
+
+Design: [`../4n-status.md`](../4n-status.md), "Packages" row `B4.11`. Covers the status rows with
+`F4.8`.
+
+- [ ] The test-only PR (step 2): the six AI-health producers and their routes, `services.py`,
+      `container_orchestrator.py` and its health loop, the worker routes, `webhooks.py`,
+      `alertmanager.py` and `admin.py`'s flush.
+- [ ] The build PR: `ai_health.py` and its readers; the VLM client's call record and
+      `VLM_SLEEP_IDLE_SECONDS`; the never-probed set for `ai-vlm`; the new fields beside the old
+      (expand, with the `ai_models` key unmoved); the latency histograms; restart under
+      `get_current_admin_user` for the four services, its two-step audit, the disabled check gone
+      and the persisted flags cleared; enable, disable, `/start` and the worker stop and start
+      routes retired, and worker restart guarded; the infrastructure-alerts proxy; `alertmanager.py`
+      and `prometheus_alerts` retired by a recorded upgrade; the mode-aware flush; the regenerated
+      contract and types.
+- [ ] Golden path (pytest of the routes, with a fake engine) as the design gives it.
+
+**Done when:** steps 4–6 hold for its rows. F-140's real-tier check is the owner's witnessed restart
+on the live install (ruling 317).
 
 ### BB.\* Background track
 

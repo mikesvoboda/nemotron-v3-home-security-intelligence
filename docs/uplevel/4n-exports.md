@@ -189,10 +189,10 @@ revert without it is not supported.
 
 ## Packages
 
-| package | lane (proposed) | depends on                                                     | contents                                                                                                                                       | its own golden path   |
-| ------- | --------------- | -------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------- | --------------------- |
-| `B4.10` | backend         | `B4.1` and `B4.2` merged (the alert rows and their deliveries) | One job path, the two types, ZIP thumbnails, per-job files and expiry, cancel, filters, audit.                                                 | Backend pytest above. |
-| `F4.7`  | frontend        | `B4.10`                                                        | The button and modal on the one path, the Alerts type, the Backups link, cancel everywhere, the new states; retires the two old routes (UR-9). | Playwright above.     |
+| package | lane (ruling 317) | depends on                                                     | contents                                                                                                                                       | its own golden path   |
+| ------- | ----------------- | -------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------- | --------------------- |
+| `B4.10` | backend           | `B4.1` and `B4.2` merged (the alert rows and their deliveries) | One job path, the two types, ZIP thumbnails, per-job files and expiry, cancel, filters, audit.                                                 | Backend pytest above. |
+| `F4.7`  | frontend          | `B4.10`                                                        | The button and modal on the one path, the Alerts type, the Backups link, cancel everywhere, the new states; retires the two old routes (UR-9). | Playwright above.     |
 
 Each runs the six steps as two PRs: a test-only consolidation PR, then the build.
 

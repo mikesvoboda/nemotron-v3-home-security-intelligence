@@ -204,6 +204,8 @@ nginx with TLS, and the real `runtime.env` mounts (ruling 144).
     the user-level `crun` and NVIDIA CDI runtime; `keep-id` for `foscam-init`; and the busybox HTTP
     health checks for the two exporters. `dcgm-exporter` runs rootful outside this stack in
     production (the `gpu-rootful` profile), so a rootless run cannot witness its device line.
+    The owner's 2026-10-21 run (`6321808086`) sampled no peak, so item 2 runs again, with its peak
+    sampled, at item 1's merged pin and just before it; that run is item 2's pass (ruling 315).
   - **F-182's rows (ruling 285).** No API path writes a GPU config version since #7309, so item 2's
     F-182 step seeds two rows in `gpu_configuration_versions` directly in the run's database,
     exercises list, compare and the JSON and YAML export, and restores the table. The F-176 and

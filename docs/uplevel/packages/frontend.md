@@ -231,6 +231,8 @@ paths; the inventory row reads **works** once the operator records the real-tier
   with a writer, and until then no PR adds a writer for `hsi_zone*` (ruling 301).
 
 **The P1 packages' frontend parts** (ruling 308, record 6326364266), each with its design as step 1.
+**The P2 packages' frontend parts** (ruling 317, record 6347331324) follow them: `F4.8`, `F4.6` and
+`F4.7`.
 
 ### F4.4 Timeline filters and detections
 
@@ -308,6 +310,63 @@ Design: [`../4n-arming.md`](../4n-arming.md), "Packages" row `F4.5`. Covers F-29
       history); "raised while unarmed" on the Alerts page's rows; if `F4.2` landed first, the
       override's "In chosen modes"; if `B4.8` landed first, the MQTT section (enable, status, the
       TLS warning, the token shown once) and its Playwright step.
+- [ ] Golden path (Playwright) as the design gives it.
+
+**Done when:** steps 4–6 hold for its rows.
+
+### F4.8 System status in the UI (contract)
+
+**Flags:** none. **Assigned:** frontend, after `F4.5` (ruling 317). **Depends on:** `B4.11` merged.
+**PR:** none yet. (ruling 317, record 6347331324)
+
+Design: [`../4n-status.md`](../4n-status.md), "Packages" row `F4.8`. Covers the status rows with
+`B4.11`.
+
+- [ ] The test-only PR (step 2): the hooks and components the design names, with their fixtures.
+- [ ] The build PR: the header badge on `ai_service_status`; the dashboard row, the model cards and
+      the services panel (Restart only, the sign-in prompt, Postgres no longer blocked); the
+      per-model latency chart; the banner's `ai-vlm`; the alert badge on the events socket with its
+      page-open load; the palette and `g y`; Tracing's Tempo link. Its cross-lane part (UR-9):
+      removes the old `nemotron` and `rtdetr` fields, moves the `ai_models` key, regenerates the
+      contract and types, and edits `operations/performance.spec.ts:55` and `:66`.
+- [ ] Golden path (Playwright) as the design gives it.
+
+**Done when:** steps 4–6 hold for its rows. F-293's row reads **retired**.
+
+### F4.6 Scene changes in the UI
+
+**Flags:** none. **Assigned:** frontend, after `F4.8` (ruling 317). **Depends on:** `B4.9` and
+`F4.1` merged. **PR:** none yet. (ruling 317, record 6347331324)
+
+Design: [`../4n-scene-changes.md`](../4n-scene-changes.md), "Packages" row `F4.6`. Covers F-008,
+F-030 and F-288, and F-208 and F-287 with `B4.9`.
+
+- [ ] The test-only PR (step 2): `useSceneChangeAlerts`, `useSceneChangeEvents`,
+      `useSceneChangesQuery`, `SceneChangePanel`, `SceneChangesPage` and `SceneChangeIndicator`.
+- [ ] The build PR: the header badge, the dashboard indicator and toasts on open and cleared; the
+      camera modal's incidents with their pictures and "Set as normal"; the Scene changes page on
+      `GET /api/scene-changes` with its filters and state; Acknowledge with "This is the new
+      normal"; the drifted incident's text.
+- [ ] Golden path (Playwright) as the design gives it.
+
+**Done when:** steps 4–6 hold for its rows.
+
+### F4.7 Exports in the UI
+
+**Flags:** none. **Assigned:** frontend, after `F4.6` (ruling 317). **Depends on:** `B4.10` merged.
+**PR:** none yet. (ruling 317, record 6347331324)
+
+Design: [`../4n-exports.md`](../4n-exports.md), "Packages" row `F4.7`. Covers F-051, F-098 and
+F-099 with `B4.10`.
+
+- [ ] The test-only PR (step 2): `ExportButton`, `ExportModal`, `ExportProgress`, `useExportJobs`
+      and Data › Export; the e2e spec that mocks a missing route.
+- [ ] The build PR: the button on `POST /api/exports` and `/download`, with every timeline filter;
+      Events and Alerts in the modal and Data › Export, and the Backups link; Cancel through
+      `DELETE` everywhere; the cancelled and expired states; the two old clients go. Its cross-lane
+      part (UR-9): retires `POST /api/events/export` with its tracker job and
+      `GET /api/events/export`, with their tests, a 404 test, the regenerated contract and types,
+      and the docs that name them.
 - [ ] Golden path (Playwright) as the design gives it.
 
 **Done when:** steps 4–6 hold for its rows.
