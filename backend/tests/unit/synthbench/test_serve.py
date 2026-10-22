@@ -67,7 +67,7 @@ class TestRunArgs:
         assert args[: len(podman_argv()) + 1] == [*podman_argv(), "run"]
         assert args[args.index("--device") + 1] == "nvidia.com/gpu=all"
         assert args[args.index("--label") + 1] == serve.GPU_LABEL
-        assert args[-1] == serve.IMAGE == "localhost/synthbench-comfyui:v0.37.0"
+        assert args[-1] == serve.IMAGE == "localhost/synthbench-comfyui:v0.42.1"
 
 
 class TestPrepare:
@@ -451,9 +451,11 @@ class TestContainerfile:
             assert "-c /tmp/constraints.txt" in cmd or "--no-deps" in cmd, cmd
 
     def test_torchaudio_is_compiled_against_the_base_torch_and_then_pinned(self) -> None:
-        # v0.37.0 imports torchaudio at module level (comfy.sd, gemma4, the LTX nodes); the base
+        # ComfyUI imports torchaudio at module level (comfy.sd, gemma4, the LTX nodes); the base
         # has none and PyPI's aarch64 wheel is a CUDA 13.0 build that refuses the base torch.
         text = _containerfile()
+        assert "FROM nvcr.io/nvidia/pytorch:26.09-py3" in text
+        assert "ARG COMFYUI_REF=v0.42.1" in text
         assert "ARG TORCHAUDIO_REF=v2.11.0" in text
         assert "https://github.com/pytorch/audio.git /tmp/audio" in text
         assert "--no-build-isolation --no-deps /tmp/audio" in text
