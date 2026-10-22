@@ -293,7 +293,6 @@ Everything binds `127.0.0.1`, the frontend nginx included — unless `EXPOSE_LAN
 │   ├── pyroscope/        # Pyroscope continuous profiling configuration
 │   └── tempo/            # Tempo trace storage configuration
 ├── scripts/              # Development and deployment scripts
-│   ├── benchmark/        # Benchmark harness scripts
 │   ├── dataset_converters/ # Training-dataset conversion scripts
 │   ├── hooks/            # Git hooks (post-checkout worktree protection)
 │   ├── synthetic/        # Synthetic test-data generation
@@ -304,7 +303,7 @@ Everything binds `127.0.0.1`, the frontend nginx included — unless `EXPOSE_LAN
 │   ├── contract/         # Event contract: spec/truth/provenance models, append-only corpus store
 │   ├── taxonomy/         # Committed Tier B taxonomy YAML and the seeded quota sampler
 │   └── spikes/           # Throwaway harnesses (p1_bakeoff: the P1 model bake-off)
-├── tests/                # Root-level test suites (benchmark, load, smoke)
+├── tests/                # Root-level test suites (load, smoke)
 └── .github/              # GitHub Actions workflows and configs
     ├── workflows/        # CI/CD workflows
     ├── codeql/           # CodeQL security analysis

@@ -82,7 +82,7 @@ def _load_selinux_check() -> ModuleType:
 
 _selinux = _load_selinux_check()
 
-PASS = "PASS"
+PASS = "PASS"  # noqa: S105 — verdict status label, not a password
 WARN = "WARN"
 FAIL = "FAIL"
 INFO = "INFO"
@@ -542,7 +542,7 @@ def _check_vlm_image(compose_paths: list[Path]) -> Check:
         if lines is None:
             absent.append(fname)
             continue
-        stripped = [l.strip() for l in lines]
+        stripped = [ln.strip() for ln in lines]
         if any(s == "build:" for s in stripped):
             buildable.append(fname)
         elif any(s.startswith("image:") for s in stripped):

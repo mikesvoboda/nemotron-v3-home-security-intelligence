@@ -71,7 +71,7 @@ def _masked(node: ast.AST) -> str:
     return ast.dump(n2)
 
 
-def raises_matches(fn: ast.FunctionDef) -> tuple[str, ...]:
+def raises_matches(fn: ast.FunctionDef | ast.AsyncFunctionDef) -> tuple[str, ...]:
     """Sorted distinct pytest.raises match= literals in this method (any
     position). Empty tuple = no-raises body."""
     out = []
@@ -113,15 +113,15 @@ def analyze_class(cls: ast.ClassDef) -> dict:
             for d in m.decorator_list
         )
     ]
-    buckets: dict[tuple[str, tuple[str, ...]], list[ast.FunctionDef]] = collections.defaultdict(
-        list
+    buckets: dict[tuple[str, tuple[str, ...]], list[ast.FunctionDef | ast.AsyncFunctionDef]] = (
+        collections.defaultdict(list)
     )
     for m in meths:
         buckets[(_masked(m), raises_matches(m))].append(m)
     mergeable = {k: v for k, v in buckets.items() if len(v) >= 2}
     merge_members = sum(len(v) for v in mergeable.values())
     # distinct raises-match values across the class: each must survive any merge
-    match_values = collections.Counter()
+    match_values: collections.Counter[str] = collections.Counter()
     for m in meths:
         for mv in raises_matches(m):
             match_values[mv] += 1
@@ -213,7 +213,7 @@ def self_test() -> int:
 
     checks = []
 
-    def check(name, cond):
+    def check(name: str, cond: bool) -> None:
         checks.append((name, cond))
 
     d = reps["TestDedupLike"]
@@ -266,7 +266,7 @@ def self_test() -> int:
     return 1 if fails else 0
 
 
-def main(argv=None) -> int:
+def main(argv: list[str] | None = None) -> int:
     ap = argparse.ArgumentParser(description=__doc__.splitlines()[0])
     ap.add_argument("paths", nargs="*", default=None)
     ap.add_argument("--min", type=int, default=DEFAULT_MIN, metavar="N")

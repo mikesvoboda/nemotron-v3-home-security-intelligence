@@ -281,7 +281,7 @@ def generate_video_initial(
         print(f"  Trying API format {i}/{len(api_formats)}...")
         try:
             response = client.post(
-                api_format["url"],
+                str(api_format["url"]),
                 json=api_format["json"],
                 headers=headers,
                 timeout=300.0,  # 5 minute timeout for video generation
@@ -367,7 +367,7 @@ def extend_video(
         print(f"  Trying extension format {i}/{len(api_formats)}...")
         try:
             response = client.post(
-                api_format["url"],
+                str(api_format["url"]),
                 json=api_format["json"],
                 headers=headers,
                 timeout=300.0,
@@ -585,7 +585,7 @@ def list_videos() -> None:
     print()
 
 
-def main():
+def main() -> None:
     parser = argparse.ArgumentParser(
         description="Generate promotional videos for Home Security Intelligence using Veo 3.1",
         formatter_class=argparse.RawDescriptionHelpFormatter,

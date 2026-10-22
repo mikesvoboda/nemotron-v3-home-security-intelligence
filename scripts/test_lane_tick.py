@@ -1079,9 +1079,11 @@ def test_an_approve_of_an_old_head_the_author_changed_is_not_for_this_head():
         **ready(),
         pr_comments={7158: [review(46, approve_of(OLD_HEAD), minutes=-1)]},
         diffs={OLD_HEAD[:9]: SAME_DIFF.replace("+b", "+c")},
-        parents="\n".join([  # one author commit between the heads: the subset rule says no
-            "a" * 40,
-        ]),
+        parents="\n".join(
+            [  # one author commit between the heads: the subset rule says no
+                "a" * 40,
+            ]
+        ),
     )
     line = row(out, 7158)
     assert "arm auto-merge" not in line and "— needs your review" in line
@@ -1460,7 +1462,9 @@ def test_a_blockless_title_token_is_still_a_hold_and_a_mention_is_not():
     leading = [{"number": 7290, "title": "[r269] offer the next claimable package on the digest"}]
     assert tick.held_claims(PKG, leading) == ["r269"]
     # hyphenated tokens are real tokens ([flaky-census] is live, #7082) even with no block
-    hyphen = [{"number": 7082, "title": "[flaky-census] claim: golden's flaky census (UR-48 lane work)"}]
+    hyphen = [
+        {"number": 7082, "title": "[flaky-census] claim: golden's flaky census (UR-48 lane work)"}
+    ]
     assert tick.held_claims(PKG, hyphen) == ["flaky-census"]  # fmt: skip
     # a mid-title mention is prose, not a claim -- measured on the live 7158 title's shape
     mention = [{"number": 7158, "title": "an [r151] follow-up"}]
@@ -1598,7 +1602,9 @@ def test_an_unanswered_owner_question_still_offers_no_package():
     # Item 1(d): "no unanswered owner question". An owner-tier PR also needs the owner's approval
     # in force (item 1's owner clause), and that approval is recorded on #6854 -- outside what the
     # digest can read per PR -- so the `owner` label (UR-147's trigger) blocks the offer.
-    out = text(**waiting(labels=("lane:ops", "cell:b", "owner")), pr_comments={7164: [held_review(76)]})
+    out = text(
+        **waiting(labels=("lane:ops", "cell:b", "owner")), pr_comments={7164: [held_review(76)]}
+    )
     assert "next claimable" not in out
 
 
@@ -1644,11 +1650,20 @@ def test_a_waiting_pr_titling_a_blockless_token_is_a_hold_not_a_plain_offer():
     # itself titled a token with no block on main. The cure: the leading title token IS the
     # claim identity, so the PR holds -- and since it waits its merge turn (an approval naming
     # its head, a green gate, not a draft), the ruling-269 offer still prints beside the hold.
-    ready151 = dict(
-        prs=[pr(7158, labels=["lane:ops", "cell:b"], head=MINE2_HEAD, draft=False, title=MINE2,
-                merge="BLOCKED", rollup=[gate(), job()])],  # fmt: skip
-        heads=[head_row(7158, OTHER_BRANCH, MINE2)],
-    )
+    ready151 = {
+        "prs": [
+            pr(
+                7158,
+                labels=["lane:ops", "cell:b"],
+                head=MINE2_HEAD,
+                draft=False,
+                title=MINE2,
+                merge="BLOCKED",
+                rollup=[gate(), job()],
+            )
+        ],
+        "heads": [head_row(7158, OTHER_BRANCH, MINE2)],
+    }
     out = text(**ready151, pr_comments={7158: [review(84)]})
     assert "holding open claim: [r151]" in out
     assert "next claimable: r181" in out
@@ -1663,14 +1678,26 @@ def test_a_waiting_ur48_fix_takes_the_plain_offer_with_no_hold_line():
     # with EMPTY names and a ruling-tagged offer -- a digest line no lane can act on. This also
     # pins the UR-48 exemption in its waiting shape: a defect fix neither freezes the queue
     # (the hold test) nor needs ruling 269's exception (there is no hold to lift).
-    defect = dict(
-        prs=[pr(7151, labels=["lane:ops", "cell:b"], head=MY_HEAD, draft=False,
-                title="[UR-48] fix: re-anchor a panel leg", merge="BLOCKED",
-                rollup=[gate(), job()])],  # fmt: skip
-        heads=[head_row(7151, MY_BRANCH, "[UR-48] fix: re-anchor a panel leg")],
+    defect = {
+        "prs": [
+            pr(
+                7151,
+                labels=["lane:ops", "cell:b"],
+                head=MY_HEAD,
+                draft=False,
+                title="[UR-48] fix: re-anchor a panel leg",
+                merge="BLOCKED",
+                rollup=[gate(), job()],
+            )
+        ],
+        "heads": [head_row(7151, MY_BRANCH, "[UR-48] fix: re-anchor a panel leg")],
+    }
+    out = text(
+        **defect,
+        pr_comments={
+            7151: [comment(86, 7151, approve_of(MY_HEAD), t(timedelta(minutes=-10)), pr=True)]
+        },
     )
-    out = text(**defect, pr_comments={7151: [comment(86, 7151, approve_of(MY_HEAD),
-                                                      t(timedelta(minutes=-10)), pr=True)]})
     assert "holding open claim" not in out
     assert "next claimable: r181" in out
     assert "(ruling 269" not in has(out, "next claimable")[0]
@@ -1685,23 +1712,38 @@ def test_two_open_packages_leave_no_offer():
         "`[r172]`. **PR:** none yet. (ruling 178)\n\n- [ ] box\n"
     )
     roster = ROSTER.replace("`[r172]`, `O3.4`", "`[r172]`, `[r178]`, `O3.4`")
-    both = dict(
-        packages=pkg,
-        roster=roster,
-        prs=[
-            pr(7164, labels=["lane:ops", "cell:b"], head=MY_HEAD, draft=False, title=MINE1,
-               merge="BLOCKED", rollup=[gate(), job()]),  # fmt: skip
-            pr(7158, labels=["lane:ops", "cell:b"], head=MINE2_HEAD, draft=False,
-               title="[r172] wrapped and import budget", merge="BLOCKED",
-               rollup=[gate(), job()]),  # fmt: skip
+    both = {
+        "packages": pkg,
+        "roster": roster,
+        "prs": [
+            pr(
+                7164,
+                labels=["lane:ops", "cell:b"],
+                head=MY_HEAD,
+                draft=False,
+                title=MINE1,
+                merge="BLOCKED",
+                rollup=[gate(), job()],
+            ),
+            pr(
+                7158,
+                labels=["lane:ops", "cell:b"],
+                head=MINE2_HEAD,
+                draft=False,
+                title="[r172] wrapped and import budget",
+                merge="BLOCKED",
+                rollup=[gate(), job()],
+            ),
         ],
-        heads=[head_row(7164, MY_BRANCH, MINE1),
-               head_row(7158, OTHER_BRANCH, "[r172] wrapped and import budget")],  # fmt: skip
-        pr_comments={
+        "heads": [
+            head_row(7164, MY_BRANCH, MINE1),
+            head_row(7158, OTHER_BRANCH, "[r172] wrapped and import budget"),
+        ],
+        "pr_comments": {
             7164: [held_review(79)],
             7158: [comment(80, 7158, approve_of(MINE2_HEAD), t(timedelta(minutes=-10)), pr=True)],
         },
-    )
+    }
     # Exactly two hold tokens -- the cap counts PACKAGES, and a stray third token (the old title's
     # blockless leading [r151]) made the <3 mutant indistinguishable from the cap. The cap mutant
     # <2 -> <3 opens the offer here and only here: len(held) must be exactly 2.
@@ -1718,12 +1760,26 @@ def test_a_second_open_pr_mid_flight_blocks_the_offer_until_it_waits():
     # missed offer never is, and the queue stays readable by hand (item 5).
     out = text(
         prs=[
-            pr(7164, labels=["lane:ops", "cell:b"], head=MY_HEAD, draft=False, title=MINE1,
-               merge="BLOCKED", rollup=[gate(), job()]),  # fmt: skip
-            pr(7151, labels=["lane:ops"], head=MINE2_HEAD, title="[UR-48] fix: re-anchor a panel leg"),
+            pr(
+                7164,
+                labels=["lane:ops", "cell:b"],
+                head=MY_HEAD,
+                draft=False,
+                title=MINE1,
+                merge="BLOCKED",
+                rollup=[gate(), job()],
+            ),
+            pr(
+                7151,
+                labels=["lane:ops"],
+                head=MINE2_HEAD,
+                title="[UR-48] fix: re-anchor a panel leg",
+            ),
         ],
-        heads=[head_row(7164, MY_BRANCH, MINE1),
-               head_row(7151, OTHER_BRANCH, "[UR-48] fix: re-anchor a panel leg")],  # fmt: skip
+        heads=[
+            head_row(7164, MY_BRANCH, MINE1),
+            head_row(7151, OTHER_BRANCH, "[UR-48] fix: re-anchor a panel leg"),
+        ],
         pr_comments={7164: [held_review(81)]},
     )
     assert "holding open claim: [r181]" in out

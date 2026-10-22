@@ -521,7 +521,8 @@ def _subset_carry(
     )
     if verdict is None:
         errors.append("subset carry: a read failed -- unknown, never a fact")
-    return verdict
+        return None
+    return bool(verdict)
 
 
 def decide(
@@ -759,9 +760,7 @@ def _carry_check(
         return None
     if listed.hash == head.hash:
         return True
-    return _subset_carry(
-        run, repo, st.entry.number, listed, head, main_tip, files, st.errors
-    )
+    return _subset_carry(run, repo, st.entry.number, listed, head, main_tip, files, st.errors)
 
 
 def _comment_update(

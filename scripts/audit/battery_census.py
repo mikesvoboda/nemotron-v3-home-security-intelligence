@@ -67,7 +67,9 @@ def count_tests(path: Path) -> tuple[int, int]:
     tree = ast.parse(path.read_text(encoding="utf-8"), filename=str(path))
     count, flagged = 0, 0
     for node in ast.walk(tree):
-        if isinstance(node, ast.FunctionDef | ast.AsyncFunctionDef) and node.name.startswith("test_"):
+        if isinstance(node, ast.FunctionDef | ast.AsyncFunctionDef) and node.name.startswith(
+            "test_"
+        ):
             mult, was_flagged = _parametrize_multiplier(node)
             count += mult
             flagged += 1 if was_flagged else 0
@@ -119,7 +121,11 @@ def main(argv: list[str] | None = None) -> int:
     print(
         f"O1.7 battery-census: {result['file_count']} battery files, "
         f"{result['total_lines']} lines, {result['total_tests']} tests"
-        + (f", {result['flagged_files']} with non-literal parametrize args" if result["flagged_files"] else ""),
+        + (
+            f", {result['flagged_files']} with non-literal parametrize args"
+            if result["flagged_files"]
+            else ""
+        ),
         file=sys.stderr,
     )
     return 0

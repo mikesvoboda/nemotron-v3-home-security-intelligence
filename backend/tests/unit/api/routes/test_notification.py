@@ -14,11 +14,14 @@ from datetime import UTC, datetime
 from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
+from fastapi import FastAPI
+from fastapi.testclient import TestClient
 
 from backend.api.routes.notification import (
     _create_error_response,
     _test_email_channel,
     _test_webhook_channel,
+    router,
 )
 from backend.api.schemas.notification import (
     NotificationChannel,
@@ -27,6 +30,8 @@ from backend.api.schemas.notification import (
 )
 from backend.core import get_db
 from backend.main import app
+from backend.models import Alert
+from backend.models.alert import AlertSeverity, AlertStatus
 from backend.services.notification import NotificationDelivery, NotificationService
 from backend.tests.unit.conftest import authenticated_async_client
 
@@ -552,6 +557,9 @@ class TestTestNotification:
 
                 assert data["channel"] == "push"
                 assert data["success"] is False
+                # assertion folded in from unit/routes' test_test_push_not_implemented
+                # (B4.2 step 2): the error field is part of the contract too.
+                assert "not yet implemented" in data["error"].lower()
                 assert "planned for a future release" in data["message"].lower()
         finally:
             app.dependency_overrides.clear()
@@ -1237,3 +1245,231 @@ class TestUpdateNotificationConfig:
             assert "webhook_enabled" in data
         finally:
             app.dependency_overrides.clear()
+
+
+# =============================================================================
+# Consolidated from backend/tests/unit/routes/test_notification_routes.py
+# (B4.2 step 2) — the seven tests unique to that file; the five overlapping
+# names live in the classes above (any missing assertion folded in).
+# =============================================================================
+
+
+@pytest.fixture
+def mock_db_session_routes() -> AsyncMock:
+    """Create a mock database session."""
+    session = AsyncMock()
+    session.add = MagicMock()
+    session.commit = AsyncMock()
+    return session
+
+
+@pytest.fixture
+def mock_settings_routes():
+    """Create mock settings for notification config."""
+    settings = MagicMock()
+    settings.notification_enabled = True
+    settings.smtp_host = "smtp.example.com"
+    settings.smtp_port = 587
+    settings.smtp_from_address = "noreply@example.com"
+    settings.smtp_use_tls = True
+    settings.default_webhook_url = "https://webhook.example.com/notify"
+    settings.webhook_timeout_seconds = 30
+    settings.default_email_recipients = ["admin@example.com"]
+    return settings
+
+
+@pytest.fixture
+def mock_notification_service_routes():
+    """Create mock notification service."""
+    service = MagicMock()
+    service.is_email_configured.return_value = True
+    service.is_webhook_configured.return_value = True
+    service.is_push_configured.return_value = False
+    service.get_available_channels.return_value = [
+        MagicMock(value="email"),
+        MagicMock(value="webhook"),
+    ]
+    return service
+
+
+@pytest.fixture
+def client_routes(mock_db_session_routes: AsyncMock) -> TestClient:
+    """Create a test client with mocked dependencies."""
+    app = FastAPI()
+    app.include_router(router)
+
+    async def override_get_db():
+        yield mock_db_session_routes
+
+    app.dependency_overrides[get_db] = override_get_db
+
+    with TestClient(app) as test_client:
+        yield test_client
+
+
+@pytest.fixture
+def mock_alert_routes() -> Alert:
+    """Create a mock alert for testing."""
+    return Alert(
+        id="test-alert-123",
+        event_id=0,
+        rule_id="test-rule",
+        severity=AlertSeverity.LOW,
+        status=AlertStatus.PENDING,
+        dedup_key="test-notification",
+        channels=["email"],
+        alert_metadata={},
+        created_at=datetime.now(UTC),
+    )
+
+
+# =============================================================================
+# Get Config Tests
+# =============================================================================
+
+
+class TestGetNotificationConfigRoutes:
+    """Tests for GET /api/notification/config endpoint."""
+
+    def test_get_config_returns_full_config(
+        self, client_routes: TestClient, mock_settings_routes, mock_notification_service_routes
+    ) -> None:
+        """Test getting notification configuration."""
+        with (
+            patch(
+                "backend.api.routes.notification.get_settings",
+                return_value=mock_settings_routes,
+                autospec=True,
+            ),
+            patch(
+                "backend.api.routes.notification.get_notification_service",
+                return_value=mock_notification_service_routes,
+                autospec=True,
+            ),
+        ):
+            response = client_routes.get("/api/notification/config")
+
+        assert response.status_code == 200
+        data = response.json()
+        assert data["notification_enabled"] is True
+        assert data["email_configured"] is True
+        assert data["webhook_configured"] is True
+        assert data["push_configured"] is False
+        assert data["smtp_host"] == "smtp.example.com"
+        assert data["smtp_port"] == 587
+
+    def test_get_config_no_smtp_hides_port(
+        self, client_routes: TestClient, mock_notification_service_routes
+    ) -> None:
+        """Test that SMTP port is hidden when SMTP host is not configured."""
+        settings = MagicMock()
+        settings.notification_enabled = True
+        settings.smtp_host = None
+        settings.smtp_port = 587
+        settings.smtp_from_address = None
+        settings.smtp_use_tls = True
+        settings.default_webhook_url = None
+        settings.webhook_timeout_seconds = 30
+        settings.default_email_recipients = []
+
+        with (
+            patch(
+                "backend.api.routes.notification.get_settings",
+                return_value=settings,
+                autospec=True,
+            ),
+            patch(
+                "backend.api.routes.notification.get_notification_service",
+                return_value=mock_notification_service_routes,
+                autospec=True,
+            ),
+        ):
+            response = client_routes.get("/api/notification/config")
+
+        assert response.status_code == 200
+        data = response.json()
+        assert data["smtp_host"] is None
+        assert data["smtp_port"] is None
+
+
+class TestTestEmailChannel:
+    """Tests for _test_email_channel helper function."""
+
+    @pytest.mark.asyncio
+    async def test_email_channel_no_recipients(self, mock_alert_routes) -> None:
+        """Test email channel fails without recipients."""
+        service = MagicMock()
+        settings = MagicMock()
+        settings.default_email_recipients = []
+        request = TestNotificationRequest(channel=NotificationChannel.EMAIL)
+
+        success, result = await _test_email_channel(service, settings, request, mock_alert_routes)
+
+        assert success is False
+        assert "recipients" in result.lower()
+
+    @pytest.mark.asyncio
+    async def test_email_channel_not_configured(self, mock_alert_routes) -> None:
+        """Test email channel fails when not configured."""
+        service = MagicMock()
+        service.is_email_configured.return_value = False
+        settings = MagicMock()
+        settings.default_email_recipients = ["test@example.com"]
+        request = TestNotificationRequest(channel=NotificationChannel.EMAIL)
+
+        success, result = await _test_email_channel(service, settings, request, mock_alert_routes)
+
+        assert success is False
+        assert "not configured" in result.lower()
+
+    @pytest.mark.asyncio
+    async def test_email_channel_success(self, mock_alert_routes) -> None:
+        """Test email channel success."""
+        service = MagicMock()
+        service.is_email_configured.return_value = True
+        mock_delivery = MagicMock()
+        mock_delivery.success = True
+        service.send_email = AsyncMock(return_value=mock_delivery)
+
+        settings = MagicMock()
+        settings.default_email_recipients = ["test@example.com"]
+        request = TestNotificationRequest(channel=NotificationChannel.EMAIL)
+
+        success, result = await _test_email_channel(service, settings, request, mock_alert_routes)
+
+        assert success is True
+        assert "successfully" in result.lower()
+
+
+class TestTestWebhookChannel:
+    """Tests for _test_webhook_channel helper function."""
+
+    @pytest.mark.asyncio
+    async def test_webhook_channel_no_url(self, mock_alert_routes) -> None:
+        """Test webhook channel fails without URL."""
+        service = MagicMock()
+        settings = MagicMock()
+        settings.default_webhook_url = None
+        request = TestNotificationRequest(channel=NotificationChannel.WEBHOOK)
+
+        success, result = await _test_webhook_channel(service, settings, request, mock_alert_routes)
+
+        assert success is False
+        assert "url" in result.lower()
+
+    @pytest.mark.asyncio
+    async def test_webhook_channel_success(self, mock_alert_routes) -> None:
+        """Test webhook channel success."""
+        service = MagicMock()
+        mock_delivery = MagicMock()
+        mock_delivery.success = True
+        service.send_webhook = AsyncMock(return_value=mock_delivery)
+
+        settings = MagicMock()
+        settings.default_webhook_url = "https://webhook.example.com"
+        request = TestNotificationRequest(channel=NotificationChannel.WEBHOOK)
+
+        success, result = await _test_webhook_channel(service, settings, request, mock_alert_routes)
+
+        assert success is True
+        assert "successfully" in result.lower()

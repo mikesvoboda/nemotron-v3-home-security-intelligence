@@ -68,7 +68,7 @@ import urllib.request
 import uuid
 from collections.abc import Callable, Iterable, Mapping, Sequence
 from dataclasses import dataclass
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from pathlib import Path, PurePosixPath
 from typing import Any
 
@@ -643,9 +643,7 @@ def engine_socket_mounts(
                 continue
             source = str(mount.get("source") or "")
             target = str(mount.get("target") or "")
-            if socket_path and source == socket_path:
-                hits.append((name, source, target))
-            elif target in ENGINE_SOCKET_TARGETS:
+            if (socket_path and source == socket_path) or target in ENGINE_SOCKET_TARGETS:
                 hits.append((name, source, target))
     return hits
 
@@ -1231,8 +1229,8 @@ def _top_level_problems(rendered: Mapping[str, Any], project: str) -> list[str]:
     for key in sorted(rendered):
         if key not in TOP_LEVEL_KEYS and not key.startswith("x-"):
             problems.append(f"{key}: a top-level section the preflight has no rule for")
-    for key, network in sorted((rendered.get("networks") or {}).items()):
-        network = network or {}
+    for key, raw_network in sorted((rendered.get("networks") or {}).items()):
+        network = raw_network or {}
         own = f"{project}_{key}"
         if network.get("external"):
             problems.append(f"network {key}: external, shared beyond this run")
@@ -1242,8 +1240,8 @@ def _top_level_problems(rendered: Mapping[str, Any], project: str) -> list[str]:
             problems.append(
                 f"network {key}: driver {network.get('driver')}; a test deployment uses bridge"
             )
-    for key, volume in sorted((rendered.get("volumes") or {}).items()):
-        volume = volume or {}
+    for key, raw_volume in sorted((rendered.get("volumes") or {}).items()):
+        volume = raw_volume or {}
         if volume.get("external"):
             continue  # refused where a service mounts it
         if volume.get("driver_opts"):
@@ -2099,7 +2097,7 @@ def _image_absent(result: subprocess.CompletedProcess[str]) -> bool:
 
 
 def _log(message: str) -> None:
-    stamp = datetime.now(timezone.utc).strftime("%H:%M:%SZ")
+    stamp = datetime.now(UTC).strftime("%H:%M:%SZ")
     print(f"feature-check {stamp} {message}", flush=True)
 
 
@@ -2118,7 +2116,7 @@ class Run:
         shard: tuple[int, int] | None = None,
         golden_specs: tuple[str, ...] | None = None,
     ) -> None:
-        stamp = datetime.now(timezone.utc).strftime("%Y%m%d%H%M%S")
+        stamp = datetime.now(UTC).strftime("%Y%m%d%H%M%S")
         self.project = f"{PROJECT_PREFIX}{stamp}-{secrets.token_hex(3)}"
         self.engine = engine
         self.mode = mode
@@ -2151,7 +2149,7 @@ class Run:
         self.env_file = self.dir / "env"
         self.compose_file = self.dir / "compose.json"
         self.summary: dict[str, Any] = {
-            "date": datetime.now(timezone.utc).isoformat(timespec="seconds"),
+            "date": datetime.now(UTC).isoformat(timespec="seconds"),
             "mode": self.shape,
             "project": self.project,
             "run_dir": str(self.dir),
@@ -3299,9 +3297,7 @@ asyncio.run(main())
                     )
                 selected = manifest["shards"][index]
                 golden_files_env = " ".join(selected)
-                results["shard_manifest"] = str(
-                    GOLDEN_SHARDS_MANIFEST.relative_to(FRONTEND.parent)
-                )
+                results["shard_manifest"] = str(GOLDEN_SHARDS_MANIFEST.relative_to(FRONTEND.parent))
                 results["shard_files"] = list(selected)
             # No opt-in set: self.shard falls through untouched to the
             # count-based --shard append below -- [r264]'s contract, byte for
@@ -3353,9 +3349,7 @@ asyncio.run(main())
                     # selection exists: an unsharded (or count-sharded) leg
                     # keeps today's argv exactly, and the whitelist above
                     # forwards only the names every leg has always had.
-                    extra_environment=(
-                        [R282_GOLDEN_FILES_ENV] if golden_files_env else []
-                    ),
+                    extra_environment=([R282_GOLDEN_FILES_ENV] if golden_files_env else []),
                 ),
                 check=False,
                 timeout=GOLDEN_LEG_TIMEOUT_S,
@@ -3550,7 +3544,7 @@ class AgentGpu:
         not complete."""
         try:
             return self._cli(*args, check=False, timeout=timeout)
-        except Exception as error:  # noqa: BLE001 - say so, and go on removing the VLM
+        except Exception as error:
             _log(f"agent-gpu {args[0]} did not complete ({type(error).__name__}: {error})")
             return None
 
@@ -3920,7 +3914,7 @@ def run_check(args: argparse.Namespace, *, mode: str) -> int:
         _log(f"FAIL interrupted by {name}; tearing down")
         run.summary["interrupted"] = name
         status = EXIT_FAILED
-    except Exception as error:  # noqa: BLE001 - whatever broke, teardown and the summary follow
+    except Exception as error:
         _log(f"FAIL {type(error).__name__}: {error}")
         status = EXIT_FAILED
     finally:
@@ -3955,11 +3949,11 @@ def _finish(run: Run, before: Snapshot) -> int:
     teardown, and a postflight that cannot run counts as a change."""
     try:
         run.collect()
-    except Exception as error:  # noqa: BLE001 - artifacts are best effort; teardown is not
+    except Exception as error:
         _log(f"collecting artifacts failed ({type(error).__name__}: {error}); tearing down")
     try:
         changed, left = run.teardown(before)
-    except Exception as error:  # noqa: BLE001
+    except Exception as error:
         _log(f"URGENT teardown or postflight did not complete ({type(error).__name__}: {error})")
         return EXIT_CHANGED
     for problem in changed:
@@ -3977,7 +3971,7 @@ def _cleanup_images(run: Run) -> int:
     the whole point (they are per-run and no later run reuses them)."""
     try:
         return run.cleanup_images()
-    except Exception as error:  # noqa: BLE001 - say so; the operator removes the rest
+    except Exception as error:
         _log(f"URGENT prod-shape image cleanup did not complete ({type(error).__name__}: {error})")
         return EXIT_FAILED
 
@@ -3987,7 +3981,7 @@ def _finish_vlm(vlm: AgentGpu) -> int:
     failure (operator.md step 6)."""
     try:
         left = vlm.teardown()
-    except Exception as error:  # noqa: BLE001 - say so, and leave the rm to the operator
+    except Exception as error:
         problem = f"removing {vlm.name} did not complete ({type(error).__name__}: {error})"
         _log(f"FAIL {problem}; agent-gpu rm {vlm.name}")
         vlm.run.summary["results"]["agent_gpu"] = [problem]
@@ -4155,8 +4149,12 @@ def main(argv: Sequence[str] | None = None) -> int:
             # not '.spec.ts'), and neither can be collected by the
             # --project=golden leg, so an accepted either would write a run
             # record naming files the leg could not run.
-            if candidate.parts[:2] != ("tests", "golden") or not candidate.name.endswith(".spec.ts"):
-                parser.error(f"--golden-spec takes a path to a spec under tests/golden, got {spec!r}")
+            if candidate.parts[:2] != ("tests", "golden") or not candidate.name.endswith(
+                ".spec.ts"
+            ):
+                parser.error(
+                    f"--golden-spec takes a path to a spec under tests/golden, got {spec!r}"
+                )
             # The leg's own cwd is FRONTEND (golden_container_command's -w), so
             # the spelling the runner will resolve is frontend-relative, and
             # that is the spelling this check validates.

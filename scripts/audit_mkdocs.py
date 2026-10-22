@@ -299,7 +299,7 @@ def find_wrong_mermaid_fence(path: Path, content: str) -> list[dict]:
 
 def audit_nav_references() -> list[dict]:
     """Check that files referenced in mkdocs.yml nav actually exist."""
-    issues = []
+    issues: list[dict] = []
     if not MKDOCS_YML.exists():
         return issues
 

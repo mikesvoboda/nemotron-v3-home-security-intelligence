@@ -315,7 +315,7 @@ def _hand_start(row: Mapping[str, Any], path: Path, label: str) -> str | None:
     if not isinstance(value, str) or not value.strip():
         raise Refused(
             f"{label} has `hand_start = {value!r}`. In {path} the key is the session's "
-            "hand-start line, a plain TOML string - `hand_start = \"agent-dgx <name> ...\"` "
+            'hand-start line, a plain TOML string - `hand_start = "agent-dgx <name> ..."` '
             "- or saying nothing withholds it."
         )
     return " ".join(value.split())
@@ -446,7 +446,7 @@ def _preflight(host: Host) -> str:
     # remote-tracking ref - never the worktree, never a branch. A failed fetch is refused, not
     # swallowed: against a stale ref the check below can pass while main has moved on, and a
     # sandbox cloned from the wrong commit is worse to undo than a refused command.
-    fetch = ["git", "-C", host.checkout, "fetch", "origin", "main"]
+    fetch: list[str | Path] = ["git", "-C", host.checkout, "fetch", "origin", "main"]
     _say(f"== check origin/main is current: {shlex.join(map(str, fetch))}")
     _read(host, fetch)
     origin_main = _read(host, ["git", "-C", host.checkout, "rev-parse", "origin/main"])
@@ -482,9 +482,7 @@ def up(host: Host, *, phase: int) -> None:
     # A hand_start row is not the launcher's to create (ruling 201 on [r184]); it
     # contributes no arguments and never gets a run line.
     arguments = {
-        s.name: run_args_for(data, host.manifest, s)
-        for s in sessions
-        if s.hand_start is None
+        s.name: run_args_for(data, host.manifest, s) for s in sessions if s.hand_start is None
     }
     # the phase's inspect results, gathered before any change (they are reads): the
     # gpu check below must refuse a whole phase the way the model check does, and it

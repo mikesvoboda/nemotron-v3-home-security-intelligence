@@ -2,7 +2,7 @@
 
 ## Purpose
 
-Auxiliary test suites that run outside the backend/frontend trees: model benchmarks (pytest), K6 load tests, and deployment smoke tests. The old root `test_setup.py` / `test_setup_core.py` were retired to the archive; UR-19 deleted that tree and O1.5 returned the tests to `backend/tests/unit/setup_lib/` — setup-script coverage now lives there.
+Auxiliary test suites that run outside the backend/frontend trees: K6 load tests and deployment smoke tests. The old root `test_setup.py` / `test_setup_core.py` were retired to the archive; UR-19 deleted that tree and O1.5 returned the tests to `backend/tests/unit/setup_lib/` — setup-script coverage now lives there.
 
 **Main test suites are elsewhere:**
 
@@ -12,13 +12,12 @@ Auxiliary test suites that run outside the backend/frontend trees: model benchma
 
 ## Directory Contents
 
-| Suite        | Purpose                                                        | How to run                          |
-| ------------ | -------------------------------------------------------------- | ----------------------------------- |
-| `benchmark/` | AI model benchmark tests (engine comparison, quality, metrics) | `uv run pytest tests/benchmark/ -v` |
-| `load/`      | K6 load-test scripts (cameras, events, WebSocket, Redis)       | `k6 run tests/load/<script>.js`     |
-| `smoke/`     | Post-deployment smoke tests (health, monitoring, WebSocket)    | `uv run pytest tests/smoke/ -v`     |
+| Suite    | Purpose                                                     | How to run                      |
+| -------- | ----------------------------------------------------------- | ------------------------------- |
+| `load/`  | K6 load-test scripts (cameras, events, WebSocket, Redis)    | `k6 run tests/load/<script>.js` |
+| `smoke/` | Post-deployment smoke tests (health, monitoring, WebSocket) | `uv run pytest tests/smoke/ -v` |
 
-Each suite has its own `README.md`; `benchmark/` and `load/` have their own `AGENTS.md` with details.
+Each suite has its own `README.md`; `load/` has its own `AGENTS.md` with details.
 
 ## Patterns
 

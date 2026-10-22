@@ -78,14 +78,12 @@ from scripts.synthetic import MediaGenerator, generate_video_sync
 # Async usage
 generator = MediaGenerator()
 success = await generator.generate_video(
-    prompt="Security camera view of front porch at night",
-    output_path=Path("output/video.mp4")
+    prompt="Security camera view of front porch at night", output_path=Path("output/video.mp4")
 )
 
 # Sync wrapper
 success = generate_video_sync(
-    prompt="Person walking up driveway",
-    output_path=Path("output/video.mp4")
+    prompt="Person walking up driveway", output_path=Path("output/video.mp4")
 )
 ```
 
@@ -136,7 +134,7 @@ from scripts.synthetic import ComparisonEngine
 engine = ComparisonEngine()
 expected = {
     "detections": [{"class": "person", "min_confidence": 0.75, "count": 1}],
-    "risk": {"min_score": 40, "max_score": 70, "level": "medium"}
+    "risk": {"min_score": 40, "max_score": 70, "level": "medium"},
 }
 actual = {...}  # Results from AI pipeline
 result = engine.compare(expected, actual)
@@ -213,9 +211,7 @@ from scripts.synthetic import StockFootageDownloader, search_stock_sync
 # Async usage
 downloader = StockFootageDownloader()
 results = await downloader.search_for_scenario(
-    scenario_id="loitering",
-    media_type="video",
-    count=10
+    scenario_id="loitering", media_type="video", count=10
 )
 for result in results:
     await downloader.download(result, Path(f"footage/{result.id}.mp4"))
