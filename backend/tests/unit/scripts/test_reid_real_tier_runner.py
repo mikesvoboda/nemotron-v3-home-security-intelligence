@@ -1249,6 +1249,48 @@ def test_the_ort_probe_fetch_program_parses_and_serves_what_it_reads(script_text
     )
 
 
+def test_the_probe_prelude_executes_and_builders_resolve(
+    script_text: str, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """The committed test that would have caught blocking 1: the probe died at
+    IMPORT time (BUILDERS referenced stage_ort_probe defined below the dict),
+    so every invocation raised before a single stage ran -- and no committed
+    test EXECUTED the probe, which is why CI stayed green over it. The pins
+    above are AST-parse-only, and ast.parse cannot see a NameError. Pin the
+    module level for real: with sys.argv stubbed to a tmp run dir holding one
+    tiny crop, everything before the STAGES loop executes -- the crop scan,
+    the batch build, every def, and the BUILDERS dict's construction, where
+    the forward reference lived. The loop itself stays out by seam honesty:
+    stage 1/2 need torch and TensorRT engines (GPU legs), which CI cannot run
+    truthfully."""
+    np = pytest.importorskip("numpy")
+
+    from PIL import Image
+
+    probe = _heredoc(script_text, "stage_probe.py", "PROBE")
+    tree = ast.parse(probe)
+    prelude = ast.Module(body=[n for n in tree.body if not isinstance(n, ast.For)], type_ignores=[])
+    src = ast.unparse(prelude)
+
+    crops = tmp_path / "crops"
+    crops.mkdir()
+    # An 8x16 RGB PNG of mid-gray: the smallest image PIL reads that the
+    # (3,256,128) resize accepts.
+    img = Image.new("RGB", (8, 16), (128, 128, 128))
+    img.save(crops / "crop-0001.png")
+    assert (crops / "crop-0001.png").is_file() and np is not None
+
+    monkeypatch.setattr(sys, "argv", ["stage_probe.py", str(tmp_path), "1,2"])
+    ns: dict[str, object] = {"__name__": "stage_probe"}
+    exec(compile(src, "<probe-prelude>", "exec"), ns)  # noqa: S102 nosemgrep: dangerous-eval - the shipped probe IS the test
+    builders = ns["BUILDERS"]
+    assert sorted(builders) == ["1", "2", "3", "4"], (
+        f"BUILDERS must resolve to the four stage keys without a forward "
+        f"reference (blocking 1's NameError lived here); got {sorted(builders)}"
+    )
+    assert (tmp_path / "crops" / "crop-0001.png").exists()
+
+
 def test_the_ort_probe_stays_contained_and_never_blocks_the_table(script_text: str) -> None:
     """The probe is box 2's LAST clause, "as a probe only" — it must not be a
     hard dependency of the run the way the parity arm's gateway is. The
