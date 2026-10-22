@@ -41,8 +41,10 @@
  * under backend/api/routes calls dedupe.py:496 clear_hash. The book
  * (backend/ai_contract/fake/scenario_fixtures/scenarios.json, read through
  * FEATURE_CHECK_SCENARIOS exactly as ../dashboard-drop.spec.ts:79 and
- * ./event-detail-modal.spec.ts:224 do) has five images, and the other four are
- * each claimed by a spec that drops them: person-at-door by F2.1 (its predicate
+ * ./event-detail-modal.spec.ts:224 do) has seven images ([F4.4] added
+ * f4.4-gold-high and f4.4-gold-rejected, both claimed by
+ * ./confidence-filter.spec.ts), and the other five are each claimed by a spec
+ * that drops them: person-at-door by F2.1 (its predicate
  * at ../dashboard-drop.spec.ts:93-98 is the book's only
  * fast+confirmed+non-harness-smoke row — computed against the book, not
  * assumed), cat-on-porch by F-054 (./event-detail-modal.spec.ts:214),

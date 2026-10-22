@@ -340,7 +340,71 @@ describe('BoundingBoxOverlay', () => {
     const svg = container.querySelector('svg');
     expect(svg?.classList.contains('w-full')).toBe(true);
     expect(svg?.classList.contains('h-full')).toBe(true);
-    expect(svg?.getAttribute('preserveAspectRatio')).toBe('none');
+    // "meet" letterboxes the viewBox exactly like the <img>'s object-contain
+    // does (F4.4) - "none" stretched the boxes off their objects whenever the
+    // container's aspect ratio differed from the image's.
+    expect(svg?.getAttribute('preserveAspectRatio')).toBe('xMidYMid meet');
+  });
+
+  // Letterbox alignment (F4.4): the overlay must adopt the same fit math as
+  // DetectionImage's object-contain <img>. jsdom has no pixel layout, so the
+  // observable contract is the SVG's own letterbox configuration: the viewBox
+  // carries the image's intrinsic dimensions, and preserveAspectRatio is
+  // "xMidYMid meet" - the same centered "contain" fit the img applies. With
+  // that value, an 800x600 image in a wide 1200x600 container renders both
+  // img and SVG scaled to 1200x900 centered (scale = min(1200/800, 600/600)),
+  // and in a tall 800x1000 container both scale to 800x1000 centered - the
+  // box geometry stays glued to the object in either letterbox direction,
+  // at any display size.
+  describe('letterboxed container alignment', () => {
+    const box: BoundingBox = { x: 100, y: 100, width: 200, height: 300, label: 'person', confidence: 0.95 };
+
+    it('keeps the contain-fit config in a wide container at one display size', () => {
+      const { container } = render(
+        <BoundingBoxOverlay boxes={[box]} imageWidth={800} imageHeight={600} />
+      );
+
+      const svg = container.querySelector('svg');
+      // ViewBox = intrinsic image size: the coordinate system the boxes are
+      // authored in, letterboxed as a unit against the container.
+      expect(svg?.getAttribute('viewBox')).toBe('0 0 800 600');
+      expect(svg?.getAttribute('preserveAspectRatio')).toBe('xMidYMid meet');
+
+      const rect = container.querySelector('rect[fill="none"]');
+      // Box geometry stays in image coordinates - the letterbox transform
+      // (not per-box scaling) maps it to the display.
+      expect(rect?.getAttribute('x')).toBe('100');
+      expect(rect?.getAttribute('width')).toBe('200');
+    });
+
+    it('keeps the contain-fit config in a tall container at another display size', () => {
+      const { container } = render(
+        <BoundingBoxOverlay boxes={[box]} imageWidth={1920} imageHeight={1080} />
+      );
+
+      const svg = container.querySelector('svg');
+      expect(svg?.getAttribute('viewBox')).toBe('0 0 1920 1080');
+      // Same value at a different intrinsic size/display size pair: the fit
+      // math is display-size independent, which is what keeps boxes aligned
+      // in the modal's responsive still.
+      expect(svg?.getAttribute('preserveAspectRatio')).toBe('xMidYMid meet');
+    });
+
+    it('matches the contain formula the <img> uses (scale = min(cw/iw, ch/ih))', () => {
+      // Sanity-check the formula the two elements share, written out so a
+      // future "why is this attribute load-bearing" reader sees the math.
+      // 800x600 image in a 1200x600 container: object-contain/meet scale by
+      // min(1.5, 1.0) = 1.0 and center - identical transform for img and SVG.
+      const imageWidth = 800;
+      const imageHeight = 600;
+      const containerWidth = 1200;
+      const containerHeight = 600;
+      const scale = Math.min(containerWidth / imageWidth, containerHeight / imageHeight);
+      expect(scale).toBe(1.0);
+
+      // And in a 400x800 container: scale = min(0.5, 4/3) = 0.5.
+      expect(Math.min(400 / imageWidth, 800 / imageHeight)).toBe(0.5);
+    });
   });
 
   it('applies correct z-index for overlay positioning', () => {

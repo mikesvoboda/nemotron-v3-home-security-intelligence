@@ -5332,6 +5332,10 @@ export interface paths {
          *             verification_failed, or 'none' for never-verified events). An
          *             unrecognised value is a 422 from the Literal-typed param - never
          *             an empty list, which would read as a false all-clear.
+         *         min_confidence: Optional detector-confidence floor (0.0-1.0): the
+         *             event matches when any of its detections is at or above it; 0
+         *             means the event has at least one detection. Outside 0 to 1 is
+         *             a 422 from the Query bounds.
          *         start_date: Optional start date for date range filter
          *         end_date: Optional end date for date range filter
          *         reviewed: Optional filter by reviewed status
@@ -48018,6 +48022,8 @@ export interface operations {
                 risk_level?: string | null;
                 /** @description Filter by VLM verification verdict (confirmed, rejected, uncertain, verification_failed) or 'none' for events never verified. Anything else is a 422, never an empty list - a typo'd verdict must not read as a false all-clear. */
                 verdict?: ("confirmed" | "rejected" | "uncertain" | "verification_failed" | "none") | null;
+                /** @description Minimum detector confidence across the event's detections (0.0-1.0). An event matches when ANY of its detections is at or above the threshold. 0 means the event has at least one detection. Values outside 0 to 1 are a 422. */
+                min_confidence?: number | null;
                 /** @description Filter by start date (ISO format) */
                 start_date?: string | null;
                 /** @description Filter by end date (ISO format) */

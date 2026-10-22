@@ -907,12 +907,19 @@ def test_the_scenario_book_outcomes_survive_a_fixture_image_swap() -> None:
     """
     book = json.loads((fc.SCENARIO_DIR / "scenarios.json").read_text(encoding="utf-8"))
     scenarios = book["scenarios"]
+    # The r287 swap's five outcomes keep their positions. F4.4's golden path
+    # appends two scenarios AFTER them (order matters: dashboard-drop.spec.ts
+    # claims the book's first fast confirmed non-harness-smoke entry, which
+    # must stay person-at-door), and pins their thresholds so the confidence
+    # band the F4.4 spec asserts is a book fact, not a hope.
     assert [s["name"] for s in scenarios] == [
         "person-at-door",
         "cat-on-porch",
         "car-in-driveway",
         "slow-reply",
         "harness-smoke",
+        "f4.4-gold-high",
+        "f4.4-gold-rejected",
     ]
     # The verdicts the tiers pin: person 82 confirmed, cat 4 rejected, car 45
     # uncertain (the DO-1 medium band), slow-reply 70 with its 40 s delay, smoke 61.
@@ -923,8 +930,23 @@ def test_the_scenario_book_outcomes_survive_a_fixture_image_swap() -> None:
     assert by_name["slow-reply"]["verdict"]["risk_score"] == 70
     assert by_name["slow-reply"]["reply_delay_seconds"] == 40
     assert by_name["harness-smoke"]["verdict"]["risk_score"] == 61
+    # F4.4's own pins: the High band (0.85) matches the 0.90 event and NOT the
+    # 0.75 one; Medium+ (0.70) matches both; the rejected scenario serves the
+    # Rejected filter. Both risk_scores sit under the medium/high boundary (60)
+    # so neither can perturb assertSoleAlertIsSmoke's one-alert pin.
+    assert by_name["f4.4-gold-high"]["detections"][0]["confidence"] == 0.9
+    assert by_name["f4.4-gold-high"]["verdict"]["verdict"] == "confirmed"
+    assert by_name["f4.4-gold-high"]["verdict"]["risk_score"] < 60
+    assert by_name["f4.4-gold-rejected"]["detections"][0]["confidence"] == 0.75
+    assert by_name["f4.4-gold-rejected"]["verdict"]["verdict"] == "rejected"
+    assert by_name["f4.4-gold-rejected"]["verdict"]["risk_score"] < 60
+    # The several-detections clause: the high scenario carries more than one,
+    # every pre-existing scenario still carries exactly one.
+    assert len(by_name["f4.4-gold-high"]["detections"]) > 1
+    for name in ("person-at-door", "cat-on-porch", "car-in-driveway", "slow-reply", "harness-smoke"):
+        assert len(by_name[name]["detections"]) == 1
     # Routing still works: the book the fake loads at startup resolves every
-    # image, hashes it, and the five digests stay distinct.
+    # image, hashes it, and the digests stay distinct.
     loaded = (
         fc._load_scenario_book_for_test() if hasattr(fc, "_load_scenario_book_for_test") else None
     )
@@ -932,9 +954,9 @@ def test_the_scenario_book_outcomes_survive_a_fixture_image_swap() -> None:
         from backend.ai_contract.fake.scenarios import ScenarioBook
 
         loaded = ScenarioBook.load(fc.SCENARIO_DIR)
-    assert len(loaded) == 5, len(loaded)
+    assert len(loaded) == 7, len(loaded)
     digests = {s.digest for s in loaded}
-    assert len(digests) == 5, "two scenarios share an image"
+    assert len(digests) == 7, "two scenarios share an image"
 
 
 def test_drop_lands_the_image_in_the_camera_folder(tmp_path: Path) -> None:

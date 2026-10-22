@@ -181,7 +181,13 @@ export interface EventCardProps {
   summary: string;
   reasoning?: string;
   thumbnail_url?: string;
-  detections: Detection[];
+  /**
+   * Optional since F4.4: the list payload carries no detections (the detail
+   * modal fetches its own), so every producer passed an empty array and the
+   * card never rendered this section. Kept as a prop for callers that
+   * genuinely hold detections; undefined renders nothing.
+   */
+  detections?: Detection[];
   started_at?: string;
   ended_at?: string | null;
   onViewDetails?: (eventId: string) => void;
@@ -309,12 +315,14 @@ const EventCard = memo(function EventCard({
   // confident green "Low".
   const riskLevel = risk_score === null ? null : getRiskLevel(risk_score);
 
-  // Get unique object types from detections
-  const uniqueObjectTypes = Array.from(new Set(detections.map((d) => d.label.toLowerCase())));
+  // Get unique object types from detections (absent prop = empty list)
+  const uniqueObjectTypes = Array.from(
+    new Set((detections ?? []).map((d) => d.label.toLowerCase()))
+  );
 
   // Calculate aggregate confidence metrics
-  const avgConfidence = calculateAverageConfidence(detections);
-  const maxConfidence = calculateMaxConfidence(detections);
+  const avgConfidence = calculateAverageConfidence(detections ?? []);
+  const maxConfidence = calculateMaxConfidence(detections ?? []);
 
   // Build severity-based styling classes
   const getSeverityClasses = (): string => {
@@ -502,11 +510,11 @@ const EventCard = memo(function EventCard({
           </div>
 
           {/* Detection List with Color-Coded Confidence */}
-          {detections.length > 0 && (
+          {(detections ?? []).length > 0 && (
             <div className="mb-3 rounded-md bg-black/30 p-3">
               <div className="mb-2 flex items-center justify-between">
                 <h4 className="text-xs font-semibold uppercase tracking-wide text-text-secondary">
-                  Detections ({detections.length})
+                  Detections ({(detections ?? []).length})
                 </h4>
                 {/* Aggregate Confidence Display */}
                 {avgConfidence !== null && maxConfidence !== null && (
@@ -531,7 +539,7 @@ const EventCard = memo(function EventCard({
                   </div>
                 )}
               </div>
-              <CollapsibleDetections detections={detections} maxVisible={3} />
+              <CollapsibleDetections detections={detections ?? []} maxVisible={3} />
             </div>
           )}
 

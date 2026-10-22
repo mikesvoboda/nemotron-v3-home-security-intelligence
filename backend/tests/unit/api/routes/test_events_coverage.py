@@ -193,6 +193,54 @@ class TestListEventsFilters:
 
         assert response.status_code == 200
 
+    def test_list_events_with_min_confidence_filter(
+        self, client: TestClient, mock_db_session: AsyncMock
+    ):
+        """Test list_events applies min_confidence filter (F4.4).
+
+        The mock-backed test observes only that the parameter parses and the
+        route returns 200; the EXISTS clause itself is proven by the
+        data-backed integration tests in test_events_api.py.
+        """
+        mock_result = MagicMock()
+        mock_result.scalars.return_value.all.return_value = []
+        mock_count_result = MagicMock()
+        mock_count_result.scalar.return_value = 0
+        mock_db_session.execute.side_effect = [mock_count_result, mock_result]
+
+        response = client.get("/api/events?min_confidence=0.85")
+
+        assert response.status_code == 200
+
+    def test_list_events_with_min_confidence_zero(
+        self, client: TestClient, mock_db_session: AsyncMock
+    ):
+        """Test list_events applies min_confidence=0 (has at least one detection)."""
+        mock_result = MagicMock()
+        mock_result.scalars.return_value.all.return_value = []
+        mock_count_result = MagicMock()
+        mock_count_result.scalar.return_value = 0
+        mock_db_session.execute.side_effect = [mock_count_result, mock_result]
+
+        response = client.get("/api/events?min_confidence=0")
+
+        assert response.status_code == 200
+
+    @pytest.mark.parametrize("value", ["-0.1", "1.1", "2"])
+    def test_list_events_min_confidence_out_of_range_is_422(
+        self, client: TestClient, mock_db_session: AsyncMock, value: str
+    ):
+        """Test min_confidence outside 0..1 is a 422 (Query bounds, F4.4)."""
+        mock_result = MagicMock()
+        mock_result.scalars.return_value.all.return_value = []
+        mock_count_result = MagicMock()
+        mock_count_result.scalar.return_value = 0
+        mock_db_session.execute.side_effect = [mock_count_result, mock_result]
+
+        response = client.get(f"/api/events?min_confidence={value}")
+
+        assert response.status_code == 422
+
     def test_list_events_with_start_date_filter(
         self, client: TestClient, mock_db_session: AsyncMock
     ):

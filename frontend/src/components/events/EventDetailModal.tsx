@@ -28,7 +28,6 @@ import MatchedEntitiesSection from './MatchedEntitiesSection';
 import ReidMatchesPanel from './ReidMatchesPanel';
 import RiskFactorsBreakdown from './RiskFactorsBreakdown';
 import RiskFactorsList from './RiskFactorsList';
-import ThreatBoundingBox from './ThreatBoundingBox';
 import ThumbnailStrip from './ThumbnailStrip';
 import { useEventDetectionsQuery } from '../../hooks/useEventDetectionsQuery';
 import {
@@ -39,7 +38,7 @@ import {
   getDetectionVideoUrl,
 } from '../../services/api';
 import { triggerEvaluation, AuditApiError } from '../../services/auditApi';
-import { THREAT_CLASSES, HIGH_PRIORITY_THREATS } from '../../types/threat';
+import { THREAT_CLASSES } from '../../types/threat';
 import {
   calculateAverageConfidence,
   calculateMaxConfidence,
@@ -67,7 +66,6 @@ import EnrollFaceModal from '../face-recognition/EnrollFaceModal';
 import FeedbackPanel from '../feedback/FeedbackPanel';
 import VideoPlayer from '../video/VideoPlayer';
 
-import type { ThreatData } from './ThreatBoundingBox';
 import type { DetectionThumbnail } from './ThumbnailStrip';
 import type { EntityDetail } from '../../services/api';
 import type { EventVerificationPayload } from '../../types/generated/websocket';
@@ -80,6 +78,22 @@ import type {
 import type { LightboxImage } from '../common/Lightbox';
 import type { BoundingBox } from '../detection/BoundingBoxOverlay';
 
+/**
+ * Weapon classes draw red in the overlay (F4.4): the colour ThreatBoundingBox
+ * used for high-priority threats, carried onto the shared overlay now that
+ * the threats-only component is retired. Tailwind red-500.
+ */
+const WEAPON_BOX_COLOUR = '#ef4444';
+
+/** Threat classes from the shared vocabulary - a weapon box is red. */
+const THREAT_COLOUR_CLASSES = THREAT_CLASSES;
+
+/**
+ * A detection as the modal displays it: the label, its confidence, and the
+ * bounding box in the original image's pixels. Filled from the modal's own
+ * fetch of GET /api/events/{id}/detections (F4.4) - the event list payload
+ * carries no detections, so the list and overlay read this, not the event.
+ */
 export interface Detection {
   label: string;
   confidence: number;
@@ -113,7 +127,6 @@ export interface Event {
   reasoning?: string;
   image_url?: string;
   thumbnail_url?: string;
-  detections: Detection[];
   started_at?: string;
   ended_at?: string | null;
   reviewed?: boolean;
@@ -192,11 +205,6 @@ export default function EventDetailModal({
   // State for face enrollment modal
   const [enrollFaceModalOpen, setEnrollFaceModalOpen] = useState<boolean>(false);
 
-  // State for tracking image dimensions for ThreatBoundingBox overlay
-  const [imageDimensions, setImageDimensions] = useState<{ width: number; height: number } | null>(
-    null
-  );
-
   // Parse event ID for API calls
   const eventIdNumber = event ? parseInt(event.id, 10) : NaN;
 
@@ -234,8 +242,6 @@ export default function EventDetailModal({
       setReEvaluateSuccess(false);
       // Reset selected detection when switching events
       setSelectedDetectionId(undefined);
-      // Reset image dimensions for ThreatBoundingBox overlay
-      setImageDimensions(null);
     }
   }, [event]);
 
@@ -419,6 +425,64 @@ export default function EventDetailModal({
     return objectType === 'person' || objectType.includes('person') || objectType === 'face';
   }, [selectedDetection]);
 
+  // The detections the modal displays, from its own fetch (F4.4): the wire
+  // event carries no detections, so the detected-objects list and the
+  // overlay are driven by this, not by the event prop.
+  const modalDetections = useMemo((): Detection[] => {
+    return (detectionsData ?? []).map((d) => ({
+      label: d.object_type || 'object',
+      confidence: d.confidence ?? 0,
+      bbox:
+        d.bbox_x !== null &&
+        d.bbox_x !== undefined &&
+        d.bbox_y !== null &&
+        d.bbox_y !== undefined &&
+        d.bbox_width !== null &&
+        d.bbox_width !== undefined &&
+        d.bbox_height !== null &&
+        d.bbox_height !== undefined
+          ? { x: d.bbox_x, y: d.bbox_y, width: d.bbox_width, height: d.bbox_height }
+          : undefined,
+    }));
+  }, [detectionsData]);
+
+  // Boxes for the selected still image (F4.4): a box lives in the pixels of
+  // the file it was drawn on, so the overlay shows every IMAGE detection from
+  // the same file_path as the selected detection. A video detection keeps no
+  // frame to draw on - it plays in the video player with no box.
+  const boxesForSelectedImage = useMemo((): BoundingBox[] => {
+    if (!selectedDetection || selectedDetection.media_type === 'video') return [];
+    const filePath = selectedDetection.file_path;
+    return detectionsData
+      .filter(
+        (d) =>
+          d.file_path === filePath &&
+          d.media_type !== 'video' &&
+          d.bbox_x !== null &&
+          d.bbox_x !== undefined &&
+          d.bbox_y !== null &&
+          d.bbox_y !== undefined &&
+          d.bbox_width !== null &&
+          d.bbox_width !== undefined &&
+          d.bbox_height !== null &&
+          d.bbox_height !== undefined
+      )
+      .map((d): BoundingBox => ({
+        x: d.bbox_x as number,
+        y: d.bbox_y as number,
+        width: d.bbox_width as number,
+        height: d.bbox_height as number,
+        label: d.object_type || 'object',
+        confidence: d.confidence ?? 0,
+        // A weapon draws red regardless of the class palette (F4.4): the
+        // threat colour ThreatBoundingBox used, carried onto the same-kind
+        // overlay now that the threats-only component is retired.
+        ...(THREAT_COLOUR_CLASSES.has((d.object_type || '').toLowerCase()) && {
+          color: WEAPON_BOX_COLOUR,
+        }),
+      }));
+  }, [selectedDetection, detectionsData]);
+
   if (!event) {
     return null;
   }
@@ -458,57 +522,6 @@ export default function EventDetailModal({
     }
   };
 
-  // Convert Detection to BoundingBox format for DetectionImage component
-  const convertToBoundingBoxes = (): BoundingBox[] => {
-    return event.detections
-      .filter((d) => d.bbox)
-      .map((d) => {
-        const bbox = d.bbox as { x: number; y: number; width: number; height: number };
-        return {
-          x: bbox.x,
-          y: bbox.y,
-          width: bbox.width,
-          height: bbox.height,
-          label: d.label,
-          confidence: d.confidence,
-        };
-      });
-  };
-
-  // Convert event detections to ThreatData format for ThreatBoundingBox overlay
-  // Filters for threat classes (weapons, etc.) that have bounding box data
-  const convertToThreatData = (): ThreatData[] => {
-    return event.detections
-      .filter((d) => {
-        // Must have bbox data
-        if (!d.bbox) return false;
-        // Must be a known threat class
-        const label = d.label.toLowerCase();
-        return THREAT_CLASSES.has(label);
-      })
-      .map((d) => {
-        const bbox = d.bbox as { x: number; y: number; width: number; height: number };
-        const label = d.label.toLowerCase();
-        // Convert from {x, y, width, height} to [x1, y1, x2, y2] format
-        return {
-          class_name: d.label,
-          confidence: d.confidence,
-          // ThreatBoundingBox expects [x1, y1, x2, y2] format
-          bbox: [bbox.x, bbox.y, bbox.x + bbox.width, bbox.y + bbox.height] as [
-            number,
-            number,
-            number,
-            number,
-          ],
-          is_high_priority: HIGH_PRIORITY_THREATS.has(label),
-        };
-      });
-  };
-
-  // Compute threat data from event detections
-  const threatData = convertToThreatData();
-  const hasThreats = threatData.length > 0;
-
   // Risk level, or null when the event has none to show (1.6, D11). The
   // header then shows the verdict (or Unverified) instead of a RiskBadge,
   // and the score readout says "Not analyzed" instead of "0 / 100".
@@ -524,7 +537,6 @@ export default function EventDetailModal({
 
   // Use full-size image if available, otherwise fallback to thumbnail
   const imageUrl = event.image_url || event.thumbnail_url;
-  const hasBoundingBoxes = event.detections.some((d) => d.bbox);
 
   return (
     <Transition appear show={isOpen} as={Fragment}>
@@ -730,66 +742,26 @@ export default function EventDetailModal({
                           <DetectionImage
                             src={getDetectionFullImageUrl(selectedDetectionId)}
                             alt={`${selectedDetection.object_type || 'Detection'} at ${formatTimestamp(selectedDetection.detected_at)}`}
-                            boxes={[]}
+                            boxes={boxesForSelectedImage}
                             className="w-full"
                             enableLightbox={true}
                             lightboxCaption={`${event.camera_name} - ${selectedDetection.object_type || 'Detection'}${selectedDetection.confidence ? ` (${Math.round(selectedDetection.confidence * 100)}%)` : ''}`}
-                            onImageLoad={setImageDimensions}
-                            overlayContent={
-                              hasThreats && imageDimensions ? (
-                                <ThreatBoundingBox
-                                  threats={threatData}
-                                  imageWidth={imageDimensions.width}
-                                  imageHeight={imageDimensions.height}
-                                />
-                              ) : undefined
-                            }
                           />
                         </div>
                       ) : imageUrl ? (
-                        // Fallback to event's main image when no detection is selected
+                        // Fallback to event's main image when no detection is selected.
+                        // Never gets boxes (F4.4): the fallback thumbnail has no
+                        // selected detection, so there is no file_path to match
+                        // boxes against - only the selected-detection still does.
                         <div className="mb-6 overflow-hidden rounded-lg bg-black">
-                          {hasBoundingBoxes ? (
-                            <DetectionImage
-                              src={imageUrl}
-                              alt={`${event.camera_name} detection at ${formatTimestamp(event.timestamp)}`}
-                              boxes={convertToBoundingBoxes()}
-                              showLabels={true}
-                              showConfidence={true}
-                              className="w-full"
-                              enableLightbox={true}
-                              lightboxCaption={`${event.camera_name} - ${formatTimestamp(event.timestamp)}`}
-                              onImageLoad={setImageDimensions}
-                              overlayContent={
-                                hasThreats && imageDimensions ? (
-                                  <ThreatBoundingBox
-                                    threats={threatData}
-                                    imageWidth={imageDimensions.width}
-                                    imageHeight={imageDimensions.height}
-                                  />
-                                ) : undefined
-                              }
-                            />
-                          ) : (
-                            <DetectionImage
-                              src={imageUrl}
-                              alt={`${event.camera_name} at ${formatTimestamp(event.timestamp)}`}
-                              boxes={[]}
-                              className="w-full"
-                              enableLightbox={true}
-                              lightboxCaption={`${event.camera_name} - ${formatTimestamp(event.timestamp)}`}
-                              onImageLoad={setImageDimensions}
-                              overlayContent={
-                                hasThreats && imageDimensions ? (
-                                  <ThreatBoundingBox
-                                    threats={threatData}
-                                    imageWidth={imageDimensions.width}
-                                    imageHeight={imageDimensions.height}
-                                  />
-                                ) : undefined
-                              }
-                            />
-                          )}
+                          <DetectionImage
+                            src={imageUrl}
+                            alt={`${event.camera_name} at ${formatTimestamp(event.timestamp)}`}
+                            boxes={[]}
+                            className="w-full"
+                            enableLightbox={true}
+                            lightboxCaption={`${event.camera_name} - ${formatTimestamp(event.timestamp)}`}
+                          />
                         </div>
                       ) : null}
 
@@ -918,45 +890,47 @@ export default function EventDetailModal({
                         </div>
                       )}
 
-                      {/* Detections with Color-Coded Confidence */}
-                      {event.detections.length > 0 && (
+                      {/* Detections with Color-Coded Confidence - from the
+                          modal's own fetch (F4.4), not the event prop (the
+                          wire event carries none) */}
+                      {modalDetections.length > 0 && (
                         <div className="mb-6" data-testid="detection-objects">
                           <div className="mb-3 flex items-center justify-between">
                             <h3 className="text-sm font-semibold uppercase tracking-wide text-gray-400">
-                              Detected Objects ({event.detections.length})
+                              Detected Objects ({modalDetections.length})
                             </h3>
                             {/* Aggregate Confidence Display */}
-                            {event.detections.length > 0 && (
+                            {modalDetections.length > 0 && (
                               <div className="flex items-center gap-3 text-sm">
                                 <TrendingUp className="h-4 w-4 text-gray-400" aria-hidden="true" />
-                                {calculateAverageConfidence(event.detections) !== null && (
+                                {calculateAverageConfidence(modalDetections) !== null && (
                                   <div className="flex items-center gap-1">
                                     <span className="text-gray-400">Avg:</span>
                                     <span
                                       className={`font-semibold ${getConfidenceTextColorClass(
                                         getConfidenceLevel(
-                                          calculateAverageConfidence(event.detections) as number
+                                          calculateAverageConfidence(modalDetections) as number
                                         )
                                       )}`}
                                     >
                                       {formatConfidencePercent(
-                                        calculateAverageConfidence(event.detections) as number
+                                        calculateAverageConfidence(modalDetections) as number
                                       )}
                                     </span>
                                   </div>
                                 )}
-                                {calculateMaxConfidence(event.detections) !== null && (
+                                {calculateMaxConfidence(modalDetections) !== null && (
                                   <div className="flex items-center gap-1">
                                     <span className="text-gray-400">Max:</span>
                                     <span
                                       className={`font-semibold ${getConfidenceTextColorClass(
                                         getConfidenceLevel(
-                                          calculateMaxConfidence(event.detections) as number
+                                          calculateMaxConfidence(modalDetections) as number
                                         )
                                       )}`}
                                     >
                                       {formatConfidencePercent(
-                                        calculateMaxConfidence(event.detections) as number
+                                        calculateMaxConfidence(modalDetections) as number
                                       )}
                                     </span>
                                   </div>
@@ -965,54 +939,52 @@ export default function EventDetailModal({
                             )}
                           </div>
                           <div className="grid gap-2">
-                            {sortDetectionsByConfidence(event.detections).map(
-                              (detection, index) => {
-                                const level = getConfidenceLevel(detection.confidence);
-                                const confidenceLabel = getConfidenceLabel(level);
-                                return (
-                                  <div
-                                    key={`${detection.label}-${index}`}
-                                    className={`flex items-center justify-between rounded-lg border px-4 py-3 ${getConfidenceBgColorClass(level)} ${getConfidenceBorderColorClass(level)}`}
-                                    title={`${confidenceLabel}`}
-                                  >
-                                    <div className="flex items-center gap-2">
-                                      <span className="text-sm font-medium text-white">
-                                        {detection.label}
-                                      </span>
-                                      <DetectionQualityBadge
-                                        confidence={detection.confidence}
-                                        size="sm"
+                            {sortDetectionsByConfidence(modalDetections).map((detection, index) => {
+                              const level = getConfidenceLevel(detection.confidence);
+                              const confidenceLabel = getConfidenceLabel(level);
+                              return (
+                                <div
+                                  key={`${detection.label}-${index}`}
+                                  className={`flex items-center justify-between rounded-lg border px-4 py-3 ${getConfidenceBgColorClass(level)} ${getConfidenceBorderColorClass(level)}`}
+                                  title={`${confidenceLabel}`}
+                                >
+                                  <div className="flex items-center gap-2">
+                                    <span className="text-sm font-medium text-white">
+                                      {detection.label}
+                                    </span>
+                                    <DetectionQualityBadge
+                                      confidence={detection.confidence}
+                                      size="sm"
+                                    />
+                                  </div>
+                                  <div className="flex items-center gap-2">
+                                    {/* Confidence bar */}
+                                    <div
+                                      className="h-2 w-16 overflow-hidden rounded-full bg-gray-700"
+                                      aria-hidden="true"
+                                    >
+                                      <div
+                                        className={`h-full rounded-full transition-all duration-300 ${
+                                          level === 'low'
+                                            ? 'bg-red-500'
+                                            : level === 'medium'
+                                              ? 'bg-yellow-500'
+                                              : 'bg-green-500'
+                                        }`}
+                                        style={{
+                                          width: `${Math.round(detection.confidence * 100)}%`,
+                                        }}
                                       />
                                     </div>
-                                    <div className="flex items-center gap-2">
-                                      {/* Confidence bar */}
-                                      <div
-                                        className="h-2 w-16 overflow-hidden rounded-full bg-gray-700"
-                                        aria-hidden="true"
-                                      >
-                                        <div
-                                          className={`h-full rounded-full transition-all duration-300 ${
-                                            level === 'low'
-                                              ? 'bg-red-500'
-                                              : level === 'medium'
-                                                ? 'bg-yellow-500'
-                                                : 'bg-green-500'
-                                          }`}
-                                          style={{
-                                            width: `${Math.round(detection.confidence * 100)}%`,
-                                          }}
-                                        />
-                                      </div>
-                                      <span
-                                        className={`min-w-[3rem] text-right text-xs font-semibold ${getConfidenceTextColorClass(level)}`}
-                                      >
-                                        {formatConfidence(detection.confidence)}
-                                      </span>
-                                    </div>
+                                    <span
+                                      className={`min-w-[3rem] text-right text-xs font-semibold ${getConfidenceTextColorClass(level)}`}
+                                    >
+                                      {formatConfidence(detection.confidence)}
+                                    </span>
                                   </div>
-                                );
-                              }
-                            )}
+                                </div>
+                              );
+                            })}
                           </div>
                         </div>
                       )}
@@ -1035,7 +1007,7 @@ export default function EventDetailModal({
                           <ReidMatchesPanel
                             detectionId={selectedDetectionId}
                             entityType={
-                              event.detections.some(
+                              modalDetections.some(
                                 (d) =>
                                   d.label.toLowerCase().includes('vehicle') ||
                                   d.label.toLowerCase().includes('car') ||
