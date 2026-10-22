@@ -123,11 +123,10 @@ exclude_reference_patterns:
 # pinned by test_substitution_does_not_green_a_total. ALL FIVE KEYS ARE REQUIRED: the
 # run exits 2 without any one of them (absent is neither 0 nor unchecked).
 retired_name_baseline:
-  florence: 93 # retired ai/florence path (W1.3 drained its dead-reference citations
-  # without adding florence mentions — the count is unchanged by design)
-  nemotron: 135 # the retired model family (W3.1 PR 1 removed 8 mentions in docs/**/AGENTS.md: 143 -> 135)
-  enrichment: 144 # retired ai/enrichment component (W1.3 drained 6: 159 -> 153; W3.1 PR 1 removed 9: 153 -> 144)
-  xclip: 10 # retired clip pipeline
+  florence: 70 # retired ai/florence path (W3.1 backend PR: 93 -> 78; W3.1 frontend PR: 78 -> 70)
+  nemotron: 81 # the retired model family (W3.1 PR 1: 143 -> 135; backend PR: 135 -> 107; frontend PR: 107 -> 81)
+  enrichment: 106 # retired ai/enrichment component (W1.3: 159 -> 153; W3.1 PR 1: 153 -> 144; backend PR: 144 -> 107; frontend PR: 107 -> 106)
+  xclip: 7 # retired clip pipeline (W3.1 backend PR: 10 -> 9; frontend PR: 9 -> 7)
   demographics: 2
 
 # W2.1 boundary list (UR-21): the directories that keep an AGENTS.md when W3.1 prunes the

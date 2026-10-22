@@ -40,8 +40,8 @@ frontend/src/types/
 ├── websocket-events.ts     # WebSocket event type definitions
 ├── websocket-events.test.ts # Tests for WebSocket event types
 └── generated/              # Auto-generated types from backend OpenAPI
-    ├── AGENTS.md           # Generated types documentation
-    ├── api.ts              # Full OpenAPI-generated types
+    ├── api.ts              # Full OpenAPI-generated types (`./scripts/generate-types.sh`)
+    ├── websocket.ts        # Generated WebSocket message types (`./scripts/generate-ws-types.py`)
     └── index.ts            # Re-exports with convenient type aliases
 ```
 

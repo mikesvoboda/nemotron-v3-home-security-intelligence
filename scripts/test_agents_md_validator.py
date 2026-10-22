@@ -998,11 +998,13 @@ def test_committed_boundary_list_covers_the_rule():
     roots = EXPECTED_LANE_ROOTS | {"."}
 
     def derive(threshold: int) -> set[str]:
-        """The rule as the config comment states it, at one threshold."""
+        """The rule as the config comment states it, at one threshold (W3.2 box 4:
+        the 20-code-file membership rule with RULE_EXCEPTION_NOT_LISTED as its
+        one pinned exception)."""
         kept = {
             d
             for d, n in counts.items()
-            if n >= threshold and not self_indexed(d) and (REPO_ROOT / d / "AGENTS.md").is_file()
+            if n >= threshold and not self_indexed(d) and d not in RULE_EXCEPTION_NOT_LISTED
         }
         return kept | roots | EXPECTED_RULE_EXCEPTIONS
 
