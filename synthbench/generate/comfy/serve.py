@@ -30,7 +30,7 @@ import httpx
 
 from synthbench.generate.podman import podman_argv, podman_env, podman_root
 
-IMAGE = "localhost/synthbench-comfyui:v0.37.0"
+IMAGE = "localhost/synthbench-comfyui:v0.42.1"
 CONTAINER = "synthbench-comfyui"
 GPU_LABEL = "synthbench.gpu=1"
 CONTAINERFILE_DIR = Path(__file__).resolve().parent

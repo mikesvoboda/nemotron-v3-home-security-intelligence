@@ -7961,3 +7961,160 @@ def test_a_manifest_shard_number_outside_the_manifest_is_refused(
     message = str(excinfo.value)
     assert "--shard 7/8" in message and "shard_count 3" in message, message
     assert _container_calls(calls) == [], "no leg ran on a refused selection"
+
+
+# ---------------------------------------------------------------------------
+# Phase 4 real-tier witness selectors (--pytest-k, --playwright-grep; UR-140)
+# ---------------------------------------------------------------------------
+
+
+@pytest.mark.parametrize(
+    "argv",
+    [
+        ["--fake", "--pytest-k", "test_f100"],
+        ["--prod-shape", "--pytest-k", "test_f100"],
+        ["--real", "--prod-shape", "--pytest-k", "test_f100"],
+        ["--real", "--seeded", "--pytest-k", "test_f100"],
+        ["--real", "--pytest-k", "   "],
+        ["--fake", "--playwright-grep", "F-101"],
+        ["--prod-shape", "--playwright-grep", "F-101"],
+        ["--real", "--prod-shape", "--playwright-grep", "F-101"],
+        ["--real", "--playwright-grep", "   "],
+    ],
+)
+def test_real_tier_selectors_refuse_invalid_modes_or_empty_values(
+    monkeypatch: pytest.MonkeyPatch, argv: list[str]
+) -> None:
+    """--pytest-k and --playwright-grep are real-tier witness selectors only."""
+    booted = _fake_boot(monkeypatch)
+    with pytest.raises(SystemExit):
+        fc.main(argv)
+    assert booted == []
+
+
+def test_real_tier_selectors_carry_into_run_and_record(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """--real --pytest-k ... --playwright-grep ... reaches run_check and summary."""
+    seen: dict[str, Any] = {}
+
+    def fake_run_check(args: Any, *, mode: str) -> int:
+        seen["mode"] = mode
+        seen["pytest_k"] = args.pytest_k
+        seen["playwright_grep"] = args.playwright_grep
+        probe = fc.Run(
+            engine="docker",
+            root=Path("/tmp/hsi-feature-check-tests"),  # noqa: S108 - never touched
+            image_tag="t",
+            mode=mode,
+            pytest_k=args.pytest_k,
+            playwright_grep=args.playwright_grep,
+        )
+        seen["record"] = probe.summary
+        return 0
+
+    monkeypatch.setattr(fc, "run_check", fake_run_check)
+    monkeypatch.setattr(fc, "real_unavailable", lambda _environ: None)
+    assert (
+        fc.main(
+            [
+                "--real",
+                "--pytest-k",
+                "test_f100 or test_f101",
+                "--playwright-grep",
+                "F-101",
+            ]
+        )
+        == 0
+    )
+    assert seen["mode"] == "real"
+    assert seen["pytest_k"] == "test_f100 or test_f101"
+    assert seen["playwright_grep"] == "F-101"
+    assert seen["record"]["pytest_k"] == "test_f100 or test_f101"
+    assert seen["record"]["playwright_grep"] == "F-101"
+
+
+def test_pytest_k_alone_runs_backend_with_k_and_skips_playwright(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """A backend-only witness (e.g. B4.1) runs pytest -k and skips Playwright."""
+    run = _golden_leg(tmp_path, monkeypatch, "backend", _RAN_JUNIT)
+    # Enable PLAYWRIGHT_CONFIG too to prove the skip guard suppresses Playwright.
+    config = tmp_path / "playwright.config.ts"
+    config.write_text("{ name: 'golden', testDir: './tests/golden' }\n", encoding="utf-8")
+    monkeypatch.setattr(fc, "PLAYWRIGHT_CONFIG", config)
+    recorded_argvs: list[list[str]] = []
+    orig_run = run._run
+
+    def spy_run(command: list[str], **kwargs: Any) -> subprocess.CompletedProcess[str]:
+        recorded_argvs.append(list(command))
+        return orig_run(command, **kwargs)
+
+    monkeypatch.setattr(run, "_run", spy_run)
+    run.pytest_k = "test_f216_f217 or test_f050_f079"
+    assert run.golden() == []
+    golden = run.summary["results"]["golden"]
+    assert golden["backend"] == "ok"
+    assert golden["pytest_k"] == "test_f216_f217 or test_f050_f079"
+    assert golden["playwright"] == "skipped on pytest-k"
+    pytest_calls = [c for c in recorded_argvs if c[:3] == ["uv", "run", "pytest"]]
+    assert len(pytest_calls) == 1
+    assert pytest_calls[0][-2:] == ["-k", "test_f216_f217 or test_f050_f079"]
+
+
+def test_playwright_grep_alone_skips_backend_and_passes_grep_to_playwright(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """A Playwright-only witness skips the backend pytest leg and passes --grep."""
+    calls: list[tuple[list[str], dict[str, Any]]] = []
+    run = _golden_only_run(tmp_path, monkeypatch, True, calls)
+    monkeypatch.setattr(fc, "REPO_ROOT", tmp_path)
+    backend_dir = tmp_path / "no-backend-golden"
+    backend_dir.mkdir()
+    (backend_dir / "test_one.py").write_text("def test_one():\n", encoding="utf-8")
+    run.playwright_grep = "F-101"
+    assert run.golden() == []
+    golden = run.summary["results"]["golden"]
+    assert golden["backend"] == "skipped on playwright-grep"
+    assert golden["playwright"] == "ok"
+    assert golden["playwright_grep"] == "F-101"
+    assert not any(c[:3] == ["uv", "run", "pytest"] for c, _ in calls)
+    argv, _ = _golden_container(calls)
+    assert "--grep F-101" in argv[-1], argv[-1]
+
+
+def test_both_selectors_run_both_legs_with_their_filters(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """When both --pytest-k and --playwright-grep are passed (e.g. B4.6), both legs run."""
+    calls: list[tuple[list[str], dict[str, Any]]] = []
+    run = _golden_only_run(tmp_path, monkeypatch, True, calls)
+    monkeypatch.setattr(fc, "REPO_ROOT", tmp_path)
+    backend_dir = tmp_path / "no-backend-golden"
+    backend_dir.mkdir()
+    (backend_dir / "test_backup.py").write_text("def test_f101():\n", encoding="utf-8")
+    orig_fake = fc.Run._run
+
+    def fake_with_backend_junit(
+        self: Any, command: list[str], **kwargs: Any
+    ) -> subprocess.CompletedProcess[str]:
+        res = orig_fake(self, command, **kwargs)
+        for token in command:
+            if str(token).startswith("--junitxml="):
+                Path(str(token).split("=", 1)[1]).write_text(_RAN_JUNIT, encoding="utf-8")
+        return res
+
+    monkeypatch.setattr(fc.Run, "_run", fake_with_backend_junit)
+    run.pytest_k = "test_f100 or test_f101"
+    run.playwright_grep = "F-101"
+    assert run.golden() == []
+    golden = run.summary["results"]["golden"]
+    assert golden["backend"] == "ok"
+    assert golden["pytest_k"] == "test_f100 or test_f101"
+    assert golden["playwright"] == "ok"
+    assert golden["playwright_grep"] == "F-101"
+    pytest_calls = [c for c, _ in calls if c[:3] == ["uv", "run", "pytest"]]
+    assert len(pytest_calls) == 1
+    assert pytest_calls[0][-2:] == ["-k", "test_f100 or test_f101"]
+    argv, _ = _golden_container(calls)
+    assert "--grep F-101" in argv[-1], argv[-1]

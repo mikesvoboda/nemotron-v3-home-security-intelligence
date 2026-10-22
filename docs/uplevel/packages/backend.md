@@ -60,11 +60,11 @@ measurement is posted on the PR (the row sits at `awaiting real tier` until then
 
 ### B2.3 Re-ID model bake-off
 
-**Flags:** `heavy`; label `cell:heavy-b` (ruling 258). **Depends on:** `O2.4` (its `RESULT: PASS` posted).
+**Flags:** `heavy`; label `cell:heavy-b` (ruling 258). **Depends on:** `O2.4`'s pass (UR-85).
 Approved by owner ruling 107 (issue #6854, comment `6109720693`, 2026-10-11). It may stay open past
 Phase 2's exit (UR-10, contract rule 5).
-**Assigned:** heavy-b, next once `O2.4`'s `RESULT: PASS` is posted, after the PR heavy-b holds then
-(rulings 258 and 260). **PR:** none yet.
+**Assigned:** heavy-b, once `O2.4` passes (UR-85; ruling 312 point 4), after the PR heavy-b holds
+then and after `[r307a]` (rulings 258, 260 and 307). **PR:** none yet.
 
 - [ ] Export CLIP-ReID ViT-B/16 and PersonViT ViT-S/16 through `O2.4`'s TensorRT path.
 - [ ] Score them with OSNet-AIN x1.0 on a labelled set of person crops from the owner's setting:
@@ -419,7 +419,7 @@ Design: [`../4n-alerting.md`](../4n-alerting.md), "Packages" row 5.
 
 **Flags:** `heavy`. **Assigned:** heavy-b, after `O3.7` and `[r312b]`; `[r307a]` keeps its place
 ahead of it if O2.4 passes first (rulings 308, 312). **Depends on:** none.
-**PR:** #7345, #7350. (ruling 308, record 6326364266)
+**PR:** #7345, #7350, #7358. (ruling 308, record 6326364266)
 
 Design: [`../4n-restore.md`](../4n-restore.md), its `RestoreModal` part included (UR-9). Covers
 F-101.
@@ -442,11 +442,11 @@ the fast lanes.
 
 **Flags:** `heavy`. **Assigned:** heavy-a, after `B4.4` (ruling 311). **Depends on:** `B4.1`
 merged for the build PR; the test-only PR may open first.
-**PR:** none yet. (ruling 311, record 6328311780)
+**PR:** #7357. (ruling 311, record 6328311780)
 
 Design: [`../4n-arming.md`](../4n-arming.md), "Packages" row `B4.7`. Covers F-290.
 
-- [ ] The test-only PR (step 2): `inbound_webhooks.py` and the alerting `policy` and `pipeline`.
+- [x] The test-only PR (step 2): `inbound_webhooks.py` and the alerting `policy` and `pipeline`.
 - [ ] The build PR: `arming.py` (`mode_at`, `is_armed`, `set_mode`, `apply_schedule`,
       `next_scheduled`); the four arming tables, with `schedule_updated_at` and a change log that
       carries every mode's exclusions; the policy hook (raised while unarmed, the mode-scoped
@@ -1098,8 +1098,8 @@ and `[r312a]`'s second run, reading every plan stage at or above 0.999 on all 36
 (`local`, CPU-only torch wheels, `pyproject.toml:984-994`) and the gateway's GPU `reid`
 (`gateway`), "the same network and weights" (`config.py:1449`), under one model ID
 (`osnet-ain-x1-0@osnet_ain_x1_0_msmt17@8a07e8da3894`, #7002 `6154659954`). Stored person vectors
-stay valid across the flip once parity holds. On `RESULT: PASS`, `O2.4` goes to `done` and `B2.3` is
-unblocked (ruling 107).
+stay valid across the flip once parity holds. When O2.4 passes (UR-85), `O2.4` goes to `done` and
+`B2.3` is unblocked (rulings 107, 312).
 
 - [ ] `REID_BACKEND`'s default becomes `gateway` in `backend/core/config.py` and in every compose
       or env file that sets it.
