@@ -3113,6 +3113,37 @@ asyncio.run(main())
             # Delete exactly our UUIDs, even if seeding or a golden leg fails.
             self._gpu_history_fixture(ids, restore=True)
 
+    def _sink_webhook_host(self) -> str:
+        """The webhook sink's in-network address, as the backend's env spells it.
+
+        The single spelling lives in the overlay (``docker-compose.sinks.yml``
+        sets ``FEATURE_CHECK_SINK_WEBHOOK_HOST`` on the backend), and the run's
+        rendered ``compose.json`` is the document compose itself consumes — so
+        the golden env reads the value OFF that file rather than carrying a
+        second copy a renumber could desync. run_check renders before golden
+        (feature_check.py:3967 → :3976), so in production the file is always
+        there; a run that reaches golden without a rendered stack has no
+        backend to have an env, and the sink block has no business exporting
+        a dial target for one — raise the same way ``_address`` does for an
+        unpublished port.
+        """
+        if not self.compose_file.exists():
+            raise HarnessError(
+                "no rendered compose.json for the golden env: FEATURE_CHECK_SINK_WEBHOOK_HOST "
+                "must come off the rendered backend env (run_check renders before golden)"
+            )
+        boot = json.loads(self.compose_file.read_text(encoding="utf-8"))
+        raw = (boot.get("services", {}).get("backend", {}) or {}).get("environment") or []
+        entries = raw if isinstance(raw, list) else [f"{k}={v}" for k, v in raw.items()]
+        for entry in entries:
+            key, _, value = str(entry).partition("=")
+            if key == "FEATURE_CHECK_SINK_WEBHOOK_HOST":
+                return value
+        raise HarnessError(
+            "the rendered backend env carries no FEATURE_CHECK_SINK_WEBHOOK_HOST; "
+            "docker-compose.sinks.yml lost the sink env (the webhook golden leg dials it)"
+        )
+
     def _golden(self) -> list[str]:
         env = {
             **os.environ,
@@ -3130,17 +3161,20 @@ asyncio.run(main())
         # [r308a] The notification sinks' golden env: the host-side loopback URL
         # of each sink's read-back surface (resolved the way the backend's own
         # address is, `compose port`), plus the marking the run stands up. The
-        # webhook's in-network address is NOT exported here as a URL — it is
-        # FEATURE_CHECK_SINK_WEBHOOK_HOST in the backend's own env
-        # (docker-compose.sinks.yml), and the webhook-create leg takes it from
-        # there: from inside the backend container the host-side loopback URL
-        # points at the backend, not the sink.
+        # webhook's in-network address is NOT exported as a URL — the golden env
+        # carries it as FEATURE_CHECK_SINK_WEBHOOK_HOST, the SAME spelling the
+        # backend container's env holds (read off the rendered compose.json the
+        # run booted, so the leg sees the address the backend actually dials and
+        # no second copy of the overlay's value can drift). From inside the
+        # backend container the host-side loopback URL points at the backend,
+        # not the sink, which is why the two sides need different spellings.
         if self.mode == "fake" and not self.prod_shape:
             env["FEATURE_CHECK_SINKS_MODE"] = SINKS_MODE
             env["FEATURE_CHECK_SINK_SMTP_URL"] = self._address("mail-sink", 8025)
             env["FEATURE_CHECK_SINK_MAIL_HTTP_URL"] = self._address("mail-sink", 8026)
             env["FEATURE_CHECK_SINK_WEBHOOK_URL"] = self._address("webhook-sink", 8091)
             env["FEATURE_CHECK_SINK_PUSH_URL"] = self._address("push-sink", 8092)
+            env["FEATURE_CHECK_SINK_WEBHOOK_HOST"] = self._sink_webhook_host()
         problems = []
         results: dict[str, Any] = {}
         project_name = "golden-seeded" if self.seeded else "golden"

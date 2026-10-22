@@ -327,6 +327,56 @@ def test_the_backend_leg_env_carries_the_sink_marking_and_smtp_shape(
     assert env["FEATURE_CHECK_SINK_SMTP_URL"].endswith(":1825"), env["FEATURE_CHECK_SINK_SMTP_URL"]
 
 
+def test_the_backend_leg_env_carries_the_in_network_webhook_host(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """The golden env's webhook HOST is the backend's own in-network spelling.
+
+    The webhook-create leg dials `http://<FEATURE_CHECK_SINK_WEBHOOK_HOST>` —
+    an address only the backend container can reach — so the env value must be
+    the one the run BOOTS with, read off the rendered compose.json (the helper
+    writes `webhook-sink:8091`, the overlay's spelling), NOT a host-side
+    loopback URL and NOT a literal the harness re-typed: the value here is
+    derived from the same document compose consumes, so renumbering the sink
+    in the overlay flows through without a second pin to remember.
+    """
+    calls: list[tuple[list[str], dict[str, Any]]] = []
+    run = _golden_only_run(tmp_path, monkeypatch, True, calls)
+    monkeypatch.setattr(fc, "REPO_ROOT", tmp_path)
+    golden = tmp_path / "no-backend-golden"
+    golden.mkdir()
+    (golden / "test_one.py").write_text("def test_one():\n", encoding="utf-8")
+    # A second spelling in the document proves the env is READ, not echoed:
+    # the export must follow the file, whatever the file says.
+    _write_rendered_compose(run, webhook_host="webhook-sink:9999")
+    run.golden()
+    _, kwargs = _backend_leg(calls)
+    env = kwargs["env"]
+    assert env["FEATURE_CHECK_SINK_WEBHOOK_HOST"] == "webhook-sink:9999", env
+    assert not env["FEATURE_CHECK_SINK_WEBHOOK_HOST"].startswith("http"), env
+
+
+def test_a_golden_env_with_no_rendered_stack_refuses_the_webhook_host(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """The absence refusal, not a silent fall-back to a hardcoded spelling.
+
+    run_check renders before golden, so production never gets here; a fixture
+    world that reaches golden() unrendered has no backend env to read, and
+    exporting a hardcoded `webhook-sink:8091` would paper over exactly the
+    drift the read-from-the-render exists to prevent — the value the leg sees
+    would stop being the value the backend dials.
+    """
+    calls: list[tuple[list[str], dict[str, Any]]] = []
+    run = _golden_only_run(tmp_path, monkeypatch, True, calls, rendered=False)
+    monkeypatch.setattr(fc, "REPO_ROOT", tmp_path)
+    golden = tmp_path / "no-backend-golden"
+    golden.mkdir()
+    (golden / "test_one.py").write_text("def test_one():\n", encoding="utf-8")
+    with pytest.raises(fc.HarnessError, match=r"no rendered compose\.json"):
+        run.golden()
+
+
 # ---------------------------------------------------------------------------
 # Preflight: each overlap or reach refuses the run
 # ---------------------------------------------------------------------------
@@ -1987,6 +2037,24 @@ _SINK_PORT_ANSWERS = {
 }
 
 
+def _write_rendered_compose(run: Any, webhook_host: str = "webhook-sink:8091") -> None:
+    """A rendered compose.json with the backend env the sinks overlay spells.
+
+    The golden env's in-network export reads the rendered backend env (the
+    single spelling lives in the overlay; run_check renders before golden).
+    A golden() fixture never renders, so the helper writes the one document
+    `_sink_webhook_host` reads — into the run's own dir (its project name is
+    a random stamp, so the path comes off the run, not a constant) — in the
+    same list-of-entries shape compose's `config --format json` emits from
+    the CI stack's `KEY=VALUE` list env.
+    """
+    backend_env = [f"FEATURE_CHECK_SINK_WEBHOOK_HOST={webhook_host}"]
+    run.compose_file.write_text(
+        json.dumps({"services": {"backend": {"environment": backend_env}}}) + "\n",
+        encoding="utf-8",
+    )
+
+
 def _canned_port_answer(run: Any, calls: list[tuple[list[str], dict[str, Any]]], fake: Any) -> Any:
     """Wrap ``fake`` so `compose port` for a sink answers its canned line.
 
@@ -2026,6 +2094,7 @@ def _golden_only_run(
     shard: tuple[int, int] | None = None,
     prod_shape: bool = False,
     golden_specs: tuple[str, ...] | None = None,
+    rendered: bool = True,
 ) -> Any:
     """A Run whose golden() reaches the Playwright branch with every filesystem
     fact pointed at tmp_path, and whose ``_run`` is recorded, not executed.
@@ -2045,6 +2114,12 @@ def _golden_only_run(
     image — ``image_present`` and ``pull_rc`` are the new firewall question.
     """
     run = _run(tmp_path, mode="fake")
+    # [r308a] The golden env's in-network sink export reads the rendered
+    # compose.json (run_check renders before golden); a golden() fixture never
+    # renders, so the helper writes the document — off (`rendered=False`) for
+    # the pin that holds the absence refusal itself.
+    if rendered:
+        _write_rendered_compose(run)
     if shard is not None:
         # [r264] A shard is a shape fact: it goes into the Run at construction
         # so the record written at init already names it.
@@ -3019,6 +3094,10 @@ def _golden_leg(
     and therefore looks exactly like a golden suite that ran.
     """
     run = _run(tmp_path, mode="fake")
+    # [r308a] The golden env's in-network sink export reads the rendered
+    # compose.json; this helper never renders, so it writes the document the
+    # same way the shared golden helper does.
+    _write_rendered_compose(run)
     run.api, run.ui = "http://api.invalid", "http://ui.invalid"
     # The password's VALUE is never what these pins read — the Playwright leg is
     # the only consumer and it is not asserted on here.
@@ -6648,6 +6727,10 @@ def test_golden_seeded_runs_golden_seeded_playwright_project(
     """
     run = fc.Run(engine="docker", root=tmp_path / "runs", image_tag="test", mode=mode, seeded=True)
     run.prepare()
+    # [r308a] The golden env's in-network sink export reads the rendered
+    # compose.json; this run never renders, so the fixture writes the document
+    # the same way the shared golden helper does.
+    _write_rendered_compose(run)
     run.api = "http://127.0.0.1:32772"
     run.ui = "http://127.0.0.1:32773"
     run.admin = {"username": "feature-check", "password": "secret"}  # pragma: allowlist secret
