@@ -156,6 +156,9 @@ def test_unterminated_quoted_identifier_raises():
         # three statements. The DELETE runs before the ALTER so the IN-list is still
         # validated against the native aimodel enum labels.
         ("0011-retire-vision-model-prompts", 3),
+        # 0012 (B4.1 alert pipeline core): 6 ADD COLUMN IF NOT EXISTS + 2 CREATE TABLE IF NOT EXISTS
+        # + 1 DO $$ ... END $$ block = 9 statements.
+        ("0012-alert-pipeline-core", 9),
     ],
 )
 def test_shipped_files_lex_to_the_expected_statement_count(upgrade_id, expected_statements):

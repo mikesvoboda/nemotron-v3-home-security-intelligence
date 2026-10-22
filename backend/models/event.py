@@ -138,6 +138,7 @@ class Event(Base):
     alerts: Mapped[list[Alert]] = relationship(
         "Alert",
         back_populates="event",
+        foreign_keys="Alert.event_id",
         cascade="all, delete-orphan",
         passive_deletes=True,
         lazy=get_relationship_lazy_mode(),
