@@ -136,13 +136,16 @@ model takes to answer.
   - `POST /api/system/services/{name}/restart` takes `Depends(get_current_admin_user)` before the
     orchestrator dependency, so a refusal (401, 403) comes before "engine not available" (503). It
     accepts only `ai-gateway`, `ai-vlm`, `redis` and `postgres`. Worker restart takes the same
-    guard. Restart no longer refuses a service once disabled, and the upgrade clears every persisted
-    `enabled=false` once.
+    guard. Restart no longer refuses a service once disabled. Until `F4.8` retires them, the
+    enable, disable and `/start` routes and the worker stop and start routes take the same admin
+    guard.
   - **The audit:** before calling the engine, the route commits an audit row "restart requested"
     naming `user.username`, then records the outcome in a fresh session, so restarting Postgres
     cannot lose its own record.
   - **Retired in `F4.8`** (T8): the enable and disable routes, `POST /services/{name}/start`, and
-    the worker stop and start routes, in the PR that removes their UI callers.
+    the worker stop and start routes, in the PR that removes their UI callers. That PR also clears
+    every persisted `enabled=false` once, so no service is left disabled with nothing to enable it
+    (T7).
   - **The orchestrator's health loop** skips `ai-vlm` through a never-probed set beside
     `RETIRED_LLM_SERVICES` (`container_orchestrator.py:69`); its registry row stays for restart.
 - **Flush queues** (T2): in streams mode (the default) it trims `detections:stream` and
@@ -163,10 +166,10 @@ model takes to answer.
   `rtdetr`, filled from the same values (the `ai_models` key does not move yet, so the dashboard
   does not show two cards); `detector_client.py`'s histogram feeds the chart, and the VLM client
   gains one; `services.py`, `container_orchestrator.py` and the orchestrator registry (the admin
-  guard, the audit, the allowlist, the never-probed set, the cleared flags); worker restart's guard
-  in `system.py`; the infrastructure-alerts proxy; `alertmanager.py` and the
-  `prometheus_alerts` table retire with a recorded upgrade; `admin.py`'s mode-aware flush and
-  `constants.py`'s helper; `docs/openapi.json` and the generated types are regenerated (UR-83).
+  guard on restart and on the routes `F4.8` retires, the audit, the allowlist, the never-probed
+  set); worker restart's guard in `system.py`; the infrastructure-alerts proxy; `alertmanager.py`
+  and the `prometheus_alerts` table retire with a recorded upgrade; `admin.py`'s mode-aware flush
+  and `constants.py`'s helper; `docs/openapi.json` and the generated types are regenerated (UR-83).
 - **frontend (`F4.8`, contract):** `useAIServiceStatus`, `AIServiceStatus`, `useAIMetrics`,
   `AIPerformanceSummaryRow`, `AIModelsSettings`, `ModelStatusCards`, `ServicesPanel` (Restart
   only, the sign-in prompt, Postgres no longer blocked), `PerformanceCharts`,
@@ -177,9 +180,10 @@ model takes to answer.
   same PR removes the old `nemotron` and `rtdetr` fields, moves the `ai_models` key, regenerates
   the contract and types, and edits `operations/performance.spec.ts:55` and `:66`; and it retires
   the enable, disable and `/start` service routes and the worker stop and start routes
-  (`services.py`, `system.py`) together with their callers (`useServiceMutations` and `api.ts`'s
-  `/start`, `/disable` and `/enable` clients; `useWorkerActions` and `supervisorApi.ts`'s worker
-  start and stop; the panels' buttons), with a 404 test for each (T8).
+  (`services.py`, `system.py`) together with their callers (the start, stop, enable and disable
+  mutations in `useServiceMutations` and `useWorkerActions`; `api.ts`'s `/start`, `/disable` and
+  `/enable` clients and `supervisorApi.ts`'s worker start and stop; the panels' buttons), with a
+  404 test for each, and clears every persisted `enabled=false` once (T7, T8).
 - **monitoring:** none; the Tempo data source and Alertmanager's sink stay.
 
 ## Failure handling
@@ -249,15 +253,16 @@ infrastructure-alerts proxy needs a session or API key with `EXPOSE_LAN=true`, a
 `B4.11` adds the new fields beside the old ones, the health module and the guard, and retires only
 what no UI calls: the unused Alertmanager receiver and its `prometheus_alerts` table, through a
 recorded upgrade. `F4.8` moves every consumer, removes the old fields and retires the control routes
-with their callers, in the same PR, with the regenerated contract and types. The persisted
-`enabled=false` flags are cleared once. Code reversal is a revert; the upgrades stay.
+with their callers, in the same PR, with the regenerated contract and types; that PR also clears the
+persisted `enabled=false` flags once, since it retires disable. Code reversal is a revert; the
+upgrades stay.
 
 ## Packages
 
-| package | lane (ruling 317) | depends on | contents                                                                                                                                                                                                                              | its own golden path       |
-| ------- | ----------------- | ---------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------- |
-| `B4.11` | heavy-b           | none       | Expand: the health module and its readers, the new fields beside the old, the latency histograms, restart only under the admin session with its audit, the never-probed VLM, the alerts proxy, the retirements, the mode-aware flush. | Backend pytest of routes. |
-| `F4.8`  | frontend          | `B4.11`    | Contract: the badge, row, cards, panel with its sign-in prompt, chart, banner, the alert badge's socket and load, the palette, Tracing; removes the old fields (UR-9).                                                                | Playwright above.         |
+| package | lane (ruling 317) | depends on | contents                                                                                                                                                                                                                                            | its own golden path       |
+| ------- | ----------------- | ---------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------- |
+| `B4.11` | heavy-b           | none       | Expand: the health module and its readers, the new fields beside the old, the latency histograms, restart only under the admin session with its audit, the never-probed VLM, the alerts proxy, the receiver's retirement, the mode-aware flush.     | Backend pytest of routes. |
+| `F4.8`  | frontend          | `B4.11`    | Contract: the badge, row, cards, panel with its sign-in prompt, chart, banner, the alert badge's socket and load, the palette, Tracing; removes the old fields, retires the control routes with their callers and clears the disabled flags (UR-9). | Playwright above.         |
 
 Each runs the six steps as two PRs: a test-only consolidation PR, then the build.
 
@@ -275,7 +280,7 @@ confirmed every review finding and found more; the plan PR's review added one (T
 | T4  | The orchestrator probes `ai-vlm` every interval and can restart it; no call outcome was recorded  | A never-probed set for the health loop; the VLM client records each call; the backend reads the sleep setting                     |
 | T5  | Test deployments run without the engine (UR-134), so no tier can witness a real restart           | The golden path proves the refusals; the owner witnesses one `ai-gateway` restart on the live install (owner)                     |
 | T6  | `/start` and the worker stop and start routes stayed open beside the guarded restart              | They retire; worker restart takes the guard and the audit                                                                         |
-| T7  | A service disabled today could never be restarted once enable retires                             | Restart drops the disabled check; the upgrade clears the flags                                                                    |
+| T7  | A service disabled today could never be restarted once enable retires                             | Restart drops the disabled check; `F4.8` clears the flags in the PR that retires disable                                          |
 | T8  | `B4.11` retired control routes the Operations page still calls (the plan PR's review)             | The five control routes retire in `F4.8`, with their UI callers (UR-9)                                                            |
 
 ## Done when

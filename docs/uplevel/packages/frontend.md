@@ -330,8 +330,9 @@ Design: [`../4n-status.md`](../4n-status.md), "Packages" row `F4.8`. Covers the 
       removes the old `nemotron` and `rtdetr` fields, moves the `ai_models` key, regenerates the
       contract and types, and edits `operations/performance.spec.ts:55` and `:66`; and it retires
       the enable, disable and `/start` service routes and the worker stop and start routes with
-      their callers (`useServiceMutations`, `useWorkerActions`, their clients and the panels'
-      buttons), each pinned by a 404 test.
+      their callers (the start, stop, enable and disable mutations in `useServiceMutations` and
+      `useWorkerActions`, their clients and the panels' buttons), each pinned by a 404 test, and
+      clears every persisted `enabled=false` once.
 - [ ] Golden path (Playwright) as the design gives it.
 
 **Done when:** steps 4–6 hold for its rows.
