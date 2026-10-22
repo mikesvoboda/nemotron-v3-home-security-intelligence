@@ -5043,7 +5043,21 @@ reads, none by authorial preference.
   — with zero edits to :560, so the import was re-pointed and the prose cite was not) and
   enriched the provenance: the cite was authored in 59ad5233e [r196a] (10-15) BEFORE #7225 — it
   rode into the PR's file set pre-existing, the same born-stale family as 7225_c1. Only wording
-  defect: the fix_text's parenthetical duplicated its own target (degenerate, not factual). (5) 7214_c2's ellipsis-cite mover corrected from the
+  defect: the fix_text's parenthetical duplicated its own target (degenerate, not factual).
+  verify:7225_c3 (holding=true, journal line 17) confirmed 7225_c3 whole at pin and sharpened
+  two proof wordings, verdict unchanged: (a) 59ad5233e is the birth of the spec file (and of the
+  sentence/cite) but NOT of feature_check.py — the py file exists at its parent 2335cc34 and at
+  all three graft roots (d6344e031, 9c71e2763, c75e4642c), so the below-graft blocker is that
+  the spec file is absent at every graft root, not that the py file is absent; (b) the "copyfile
+  at :2986 in every walkable tree" universal is false over all walkable history — two walkable
+  trees did hold the drop block overlapping :2911 (dcba3bd13 with copyfile exactly at :2911,
+  eff73fe72 with def drop at :2911) — but neither contains the spec file, so the operative
+  claim (no tree ever held the cite together with a matching :2911-2917) stands and born-stale
+  stands. Its pin reads re-confirm correction 3's coordinates: the indicted cite names the
+  no-proxy client (def redirect_request at :2911-2917), drop/copyfile/return sit at
+  :2974/:2986/:2987, base-vs-pin blob diff is 19 lines all in the CLI region (:3152,
+  :3193-3207) with zero edits to drop, and pickaxe gives the cite token exactly two carriers
+  (59ad5233e and ea6a69ff3, the latter r264, post-pin). (5) 7214_c2's ellipsis-cite mover corrected from the
   workflow's c82f9a6f5 to dfe9b4d5a (commit-walk blob greps; c82f9a6f5 is the NEXT commit and
   doesn't touch the line), and the :881 def pre-existed on main (not PR-added — its pickaxe birth
   lands at the shallow boundary d6344e031, 10-16 04:45). Confirmed independently by the
