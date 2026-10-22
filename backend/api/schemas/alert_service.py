@@ -150,7 +150,7 @@ class AlertServiceResponse(BaseModel):
         if not isinstance(data, dict):
             try:
                 state = sqlalchemy_inspect(data)
-            except Exception:  # noqa: BLE001 - non-ORM objects (incl. test mocks): skip
+            except Exception:
                 return data
             if "event" in state.unloaded:
                 return data

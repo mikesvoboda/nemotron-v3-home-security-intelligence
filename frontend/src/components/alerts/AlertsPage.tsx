@@ -8,8 +8,9 @@ import { FeatureErrorBoundary } from '../common/FeatureErrorBoundary';
 import SafeErrorMessage from '../common/SafeErrorMessage';
 import { AlertCardSkeleton } from '../common/skeletons';
 
-import type { AlertServiceResponse } from '../../services/alertsApi';
+
 import type { AlertStatusFilter } from '../../hooks';
+import type { AlertServiceResponse } from '../../services/alertsApi';
 
 /**
  * Human-readable verdict badge for a row's verdict_source (F4.1 design):
@@ -24,8 +25,7 @@ function verdictBadge(verdictSource: string | null | undefined): string {
 
 /** The rule that fired, from the pipeline's metadata payload. */
 function ruleName(alert: AlertServiceResponse): string {
-  const meta = alert.metadata as Record<string, unknown> | null | undefined;
-  const name = meta?.rule_name;
+  const name = alert.metadata?.rule_name;
   return typeof name === 'string' ? name : 'Unmatched alert';
 }
 
@@ -34,8 +34,7 @@ function ruleName(alert: AlertServiceResponse): string {
  * accept both a bare string and a list — a string-only read would silently
  * never render for real pipeline rows. */
 function recognisedLine(alert: AlertServiceResponse): string | null {
-  const meta = alert.metadata as Record<string, unknown> | null | undefined;
-  const recognised = meta?.recognised;
+  const recognised = alert.metadata?.recognised;
   if (typeof recognised === 'string' && recognised.length > 0) return recognised;
   if (Array.isArray(recognised)) {
     const names = recognised.filter((n): n is string => typeof n === 'string' && n.length > 0);
@@ -273,7 +272,8 @@ export default function AlertsPage({ onViewEventDetails, className = '' }: Alert
                     <span className="text-gray-200">{formatTime(alert.created_at)}</span>
                   </div>
                   <div>
-                    Last seen: <span className="text-gray-200">{formatTime(alert.last_seen_at)}</span>
+                    Last seen:{' '}
+                    <span className="text-gray-200">{formatTime(alert.last_seen_at)}</span>
                   </div>
                   <div>
                     Matches: <span className="text-gray-200">{alert.match_count ?? 1}</span>

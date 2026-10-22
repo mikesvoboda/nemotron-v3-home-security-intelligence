@@ -7,8 +7,8 @@
  * @see NEM-3626
  */
 
-import type { components } from '../types/generated/api';
 import type { AlertResponse } from '../types/alerts';
+import type { components } from '../types/generated/api';
 
 /** Alert row from the Alert Service list (the alerts table, B4.1/F4.1). */
 export type AlertServiceResponse = components['schemas']['AlertServiceResponse'];

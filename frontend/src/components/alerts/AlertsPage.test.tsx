@@ -133,7 +133,7 @@ beforeEach(() => {
 
 describe('AlertsPage (F4.1: alert rows)', () => {
   describe('Rendering', () => {
-    it('renders the header and the page root', async () => {
+    it('renders the header and the page root', () => {
       renderPage(<AlertsPage />);
       expect(screen.getByTestId('alerts-page')).toBeInTheDocument();
       expect(screen.getByRole('heading', { name: 'Alerts' })).toBeInTheDocument();
@@ -189,7 +189,9 @@ describe('AlertsPage (F4.1: alert rows)', () => {
     });
 
     it('falls back to Unmatched alert when metadata carries no rule_name', async () => {
-      vi.mocked(alertsApi.fetchAlerts).mockResolvedValue(listResponse([alertRow({ metadata: null })]));
+      vi.mocked(alertsApi.fetchAlerts).mockResolvedValue(
+        listResponse([alertRow({ metadata: null })])
+      );
       renderPage(<AlertsPage />);
       await waitFor(() => {
         expect(screen.getByText('Unmatched alert')).toBeInTheDocument();

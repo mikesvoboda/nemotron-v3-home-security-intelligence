@@ -183,9 +183,7 @@ test.describe('F4.1 golden: /alerts lists alert rows and the design verbs work (
     const tierIds = ((tierPage.body?.items ?? []) as Record<string, any>[]).map((e) =>
       String(e.id)
     );
-    expect(tierIds, 'the drop is listed by its own tier — the pipeline ran').toContain(
-      dropEventId
-    );
+    expect(tierIds, 'the drop is listed by its own tier — the pipeline ran').toContain(dropEventId);
 
     // 3. THE ALERT APPEARS LIVE. Poll the page's own endpoint for an OPEN row
     //    naming this run's smoke camera. The smoke event may still be inside
@@ -287,8 +285,7 @@ test.describe('F4.1 golden: /alerts lists alert rows and the design verbs work (
     while (Date.now() < ackDeadline && !acked) {
       const { rows: openRows } = await listAlerts(api, 'status=open&limit=100');
       const { rows: ackRows } = await listAlerts(api, 'status=acknowledged&limit=100');
-      acked =
-        !openRows.some((r) => r.id === alert.id) && ackRows.some((r) => r.id === alert.id);
+      acked = !openRows.some((r) => r.id === alert.id) && ackRows.some((r) => r.id === alert.id);
       if (!acked) await new Promise((resolve) => setTimeout(resolve, 2_000));
     }
     expect(acked, 'acknowledge moved the row open → acknowledged on the wire').toBe(true);
