@@ -3295,6 +3295,7 @@ class TestSelectHeadShape:
             "SELECT outbound_webhooks.id, outbound_webhooks.name, "
             "outbound_webhooks.url, outbound_webhooks.event_types, "
             "outbound_webhooks.integration_type, outbound_webhooks.enabled, "
+            "outbound_webhooks.on_local_network, "
             "outbound_webhooks.auth_config, outbound_webhooks.custom_headers, "
             "outbound_webhooks.payload_template, outbound_webhooks.max_retries, "
             "outbound_webhooks.retry_delay_seconds, outbound_webhooks.signing_secret, "

@@ -1,6 +1,13 @@
 """SQLAlchemy models for home security intelligence system."""
 
 from .alert import ActivitySnooze, Alert, AlertEvent, AlertRule, AlertSeverity, AlertStatus
+from .alert_delivery import (
+    DeliveryChannelKind,
+    DeliveryStatus,
+    NotificationDelivery,
+    Recipient,
+    RecipientChannel,
+)
 from .analytics_zone import LineZone, PolygonZone
 from .api_key import APIKey
 from .area import Area, camera_areas
@@ -117,6 +124,8 @@ __all__ = [
     "CameraZoneType",
     "ClassBaseline",
     "DayOfWeek",
+    "DeliveryChannelKind",
+    "DeliveryStatus",
     "Detection",
     "DwellTimeRecord",
     "EnrollmentCandidate",
@@ -158,6 +167,7 @@ __all__ = [
     "Log",
     "LogLevel",
     "MemberRole",
+    "NotificationDelivery",
     "NotificationPreferences",
     "NotificationSound",
     "OutboundWebhook",
@@ -173,6 +183,8 @@ __all__ = [
     "PromptVersion",
     "Property",
     "QuietHoursPeriod",
+    "Recipient",
+    "RecipientChannel",
     "RegisteredVehicle",
     "RestoreJob",
     "RestoreJobStatus",
