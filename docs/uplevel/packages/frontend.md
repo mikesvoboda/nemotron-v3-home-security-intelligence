@@ -238,15 +238,17 @@ paths; the inventory row reads **works** once the operator records the real-tier
 
 **Flags:** none. **Assigned:** frontend, after `[r299]` (ruling 308). **Depends on:** none; its
 small backend part (`min_confidence`) rides in the same PR (UR-9).
-**PR:** #7352. (ruling 308, record 6326364266)
+**PR:** #7352, #7362. (ruling 308, record 6326364266)
 
 Design: [`../4n-timeline.md`](../4n-timeline.md). Covers F-044, F-055.
 
 - [x] The test-only PR (step 2).
-- [ ] The build PR: `min_confidence` as a correlated `EXISTS`; the Verification select; the
+- [x] The build PR: `min_confidence` as a correlated `EXISTS`; the Verification select; the
       modal's detections from its own fetch; boxes on still images through `BoundingBoxOverlay`;
-      `ThreatBoundingBox` retired.
-- [ ] Golden path (Playwright) as the design gives it.
+      `ThreatBoundingBox` retired. — #7362, gate green at `69e41badb` (CI run 39819713638).
+- [x] Golden path (Playwright) as the design gives it. — #7362:
+      `frontend/tests/golden/timeline/confidence-filter.spec.ts` (5 tests), witnessed green by
+      the `Feature check (fake AI)` run above.
 
 **Done when:** steps 4–6 hold for its rows.
 

@@ -111,3 +111,126 @@ async def test_restore_archive_with_seeded_external_alerts_rule_leaves_one_row(
         ).scalar()
         assert count_by_id == 1
         assert count_by_name == 1
+
+
+@pytest.mark.asyncio
+async def test_f290_golden_four_step_sequence_on_real_postgres(
+    client: AsyncClient,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """Verify the exact 4-step F-290 golden path sequence over HTTP against real Postgres."""
+    from datetime import UTC, datetime, timedelta
+
+    from pydantic import SecretStr
+
+    from backend.core.config import get_settings
+
+    settings = get_settings()
+    monkeypatch.setattr(settings, "api_keys", [SecretStr("b47-int-wh-key")])
+    wh_headers = {"X-API-Key": "b47-int-wh-key"}
+
+    tag = uuid.uuid4().hex[:8]
+    cam_create = await client.post(
+        "/api/cameras",
+        json={
+            "name": f"Living room ({tag})",
+            "folder_path": f"/export/foscam/b47_living_{tag}",
+            "status": "online",
+        },
+    )
+    assert cam_create.status_code == 201, cam_create.text
+    cam_id = cam_create.json()["id"]
+
+    det_now = datetime.now(UTC)
+    det_res = await client.post(
+        "/api/detections/bulk",
+        json={
+            "detections": [
+                {
+                    "camera_id": cam_id,
+                    "object_type": "person",
+                    "confidence": 0.94,
+                    "detected_at": det_now.isoformat(),
+                    "file_path": f"/cameras/b47-int-{tag}-{idx}.jpg",
+                    "bbox_x": 10,
+                    "bbox_y": 10,
+                    "bbox_width": 60,
+                    "bbox_height": 120,
+                }
+                for idx in range(3)
+            ]
+        },
+    )
+    assert det_res.status_code == 207, det_res.text
+    det_ids = [int(r["id"]) for r in det_res.json()["results"]]
+
+    # 1. Away by webhook -> confirmed person on camera X gives an alert
+    r_away = await client.post(
+        "/api/webhooks/inbound/mode",
+        json={"mode": "away"},
+        headers=wh_headers,
+    )
+    assert r_away.status_code == 200, r_away.text
+
+    t1 = datetime.now(UTC)
+    ev1_res = await client.post(
+        "/api/events/bulk",
+        json={
+            "events": [
+                {
+                    "batch_id": f"b47-int-{tag}-away",
+                    "camera_id": cam_id,
+                    "started_at": t1.isoformat(),
+                    "ended_at": (t1 + timedelta(seconds=10)).isoformat(),
+                    "risk_score": 75,
+                    "risk_level": "high",
+                    "summary": "Away fixture",
+                    "reasoning": "Test",
+                    "detection_ids": [det_ids[0]],
+                    "verdict": "confirmed",
+                }
+            ]
+        },
+    )
+    assert ev1_res.status_code == 207, ev1_res.text
+    ev1_id = int(ev1_res.json()["results"][0]["id"])
+    dec1 = await client.get(f"/api/arming/events/{ev1_id}/decision")
+    assert dec1.status_code == 200, dec1.text
+    assert dec1.json()["notify"] is True
+
+    # 2. Home leaving X out -> same fixture gives no alert and decision names arming
+    r_home = await client.put("/api/arming/mode", json={"mode": "home"})
+    assert r_home.status_code == 200, r_home.text
+    r_excl = await client.put(
+        "/api/arming/modes/home/cameras",
+        json={"excluded_camera_ids": [cam_id]},
+    )
+    assert r_excl.status_code == 200, r_excl.text
+
+    t2 = datetime.now(UTC) + timedelta(seconds=1)
+    ev2_res = await client.post(
+        "/api/events/bulk",
+        json={
+            "events": [
+                {
+                    "batch_id": f"b47-int-{tag}-home",
+                    "camera_id": cam_id,
+                    "started_at": t2.isoformat(),
+                    "ended_at": (t2 + timedelta(seconds=10)).isoformat(),
+                    "risk_score": 75,
+                    "risk_level": "high",
+                    "summary": "Home excluded fixture",
+                    "reasoning": "Test",
+                    "detection_ids": [det_ids[1]],
+                    "verdict": "confirmed",
+                }
+            ]
+        },
+    )
+    assert ev2_res.status_code == 207, ev2_res.text
+    ev2_id = int(ev2_res.json()["results"][0]["id"])
+    dec2 = await client.get(f"/api/arming/events/{ev2_id}/decision")
+    assert dec2.status_code == 200, dec2.text
+    assert dec2.json()["notify"] is False
+    assert "arming" in dec2.json()["decided_by"].lower(), dec2.json()
+    assert "Home leaves out" in dec2.json()["decided_by"]

@@ -508,7 +508,7 @@ def arming_suppression_reason(ctx: PolicyContext) -> str | None:
     """Return the arming suppression explanation when arming is the reason no alert was created."""
     if ctx.armed or not ctx.master_enabled or ctx.resolved.suppressed_by is not None:
         return None
-    would_match = evaluate(replace(ctx, armed=True))
+    would_match = evaluate(replace(ctx, armed=True, snoozes=()))
     if not would_match:
         return None
     mode_label = (ctx.mode or "home").capitalize()

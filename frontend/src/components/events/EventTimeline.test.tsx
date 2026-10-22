@@ -728,6 +728,273 @@ describe('EventTimeline', () => {
         );
       });
     });
+
+    // Confidence filter (F4.4): the UI choice maps onto the server's
+    // min_confidence parameter (0.85 / 0.7 / 0) and the "All Confidence
+    // Levels" choice clears the parameter entirely - the select is no
+    // longer decoration, it drives the list query.
+    it('sends min_confidence 0.85 when High confidence is selected', async () => {
+      const user = userEvent.setup({ advanceTimers: vi.advanceTimersByTime });
+      renderWithProviders(<EventTimeline />);
+
+      await waitFor(() => {
+        expect(screen.getByText('Show Filters')).toBeInTheDocument();
+      });
+
+      await user.click(screen.getByText('Show Filters'));
+
+      const confidenceSelect = screen.getByLabelText('Min Confidence');
+      await user.selectOptions(confidenceSelect, 'high');
+
+      await waitFor(() => {
+        expect(useEventsQueryHook.useEventsInfiniteQuery).toHaveBeenCalledWith(
+          expect.objectContaining({
+            filters: expect.objectContaining({ min_confidence: 0.85 }),
+          })
+        );
+      });
+    });
+
+    it('sends min_confidence 0.7 when Medium+ is selected', async () => {
+      const user = userEvent.setup({ advanceTimers: vi.advanceTimersByTime });
+      renderWithProviders(<EventTimeline />);
+
+      await waitFor(() => {
+        expect(screen.getByText('Show Filters')).toBeInTheDocument();
+      });
+
+      await user.click(screen.getByText('Show Filters'));
+
+      const confidenceSelect = screen.getByLabelText('Min Confidence');
+      await user.selectOptions(confidenceSelect, 'medium');
+
+      await waitFor(() => {
+        expect(useEventsQueryHook.useEventsInfiniteQuery).toHaveBeenCalledWith(
+          expect.objectContaining({
+            filters: expect.objectContaining({ min_confidence: 0.7 }),
+          })
+        );
+      });
+    });
+
+    it('sends min_confidence 0 when Any Detection is selected', async () => {
+      const user = userEvent.setup({ advanceTimers: vi.advanceTimersByTime });
+      renderWithProviders(<EventTimeline />);
+
+      await waitFor(() => {
+        expect(screen.getByText('Show Filters')).toBeInTheDocument();
+      });
+
+      await user.click(screen.getByText('Show Filters'));
+
+      const confidenceSelect = screen.getByLabelText('Min Confidence');
+      await user.selectOptions(confidenceSelect, 'any');
+
+      await waitFor(() => {
+        expect(useEventsQueryHook.useEventsInfiniteQuery).toHaveBeenCalledWith(
+          expect.objectContaining({
+            filters: expect.objectContaining({ min_confidence: 0 }),
+          })
+        );
+      });
+    });
+
+    it('clears min_confidence when All Confidence Levels is selected', async () => {
+      const user = userEvent.setup({ advanceTimers: vi.advanceTimersByTime });
+      renderWithProviders(<EventTimeline />);
+
+      await waitFor(() => {
+        expect(screen.getByText('Show Filters')).toBeInTheDocument();
+      });
+
+      await user.click(screen.getByText('Show Filters'));
+
+      // Send a threshold first, then choose All: the parameter must
+      // disappear, not go stale from the previous choice.
+      const confidenceSelect = screen.getByLabelText('Min Confidence');
+      await user.selectOptions(confidenceSelect, 'high');
+
+      await waitFor(() => {
+        expect(useEventsQueryHook.useEventsInfiniteQuery).toHaveBeenCalledWith(
+          expect.objectContaining({
+            filters: expect.objectContaining({ min_confidence: 0.85 }),
+          })
+        );
+      });
+
+      await user.selectOptions(confidenceSelect, '');
+
+      await waitFor(() => {
+        expect(useEventsQueryHook.useEventsInfiniteQuery).toHaveBeenLastCalledWith(
+          expect.objectContaining({
+            filters: expect.not.objectContaining({ min_confidence: expect.anything() }),
+          })
+        );
+      });
+    });
+
+    it('sends verdict when a verification choice is selected', async () => {
+      const user = userEvent.setup({ advanceTimers: vi.advanceTimersByTime });
+      renderWithProviders(<EventTimeline />);
+
+      await waitFor(() => {
+        expect(screen.getByText('Show Filters')).toBeInTheDocument();
+      });
+
+      await user.click(screen.getByText('Show Filters'));
+
+      const verificationSelect = screen.getByLabelText('Verification');
+      await user.selectOptions(verificationSelect, 'rejected');
+
+      await waitFor(() => {
+        expect(useEventsQueryHook.useEventsInfiniteQuery).toHaveBeenCalledWith(
+          expect.objectContaining({
+            filters: expect.objectContaining({ verdict: 'rejected' }),
+          })
+        );
+      });
+    });
+
+    it('clears verdict when All Verifications is selected', async () => {
+      const user = userEvent.setup({ advanceTimers: vi.advanceTimersByTime });
+      renderWithProviders(<EventTimeline />);
+
+      await waitFor(() => {
+        expect(screen.getByText('Show Filters')).toBeInTheDocument();
+      });
+
+      await user.click(screen.getByText('Show Filters'));
+
+      const verificationSelect = screen.getByLabelText('Verification');
+      await user.selectOptions(verificationSelect, 'confirmed');
+
+      await waitFor(() => {
+        expect(useEventsQueryHook.useEventsInfiniteQuery).toHaveBeenCalledWith(
+          expect.objectContaining({
+            filters: expect.objectContaining({ verdict: 'confirmed' }),
+          })
+        );
+      });
+
+      await user.selectOptions(verificationSelect, '');
+
+      await waitFor(() => {
+        expect(useEventsQueryHook.useEventsInfiniteQuery).toHaveBeenLastCalledWith(
+          expect.objectContaining({
+            filters: expect.not.objectContaining({ verdict: expect.anything() }),
+          })
+        );
+      });
+    });
+
+    it('combines confidence filter with other filters', async () => {
+      const user = userEvent.setup({ advanceTimers: vi.advanceTimersByTime });
+      renderWithProviders(<EventTimeline />);
+
+      await waitFor(() => {
+        expect(screen.getByText('Show Filters')).toBeInTheDocument();
+      });
+
+      await user.click(screen.getByText('Show Filters'));
+
+      const cameraSelect = screen.getByLabelText('Camera');
+      await user.selectOptions(cameraSelect, 'camera-1');
+
+      const confidenceSelect = screen.getByLabelText('Min Confidence');
+      await user.selectOptions(confidenceSelect, 'medium');
+
+      await waitFor(() => {
+        expect(useEventsQueryHook.useEventsInfiniteQuery).toHaveBeenCalledWith(
+          expect.objectContaining({
+            filters: expect.objectContaining({
+              camera_id: 'camera-1',
+              min_confidence: 0.7,
+            }),
+          })
+        );
+      });
+    });
+
+    // Clear All Filters resets both new selects too: the query loses the
+    // parameters AND the selects visibly return to their "All" options.
+    it('clears confidence and verdict filters with Clear All Filters', async () => {
+      const user = userEvent.setup({ advanceTimers: vi.advanceTimersByTime });
+      renderWithProviders(<EventTimeline />);
+
+      await waitFor(() => {
+        expect(screen.getByText('Show Filters')).toBeInTheDocument();
+      });
+
+      await user.click(screen.getByText('Show Filters'));
+
+      const confidenceSelect = screen.getByLabelText('Min Confidence');
+      await user.selectOptions(confidenceSelect, 'high');
+
+      const verificationSelect = screen.getByLabelText('Verification');
+      await user.selectOptions(verificationSelect, 'rejected');
+
+      await waitFor(() => {
+        expect(useEventsQueryHook.useEventsInfiniteQuery).toHaveBeenCalledWith(
+          expect.objectContaining({
+            filters: expect.objectContaining({ min_confidence: 0.85, verdict: 'rejected' }),
+          })
+        );
+      });
+
+      await user.click(screen.getByText('Clear All Filters'));
+
+      await waitFor(() => {
+        expect(useEventsQueryHook.useEventsInfiniteQuery).toHaveBeenLastCalledWith(
+          expect.objectContaining({
+            filters: expect.not.objectContaining({ min_confidence: expect.anything() }),
+          })
+        );
+        expect(useEventsQueryHook.useEventsInfiniteQuery).toHaveBeenLastCalledWith(
+          expect.objectContaining({
+            filters: expect.not.objectContaining({ verdict: expect.anything() }),
+          })
+        );
+      });
+      expect(confidenceSelect).toHaveValue('');
+      expect(verificationSelect).toHaveValue('');
+    });
+
+    // Deep links (F4.4): the timeline reads min_confidence and verdict from
+    // the URL query string. The param goes straight into the filters as the
+    // raw number - the server 422s out-of-range values, so a bad deep link
+    // fails loud in the query instead of silently showing everything.
+    it('initializes min_confidence from a deep link query parameter', async () => {
+      renderWithProviders(<EventTimeline />, { route: '/?min_confidence=0.85' });
+
+      await waitFor(() => {
+        expect(useEventsQueryHook.useEventsInfiniteQuery).toHaveBeenCalledWith(
+          expect.objectContaining({
+            filters: expect.objectContaining({ min_confidence: 0.85 }),
+          })
+        );
+      });
+
+      // The filter panel opens so the deep-linked filter is visible
+      await waitFor(() => {
+        expect(screen.getByLabelText('Min Confidence')).toHaveValue('high');
+      });
+    });
+
+    it('initializes verdict from a deep link query parameter', async () => {
+      renderWithProviders(<EventTimeline />, { route: '/?verdict=rejected' });
+
+      await waitFor(() => {
+        expect(useEventsQueryHook.useEventsInfiniteQuery).toHaveBeenCalledWith(
+          expect.objectContaining({
+            filters: expect.objectContaining({ verdict: 'rejected' }),
+          })
+        );
+      });
+
+      await waitFor(() => {
+        expect(screen.getByLabelText('Verification')).toHaveValue('rejected');
+      });
+    });
   });
 
   describe('Infinite Scroll', () => {
