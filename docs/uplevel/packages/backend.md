@@ -342,7 +342,9 @@ build PR; the test-only PR may open first. Its golden path uses `[r308a]`'s sink
 
 Design: [`../4n-alerting.md`](../4n-alerting.md), "Packages" row 2. Covers F-236, F-232.
 
-- [ ] The test-only PR (step 2).
+- [x] The test-only PR (step 2): the notification and webhook_service suites consolidated under
+      the zero kill-loss protocol (616 and 1100 mutants, kill-loss 0 both modules; the batteries'
+      EQUIVALENT residue moved into `accepted_survivors.toml`, 17 entries).
 - [ ] The build PR: recipients, channels, the outbox, `planner`, the worker, email and webhook, the
       local-network flag, name redaction, history, browser rows; recipients and channels join the
       backup list without their secrets if `B4.6` has landed (else `B4.6` adds them); an
