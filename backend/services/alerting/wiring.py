@@ -47,10 +47,23 @@ async def load_recipients_with_channels(session: AsyncSession) -> Sequence[Any]:
     ``quiet_periods``; one grouped query attaches them so the pure core sees
     complete records and issues no I/O of its own.
     """
+    from sqlalchemy.orm import selectinload
+    from sqlalchemy.orm.attributes import set_committed_value
+
     from backend.models.notification_preferences import QuietHoursPeriod
 
     recipients = (
-        (await session.execute(select(Recipient).where(Recipient.enabled.is_(True))))
+        (
+            await session.execute(
+                select(Recipient)
+                .where(Recipient.enabled.is_(True))
+                # selectinload, not lazy: the sync planner hook reads
+                # ``recipient.channels`` with no loop in scope, so a lazy
+                # load there would raise MissingGreenlet under asyncio (and
+                # N+1 anywhere). One extra SELECT per run, not per recipient.
+                .options(selectinload(Recipient.channels))
+            )
+        )
         .scalars()
         .all()
     )
@@ -60,7 +73,18 @@ async def load_recipients_with_channels(session: AsyncSession) -> Sequence[Any]:
         if period.recipient_id:
             by_recipient.setdefault(str(period.recipient_id), []).append(period)
     for recipient in recipients:
-        recipient.quiet_periods = by_recipient.get(str(recipient.id), [])
+        # set_committed_value, not attribute assignment: ``quiet_periods`` is
+        # an instrumented (viewonly) relationship, so plain assignment fires
+        # the lazy-load machinery to record the old value — an implicit IO
+        # that raises MissingGreenlet under asyncio (and would lazy-load a
+        # N+1 in sync contexts). Stamping the attribute as already-loaded
+        # writes nothing and defers nothing; the sync planner hook then reads
+        # a plain list. Non-ORM stand-ins (unit fakes) get plain assignment.
+        periods_for_recipient = by_recipient.get(str(recipient.id), [])
+        try:
+            set_committed_value(recipient, "quiet_periods", periods_for_recipient)
+        except AttributeError:
+            recipient.quiet_periods = periods_for_recipient  # type: ignore[attr-defined]
     return recipients
 
 
