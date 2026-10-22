@@ -54,6 +54,7 @@ class AlertSeverity(StrEnum):
 class AlertStatus(StrEnum):
     """Alert status values."""
 
+    OPEN = auto()
     PENDING = auto()
     DELIVERED = auto()
     ACKNOWLEDGED = auto()
@@ -299,6 +300,12 @@ class AlertRuleCreate(BaseModel):
     camera_ids: list[str] | None = Field(
         None, description="Camera IDs to apply rule to (empty = all cameras)"
     )
+    excluded_camera_ids: list[str] | None = Field(
+        None, description="Camera IDs excluded from this rule"
+    )
+    alert_on_rejected: bool | None = Field(
+        None, description="Alert even if the AI verdict is rejected"
+    )
     zone_ids: list[str] | None = Field(None, description="Zone IDs to match (empty = any zone)")
     min_confidence: float | None = Field(
         None, ge=0.0, le=1.0, description="Minimum detection confidence (0.0-1.0)"
@@ -416,6 +423,12 @@ class AlertRuleUpdate(BaseModel):
     )
     object_types: list[str] | None = Field(None, description="Object types to match")
     camera_ids: list[str] | None = Field(None, description="Camera IDs to apply rule to")
+    excluded_camera_ids: list[str] | None = Field(
+        None, description="Camera IDs excluded from this rule"
+    )
+    alert_on_rejected: bool | None = Field(
+        None, description="Alert even if the AI verdict is rejected"
+    )
     zone_ids: list[str] | None = Field(None, description="Zone IDs to match")
     min_confidence: float | None = Field(
         None, ge=0.0, le=1.0, description="Minimum detection confidence"
@@ -535,7 +548,28 @@ class AlertRuleResponse(BaseModel):
     risk_threshold: int | None = Field(None, description="Risk score threshold")
     object_types: list[str] | None = Field(None, description="Object types to match")
     camera_ids: list[str] | None = Field(None, description="Camera IDs to apply to")
+    excluded_camera_ids: list[str] | None = Field(
+        None, description="Camera IDs excluded from this rule"
+    )
+    alert_on_rejected: bool | None = Field(
+        None, description="Alert even if the AI verdict is rejected"
+    )
     zone_ids: list[str] | None = Field(None, description="Zone IDs to match")
+
+    @field_validator("excluded_camera_ids", mode="before")
+    @classmethod
+    def _coerce_excluded_camera_ids(cls, v: object) -> list[str] | None:
+        if v is None or isinstance(v, list):
+            return v
+        if isinstance(v, tuple):
+            return list(v)
+        return None
+
+    @field_validator("alert_on_rejected", mode="before")
+    @classmethod
+    def _coerce_alert_on_rejected(cls, v: object) -> bool:
+        return v if isinstance(v, bool) else False
+
     min_confidence: float | None = Field(None, description="Minimum confidence")
     schedule: AlertRuleSchedule | None = Field(None, description="Time-based conditions")
 
@@ -718,6 +752,30 @@ class AlertResponse(BaseModel):
         1,
         description="Optimistic locking version. Include in updates to prevent concurrent modification conflicts.",
     )
+    verdict_source: str | None = Field(None, description="Verdict source (local, cloud, detector)")
+    match_count: int | None = Field(None, description="Number of folded event matches")
+    last_seen_at: datetime | None = Field(None, description="Timestamp of latest folded event")
+    last_event_id: int | None = Field(None, description="ID of latest folded event")
+
+    @field_validator("verdict_source", mode="before")
+    @classmethod
+    def _coerce_verdict_source(cls, v: object) -> str | None:
+        return v if isinstance(v, str) else None
+
+    @field_validator("match_count", mode="before")
+    @classmethod
+    def _coerce_match_count(cls, v: object) -> int:
+        return v if isinstance(v, int) and not isinstance(v, bool) else 1
+
+    @field_validator("last_seen_at", mode="before")
+    @classmethod
+    def _coerce_last_seen_at(cls, v: object) -> datetime | str | None:
+        return v if isinstance(v, (datetime, str)) else None
+
+    @field_validator("last_event_id", mode="before")
+    @classmethod
+    def _coerce_last_event_id(cls, v: object) -> int | None:
+        return v if isinstance(v, int) and not isinstance(v, bool) else None
 
 
 class AlertListResponse(BaseModel):
