@@ -447,12 +447,12 @@ the fast lanes.
 
 **Flags:** `heavy`. **Assigned:** heavy-a, after `B4.4` (ruling 311). **Depends on:** `B4.1`
 merged for the build PR; the test-only PR may open first.
-**PR:** #7357. (ruling 311, record 6328311780)
+**PR:** #7357, #7361. (ruling 311, record 6328311780)
 
 Design: [`../4n-arming.md`](../4n-arming.md), "Packages" row `B4.7`. Covers F-290.
 
 - [x] The test-only PR (step 2): `inbound_webhooks.py` and the alerting `policy` and `pipeline`.
-- [ ] The build PR: `arming.py` (`mode_at`, `is_armed`, `set_mode`, `apply_schedule`,
+- [x] The build PR: `arming.py` (`mode_at`, `is_armed`, `set_mode`, `apply_schedule`,
       `next_scheduled`); the four arming tables, with `schedule_updated_at` and a change log that
       carries every mode's exclusions; the policy hook (raised while unarmed, the mode-scoped
       override, fail-armed, the notify decision naming arming); the resolver's `external` source,
@@ -463,7 +463,7 @@ Design: [`../4n-arming.md`](../4n-arming.md), "Packages" row `B4.7`. Covers F-29
       seeded "External alerts" rule carries a fixed UUID; whichever of `B4.6` and `B4.7` lands
       second carries a test that restores an archive holding it into an install that has it and
       finds one rule.
-- [ ] Golden path (pytest, `backend/tests/golden/external/`) as the design gives it.
+- [x] Golden path (pytest, `backend/tests/golden/external/`) as the design gives it.
 
 **Done when:** steps 4–6 hold for F-290.
 

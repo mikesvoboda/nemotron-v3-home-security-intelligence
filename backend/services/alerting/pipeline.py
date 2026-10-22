@@ -59,6 +59,7 @@ from backend.services.alerting.policy import (
     PolicyContext,
     RuleMatch,
     SnoozeEntry,
+    arming_suppression_reason,
     default_rule_from_settings,
     evaluate,
 )
@@ -68,6 +69,7 @@ from backend.services.alerting.verdict import (
     SpecialistEvidence,
     resolve,
 )
+from backend.services.arming import ensure_external_alerts_rule, resolve_arming_at
 
 logger = logging.getLogger(__name__)
 
@@ -263,6 +265,15 @@ class AlertPipeline:
         ]
 
         event_time = _ensure_utc(event.started_at, now)
+        store_mode = getattr(store, "arming_mode", "home")
+        store_exclusions = getattr(store, "arming_exclusions", {})
+        if store_mode == "disarmed":
+            store_armed = False
+        else:
+            store_armed = event.camera_id not in (store_exclusions.get(store_mode) or ())
+        cam_names = getattr(store, "camera_names", {})
+        cam_name = cam_names.get(event.camera_id, event.camera_id)
+
         ctx = PolicyContext(
             event_id=event.id,
             camera_id=event.camera_id,
@@ -278,6 +289,10 @@ class AlertPipeline:
             threats=(),
             rules=all_rules,
             snoozes=snooze_entries,
+            mode=store_mode,
+            armed=store_armed,
+            camera_name=cam_name,
+            external_source=getattr(event, "external_source", None),
         )
 
         matches = evaluate(ctx)
@@ -305,6 +320,8 @@ class AlertPipeline:
                 open_alert.updated_at = now
                 store.alert_events.append(AlertEvent(alert_id=open_alert.id, event_id=event.id))
 
+                if match.raised_while_unarmed:
+                    open_alert.raised_while_unarmed = True
                 if SEVERITY_PRIORITY.get(match.effective_severity.value, 0) > SEVERITY_PRIORITY.get(
                     open_alert.severity.value, 0
                 ):
@@ -324,6 +341,7 @@ class AlertPipeline:
                     match_count=1,
                     last_seen_at=event_time,
                     last_event_id=event.id,
+                    raised_while_unarmed=match.raised_while_unarmed,
                     channels=[],
                     alert_metadata={
                         "rule_name": match.rule_name,
@@ -339,7 +357,9 @@ class AlertPipeline:
                 notified = True
                 planned_deliveries.extend(self._planner(alert, now=now, stale=is_stale))
 
-        decided_by = matches[0].rule_name if matches else DEFAULT_RULE_ID
+        decided_by = (
+            matches[0].rule_name if matches else (arming_suppression_reason(ctx) or DEFAULT_RULE_ID)
+        )
         decision = EventNotifyDecision(
             id=len(store.decisions) + 1,
             event_id=event.id,
@@ -518,6 +538,9 @@ class AlertPipeline:
         )
         household_tz = prop.timezone if prop and prop.timezone else "UTC"
 
+        if getattr(event, "source", "camera") == "external":
+            await ensure_external_alerts_rule(session)
+
         db_rules = list(
             (
                 await session.execute(
@@ -554,6 +577,12 @@ class AlertPipeline:
             for s in db_snoozes
         ]
 
+        arm_mode, cam_armed = await resolve_arming_at(session, event.camera_id, event_time)
+        from backend.models.camera import Camera
+
+        cam_row = await session.get(Camera, event.camera_id)
+        cam_name = cam_row.name if cam_row is not None else event.camera_id
+
         ctx = PolicyContext(
             event_id=event.id,
             camera_id=event.camera_id,
@@ -569,6 +598,10 @@ class AlertPipeline:
             threats=threats,
             rules=all_rules,
             snoozes=snooze_entries,
+            mode=arm_mode,
+            armed=cam_armed,
+            camera_name=cam_name,
+            external_source=getattr(event, "external_source", None),
         )
 
         matches = evaluate(ctx)
@@ -607,6 +640,8 @@ class AlertPipeline:
                     session, open_alert.id, event.id, is_postgres=is_postgres
                 )
 
+                if match.raised_while_unarmed:
+                    open_alert.raised_while_unarmed = True
                 if SEVERITY_PRIORITY.get(match.effective_severity.value, 0) > SEVERITY_PRIORITY.get(
                     open_alert.severity.value, 0
                 ):
@@ -626,6 +661,7 @@ class AlertPipeline:
                     match_count=1,
                     last_seen_at=event_time,
                     last_event_id=event.id,
+                    raised_while_unarmed=match.raised_while_unarmed,
                     channels=[],
                     alert_metadata={
                         "rule_name": match.rule_name,
@@ -640,7 +676,9 @@ class AlertPipeline:
                 notified = True
                 planned_deliveries.extend(self._planner(alert, now=now, stale=is_stale))
 
-        decided_by = matches[0].rule_name if matches else DEFAULT_RULE_ID
+        decided_by = (
+            matches[0].rule_name if matches else (arming_suppression_reason(ctx) or DEFAULT_RULE_ID)
+        )
         await self._upsert_decision(
             session,
             event_id=event.id,
@@ -947,21 +985,26 @@ class AlertPipeline:
         if self._memory_store is not None:
             cutoff = _ensure_utc(upgrade_applied_at, datetime(2026, 1, 1, tzinfo=UTC))
             store = self._memory_store
-            pending_verifs = sorted(
-                (
-                    v
-                    for v in store.verifications
-                    if v.event_id not in store.decisions
-                    and _ensure_utc(v.created_at, current_now) >= cutoff
-                ),
-                key=lambda v: (_ensure_utc(v.created_at, current_now), v.event_id),
-            )
+            candidates_mem: list[tuple[datetime, int]] = [
+                (_ensure_utc(v.created_at, current_now), v.event_id)
+                for v in store.verifications
+                if v.event_id not in store.decisions
+                and _ensure_utc(v.created_at, current_now) >= cutoff
+            ]
+            for ev in store.events.values():
+                if (
+                    getattr(ev, "source", "camera") == "external"
+                    and ev.id not in store.decisions
+                    and _ensure_utc(ev.started_at, current_now) >= cutoff
+                ):
+                    candidates_mem.append((_ensure_utc(ev.started_at, current_now), ev.id))
+            candidates_mem.sort()
             seen: set[int] = set()
             event_ids: list[int] = []
-            for v in pending_verifs:
-                if v.event_id not in seen:
-                    seen.add(v.event_id)
-                    event_ids.append(v.event_id)
+            for _, eid in candidates_mem:
+                if eid not in seen:
+                    seen.add(eid)
+                    event_ids.append(eid)
                 if len(event_ids) >= limit:
                     break
             return [await self.process(eid, now=current_now) for eid in event_ids]
@@ -995,8 +1038,26 @@ class AlertPipeline:
                 EventVerification.created_at.asc(),
                 EventVerification.id.asc(),
             ).limit(limit)
-            rows = (await sess.execute(stmt)).scalars().all()
-            return list(dict.fromkeys(rows))
+            verif_ids = list((await sess.execute(stmt)).scalars().all())
+
+            # A5 (4n-arming.md): the minute sweep also selects undecided events whose source is 'external'
+            ext_stmt = (
+                select(Event.id)
+                .outerjoin(
+                    EventNotifyDecision,
+                    EventNotifyDecision.event_id == Event.id,
+                )
+                .where(
+                    Event.source == "external",
+                    EventNotifyDecision.id.is_(None),
+                )
+            )
+            if cutoff is not None:
+                ext_stmt = ext_stmt.where(Event.started_at >= cutoff)
+            ext_stmt = ext_stmt.order_by(Event.started_at.asc(), Event.id.asc()).limit(limit)
+            ext_ids = list((await sess.execute(ext_stmt)).scalars().all())
+
+            return list(dict.fromkeys([*verif_ids, *ext_ids]))[:limit]
 
         if session is not None:
             event_ids = await _query_ids(session)
