@@ -60,11 +60,11 @@ measurement is posted on the PR (the row sits at `awaiting real tier` until then
 
 ### B2.3 Re-ID model bake-off
 
-**Flags:** `heavy`; label `cell:heavy-b` (ruling 258). **Depends on:** `O2.4` (its `RESULT: PASS` posted).
+**Flags:** `heavy`; label `cell:heavy-b` (ruling 258). **Depends on:** `O2.4`'s pass (UR-85).
 Approved by owner ruling 107 (issue #6854, comment `6109720693`, 2026-10-11). It may stay open past
 Phase 2's exit (UR-10, contract rule 5).
-**Assigned:** heavy-b, next once `O2.4`'s `RESULT: PASS` is posted, after the PR heavy-b holds then
-(rulings 258 and 260). **PR:** none yet.
+**Assigned:** heavy-b, once `O2.4` passes (UR-85; ruling 312 point 4), after the PR heavy-b holds
+then and after `[r307a]` (rulings 258, 260 and 307). **PR:** none yet.
 
 - [ ] Export CLIP-ReID ViT-B/16 and PersonViT ViT-S/16 through `O2.4`'s TensorRT path.
 - [ ] Score them with OSNet-AIN x1.0 on a labelled set of person crops from the owner's setting:
@@ -1098,8 +1098,8 @@ and `[r312a]`'s second run, reading every plan stage at or above 0.999 on all 36
 (`local`, CPU-only torch wheels, `pyproject.toml:984-994`) and the gateway's GPU `reid`
 (`gateway`), "the same network and weights" (`config.py:1449`), under one model ID
 (`osnet-ain-x1-0@osnet_ain_x1_0_msmt17@8a07e8da3894`, #7002 `6154659954`). Stored person vectors
-stay valid across the flip once parity holds. On `RESULT: PASS`, `O2.4` goes to `done` and `B2.3` is
-unblocked (ruling 107).
+stay valid across the flip once parity holds. When O2.4 passes (UR-85), `O2.4` goes to `done` and
+`B2.3` is unblocked (rulings 107, 312).
 
 - [ ] `REID_BACKEND`'s default becomes `gateway` in `backend/core/config.py` and in every compose
       or env file that sets it.
