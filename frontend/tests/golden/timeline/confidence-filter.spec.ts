@@ -418,12 +418,17 @@ interface CameraRow {
   name: string;
 }
 
-/** Boot /timeline scoped to one camera (the filter legs' own scope), quieted. */
-async function bootTimeline(page: Page, query: string): Promise<void> {
+/** Boot a /timeline deep link (the filter legs' own scope), quieted. The
+ *  argument is the FULL path+query ('/timeline?camera=…'), the shape quietBoot
+ *  itself takes: prefixing '/timeline' here doubled the segment
+ *  ('/timeline/timeline?…' → the SPA's NotFoundPage, run 39814494113), and a
+ *  404 is none of settleBootTimeline's shed coats, so every drive burned its
+ *  whole 20s race before timing out. */
+async function bootTimeline(page: Page, path: string): Promise<void> {
   await seedTourDismissed(page);
   await seedDefaultViewMode(page);
   await loginAsAdmin(page, timeline);
-  await quietBoot(page, timeline, `/timeline${query}`);
+  await quietBoot(page, timeline, path);
   await expect(page.getByTestId('timeline-page')).toBeVisible();
   await waitForEventCards(page);
 }
