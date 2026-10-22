@@ -32,6 +32,7 @@
 
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 
+import { ApiError } from '../services/api';
 import { STATIC_STALE_TIME } from '../services/queryClient';
 
 // ============================================================================
@@ -221,6 +222,11 @@ function buildHeaders(): HeadersInit {
 
 /**
  * Handle API response and extract error message on failure.
+ *
+ * Throws ApiError (not a bare Error) so the query layer's smart retry
+ * (shouldRetryQuery, NEM-1940) can classify the failure by HTTP status:
+ * 503 is retried, 500 is not. A bare Error is unclassifiable and silently
+ * disables retry on every household endpoint.
  */
 async function handleResponse<T>(response: Response): Promise<T> {
   if (!response.ok) {
@@ -233,7 +239,7 @@ async function handleResponse<T>(response: Response): Promise<T> {
     } catch {
       // Use default error message if JSON parsing fails
     }
-    throw new Error(errorMessage);
+    throw new ApiError(response.status, errorMessage);
   }
   // Handle 204 No Content responses
   if (response.status === 204) {
