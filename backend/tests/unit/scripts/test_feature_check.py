@@ -34,6 +34,7 @@ import socket
 import subprocess
 import sys
 import threading
+import time
 from pathlib import Path
 from typing import Any
 
@@ -7829,6 +7830,102 @@ def test_the_relay_host_half_serves_and_joins_by_run_dir_marker(
     relay2.arm()
     relay2.join()
     assert run.summary["results"]["vlm_relay"] == "stopped"
+
+
+def test_the_host_half_stream_is_not_capped_by_the_dial_timeout(
+    monkeypatch: pytest.MonkeyPatch, request: pytest.FixtureRequest
+) -> None:
+    # The critique's measured finding: socket.create_connection's timeout
+    # persists on the returned socket for its LIFETIME (measured in this
+    # session), so a dial timeout of 10s would cap every read gap of the
+    # relayed stream -- a slow inference killed mid-stream, silently turning
+    # the relay into a 10s VLM timeout. The tree dials connect-bounded and
+    # sets the stream unbounded: a byte sent before a long model pause still
+    # crosses, and the dial itself still fails fast when nothing listens.
+    run = fc.Run(engine="docker", root=_short_run_root(request), image_tag="test", mode="real")
+    run.dir.mkdir(parents=True)
+    with socket.socket() as vlm_stand_in:
+        vlm_stand_in.bind(("127.0.0.1", 0))
+        vlm_stand_in.listen(1)
+
+        def slow_echo() -> None:
+            conn, _ = vlm_stand_in.accept()
+            with conn:
+                conn.settimeout(10)
+                first = conn.recv(1024)
+                time.sleep(2.0)  # longer than any inherited cap would allow
+                conn.sendall(first)
+
+        acceptor = threading.Thread(target=slow_echo)
+        acceptor.start()
+        run.vlm_dial_port = vlm_stand_in.getsockname()[1]
+        relay = fc.VlmRelay(run)
+        relay.arm()
+        with socket.socket(socket.AF_UNIX) as client:
+            client.settimeout(10)
+            client.connect(str(relay.socket))
+            client.sendall(b"ping")
+            # 2s of VLM-side silence crosses; under the defect this recv dies
+            # at the dial's inherited 10s only by luck of ordering -- the pin
+            # is the SIDE's timeout, read from the same code path _serve uses.
+            assert client.recv(16) == b"ping", "the stream must not be capped"
+        relay.join()
+        acceptor.join(timeout=5)
+    # the dial is still bounded: nothing listens on this port, so _serve's
+    # dial fails fast (ECONNREFUSED -- never hangs), the relay closes the
+    # container conn (the client sees the reset), and the accounting names it.
+    dead = fc.VlmRelay(run)
+    dead.run.vlm_dial_port = 1
+    dead.arm()
+    with socket.socket(socket.AF_UNIX) as client:
+        client.settimeout(5)
+        client.connect(str(dead.socket))
+        client.sendall(b"x")
+        with pytest.raises(OSError):
+            client.recv(1)
+        deadline = time.monotonic() + 5
+        while dead.last_error is None and time.monotonic() < deadline:
+            time.sleep(0.05)
+        assert "Connection refused" in (dead.last_error or ""), dead.last_error
+    dead.join()
+    assert run.summary["results"]["vlm_relay"] in (
+        "stopped",
+        "stopped; last error: dial 127.0.0.1:1: [Errno 111] Connection refused",
+    )
+
+
+def test_a_failed_arm_leaves_no_socket_artifact(
+    monkeypatch: pytest.MonkeyPatch, request: pytest.FixtureRequest
+) -> None:
+    # The second code-named finding: arm() can fail AFTER bind (chmod, listen)
+    # while run.relay is not yet assigned -- the join path never runs for this
+    # half, so a post-bind failure must unlink the socket itself, leaving the
+    # run dir as it found it.
+    run = fc.Run(engine="docker", root=_short_run_root(request), image_tag="test", mode="real")
+    run.dir.mkdir(parents=True)
+    relay = fc.VlmRelay(run)
+    real_bind = socket.socket.bind
+
+    def bind_then_die(self: socket.socket, address: Any) -> None:
+        real_bind(self, address)  # the socket inode now exists...
+        if getattr(self, "_arm_probe", False):
+            raise OSError(5, "listen arm probe")  # ...then listen() fails
+
+    def _raise_arm_probe(self: socket.socket, backlog: int) -> None:
+        raise OSError(5, "listen arm probe")
+
+    monkeypatch.setattr(socket.socket, "bind", lambda self, address: bind_then_die(self, address))
+    monkeypatch.setattr(socket.socket, "listen", _raise_arm_probe)
+    with pytest.raises(fc.HarnessError, match="could not arm"):
+        relay.arm()
+    monkeypatch.undo()
+    assert not relay.socket.exists(), "a failed arm leaves no socket artifact"
+    assert run.summary["results"].get("vlm_relay") is None
+    # and the run dir still arms cleanly afterwards (the stale file would have
+    # been unlinked by arm()'s own pre-bind sweep, but the pin is the state).
+    relay.arm()
+    assert relay.socket.exists()
+    relay.join()
 
 
 def test_the_relay_knob_lands_in_prod_rendered_json_with_no_published_ports(

@@ -2298,9 +2298,12 @@ class VlmRelay:
 
         Raises HarnessError naming itself when anything fails: a failed arm is a
         named failure, never a silent one -- the sidecar's healthcheck would
-        otherwise turn an unexplainable `up --wait` timeout into the cause.
+        otherwise turn an unexplainable `up --wait` timeout into the cause. A
+        post-bind failure unlinks the bound socket first: a half that failed to
+        arm leaves no artifact its join path would not have reaped.
         """
         self.run.summary["vlm_container_url"] = self.RELAY_URL
+        listener: socket.socket | None = None
         try:
             relay_dir = self.run.dir / "relay"
             relay_dir.mkdir(parents=True, exist_ok=True)
@@ -2320,6 +2323,18 @@ class VlmRelay:
             # EACCES to another uid).
             listener.listen(vlm_relay.BACKLOG)
         except OSError as error:
+            if listener is not None:
+                # The bind happened: drop the socket file so a failed arm
+                # leaves the run dir as it found it (the join path would never
+                # run for this half -- run.relay is not yet assigned).
+                try:
+                    listener.close()
+                except OSError:
+                    pass
+                try:
+                    self.socket.unlink(missing_ok=True)
+                except OSError as unlink_error:
+                    _log(f"FAIL the VLM relay socket could not be unlinked: {unlink_error}")
             raise HarnessError(f"the VLM relay host half could not arm: {error}") from error
         self._listener = listener
         self.started = True
@@ -2346,6 +2361,11 @@ class VlmRelay:
                 up = socket.create_connection(
                     (self.run.vlm_dial_host, self.run.vlm_dial_port), timeout=10
                 )
+                # connect-bounded, stream-unbounded: create_connection's
+                # timeout persists on the returned socket for its lifetime
+                # (measured), so the relayed stream would otherwise cap every
+                # read gap at 10s -- a slow inference killed mid-stream.
+                up.settimeout(None)
             except OSError as error:
                 self.dials += 1
                 self.last_error = f"dial 127.0.0.1:{self.run.vlm_dial_port}: {error}"
