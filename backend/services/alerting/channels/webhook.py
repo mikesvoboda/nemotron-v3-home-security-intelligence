@@ -6,12 +6,13 @@ sorted-keys compact JSON, `X-Webhook-Signature: sha256=<hex>`), plus an explicit
 idempotency header so receivers can dedupe.
 
 F12: the channel's `on_local_network` flag relaxes URL policy to RFC1918 /
-loopback / unique-local targets, internal domain suffixes and plain HTTP —
+unique-local targets, internal domain suffixes and plain HTTP — loopback,
 metadata endpoints and link-local stay blocked for every channel. The send
 resolves and validates at request time and pins the connection to the validated
-address (DNS rebinding between validate and connect cannot win): the transport
-resolves through a mapping that contains only the validated address, so a
-re-resolution cannot return a different IP after validation.
+address (DNS rebinding between validate and connect cannot win): the client's
+transport refuses to send unless the host still resolves to the pinned address
+(the shared transport in ``backend.core.url_validation``, used by both webhook
+families).
 """
 
 from __future__ import annotations
@@ -26,7 +27,7 @@ import httpx
 
 from backend.core.url_validation import (
     SSRFValidationError,
-    resolve_hostname,
+    pinned_httpx_client,
     validate_and_resolve_for_send,
 )
 from backend.models.alert_delivery import DeliveryChannelKind
@@ -46,62 +47,9 @@ def sign_payload(payload: dict, secret: str) -> str:
     return hmac.new(secret_bytes, payload_bytes, hashlib.sha256).hexdigest()
 
 
-class _PinnedResolver(httpx.AsyncBaseTransport):
-    """Transport wrapper that pins a hostname to one validated address (F12).
-
-    Wraps the default HTTPCore transport; before each connection the hostname
-    is resolved LOCALLY (not via the stub resolver the connect would use) and
-    the connection goes to ``pinned_ip``. The request URL keeps the original
-    hostname, so Host and TLS SNI stay correct.
-
-    Implementation: httpx exposes no per-host DNS hook on AsyncHTTPTransport,
-    so the pin is enforced by dialing the IP ourselves and handing the core
-    a pre-connected socket is overkill — instead we resolve here, re-validate
-    the resolved IP, and only then let httpx connect, passing the pinned IP as
-    an explicit ``extensions`` "server_hostname" is not supported either.
-
-    The shape that IS supported and correct: validate → resolve → re-resolve
-    at connect time is the window an attacker plays in. Closing it fully needs
-    a custom anyio stream. This adapter therefore performs the authoritative
-    resolution itself (single getaddrinfo call), re-checks the result against
-    the same policy, and passes the IP as the connection target via the
-    transport's local resolver override when httpx grows one (tracked in the
-    PR). Until then the residual window is TOCTOU between our getaddrinfo and
-    httpx's, which the design accepts ONLY for on-this-network channels — for
-    public-internet channels the pre-request full validation is unchanged.
-    """
-
-    def __init__(self, pinned_ip: str, hostname: str, wrapped: httpx.AsyncBaseTransport) -> None:
-        self._pinned_ip = pinned_ip
-        self._hostname = hostname
-        self._wrapped = wrapped
-
-    async def handle_async_request(self, request: httpx.Request) -> httpx.Response:
-        # Re-check right before the request: the only name allowed to change is
-        # ours — we force our own resolution result into the connection by
-        # monkeypatching getaddrinfo for the duration of THIS request via the
-        # transport's underlying network backend is not clean. Instead: verify
-        # the hostname still resolves to the pinned IP; if not, refuse to send.
-        try:
-            current = resolve_hostname(self._hostname)
-        except OSError as exc:  # resolution failure = cannot pin = fail closed
-            raise httpx.ConnectError(f"pin resolution failed: {exc}") from exc
-        if self._pinned_ip not in current:
-            raise httpx.ConnectError(
-                f"DNS pinning failure: {self._hostname} no longer resolves to {self._pinned_ip}"
-            )
-        return await self._wrapped.handle_async_request(request)
-
-    async def aclose(self) -> None:
-        await self._wrapped.aclose()
-
-
 def _build_client(url: str, pinned_ip: str) -> httpx.AsyncClient:
     """Client that refuses to send if the host stops resolving to the pinned IP."""
-    parsed = urlparse(url)
-    hostname = parsed.hostname or ""
-    transport = _PinnedResolver(pinned_ip, hostname, httpx.AsyncHTTPTransport())
-    return httpx.AsyncClient(timeout=_TIMEOUT_SECONDS, transport=transport)
+    return pinned_httpx_client(url, pinned_ip, timeout=_TIMEOUT_SECONDS)
 
 
 class WebhookChannel(Channel):

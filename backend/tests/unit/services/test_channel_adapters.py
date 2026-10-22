@@ -62,14 +62,13 @@ class TestWebhookHeaders:
     def _no_dns(self, monkeypatch: pytest.MonkeyPatch) -> None:
         """These tests fake the HTTP layer; resolution is faked too.
 
-        Two modules hold the name: url_validation (validate path) and the
-        webhook adapter (pin re-check). Patch both.
+        The pinning transport moved into url_validation (one policy, one
+        transport), so url_validation now holds the only ``resolve_hostname``
+        name the send path uses — patch it there.
         """
         import backend.core.url_validation as uv
-        import backend.services.alerting.channels.webhook as wh
 
-        for mod in (uv, wh):
-            monkeypatch.setattr(mod, "resolve_hostname", lambda host: ["93.184.216.34"])  # noqa: ARG005
+        monkeypatch.setattr(uv, "resolve_hostname", lambda host: ["93.184.216.34"])  # noqa: ARG005
 
     @pytest.mark.asyncio
     async def test_idempotency_and_signature_headers_present(
@@ -172,10 +171,8 @@ class TestWebhookUrlPolicy:
             "backend.services.alerting.channels.webhook.httpx.AsyncClient", FakeClient
         )
         import backend.core.url_validation as uv
-        import backend.services.alerting.channels.webhook as wh
 
-        for mod in (uv, wh):
-            monkeypatch.setattr(mod, "resolve_hostname", lambda host: ["192.168.1.50"])  # noqa: ARG005
+        monkeypatch.setattr(uv, "resolve_hostname", lambda host: ["192.168.1.50"])  # noqa: ARG005
         channel = WebhookChannel()
         result = await channel.send(_task(target="http://192.168.1.50/hook", on_local_network=True))
         assert result.success is True
@@ -221,10 +218,8 @@ class TestWebhookUrlPolicy:
         )
         # Resolve via monkeypatched resolver: local names do not resolve in CI.
         import backend.core.url_validation as uv
-        import backend.services.alerting.channels.webhook as wh
 
-        for mod in (uv, wh):
-            monkeypatch.setattr(mod, "resolve_hostname", lambda host: ["192.168.1.77"])  # noqa: ARG005
+        monkeypatch.setattr(uv, "resolve_hostname", lambda host: ["192.168.1.77"])  # noqa: ARG005
         channel = WebhookChannel()
         result = await channel.send(
             _task(target="http://nas.home.arpa/hook", on_local_network=True)

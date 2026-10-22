@@ -1040,6 +1040,24 @@ async def lifespan(_app: FastAPI) -> AsyncGenerator[None]:
             lifespan_logger.error(f"Alert delivery worker startup failed: {e}")
             lifespan_logger.warning("Continuing without the delivery worker")
 
+        # Outbound webhook retry worker (B4.2, ruling 310): resends
+        # webhook_deliveries whose next_retry_at has passed, until
+        # max_retries. Independent of Redis — it only needs the database.
+        try:
+            from backend.services.webhook_retry_worker import WebhookRetryWorker
+            from backend.services.webhook_service import WebhookService
+
+            webhook_retry_worker = WebhookRetryWorker(get_session_factory(), service=WebhookService())
+            await worker_supervisor.register_worker(
+                "webhook-retry-worker",
+                webhook_retry_worker._run,
+            )
+            await webhook_retry_worker.start()
+            lifespan_logger.info("Outbound webhook retry worker started (B4.2)")
+        except Exception as e:
+            lifespan_logger.error(f"Outbound webhook retry worker startup failed: {e}")
+            lifespan_logger.warning("Continuing without the webhook retry worker")
+
     except Exception as e:
         lifespan_logger.error(f"Redis connection failed: {e}")
         lifespan_logger.warning("Continuing without Redis - some features may be unavailable")

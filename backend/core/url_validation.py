@@ -30,6 +30,8 @@ import re
 import socket
 from urllib.parse import ParseResult, urlparse
 
+import httpx
+
 # Use standard logging to avoid circular imports with backend.core.logging
 logger = logging.getLogger(__name__)
 
@@ -115,18 +117,19 @@ LOCALHOST_PATTERNS = {
     "::1",
 }
 
-# F12 (B4.2): networks a channel marked "on this network" may target. This is the
-# RFC 1918 / loopback / unique-local set only — link-local (169.254.0.0/16,
-# fe80::/10) is deliberately EXCLUDED because the metadata endpoints live there,
-# and BLOCKED_IPS/BLOCKED_HOSTNAMES stay blocked for every channel regardless of
-# the flag. Carrier-grade NAT, documentation and benchmarking ranges stay blocked
-# too: they are not "the household's own network".
+# F12 (B4.2): networks a channel marked "on this network" may target. This is
+# the RFC 1918 / unique-local set only — loopback (127.0.0.0/8, ::1/128),
+# link-local (169.254.0.0/16, fe80::/10) are deliberately EXCLUDED because the
+# metadata endpoints live in link-local and loopback is the backend's own
+# surface (#7336: a loopback URL is a 422 with or without the flag — the
+# issue, ruling 310 and 4n-alerting.md all refuse loopback unconditionally).
+# BLOCKED_IPS/BLOCKED_HOSTNAMES stay blocked for every channel regardless of
+# the flag. Carrier-grade NAT, documentation and benchmarking ranges stay
+# blocked too: they are not "the household's own network".
 LOCAL_NETWORK_IP_NETWORKS = [
     ipaddress.ip_network("10.0.0.0/8"),
     ipaddress.ip_network("172.16.0.0/12"),
     ipaddress.ip_network("192.168.0.0/16"),
-    ipaddress.ip_network("127.0.0.0/8"),
-    ipaddress.ip_network("::1/128"),
     ipaddress.ip_network("fc00::/7"),
 ]
 
@@ -151,9 +154,9 @@ def is_private_ip(ip_str: str) -> bool:
 def is_local_network_ip(ip_str: str) -> bool:
     """Check if an IP address is in the local-network set (F12).
 
-    RFC 1918 / loopback / IPv6 unique-local — the ranges an "on this network"
-    channel may target. Link-local and metadata addresses are NOT in this set
-    and stay blocked for every channel.
+    RFC 1918 / IPv6 unique-local — the ranges an "on this network" channel may
+    target. Loopback (the backend's own surface), link-local and metadata
+    addresses are NOT in this set and stay blocked for every channel.
     """
     try:
         ip = ipaddress.ip_address(ip_str)
@@ -368,9 +371,10 @@ def validate_webhook_url(
         url: The webhook URL to validate
         allow_dev_http: If True, allow HTTP for localhost (dev mode only)
         resolve_dns: If True, resolve hostname and validate resolved IPs
-        allow_local_network: If True, allow RFC1918/loopback/unique-local IPs,
+        allow_local_network: If True, allow RFC1918/unique-local IPs,
             internal domain suffixes and plain HTTP for THIS channel (F12
-            "on this network"); metadata endpoints and link-local stay blocked
+            "on this network"); loopback, metadata endpoints and link-local
+            stay blocked
 
     Returns:
         The validated URL (unchanged if valid)
@@ -539,3 +543,66 @@ def validate_and_resolve_for_send(
     # validate_webhook_url_for_request already checked every resolved address
     # under the same flag — pick the first for the pinned connection.
     return url, resolved[0]
+
+
+# F12 send-time connection pinning (shared by both webhook families).
+#
+# The recipient channel (backend/services/alerting/channels/webhook.py) and the
+# outbound webhook service (backend/services/webhook_service.py) must not keep
+# two copies of the pinning transport — one policy, one transport. The helper
+# here builds an httpx client that refuses to send unless the hostname still
+# resolves to the address validation pinned.
+
+
+class _PinnedResolver(httpx.AsyncBaseTransport):
+    """Transport wrapper that pins a hostname to one validated address (F12).
+
+    Wraps the default HTTPCore transport; before each request the hostname is
+    re-resolved locally and the send proceeds only if the pinned address is
+    still among the answers. The request URL keeps the original hostname, so
+    Host and TLS SNI stay correct. Resolution failure fails closed.
+
+    The shape that IS supported and correct: validate → resolve → re-resolve
+    at connect time is the window an attacker plays in. Closing it fully needs
+    a custom anyio stream. This transport performs the authoritative resolution
+    itself (single getaddrinfo call), re-checks the result against the same
+    policy, and only then lets httpx connect. Until httpx grows a per-host DNS
+    hook the residual window is TOCTOU between this getaddrinfo and httpx's,
+    which the design accepts ONLY for on-this-network channels — for
+    public-internet channels the pre-request full validation is unchanged.
+    """
+
+    def __init__(self, pinned_ip: str, hostname: str, wrapped: httpx.AsyncBaseTransport) -> None:
+        self._pinned_ip = pinned_ip
+        self._hostname = hostname
+        self._wrapped = wrapped
+
+    async def handle_async_request(self, request: httpx.Request) -> httpx.Response:
+        try:
+            current = resolve_hostname(self._hostname)
+        except OSError as exc:  # resolution failure = cannot pin = fail closed
+            raise httpx.ConnectError(f"pin resolution failed: {exc}") from exc
+        if self._pinned_ip not in current:
+            raise httpx.ConnectError(
+                f"DNS pinning failure: {self._hostname} no longer resolves to {self._pinned_ip}"
+            )
+        return await self._wrapped.handle_async_request(request)
+
+    async def aclose(self) -> None:
+        await self._wrapped.aclose()
+
+
+def pinned_httpx_client(
+    url: str,
+    pinned_ip: str,
+    *,
+    timeout: float,
+) -> httpx.AsyncClient:
+    """An httpx client that refuses to send if the host stops resolving to the
+    address validation pinned (F12). Only meaningful for hostname URLs — a
+    literal-IP URL needs no pin (validation saw the address it will dial).
+    """
+    parsed = urlparse(url)
+    hostname = parsed.hostname or ""
+    transport = _PinnedResolver(pinned_ip, hostname, httpx.AsyncHTTPTransport())
+    return httpx.AsyncClient(timeout=timeout, transport=transport)
