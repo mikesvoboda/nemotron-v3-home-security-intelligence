@@ -19,7 +19,7 @@ from __future__ import annotations
 
 import asyncio
 import logging
-from collections.abc import Callable, Mapping
+from collections.abc import Awaitable, Callable, Mapping
 from datetime import UTC, datetime, timedelta
 from typing import Any
 
@@ -83,7 +83,7 @@ class NotificationDeliveryWorker:
         session_factory: async_sessionmaker[AsyncSession],
         channels: Mapping[str, Channel],
         *,
-        build_payload: Callable[..., DeliveryTask] | None = None,
+        build_payload: Callable[..., Awaitable[DeliveryTask]] | None = None,
         known_names_loader: Callable[[], set[str]] | None = None,
         poll_interval: float = POLL_INTERVAL_SECONDS,
         batch_size: int = 20,
@@ -167,7 +167,7 @@ class NotificationDeliveryWorker:
         kind = str(row["kind"])
         channel = self._channels.get(kind)
         timeout = CHANNEL_TIMEOUT_SECONDS.get(kind, 15.0)
-        task = self._build_payload(
+        task = await self._build_payload(
             row["alert_id"],
             row["channel_id"],
             row["recipient_id"],
@@ -261,7 +261,7 @@ class NotificationDeliveryWorker:
             )
             await session.commit()
 
-    def _default_task_builder(
+    async def _default_task_builder(
         self,
         alert_id: str,
         channel_id: str,

@@ -8,8 +8,13 @@ it as JSON, browser/push carries the title.
 
 from __future__ import annotations
 
+from collections.abc import Awaitable, Callable
 from typing import Any
 
+from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
+
+from backend.core.secret_box import decrypt_secret
+from backend.services.alerting.channels.base import DeliveryTask
 from backend.services.alerting.redact import redact_names
 
 
@@ -56,4 +61,87 @@ def build_payload(
     return payload
 
 
-__all__ = ["build_payload"]
+async def _load_alert_and_channel(
+    session_factory: async_sessionmaker[AsyncSession],
+    alert_id: str,
+    channel_id: str,
+) -> tuple[Any, Any]:
+    """The alert and the recipient channel row behind one claimed delivery."""
+    from backend.models.alert import Alert
+    from backend.models.alert_delivery import RecipientChannel
+
+    async with session_factory() as session:
+        alert = await session.get(Alert, alert_id)
+        channel = await session.get(RecipientChannel, channel_id)
+    return alert, channel
+
+
+def build_delivery_task(
+    session_factory: async_sessionmaker[AsyncSession],
+) -> Callable[..., Awaitable[DeliveryTask]]:
+    """The production task builder for the delivery worker's seam.
+
+    The worker calls its ``build_payload`` argument as
+    ``(alert_id, channel_id, recipient_id, extras, known_names=...)`` and
+    expects an awaitable ``DeliveryTask``. The default builder it ships
+    instead produces an EMPTY payload and no target — fine for tests that
+    inject their own builder, but production wiring must pass the builder
+    this returns: it loads the alert and the channel row, applies F13
+    redaction through :func:`build_payload`, and resolves the webhook
+    channel's target and signing secret (decrypted at send time; the
+    plaintext never persists — design 4n-alerting.md:186).
+
+    A missing alert row (purged while a delivery was pending) yields a task
+    with an empty payload; the adapter's send on an empty payload is skipped
+    upstream by the worker recording a failure, so the cycle lives on.
+    """
+    from backend.models.alert_delivery import DeliveryChannelKind
+
+    async def _build(
+        alert_id: str,
+        channel_id: str,
+        recipient_id: str,
+        extras: dict[str, Any],
+        *,
+        known_names: set[str] | None = None,
+    ) -> DeliveryTask:
+        alert, channel = await _load_alert_and_channel(session_factory, alert_id, channel_id)
+        kind_raw = getattr(channel, "kind", None)
+        kind_name = getattr(kind_raw, "value", kind_raw)
+        kind = DeliveryChannelKind(kind_name) if kind_name else extras.get("kind", "email")
+        include_names = bool(getattr(channel, "include_names", False))
+        target = str(getattr(channel, "target", "") or "")
+        signing_secret: str | None = None
+        encrypted = getattr(channel, "signing_secret_encrypted", None)
+        if encrypted:
+            signing_secret = decrypt_secret(encrypted)
+
+        payload: dict[str, Any] = {}
+        if alert is not None:
+            payload = build_payload(
+                alert,
+                idempotency_key=extras.get("idempotency_key", ""),
+                include_names=include_names,
+                known_names=known_names,
+                dashboard_base_url="",
+            )
+
+        return DeliveryTask(
+            delivery_id=alert_id,
+            channel_id=channel_id,
+            channel_kind=kind,
+            recipient_id=recipient_id,
+            idempotency_key=extras.get("idempotency_key", ""),
+            payload=payload,
+            include_names=include_names,
+            known_names=known_names or set(),
+            on_local_network=bool(getattr(channel, "on_local_network", False)),
+            target=target,
+            signing_secret=signing_secret,
+            push_subscription=getattr(channel, "push_subscription", None),
+        )
+
+    return _build
+
+
+__all__ = ["build_delivery_task", "build_payload"]

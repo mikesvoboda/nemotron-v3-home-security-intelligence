@@ -1007,11 +1007,15 @@ async def lifespan(_app: FastAPI) -> AsyncGenerator[None]:
 
         # B4.2: the alert-delivery worker. Claims pending/retrying delivery rows
         # under a lease and sends through the channel adapters; the pipeline
-        # wakes it after committing new deliveries.
+        # wakes it after committing new deliveries. The task builder is the
+        # production one (payload.py): loads the alert + channel row, applies
+        # F13 redaction, resolves the channel's target and signing secret.
         try:
             from backend.core.database import get_session_factory
             from backend.services.alerting.channels.browser import BrowserChannel
             from backend.services.alerting.channels.email import EmailChannel
+            from backend.services.alerting.channels.webhook import WebhookChannel
+            from backend.services.alerting.payload import build_delivery_task
             from backend.services.alerting.worker import NotificationDeliveryWorker
             from backend.services.delivery_worker_registry import set_delivery_worker
 
@@ -1025,9 +1029,11 @@ async def lifespan(_app: FastAPI) -> AsyncGenerator[None]:
                     smtp_from=settings.smtp_from_address or "alerts@nemotron.local",
                     use_tls=settings.smtp_use_tls,
                 )
+            channels["webhook"] = WebhookChannel()
             delivery_worker = NotificationDeliveryWorker(
                 get_session_factory(),
                 channels,
+                build_payload=build_delivery_task(get_session_factory()),
             )
             set_delivery_worker(delivery_worker)
             await worker_supervisor.register_worker(
