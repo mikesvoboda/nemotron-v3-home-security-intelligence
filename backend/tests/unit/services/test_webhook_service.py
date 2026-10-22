@@ -1805,6 +1805,24 @@ async def test_get_deliveries_count_and_page_queries(webhook_service, mock_db_se
 
 
 @pytest.mark.asyncio
+async def test_get_deliveries_defaults_survive_mutation(webhook_service, mock_db_session) -> None:
+    """[B4.2] closes the #7339 test-gap survivors: get_deliveries
+    ``limit: int = 50`` and ``offset: int = 0``. Every earlier get_deliveries
+    test passes both kwargs explicitly, so a mutant flipping either default
+    (50 -> 51, 0 -> 1) kept every test green. This call omits them, so the
+    compiled page SQL carries the defaults verbatim only if they survive."""
+    wid = str(uuid4())
+    mock_db_session.execute = AsyncMock(side_effect=[_scalar_result(0), _scalars_result([])])
+    deliveries, total = await webhook_service.get_deliveries(mock_db_session, wid)
+
+    assert deliveries == []
+    assert total == 0
+    _count_sql, page_sql = [_sql(c.args[0]) for c in mock_db_session.execute.call_args_list]
+    assert "LIMIT 50" in page_sql  # default limit, not 51
+    assert "OFFSET 0" in page_sql  # default offset, not 1
+
+
+@pytest.mark.asyncio
 async def test_get_delivery_lookup_query(webhook_service, mock_db_session) -> None:
     """#2 get_delivery members: id equality survives to SQL."""
     did = str(uuid4())

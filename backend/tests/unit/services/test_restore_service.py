@@ -429,6 +429,8 @@ class TestGetModelClass:
             ("prompt_versions", "PromptVersion"),
             ("settings", "SystemSetting"),
             ("alert_rules", "AlertRule"),
+            ("recipients", "Recipient"),
+            ("recipient_channels", "RecipientChannel"),
         ],
     )
     def test_get_model_class_returns_expected_model(self, table_name, expected_class_name):
@@ -927,7 +929,7 @@ class TestRestoreTableOrder:
     """Test RESTORE_TABLE_ORDER constant."""
 
     def test_restore_table_order_has_required_tables(self):
-        """Test table order includes all 12 configuration tables and excludes history."""
+        """Test table order includes all 14 configuration tables and excludes history."""
         assert "households" in RESTORE_TABLE_ORDER
         assert "properties" in RESTORE_TABLE_ORDER
         assert "areas" in RESTORE_TABLE_ORDER
@@ -940,6 +942,8 @@ class TestRestoreTableOrder:
         assert "prompt_versions" in RESTORE_TABLE_ORDER
         assert "settings" in RESTORE_TABLE_ORDER
         assert "alert_rules" in RESTORE_TABLE_ORDER
+        assert "recipients" in RESTORE_TABLE_ORDER
+        assert "recipient_channels" in RESTORE_TABLE_ORDER
         assert "events" not in RESTORE_TABLE_ORDER
         assert "alerts" not in RESTORE_TABLE_ORDER
 
@@ -957,6 +961,10 @@ class TestRestoreTableOrder:
         assert RESTORE_TABLE_ORDER.index("cameras") < RESTORE_TABLE_ORDER.index("class_baselines")
         assert RESTORE_TABLE_ORDER.index("households") < RESTORE_TABLE_ORDER.index(
             "household_members"
+        )
+        # recipients before their channels (FK dependency)
+        assert RESTORE_TABLE_ORDER.index("recipients") < RESTORE_TABLE_ORDER.index(
+            "recipient_channels"
         )
 
 
@@ -1213,6 +1221,25 @@ class TestAllTableMergesAndRoutesUnit:
                     "enabled": True,
                 }
             ],
+            "recipients": [
+                {
+                    "id": "22222222-2222-7222-8222-222222222222",
+                    "name": "Household",
+                    "enabled": True,
+                    "critical_breaks_quiet": True,
+                }
+            ],
+            "recipient_channels": [
+                {
+                    "id": "33333333-3333-7333-8333-333333333333",
+                    "recipient_id": "22222222-2222-7222-8222-222222222222",
+                    "kind": "webhook",
+                    "target": "http://192.168.1.50/hook",
+                    "on_local_network": True,
+                    "include_names": False,
+                    "enabled": True,
+                }
+            ],
         }
         if extra_tables:
             tables_data.update(extra_tables)
@@ -1271,6 +1298,8 @@ class TestAllTableMergesAndRoutesUnit:
         assert res_same_2.tables["alert_rules"].updated == 1
         assert res_same_2.tables["prompt_versions"].updated == 1
         assert res_same_2.tables["settings"].updated == 1
+        assert res_same_2.tables["recipients"].updated == 1
+        assert res_same_2.tables["recipient_channels"].updated == 1
 
         zip_foreign = self._build_full_archive(
             tmp_path, backup_id="bk-foreign", installation_id="inst-other"
@@ -1304,6 +1333,96 @@ class TestAllTableMergesAndRoutesUnit:
         assert set(res_v10.skipped_tables) == {"events", "alerts", "prompts"}
 
     @pytest.mark.asyncio
+    @pytest.mark.asyncio
+    async def test_restored_recipient_channels_arrive_without_secrets(self, tmp_path: Path) -> None:
+        """[B4.2] 4n-restore.md §Privacy: recipient channels arrive without their
+        secrets. The backup strips signing_secret_encrypted/signing_secret_hint at
+        export, so the archive row carries no such key; per 4n-restore.md §Shape
+        ("A key missing from a record keeps the local value on update and the
+        default on insert") a same-installation merge keeps the live channel's
+        secret and a new channel inserts with None.
+        """
+        from backend.models.alert_delivery import Recipient, RecipientChannel
+        from backend.models.gpu_config import SystemSetting
+
+        service = RestoreService()
+        local_recipient = Recipient(
+            id="22222222-2222-7222-8222-222222222222",
+            name="Household",
+            enabled=True,
+            critical_breaks_quiet=True,
+        )
+        local_channel = RecipientChannel(
+            id="33333333-3333-7333-8333-333333333333",
+            recipient_id=local_recipient.id,
+            kind="webhook",
+            target="http://192.168.1.50/hook",
+            on_local_network=True,
+        )
+        local_channel.signing_secret_encrypted = (
+            "gAAAAABl-live-fernet-secret"  # pragma: allowlist secret
+        )
+        local_channel.signing_secret_hint = "gAAA"  # pragma: allowlist secret
+        db = _InMemoryAsyncDB(
+            [
+                SystemSetting(
+                    key="installation_id",
+                    value={"installation_id": "inst-same"},
+                ),
+                local_recipient,
+                local_channel,
+            ]
+        )
+
+        zip_path = self._build_full_archive(
+            tmp_path,
+            backup_id="bk-secrets",
+            installation_id="inst-same",
+            # Two channels: one merging into the live row by id, one fresh.
+            extra_tables={
+                "recipient_channels": [
+                    {
+                        "id": "33333333-3333-7333-8333-333333333333",
+                        "recipient_id": "22222222-2222-7222-8222-222222222222",
+                        "kind": "webhook",
+                        "target": "http://192.168.1.50/hook",
+                        "on_local_network": True,
+                        "include_names": False,
+                        "enabled": True,
+                    },
+                    {
+                        "id": "44444444-4444-7444-8444-444444444444",
+                        "recipient_id": "22222222-2222-7222-8222-222222222222",
+                        "kind": "email",
+                        "target": "person@example.com",
+                        "on_local_network": False,
+                        "include_names": False,
+                        "enabled": True,
+                    },
+                ]
+            },
+        )
+        res = await service.restore_from_backup(zip_path, db)  # type: ignore[arg-type]
+        assert res.same_installation is True
+
+        # The merged channel KEPT its live secret (the absent key never overwrote it).
+        kept_secret = local_channel.signing_secret_encrypted  # pragma: allowlist secret
+        assert kept_secret == "gAAAAABl-live-fernet-secret"  # pragma: allowlist secret
+        assert local_channel.signing_secret_hint == "gAAA"  # pragma: allowlist secret
+        # The rest of the channel followed the archive.
+        assert local_channel.target == "http://192.168.1.50/hook"
+        assert local_channel.on_local_network is True
+
+        # The fresh channel from the same archive arrives without secrets.
+        fresh = next(
+            o
+            for o in db.objects
+            if isinstance(o, RecipientChannel) and o.id == "44444444-4444-7444-8444-444444444444"
+        )
+        assert fresh.signing_secret_encrypted is None
+        assert fresh.signing_secret_hint is None
+        assert fresh.kind in {"webhook", "email"}
+
     async def test_camera_clash_and_invalid_record_errors(self, tmp_path: Path) -> None:
         from backend.models.camera import Camera
 
