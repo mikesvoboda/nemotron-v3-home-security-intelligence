@@ -10,7 +10,7 @@ standalone async client wrapper (`client.py`).
 service. It runs _inside_ the `ai-gateway` container
 (`docker-compose.prod.yml`, service `ai-gateway`, built from
 `ai/gateway/Dockerfile`, base image
-`nvcr.io/nvidia/tritonserver:26.01-py3`). The gateway's `entrypoint.sh`
+`nvcr.io/nvidia/tritonserver:26.09-py3`). The gateway's `entrypoint.sh`
 starts `tritonserver` (gRPC `localhost:8001`, HTTP `localhost:8000`, metrics
 `localhost:8002`) plus the FastAPI gateway on 8090; only 8090 and the metrics
 port 8002 are published from the container. The backend reaches it through the
@@ -145,7 +145,7 @@ There is no standalone `triton` service. The relevant excerpt from
 ai-gateway:
   build:
     context: .
-    dockerfile: ai/gateway/Dockerfile # FROM nvcr.io/nvidia/tritonserver:26.01-py3
+    dockerfile: ai/gateway/Dockerfile # FROM nvcr.io/nvidia/tritonserver:26.09-py3
   ports:
     - '127.0.0.1:${AI_GATEWAY_PORT:-8090}:8090' # FastAPI gateway
     - '127.0.0.1:${AI_GATEWAY_METRICS_PORT:-8002}:8002' # Triton metrics

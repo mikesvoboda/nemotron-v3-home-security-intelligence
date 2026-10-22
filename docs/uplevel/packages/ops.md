@@ -871,9 +871,10 @@ history; rewritten into primitives, it matches the original under ONNX Runtime o
       agent-gpu venue, as run 188.17 did, at `main`'s head (which carries #7238), on the same 36
       crops; it posts the table and then the parity mode's `RESULT:` line on #7238, and links both
       from #7002.
-- [ ] If a plan stage still reads under 0.999, post the measured table and its reading on the PR;
+- [x] If a plan stage still reads under 0.999, post the measured table and its reading on the PR;
       the next step goes to the owner through the coordinator's status comment before any further
-      spend.
+      spend. Run 188.18 read 0.346321 at its FP32 plan stage, against 1.000000 under ONNX Runtime
+      on CPU (`6327606735`), and ruling 312 (record 6329693164) took the next step: `[r312a]`.
 - [ ] The change ships with a CPU-only CI test that pins it.
 
 **Done when:** `[r157]`'s Done when, read at this package's head: O2.4's command (#6970's) prints
@@ -1475,8 +1476,10 @@ The owner's maui discovery for `O2.5` item 2 (attempt 8, `hsi-check-202610202055
 ### [r307a] Face models in Triton
 
 **Flags:** `heavy`; label `cell:heavy-b`. **Assigned:** heavy-b, after `O3.7`, ahead of `B2.3` and
-`O3.2` (ruling 307). Where it edits `ai/gateway/`, UR-9 applies. **Depends on:** `[r252]`'s
-`RESULT: PASS` (ruling 306 item 1), which proves the TensorRT parity path.
+`O3.2` (ruling 307). Where it edits `ai/gateway/`, UR-9 applies. **Depends on:** O2.4's pass (ruling
+306 item 1), which proves the TensorRT parity path: `[r252]`'s run was spent without one, and
+`[r312a]`'s second run, reading every plan stage at or above 0.999 on all 36 crops on the image
+`main` serves, is O2.4's evidence (ruling 312 point 4).
 **PR:** none yet. (ruling 307, record 6323846997)
 
 Every small model the product runs on the GPU is served by Triton (UR-86). The face leg runs on the
@@ -1498,7 +1501,7 @@ production switches yet.
 ### [r308a] CI sinks for the alerting golden paths
 
 **Flags:** none. **Assigned:** ops-b, after `[r290]` (ruling 308). **Depends on:** none.
-**PR:** none yet. (ruling 308, record 6326364266)
+**PR:** #7340. (ruling 308, record 6326364266)
 
 The alerting packages' golden paths deliver to a mail server, a webhook receiver and a push
 service; the CI harness admits only `FAKE_SERVICES` today (`scripts/feature_check.py:96`, `:463`).
@@ -1555,3 +1558,63 @@ it never needs the frames in a sandbox's git tree.
 command as the sender, receives it as the backend, sees nothing as the unprivileged user, connects
 over TLS with the test CA, and connects anonymously to the second listener; and the UR-89 review
 approves.
+
+### [r312a] Re-ID's plan divergence, layer by layer
+
+**Flags:** none. **Assigned:** ops-b, first on its queue, as `[r252]` was (ruling 312). Where it
+edits `ai/gateway/` (cell A's files), UR-9 applies. **Depends on:** none.
+**PR:** none yet. (ruling 312, record 6329693164)
+
+Run 188.18 (`6327606735`) read 1.000000 under ONNX Runtime on CPU on the decomposed export, and
+0.346321 at its FP32 plan, as 188.17 did on the raw graph. The divergence sits inside the
+ONNX→TensorRT build, so the next measurement names the first layer the plan gets wrong. The latest
+supported Triton image carries a newer TensorRT and ONNX Runtime, either of which may already fix
+its half; `[r312b]` moves the gateway to `26.09-py3`.
+
+- [ ] `[r157]`'s runner (`scripts/uplevel/reid_real_tier.sh`) gains a layer-compare mode: Polygraphy
+      runs the decomposed ONNX under ONNX Runtime (CPU) against the TensorRT FP32 plan with every
+      layer's output marked, on the same 36 crops, and prints the first layer under 0.999 cosine
+      with its op type and name.
+- [ ] The runner takes the Triton image as a parameter. On the latest supported release it rebuilds
+      the plan with that release's TensorRT and runs the stage table and the layer compare, and it
+      adds a stage serving the ONNX through Triton's `onnxruntime` backend on the GPU (CUDA
+      execution provider), as a probe only.
+- [ ] CPU-only CI tests pin the new modes' parsing and output.
+
+The operator runs it twice (UR-15): on `26.01-py3` and on the latest supported release, on its
+agent-gpu venue, with the same 36 crops and production weights. Each run posts its tables verbatim
+on #7238 and links them from #7002. Ruling 306 item 3's stop on spend is lifted for these two runs
+only. If the latest release's plan reads every stage at or above 0.999 on all 36 crops, that run is
+O2.4's evidence once `[r312b]` ships the image; any other outcome goes to the owner through the
+coordinator before more spend.
+
+**Done when:** both runs are posted, each naming the first diverging layer or reading every plan
+stage at or above 0.999; and the UR-89 review approves.
+
+### [r312b] The AI stack on its latest supported releases, the Triton image first
+
+**Flags:** `heavy`, `owner` (it changes what ships, UR-98); label `cell:heavy-b`. **Assigned:**
+heavy-b, after `O3.7`, ahead of `[r307a]` and `B4.6` (ruling 312). **Depends on:** none.
+**PR:** none yet. (ruling 312, records 6329693164 and 6331303299)
+
+UR-187 starts here: the gateway built on `nvcr.io/nvidia/tritonserver:26.01-py3`
+(`ai/gateway/Dockerfile:1`), on which ONNX Runtime's CUDA execution provider had failed on the GB300
+(ruling 106).
+
+- [ ] An inventory of the AI stack's pinned components, each with its pinned version, its latest
+      supported release for the GB300 and the host driver, and its source, in the PR body; it is
+      the list UR-187 tracks.
+- [ ] The gateway's Triton image moves to the latest supported release; every model it serves is
+      rebuilt for it (plans and engines on the serving host, as today), and the tests pinning
+      `26.01-py3` follow.
+- [ ] Any further component the inventory shows behind is upgraded in the PR or named as its own
+      follow-up package.
+- [x] If the release needs a newer host driver than the owner's host runs, the PR stops there and
+      puts the driver step to the owner; changing the host is the owner's act. It needs none: the
+      operator's run at `f1e7fa50c` served every model on `26.09-py3` through the image's
+      forward-compatibility libraries (run 39702868586, operator `6330800872`, review
+      `6330317376`; ruling 312's amendment, record 6331303299).
+
+**Done when:** CI is green; the operator's real-tier run on the GB300 shows every served model
+loading and answering; and the UR-89 and UR-95 reviews approve. Re-ID's parity read on the new image
+is `[r312a]`'s second run and O2.4's, not this package's (the amendment, record 6331303299).

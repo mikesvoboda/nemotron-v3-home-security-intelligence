@@ -24,9 +24,24 @@ REPO = Path(__file__).resolve().parent
 CHECKER = REPO / "check-npm-audit-exemptions.py"
 
 FAKE_NPM = """#!/usr/bin/env bash
+if [ -n "$NPM_AUDIT_CALLS" ]; then echo x >> "$NPM_AUDIT_CALLS"; fi
 cat "$NPM_AUDIT_JSON"
 exit ${NPM_AUDIT_RC:-1}
 """
+
+# [r313] What `npm audit --json` actually prints when the registry POST times
+# out: rc=1 (npm's failure code for errors too, not just "findings exist") and
+# an error object on stdout - NO auditReportVersion, NO vulnerabilities. This
+# is the byte-exact payload reproduced with `npm audit --json
+# --fetch-timeout=1 --fetch-retries=0` (npm 11.21.1 / node 22.22.1) against the
+# same tree that CI audited green minutes before and after.
+TIMEOUT_AUDIT = json.dumps(
+    {
+        "message": "network timeout at: "
+        "https://registry.npmjs.org/-/npm/v1/security/advisories/bulk",
+        "error": {"summary": "", "detail": ""},
+    }
+)
 
 
 def audit_doc(advisories: list[dict]) -> str:
@@ -91,19 +106,30 @@ class Harness:
         registry: dict | None,
         registry_exists: bool = True,
         seed: int | None = None,
+        rc: str | None = None,
+        extra_env: dict[str, str] | None = None,
     ):
         reg = self.frontend / ".npm-audit-exemptions.json"
         if registry_exists:
             reg.write_text(json.dumps(registry if registry is not None else {"exceptions": []}))
         doc = self.tmp / "audit.json"
         doc.write_text(audit_json)
+        if rc is None:
+            # Findings (npm exit 1) vs clean (exit 0); an error-shaped payload
+            # (no metadata - [r313] TIMEOUT_AUDIT) cannot ride this heuristic,
+            # so its tests pass rc explicitly.
+            rc = "1"
+            try:
+                rc = "1" if json.loads(audit_json)["metadata"]["vulnerabilities"]["total"] else "0"
+            except (KeyError, TypeError, json.JSONDecodeError):
+                pass
         env = {
             "PATH": f"{self.bin}:{'/usr/bin:/bin'}",
             "NPM_AUDIT_JSON": str(doc),
-            "NPM_AUDIT_RC": "1"
-            if json.loads(audit_json)["metadata"]["vulnerabilities"]["total"]
-            else "0",
+            "NPM_AUDIT_RC": rc,
         }
+        if extra_env:
+            env.update(extra_env)
         if seed is not None:
             # Fix str-hash order for this child; without it each run randomizes.
             env["PYTHONHASHSEED"] = str(seed)
@@ -206,6 +232,67 @@ def test_not_fixable_per_npm_keeps_exemption_valid(tmp_path: Path) -> None:
     nope = [{"pkg": "braces", "gid": G1, "sev": "high", "fix": None}]
     r = h.run(audit_doc(nope), {"exceptions": [entry(G1, "braces")]})
     assert r.returncode == 0, r.stderr
+
+
+# --- [r313] a FAILED audit must fail closed, never read as an empty one -------
+#
+# npm exits 1 both for "findings exist" AND for its own errors; on a network
+# error (2026-10-22 02:57Z red: 5m00.45s = npm's 300000 ms fetch-timeout) it
+# prints an error object with no auditReportVersion and no vulnerabilities.
+# run_audit accepted rc=1 and parsed that error object as an audit with zero
+# findings, so every registered exemption read "stale, remove it" (full mode
+# failed closed-but-WRONG) and the gate's delta read "none added by the
+# change" (head side failed OPEN). The ruling's tests feed the reproduced
+# payload through all three paths and require "audit failed", never "stale"
+# and never "OK".
+
+
+def _assert_audit_failed(r: subprocess.CompletedProcess) -> None:
+    assert r.returncode == 1, r.stdout + r.stderr
+    blob = r.stdout + r.stderr
+    assert "audit failed" in blob
+    assert "stale" not in blob
+    assert "delta OK" not in blob
+    assert "exemptions OK" not in blob
+
+
+def test_full_registry_check_timeout_payload_fails_closed(tmp_path: Path) -> None:
+    """The 02:57Z red's exact shape on the full registry check: the timeout
+    error object must exit 1 with 'audit failed', not adjudicate a registry
+    entry against an empty found-map ('stale, remove it')."""
+    h = Harness(tmp_path)
+    r = h.run(TIMEOUT_AUDIT, {"exceptions": [entry(G1, "braces")]}, rc="1")
+    _assert_audit_failed(r)
+    assert G1 not in r.stdout  # no stale-entry verdict lines at all
+
+
+def test_retry_runs_exactly_three_attempts_on_failed_shape(tmp_path: Path) -> None:
+    """[r313] box 2: a failed-audit payload gets up to TWO retries (three
+    attempts total) - counted at the fake npm - and never on a parsed report:
+    a healthy audit runs npm exactly once."""
+    h = Harness(tmp_path)
+    calls = tmp_path / "calls"
+    r = h.run(
+        TIMEOUT_AUDIT,
+        {"exceptions": [entry(G1, "braces")]},
+        rc="1",
+        extra_env={"NPM_AUDIT_CALLS": str(calls)},
+    )
+    _assert_audit_failed(r)
+    assert calls.read_text().count("x") == 3
+
+    healthy = tmp_path / "healthy"
+    healthy.mkdir()
+    h2 = Harness(healthy)
+    calls2 = tmp_path / "calls2"
+    r2 = h2.run(
+        audit_doc(BRACES),
+        {"exceptions": [entry(G1, "braces")]},
+        rc="1",
+        extra_env={"NPM_AUDIT_CALLS": str(calls2)},
+    )
+    assert r2.returncode == 0, r2.stdout + r2.stderr
+    assert calls2.read_text().count("x") == 1
 
 
 def test_major_fix_at_vuln_level_keeps_exemption_valid(tmp_path: Path) -> None:
@@ -601,6 +688,61 @@ def test_gate_npm_audit_error_on_base_fails_closed(tmp_path: Path) -> None:
         base_rc="2",
     )
     assert r.returncode == 1
+
+
+def test_gate_timeout_payload_on_head_fails_closed(tmp_path: Path) -> None:
+    """[r313] THE FAIL-OPEN BUG, pinned: the head's audit times out (rc=1 +
+    the reproduced error object) and the delta read 'none added by the
+    change' - a change that ADDS an unexempted advisory would pass. The head
+    side must fail closed with 'audit failed' instead."""
+    d = DeltaHarness(tmp_path)
+    r = d.run(
+        audit_doc([]),
+        TIMEOUT_AUDIT,
+        {"exceptions": []},
+        {"exceptions": []},
+        head_rc="1",
+    )
+    _assert_audit_failed(r)
+
+
+def test_gate_timeout_payload_on_base_fails_closed(tmp_path: Path) -> None:
+    """[r313] Same payload on the base side: the delta's 'was it already
+    there?' question is unanswerable, so it must fail closed (the existing
+    UNADJUDICABLE path now reached by the rc=1 error shape too)."""
+    d = DeltaHarness(tmp_path)
+    r = d.run(
+        TIMEOUT_AUDIT,
+        audit_doc([]),
+        {"exceptions": []},
+        {"exceptions": []},
+        base_rc="1",
+    )
+    _assert_audit_failed(r)
+
+
+def test_gate_timeout_on_both_sides_fails_closed(tmp_path: Path) -> None:
+    """[r313] Both sides timing out (a registry outage mid-gate) must never
+    produce the OK line: two empty audits would agree and read as a clean
+    zero-delta."""
+    d = DeltaHarness(tmp_path)
+    r = d.run(TIMEOUT_AUDIT, TIMEOUT_AUDIT, {"exceptions": []}, {"exceptions": []})
+    _assert_audit_failed(r)
+
+
+def test_gate_timeout_payload_cannot_green_a_real_addition(tmp_path: Path) -> None:
+    """[r313] The composite the fail-open bug would have hidden: the head's
+    audit TIMES OUT and the change adds a real unexempted advisory the base
+    reports too. The timeout must not read as 'nothing to adjudicate'."""
+    d = DeltaHarness(tmp_path)
+    r = d.run(
+        audit_doc(BRACES),
+        TIMEOUT_AUDIT,
+        {"exceptions": []},
+        {"exceptions": []},
+        head_rc="1",
+    )
+    _assert_audit_failed(r)
 
 
 def test_gate_missing_base_registry_fails_closed(tmp_path: Path) -> None:

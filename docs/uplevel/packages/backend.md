@@ -318,17 +318,17 @@ agents and the rest on the fast lanes.
 
 **Flags:** `heavy`. **Assigned:** heavy-a, after `[r305]`; `W3.1`'s per-lane PRs still slot in
 between (rulings 300, 308). It moves from backend, which closes #7287. **Depends on:** none.
-**PR:** #7335. (ruling 308, record 6326364266)
+**PR:** #7335, #7342. (ruling 308, record 6326364266)
 
 Design: [`../4n-alerting.md`](../4n-alerting.md), "Packages" row 1, with `alert_events` (re-scoped
 from "Snooze an event or alert"). Covers F-050, F-079, F-216, F-217.
 
 - [x] The test-only PR consolidates the tests of every module the package touches (step 2).
-- [ ] The build PR: `verdict`, `policy` and `pipeline` with an empty planner hook; the
+- [x] The build PR: `verdict`, `policy` and `pipeline` with an empty planner hook; the
       idempotency-path, recovery and sweep calls; the default rule; activity snoozes; the new
       alert columns, `alert_events` and the `open` status; an additive recorded upgrade; if
       `B4.4` landed first, Trash's alert steps (`../4n-trash.md`, "What changes").
-- [ ] Golden path (pytest): confirmed gives an alert row and an `alert_created` frame; repeats
+- [x] Golden path (pytest): confirmed gives an alert row and an `alert_created` frame; repeats
       fold; snooze holds; VLM failure gives unverified; a trusted face covering everyone gives no
       alert; rejected gives no alert.
 
@@ -381,11 +381,11 @@ Design: [`../4n-alerting.md`](../4n-alerting.md), "Packages" row 3.
 
 **Flags:** `heavy`. **Assigned:** heavy-a, after `B4.1` (ruling 308). **Depends on:** none; the
 alert steps go with whichever of `B4.1` and `B4.4` lands second, the deliveries' with whichever of
-`B4.2` and `B4.4`. **PR:** none yet. (ruling 308, record 6326364266)
+`B4.2` and `B4.4`. **PR:** #7347. (ruling 308, record 6326364266)
 
 Design: [`../4n-trash.md`](../4n-trash.md), the `B4.4` parts. Covers F-087, F-088 with `F4.3`.
 
-- [ ] The test-only PR (step 2).
+- [x] The test-only PR (step 2).
 - [ ] The build PR: `EventPurger` and its four adapters; soft delete stops scheduling file
       deletion; the trash purge at the earlier deadline, before general retention;
       `trash_retention_days`.
@@ -407,7 +407,9 @@ Design: [`../4n-alerting.md`](../4n-alerting.md), "Packages" row 5.
       originals, then drops the old columns, the `delivered` value and
       `camera_notification_settings` (`threat_*` stays); the camera routes, `PATCH
 /api/notification/config` and the rest of `alert_engine` go; the `alert_rules` restore
-      adapter ships if `B4.6` has landed.
+      adapter ships if `B4.6` has landed; a default rule the contract stores as a row carries a
+      fixed UUID (`alert_rules.id` is UUID-typed), as `B4.7`'s seeded rule does, so a restore
+      cannot duplicate it.
 - [ ] Golden path: an upgrade-path test on a populated database with non-default rows, with
       `F4.2`'s golden path still green.
 
@@ -415,17 +417,18 @@ Design: [`../4n-alerting.md`](../4n-alerting.md), "Packages" row 5.
 
 ### B4.6 Restore from backup
 
-**Flags:** `heavy`. **Assigned:** heavy-b, after `O3.7`; `[r307a]` keeps its place ahead of it
-if `[r252]` passes first (ruling 308). **Depends on:** none.
-**PR:** none yet. (ruling 308, record 6326364266)
+**Flags:** `heavy`. **Assigned:** heavy-b, after `O3.7` and `[r312b]`; `[r307a]` keeps its place
+ahead of it if O2.4 passes first (rulings 308, 312). **Depends on:** none.
+**PR:** #7345. (ruling 308, record 6326364266)
 
 Design: [`../4n-restore.md`](../4n-restore.md), its `RestoreModal` part included (UR-9). Covers
 F-101.
 
-- [ ] The test-only PR (step 2).
+- [x] The test-only PR (step 2).
 - [ ] The build PR: the shared table list, per-table keys, the installation id, format `1.1` and
       its adapters, three sessions, the safety backup on the data volume, the narrowed undo; if
-      `B4.2` landed first, recipients and channels join the backup without their secrets.
+      `B4.2` landed first, recipients and channels join the backup without their secrets; if
+      `B4.7` landed first, the test that a restore keeps one "External alerts" rule.
 - [ ] Golden path: pytest steps in `backend/tests/golden/external/` and the modal step in
       Playwright, as the design gives them.
 
@@ -451,7 +454,10 @@ Design: [`../4n-arming.md`](../4n-arming.md), "Packages" row `B4.7`. Covers F-29
       `alert_rules.sources` and the seeded "External alerts" rule; the sweep's external clause; the
       app routes; the inbound webhooks on the four modes, with `/alert`'s namespaced `batch_id` and
       a pipeline run on every request; the scheduler; an additive recorded upgrade; the schemas and
-      generated API types. Arming configuration stays out of backups (`../4n-arming.md`).
+      generated API types. Arming configuration stays out of backups (`../4n-arming.md`). The
+      seeded "External alerts" rule carries a fixed UUID; whichever of `B4.6` and `B4.7` lands
+      second carries a test that restores an archive holding it into an install that has it and
+      finds one rule.
 - [ ] Golden path (pytest, `backend/tests/golden/external/`) as the design gives it.
 
 **Done when:** steps 4–6 hold for F-290.
@@ -471,7 +477,9 @@ Design: [`../4n-arming.md`](../4n-arming.md), "Packages" row `B4.8`. Covers F-29
       topic-id fix (`:378`, and the same read at `:383`, `:393`, `:398`); one stored config with a
       CA path, seeded from `MQTT_*`; enabling refused without broker credentials or against a broker
       that accepts an anonymous login, with a warning when TLS is off; startup in `main.py`'s
-      lifespan when enabled; the `keep.toml` entries removed; the operator README's MQTT section and
+      lifespan when enabled, re-running that check and leaving MQTT off with the reason in
+      Settings if it fails (a test: an enabled stored config against the anonymous listener stays
+      off at startup); the `keep.toml` entries removed; the operator README's MQTT section and
       Mosquitto ACL; the operator README, `docs/ROADMAP.md` and
       `frontend/src/components/settings/AGENTS.md` stop describing the deleted MQTT publisher, Home
       Assistant discovery and MQTT settings UI (UR-81). If `F4.5` landed first, the MQTT section of
@@ -1081,7 +1089,9 @@ production changes: no `models.yml` swap, no switch flip.
 ### [r306a] Re-ID's default becomes the gateway
 
 **Flags:** `owner` (it changes production's model path). **Assigned:** backend, next on its queue
-(ruling 306). **Depends on:** `[r252]`'s proving run posting `RESULT: PASS` (ruling 306 item 1).
+(ruling 306). **Depends on:** O2.4's pass (ruling 306 item 1): `[r252]`'s run was spent without one,
+and `[r312a]`'s second run, reading every plan stage at or above 0.999 on all 36 crops on the image
+`main` serves, is O2.4's evidence (ruling 312 point 4).
 **PR:** none yet. (ruling 306, record 6323748868)
 
 `REID_BACKEND` (`backend/core/config.py:1445`) picks between the backend's resident OSNet copy

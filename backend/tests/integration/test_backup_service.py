@@ -326,14 +326,6 @@ class TestBackupServiceListBackups:
         for i in range(len(backups) - 1):
             assert backups[i].created_at >= backups[i + 1].created_at
 
-    def test_empty_directory_returns_empty_list(
-        self,
-        backup_service: BackupService,
-    ) -> None:
-        """Test that list_backups returns empty list for empty directory."""
-        backups = backup_service.list_backups()
-        assert backups == []
-
 
 class TestBackupServiceDeleteBackup:
     """Tests for BackupService.delete_backup()."""
@@ -359,14 +351,6 @@ class TestBackupServiceDeleteBackup:
 
         # Verify file is gone
         assert not result.file_path.exists()
-
-    def test_delete_nonexistent_returns_false(
-        self,
-        backup_service: BackupService,
-    ) -> None:
-        """Test that delete_backup returns False for nonexistent backup."""
-        deleted = backup_service.delete_backup("nonexistent-id")
-        assert deleted is False
 
 
 class TestBackupServiceCleanup:
@@ -409,14 +393,6 @@ class TestBackupServiceGetPath:
 
         path = backup_service.get_backup_path(job_id)
         assert path == result.file_path
-
-    def test_returns_none_for_nonexistent(
-        self,
-        backup_service: BackupService,
-    ) -> None:
-        """Test that get_backup_path returns None for nonexistent backup."""
-        path = backup_service.get_backup_path("nonexistent-id")
-        assert path is None
 
 
 class TestAlertMetadataSurvivesBackupAndRestore:

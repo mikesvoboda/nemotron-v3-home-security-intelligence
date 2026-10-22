@@ -356,6 +356,35 @@ class TestListDeletedEvents:
         assert len(data["items"]) == 0
         assert data["pagination"]["total"] == 0
 
+    def test_list_deleted_events_ordered_by_deleted_at_desc(
+        self, client: TestClient, mock_db_session: AsyncMock
+    ):
+        """Test that deleted events are ordered by deleted_at descending (from test_restore_endpoints)."""
+        from backend.tests.factories import EventFactory
+
+        now = datetime.now(UTC)
+        deleted_events = [
+            EventFactory(id=1, deleted_at=now - timedelta(hours=3)),
+            EventFactory(id=2, deleted_at=now - timedelta(hours=1)),
+            EventFactory(id=3, deleted_at=now - timedelta(hours=2)),
+        ]
+        ordered_events = sorted(
+            deleted_events,
+            key=lambda e: e.deleted_at,
+            reverse=True,  # type: ignore[arg-type]
+        )
+        mock_result = MagicMock()
+        mock_result.scalars.return_value.all.return_value = ordered_events
+        mock_db_session.execute.return_value = mock_result
+
+        response = client.get("/api/events/deleted")
+
+        assert response.status_code == 200
+        data = response.json()
+        assert [item["id"] for item in data["items"]] == [2, 3, 1]
+        for item in data["items"]:
+            assert item["deleted_at"] is not None
+
 
 # =============================================================================
 # Bulk Create Events Tests (Missing Lines: 966-1050)
@@ -976,6 +1005,49 @@ class TestRestoreEvent:
         response = client.post("/api/events/1/restore")
 
         assert response.status_code == 409
+
+    def test_restore_deleted_event_through_real_event_service(
+        self, client: TestClient, mock_db_session: AsyncMock, monkeypatch: pytest.MonkeyPatch
+    ):
+        """Test restoring a soft-deleted event through the real EventService (from test_restore_endpoints)."""
+        from backend.tests.factories import EventFactory
+
+        monkeypatch.setattr("backend.core.redis._redis_client", None)
+        deleted_event = EventFactory(
+            id=1,
+            camera_id="d4e5f6a7-b8c9-0123-defa-234567890123",
+            deleted_at=datetime.now(UTC) - timedelta(hours=1),
+        )
+        mock_result = MagicMock()
+        mock_result.scalar_one_or_none.return_value = deleted_event
+        mock_db_session.execute = AsyncMock(return_value=mock_result)
+
+        response = client.post("/api/events/1/restore")
+
+        assert response.status_code == 200
+        assert response.json()["id"] == 1
+        assert deleted_event.deleted_at is None
+
+    def test_restore_non_deleted_event_through_real_event_service_returns_409(
+        self, client: TestClient, mock_db_session: AsyncMock, monkeypatch: pytest.MonkeyPatch
+    ):
+        """Test restoring an active event through the real EventService returns 409 (from test_restore_endpoints)."""
+        from backend.tests.factories import EventFactory
+
+        monkeypatch.setattr("backend.core.redis._redis_client", None)
+        active_event = EventFactory(
+            id=2,
+            camera_id="d4e5f6a7-b8c9-0123-defa-234567890123",
+            deleted_at=None,
+        )
+        mock_result = MagicMock()
+        mock_result.scalar_one_or_none.return_value = active_event
+        mock_db_session.execute = AsyncMock(return_value=mock_result)
+
+        response = client.post("/api/events/2/restore")
+
+        assert response.status_code == 409
+        assert "not deleted" in response.json()["detail"].lower()
 
 
 # =============================================================================

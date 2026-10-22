@@ -1994,6 +1994,8 @@ async def get_event(
         f"/api/detections/{parsed_detection_ids[0]}/image" if parsed_detection_ids else None
     )
 
+    resolved_snooze_until = await _resolve_event_snooze_until(db, event)
+
     return EventResponse(
         id=event.id,
         camera_id=event.camera_id,
@@ -2005,7 +2007,7 @@ async def get_event(
         reasoning=event.reasoning,
         reviewed=event.reviewed,
         notes=event.notes,
-        snooze_until=event.snooze_until,
+        snooze_until=resolved_snooze_until,
         detection_count=detection_count,
         detection_ids=parsed_detection_ids,
         thumbnail_url=thumbnail_url,
@@ -2014,6 +2016,106 @@ async def get_event(
         links=build_event_links(request, event.id, event.camera_id),
         version=event.version,  # Include version for optimistic locking (NEM-3625)
     )
+
+
+async def _event_object_types(db: AsyncSession, event: Event) -> list[str]:
+    """Return lowercase object types associated with an event."""
+    raw = getattr(event, "object_types", None)
+    if isinstance(raw, str) and raw.strip():
+        types = [t.strip().lower() for t in raw.split(",") if t.strip()]
+        if types:
+            return list(dict.fromkeys(types))
+    if type(db) is AsyncSession:
+        rows = (
+            (
+                await db.execute(
+                    select(Detection.object_type)
+                    .join(EventDetection, Detection.id == EventDetection.detection_id)
+                    .where(EventDetection.event_id == event.id)
+                )
+            )
+            .scalars()
+            .all()
+        )
+        types = [str(r).lower() for r in rows if r]
+        if types:
+            return list(dict.fromkeys(types))
+    return ["unknown"]
+
+
+async def _resolve_event_snooze_until(db: AsyncSession, event: Event) -> datetime | None:
+    """Return event.snooze_until or an active matching ActivitySnooze.until."""
+    if event.snooze_until is not None:
+        return event.snooze_until
+    if type(db) is not AsyncSession:
+        return None
+    from backend.models.alert import ActivitySnooze
+
+    obj_types = await _event_object_types(db, event)
+    now_utc = datetime.now(UTC)
+    active = (
+        (
+            await db.execute(
+                select(ActivitySnooze.until)
+                .where(
+                    ActivitySnooze.camera_id == event.camera_id,
+                    ActivitySnooze.object_type.in_(obj_types),
+                    ActivitySnooze.until > now_utc,
+                )
+                .order_by(ActivitySnooze.until.desc())
+                .limit(1)
+            )
+        )
+        .scalars()
+        .first()
+    )
+    return active
+
+
+async def _sync_event_activity_snooze(
+    db: AsyncSession,
+    event: Event,
+    snooze_until: datetime | None,
+) -> None:
+    """Write or clear ActivitySnooze rows when event.snooze_until is updated (B4.1)."""
+    from sqlalchemy import delete
+
+    from backend.models.alert import ActivitySnooze
+
+    obj_types = await _event_object_types(db, event)
+    if type(db) is not AsyncSession:
+        if snooze_until is not None:
+            for obj_type in obj_types:
+                db.add(
+                    ActivitySnooze(
+                        camera_id=event.camera_id,
+                        object_type=obj_type,
+                        until=snooze_until,
+                        source_event_id=event.id,
+                    )
+                )
+        return
+
+    await db.execute(
+        delete(ActivitySnooze).where(
+            (ActivitySnooze.source_event_id == event.id)
+            | (
+                (ActivitySnooze.camera_id == event.camera_id)
+                & (ActivitySnooze.object_type.in_(obj_types))
+            )
+        )
+    )
+    if snooze_until is not None:
+        for obj_type in obj_types:
+            db.add(
+                ActivitySnooze(
+                    camera_id=event.camera_id,
+                    object_type=obj_type,
+                    until=snooze_until,
+                    source_event_id=event.id,
+                )
+            )
+        await db.flush()
 
 
 @router.patch(
@@ -2089,9 +2191,10 @@ async def update_event(  # Allow branches for audit logging logic
         event.notes = update_data.notes
         if old_notes != event.notes:
             changes["notes"] = {"old": old_notes, "new": event.notes}
-    # Handle snooze_until field (NEM-2359)
+    # Handle snooze_until field (NEM-2359 / B4.1 ActivitySnooze)
     if "snooze_until" in update_dict:
         event.snooze_until = update_data.snooze_until
+        await _sync_event_activity_snooze(db, event, update_data.snooze_until)
         if old_snooze_until != event.snooze_until:
             changes["snooze_until"] = {
                 "old": old_snooze_until.isoformat() if old_snooze_until else None,

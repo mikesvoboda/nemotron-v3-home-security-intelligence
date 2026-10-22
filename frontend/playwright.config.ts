@@ -1,5 +1,7 @@
 import { defineConfig, devices } from '@playwright/test';
 
+import { E2E_BASE_URL } from './tests/e2e/base-url';
+
 /**
  * Playwright E2E Test Configuration
  *
@@ -189,9 +191,13 @@ export default defineConfig({
 
   // Shared settings for all the projects below
   use: {
-    // Base URL to use in actions like `await page.goto('/')`
-    // Uses HTTP for E2E tests to avoid TLS handshake issues with self-signed certs
-    baseURL: 'http://localhost:8444',
+    // Base URL to use in actions like `await page.goto('/')`.
+    // Same source the global setup's storage-state origin derives from
+    // (tests/e2e/base-url.ts) — Playwright seeds localStorage per origin,
+    // so a divergent literal there would leave the tour-suppression keys
+    // on an origin no spec ever loads (ruling 299, Q-179). Uses HTTP to
+    // avoid TLS handshake issues with self-signed certs.
+    baseURL: E2E_BASE_URL,
 
     // Collect trace when retrying the failed test
     trace: 'on-first-retry',

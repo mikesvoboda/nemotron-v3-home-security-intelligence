@@ -193,10 +193,10 @@ UR-147.
 | R2b     | owner; frontend records | 2          | Phase 2 RULING session, part 2 (after `F2.3`)  | owner         | done        | #7030 |
 | B3.1    | backend                 | 3          | Retire ruled-out features, backend part        | heavy         | done        | #7220, #7224, #7228, #7232, #7233, #7243, #7247, #7249, #7253, #7254, #7255, #7258, #7261, #7266, #7270, #7272, #7273, #7277, #7286, #7300, #7304, #7309, #7311 |
 | B3.2    | backend                 | 3          | Delete the approved module list                | heavy · owner | done        | #7319 |
-| B3.3    | backend                 | 3          | Settings and residue truth                     |               | in progress | #7244, #7322 |
+| B3.3    | backend                 | 3          | Settings and residue truth                     |               | done        | #7244, #7322 |
 | F3.1    | frontend                | 3          | Retire ruled-out features, frontend part       | heavy         | done        | #7220, #7224, #7228, #7232, #7233, #7243, #7247, #7249, #7253, #7254, #7255, #7258, #7261, #7266, #7270, #7272, #7273, #7277, #7286, #7300, #7304, #7309, #7311 |
 | F3.2    | frontend                | 3          | Unreachable files and the knip gate            |               | done        | #7246 |
-| F3.3    | frontend                | 3          | Quarantined tests                              |               | not started |     |
+| F3.3    | frontend                | 3          | Quarantined tests                              |               | done        | #7325 |
 | O3.1    | ops                     | 3          | Prune `ai/` to what ships                      |               | done        | #7256 |
 | O3.2    | ops                     | 3          | Compose base and overlays                      |               | not started |     |
 | O3.3    | ops                     | 3          | `models.yml` and env truth                     |               | done        | #7281 |
@@ -205,7 +205,8 @@ UR-147.
 | O3.6    | ops                     | 3          | PR mutation evidence tool (`01` M4)            | heavy         | done        | #7251 |
 | O3.7    | ops                     | 3          | `scripts/` truth                               |               | done        | #7329 |
 | B4.\*   | backend                 | 4          | Feature track (arming among them, UR-12)       | design: heavy | not started |     |
-| B4.1    | backend                 | 4          | Alert pipeline core                            | heavy         | in progress | #7335 |
+| B4.1    | backend                 | 4          | Alert pipeline core                            | heavy         | awaiting real tier | #7335, #7342 |
+| B4.4    | backend                 | 4          | Trash purger                                   | heavy         | in progress | #7347 |
 | BB.\*   | backend                 | 4          | Background track                               |               | not started |     |
 | F4.\*   | frontend                | 4          | Feature track, frontend parts                  | design: heavy | not started |     |
 | FB.\*   | frontend                | 4          | Background track                               |               | not started |     |
@@ -217,7 +218,7 @@ UR-147.
 | W1.3    | docs                    | 1          | Remove dead references now                     |               | done        | #6915 |
 | W2.1    | docs                    | 2          | The boundary list and the line caps            |               | done        | #6920 |
 | W2.2    | docs                    | 2          | Docs rulings for `R2`                          |               | done        | #6923 |
-| W3.1    | docs                    | 3          | Boundaries only                                |               | in progress | #7331 |
+| W3.1    | docs                    | 3          | Boundaries only                                |               | in progress | #7331, #7351, #7353 |
 | W3.2    | docs                    | 3          | Rewrite the boundary files to the standard     |               | not started |     |
 | W3.3    | docs                    | 3          | Living docs truth                              |               | not started |     |
 | W3.4    | docs                    | 3          | Carry out the docs rulings                     |               | done        | #7250 |

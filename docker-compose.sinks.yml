@@ -1,0 +1,140 @@
+# The CI notification sinks ([r308a]): a mail sink, a webhook sink and a Web
+# Push service fake beside FAKE_SERVICES, each started by the fake stack and
+# readable by a golden test. An OVERLAY on the CI stack, never a default
+# (UR-18) — no compose file, env template or include names this file:
+#
+#   docker compose -f docker-compose.ci.yml -f docker-compose.fake-ai.yml \
+#     -f docker-compose.sinks.yml up -d --build
+#
+# One stdlib-only image (docker/ci-sinks/Dockerfile — it installs nothing, so
+# the supply-chain surface is the base image alone) run as three services:
+#   - mail-sink: SMTP 8025 (plain, no STARTTLS — the backend's SMTP_USE_TLS
+#     below is false to match) + its read-back HTTP 8026 (/messages);
+#   - webhook-sink: 8091, records every POST; /requests reads it back;
+#   - push-sink: 8092, a Web Push service fake answering RFC 8030's 201 under
+#     /push/; /requests reads it back.
+# All three serve /health (the healthcheck target). The webhook sink carries
+# the box's "on this network" marking as the label uplevel.r308a/sink — the
+# harness refuses a render without it (fail-closed, scripts/feature_check.py),
+# the golden spec asserts the run records it, and B4.2's per-channel flag
+# builds against this name. The mail and push sinks carry no marking: it
+# names the webhook channel's allowance only.
+#
+# Ports publish to 127.0.0.1 only — the read-back path is the golden env's
+# loopback URLs, and nothing else on the host may reach a sink. Sinks join
+# ci-net only, so layered on any other base this file fails to render rather
+# than mixing with a different stack.
+#
+# The backend env additions below are in-network (service DNS names): the
+# golden env re-derives the host-side URLs from the published ports
+# (FEATURE_CHECK_SINK_*_URL), and FEATURE_CHECK_SINKS_MODE records the
+# marking in the run. DEFAULT_WEBHOOK_URL is deliberately NOT set: the
+# Settings field-validator runs validate_webhook_url at boot, and a private
+# DNS name there would refuse to start the backend. DEFAULT_EMAIL_RECIPIENTS
+# is a list[str] field, so the env form is JSON.
+
+x-ci-sink: &ci-sink
+  build:
+    context: .
+    dockerfile: docker/ci-sinks/Dockerfile
+  image: hsi-ci-sinks:${IMAGE_TAG:-latest}
+  # A local image: never pulled (no registry carries hsi-ci-sinks, and a
+  # `compose pull` must not go looking for that name on Docker Hub).
+  pull_policy: build
+  security_opt:
+    - no-new-privileges:true
+  cap_drop:
+    - ALL
+  read_only: true
+  tmpfs:
+    - /tmp
+    # The sink server's only-writable root (SINK_DATA_DIR), per service —
+    # stores never bridge sinks or runs.
+    - /data
+  networks:
+    - ci-net
+  deploy:
+    resources:
+      limits:
+        cpus: '0.25'
+        memory: 128M
+
+services:
+  mail-sink:
+    <<: *ci-sink
+    command: ['smtp', '8025', '8026']
+    ports:
+      - '127.0.0.1:${MAIL_SINK_SMTP_PORT:-8025}:8025'
+      - '127.0.0.1:${MAIL_SINK_HTTP_PORT:-8026}:8026'
+    healthcheck:
+      # The image is stdlib-only: urllib, not httpx.
+      test:
+        [
+          'CMD-SHELL',
+          'python3 -c "import urllib.request; assert urllib.request.urlopen(\"http://localhost:8026/health\").status == 200"',
+        ]
+      interval: 5s
+      timeout: 5s
+      retries: 20
+      start_period: 5s
+
+  webhook-sink:
+    <<: *ci-sink
+    command: ['http', '8091', 'webhook']
+    labels:
+      uplevel.r308a/sink: on-this-network
+    ports:
+      - '127.0.0.1:${WEBHOOK_SINK_PORT:-8091}:8091'
+    healthcheck:
+      test:
+        [
+          'CMD-SHELL',
+          'python3 -c "import urllib.request; assert urllib.request.urlopen(\"http://localhost:8091/health\").status == 200"',
+        ]
+      interval: 5s
+      timeout: 5s
+      retries: 20
+      start_period: 5s
+
+  push-sink:
+    <<: *ci-sink
+    command: ['http', '8092', 'push']
+    ports:
+      - '127.0.0.1:${PUSH_SINK_PORT:-8092}:8092'
+    healthcheck:
+      test:
+        [
+          'CMD-SHELL',
+          'python3 -c "import urllib.request; assert urllib.request.urlopen(\"http://localhost:8092/health\").status == 200"',
+        ]
+      interval: 5s
+      timeout: 5s
+      retries: 20
+      start_period: 5s
+
+  backend:
+    environment:
+      - FEATURE_CHECK_SINKS_MODE=on-this-network
+      # Email: the CI backend dials the mail sink directly (SMTP has no SSRF
+      # guard in this product; the notification route's webhook leg would
+      # refuse this shape — validate_webhook_url_for_request whitelists only
+      # loopback without is_development, which Settings does not define).
+      - SMTP_HOST=mail-sink
+      - SMTP_PORT=8025
+      # The sink advertises no STARTTLS (pinned in
+      # test_ci_sink_server.py): TLS-on would die in starttls() against it.
+      - SMTP_USE_TLS=false
+      - SMTP_FROM_ADDRESS=alerts@nemotron.test
+      - DEFAULT_EMAIL_RECIPIENTS=["sinks@nemotron.test"]
+      # Webhook/push, in-network, for whatever later work dials them from the
+      # backend container (the golden leg reads the published host-side URLs
+      # instead, and B4.2's per-channel flag consumes these names).
+      - FEATURE_CHECK_SINK_WEBHOOK_HOST=webhook-sink:8091
+      - FEATURE_CHECK_SINK_PUSH_HOST=push-sink:8092
+    depends_on:
+      mail-sink:
+        condition: service_healthy
+      webhook-sink:
+        condition: service_healthy
+      push-sink:
+        condition: service_healthy

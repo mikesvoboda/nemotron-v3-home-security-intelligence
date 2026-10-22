@@ -178,7 +178,10 @@ describe('useMembersQuery', () => {
     expect(result.current.error?.message).toContain('Internal server error');
   });
 
-  it('retries failed requests once', async () => {
+  it('does not retry 500 responses (smart retry: non-retryable status)', async () => {
+    // NEM-1940: production retry is shouldRetryQuery — 500 is deliberately NOT
+    // in RETRYABLE_HTTP_STATUS_CODES {429, 502, 503, 504}, so the query fails
+    // after a single attempt.
     let callCount = 0;
     server.use(
       http.get(`${BASE_URL}/api/household/members`, () => {
@@ -198,8 +201,35 @@ describe('useMembersQuery', () => {
       { timeout: 3000 }
     );
 
-    // Should retry once (2 total attempts)
-    expect(callCount).toBe(2);
+    expect(callCount).toBe(1);
+  });
+
+  it('retries retryable statuses until exhausted (503 -> 4 total attempts)', async () => {
+    // 503 (Service Unavailable) is in RETRYABLE_HTTP_STATUS_CODES {429,502,503,504},
+    // so shouldRetryQuery retries until MAX_RETRY_ATTEMPTS (3 retries) is reached.
+    let callCount = 0;
+    server.use(
+      http.get(`${BASE_URL}/api/household/members`, () => {
+        callCount++;
+        return HttpResponse.json({ detail: 'Service Unavailable' }, { status: 503 });
+      })
+    );
+
+    const { result } = renderHook(() => useMembersQuery(), {
+      wrapper: createQueryWrapper(),
+    });
+
+    await waitFor(
+      () => {
+        expect(result.current.error).not.toBeNull();
+      },
+      // shouldRetryQuery allows up to MAX_RETRY_ATTEMPTS=3 retries on 503 with
+      // 1s/2s/4s exponential backoff (~7s of delays across 4 total attempts).
+      { timeout: 12000 }
+    );
+
+    // All fetchWithRetry-free attempts: 1 initial + 3 retries (MAX_RETRY_ATTEMPTS).
+    expect(callCount).toBe(4);
   });
 });
 
@@ -431,7 +461,13 @@ describe('useUpdateMember', () => {
       }
     });
 
-    expect(result.current.error?.message).toContain('Member not found');
+    // Assert settled hook state through waitFor: act resolves when the
+    // mutateAsync promise settles, but React Query applies the error state
+    // in a follow-up render pass that act does not always flush before the
+    // next assert — asserting directly flakes (~1 in 18 solo runs).
+    await waitFor(() => {
+      expect(result.current.error?.message).toContain('Member not found');
+    });
   });
 
   it('allows partial updates', async () => {
@@ -477,7 +513,13 @@ describe('useDeleteMember', () => {
       await result.current.mutateAsync(1);
     });
 
-    expect(result.current.isSuccess).toBe(true);
+    // Assert settled hook state through waitFor: act resolves when the
+    // mutateAsync promise settles, but React Query applies the success state
+    // in a follow-up render pass that act does not always flush before the
+    // next assert — asserting directly flakes (~1 in 18 solo runs).
+    await waitFor(() => {
+      expect(result.current.isSuccess).toBe(true);
+    });
     expect(result.current.error).toBeNull();
   });
 
