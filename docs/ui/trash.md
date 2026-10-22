@@ -163,14 +163,15 @@ For developers wanting to understand the underlying soft-delete implementation.
 
 ### API Endpoints
 
-| Method | Endpoint                         | Description                                                       |
-| ------ | -------------------------------- | ----------------------------------------------------------------- |
-| GET    | `/api/events/deleted`            | List all soft-deleted events (ordered by `deleted_at` descending) |
-| DELETE | `/api/events/{event_id}`         | Soft delete an event (sets `deleted_at` timestamp)                |
-| POST   | `/api/events/{event_id}/restore` | Restore a soft-deleted event (clears `deleted_at`)                |
-| DELETE | `/api/events/bulk`               | Bulk delete with `soft_delete` option (default: true)             |
+| Method | Endpoint                         | Description                                                                   |
+| ------ | -------------------------------- | ----------------------------------------------------------------------------- |
+| GET    | `/api/events/deleted`            | List all soft-deleted events (ordered by `deleted_at` descending)             |
+| DELETE | `/api/events/deleted`            | Empty Trash (permanently purge all soft-deleted events via `EventPurger`)     |
+| DELETE | `/api/events/{event_id}`         | Soft delete an event (`deleted_at`), or permanently purge (`?permanent=true`) |
+| POST   | `/api/events/{event_id}/restore` | Restore a soft-deleted event (clears `deleted_at`)                            |
+| DELETE | `/api/events/bulk`               | Bulk delete with `soft_delete` option (default: true; `false` calls purger)   |
 
-**Permanent Delete (from Trash):** To permanently delete an event that's already in trash, the frontend sends `DELETE /api/events/{event_id}` with `{ soft_delete: false }` in the request body. This uses the bulk delete endpoint logic to perform a hard delete.
+**Permanent Delete (from Trash):** Permanent deletion (`?permanent=true`, `DELETE /api/events/bulk` with `soft_delete: false`, `DELETE /api/events/deleted`, and the daily `CleanupService.purge_expired_trash` job) is handled by `EventPurger.purge` in `backend/services/event_purger.py`. Events must be in Trash before they can be permanently purged (a permanent delete of a live event returns HTTP 409).
 
 ### Related Code
 
@@ -184,7 +185,7 @@ Trash-related frontend components are organized by domain (pages, events, hooks)
 | API Client Functions | `frontend/src/services/api.ts` (fetchDeletedEvents, restoreEvent, permanentlyDeleteEvent) |
 | Backend Routes       | `backend/api/routes/events.py`                                                            |
 | Event Service        | `backend/services/event_service.py`                                                       |
-| File Service         | `backend/services/file_service.py`                                                        |
+| Event Purger         | `backend/services/event_purger.py`                                                        |
 | Cleanup Service      | `backend/services/cleanup_service.py`                                                     |
 
 ### Query Hooks
@@ -193,26 +194,17 @@ The Trash page uses three TanStack Query hooks defined in `useTrashQuery.ts`:
 
 - **`useDeletedEventsQuery`** - Fetches soft-deleted events from `/api/events/deleted`. Returns `deletedEvents`, `total`, `isEmpty`, `isLoading`, `isRefetching`, `error`, and `refetch`.
 - **`useRestoreEventMutation`** - Restores events via `POST /api/events/{id}/restore`. On success, invalidates both the deleted events cache and the main events list cache.
-- **`usePermanentDeleteMutation`** - Permanently deletes via `DELETE /api/events/{id}` with `soft_delete: false`. On success, invalidates the deleted events cache.
+- **`usePermanentDeleteMutation`** - Permanently deletes via `DELETE /api/events/{id}?permanent=true`. On success, invalidates the deleted events cache.
 
-### File Deletion Queue
+### Soft Delete vs Permanent Purge
 
-The `FileService` uses a Redis sorted set (`file_deletion_queue`) to manage scheduled deletions:
-
-1. When an event is soft-deleted, files are added to the queue with a score of `current_time + 300` (5 minutes)
-2. A background worker polls every 60 seconds and processes entries where `score <= current_time`
-3. If the event is restored, `cancel_deletion_by_event_id()` removes all pending jobs for that event
-4. Only files that actually exist on disk are queued (non-existent paths are filtered out)
-
-### Soft Delete vs Hard Delete
-
-| Aspect     | Soft Delete                                       | Hard Delete (Permanent)    |
-| ---------- | ------------------------------------------------- | -------------------------- |
-| Database   | Sets `deleted_at` timestamp                       | Removes row from database  |
-| Files      | Scheduled for deletion after 5 minutes            | Deleted immediately        |
-| Reversible | Yes, within 5 minutes (files) or 30 days (record) | No                         |
-| Detections | Remain linked to event                            | Cascade deleted with event |
-| Cache      | Invalidates events and stats caches               | Same                       |
+| Aspect     | Soft Delete (Trash)                        | Permanent Purge (`EventPurger`)                                               |
+| ---------- | ------------------------------------------ | ----------------------------------------------------------------------------- |
+| Database   | Sets `deleted_at` timestamp                | Removes event, exclusive detections, entities, and legacy face rows in window |
+| Files      | Preserved intact while in Trash            | Deleted immediately if no surviving detection/event references them           |
+| Reversible | Yes, until purged (`TRASH_RETENTION_DAYS`) | No (writes content-free `event_purged` audit entry)                           |
+| Detections | Remain linked to event                     | Exclusive detections deleted; enrolled reference embeddings unlinked          |
+| Cache      | Invalidates events and stats caches        | Same                                                                          |
 
 ### Database Indexes
 

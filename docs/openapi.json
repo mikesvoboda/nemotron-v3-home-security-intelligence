@@ -8798,6 +8798,7 @@
           "grafana_url": "/grafana",
           "log_retention_days": 7,
           "retention_days": 30,
+          "trash_retention_days": 30,
           "version": "0.1.0"
         },
         "properties": {
@@ -8860,6 +8861,13 @@
             "maximum": 365.0,
             "minimum": 1.0,
             "title": "Retention Days",
+            "type": "integer"
+          },
+          "trash_retention_days": {
+            "description": "Number of days to keep soft-deleted events in Trash before purging (0 disables the Trash clock)",
+            "maximum": 365.0,
+            "minimum": 0.0,
+            "title": "Trash Retention Days",
             "type": "integer"
           },
           "version": {
@@ -8981,6 +8989,20 @@
             ],
             "description": "Number of days to retain events and detections",
             "title": "Retention Days"
+          },
+          "trash_retention_days": {
+            "anyOf": [
+              {
+                "maximum": 365.0,
+                "minimum": 0.0,
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Number of days to keep soft-deleted events in Trash before purging (0 disables the Trash clock)",
+            "title": "Trash Retention Days"
           }
         },
         "title": "ConfigUpdateRequest",
@@ -11596,6 +11618,66 @@
           "triggered_alert"
         ],
         "title": "DwellTimeRecordResponse",
+        "type": "object"
+      },
+      "EmptyTrashResponse": {
+        "description": "Response schema for DELETE /api/events/deleted (Empty Trash, B4.4).",
+        "properties": {
+          "deleted_count": {
+            "description": "Alias for purged_count (number of events permanently deleted)",
+            "minimum": 0.0,
+            "title": "Deleted Count",
+            "type": "integer"
+          },
+          "detections_removed": {
+            "default": 0,
+            "description": "Number of detection rows deleted",
+            "minimum": 0.0,
+            "title": "Detections Removed",
+            "type": "integer"
+          },
+          "files_deleted": {
+            "default": 0,
+            "description": "Number of media files deleted",
+            "minimum": 0.0,
+            "title": "Files Deleted",
+            "type": "integer"
+          },
+          "files_failed": {
+            "default": 0,
+            "description": "Number of media files that failed to delete",
+            "minimum": 0.0,
+            "title": "Files Failed",
+            "type": "integer"
+          },
+          "kept": {
+            "description": "Event IDs kept in Trash because a file deletion failed",
+            "items": {
+              "type": "integer"
+            },
+            "title": "Kept",
+            "type": "array"
+          },
+          "purged": {
+            "description": "Event IDs permanently purged from Trash",
+            "items": {
+              "type": "integer"
+            },
+            "title": "Purged",
+            "type": "array"
+          },
+          "purged_count": {
+            "description": "Number of trashed events permanently purged",
+            "minimum": 0.0,
+            "title": "Purged Count",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "purged_count",
+          "deleted_count"
+        ],
+        "title": "EmptyTrashResponse",
         "type": "object"
       },
       "EnrichmentModelInfo": {
@@ -50764,6 +50846,26 @@
       }
     },
     "/api/events/deleted": {
+      "delete": {
+        "description": "Permanently purge all soft-deleted events currently in Trash (B4.4).",
+        "operationId": "events_empty_trash",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/EmptyTrashResponse"
+                }
+              }
+            },
+            "description": "Trash emptied"
+          }
+        },
+        "summary": "Empty trash (permanently purge all soft-deleted events)",
+        "tags": [
+          "events"
+        ]
+      },
       "get": {
         "description": "List all soft-deleted events for trash view.\n\nReturns events that have been soft-deleted (deleted_at is not null),\nordered by deleted_at descending (most recently deleted first).\n\nThis endpoint enables a \"trash\" view where users can see deleted events\nand optionally restore them.\n\nArgs:\n    db: Database session\n\nReturns:\n    DeletedEventsListResponse containing list of deleted events and count",
         "operationId": "events_list_deleted_events",
@@ -51397,7 +51499,7 @@
     },
     "/api/events/{event_id}": {
       "delete": {
-        "description": "Soft delete a single event with optional cascade to related detections.\n\nBy default, cascade=True soft deletes all related detections using the same\ntimestamp as the event. This enables cascade restore by matching timestamps.\n\nArgs:\n    event_id: ID of the event to delete\n    cascade: If True, cascade soft delete to related detections\n    db: Database session\n    cache: Cache service for invalidation\n\nRaises:\n    HTTPException: 404 if event not found, 409 if already deleted",
+        "description": "Soft delete a live event or permanently purge a trashed event (`?permanent=true`).",
         "operationId": "events_delete_event",
         "parameters": [
           {
@@ -51407,6 +51509,18 @@
             "schema": {
               "title": "Event Id",
               "type": "integer"
+            }
+          },
+          {
+            "description": "If True, permanently purge a soft-deleted event from Trash",
+            "in": "query",
+            "name": "permanent",
+            "required": false,
+            "schema": {
+              "default": false,
+              "description": "If True, permanently purge a soft-deleted event from Trash",
+              "title": "Permanent",
+              "type": "boolean"
             }
           },
           {
@@ -51430,7 +51544,7 @@
             "description": "Event not found"
           },
           "409": {
-            "description": "Event already deleted"
+            "description": "Event already deleted or not in Trash for permanent delete"
           },
           "422": {
             "content": {
@@ -51443,7 +51557,7 @@
             "description": "Validation Error"
           }
         },
-        "summary": "Soft delete a single event",
+        "summary": "Soft delete or permanently purge a single event",
         "tags": [
           "events"
         ]

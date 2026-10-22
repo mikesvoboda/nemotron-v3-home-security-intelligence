@@ -599,20 +599,15 @@ class TestBulkDeleteEvents:
         data = response.json()
         assert data["succeeded"] == 2
 
-    @patch("backend.api.routes.events.get_event_service", autospec=True)
+    @patch("backend.api.routes.events.EventPurger", autospec=True)
     def test_bulk_delete_hard_delete(
-        self, mock_get_service, client: TestClient, mock_db_session: AsyncMock
+        self, mock_purger_cls, client: TestClient, mock_db_session: AsyncMock
     ):
-        """Test bulk hard delete."""
-        mock_service = Mock()
-        mock_service.hard_delete_event = AsyncMock(return_value=(5, 0))
-        mock_get_service.return_value = mock_service
+        """Test bulk hard delete delegates to EventPurger.purge (B4.4)."""
+        from backend.services.event_purger import PurgeReport
 
-        # Mock the query to return events
-        mock_event = Mock(spec=Event, id=1)
-        mock_result = MagicMock()
-        mock_result.scalar_one_or_none.return_value = mock_event
-        mock_db_session.execute.return_value = mock_result
+        mock_purge = AsyncMock(return_value=PurgeReport(purged=(1,)))
+        mock_purger_cls.return_value.purge = mock_purge
 
         request_data = {"event_ids": [1], "soft_delete": False}
 
@@ -621,6 +616,8 @@ class TestBulkDeleteEvents:
         assert response.status_code == 207
         data = response.json()
         assert data["succeeded"] == 1
+        assert data["failed"] == 0
+        mock_purge.assert_awaited_once()
 
     @patch("backend.api.routes.events.get_event_service", autospec=True)
     def test_bulk_delete_event_not_found(
@@ -1275,21 +1272,16 @@ class TestBulkOperationsErrorPaths:
         # Should succeed despite cache error
         assert response.status_code == 207
 
-    @patch("backend.api.routes.events.get_event_service", autospec=True)
+    @patch("backend.api.routes.events.EventPurger", autospec=True)
     def test_bulk_delete_hard_delete_with_file_failures(
-        self, mock_get_service, client: TestClient, mock_db_session: AsyncMock
+        self, mock_purger_cls, client: TestClient, mock_db_session: AsyncMock
     ):
-        """Test bulk hard delete when some files fail to delete."""
-        mock_service = Mock()
-        # Return (files_deleted=5, files_failed=2)
-        mock_service.hard_delete_event = AsyncMock(return_value=(5, 2))
-        mock_get_service.return_value = mock_service
+        """Test bulk hard delete when files fail to delete keeps the event in Trash and reports failed."""
+        from backend.services.event_purger import PurgeReport
 
-        # Mock the query to return event
-        mock_event = Mock(spec=Event, id=1)
-        mock_result = MagicMock()
-        mock_result.scalar_one_or_none.return_value = mock_event
-        mock_db_session.execute.return_value = mock_result
+        mock_purger_cls.return_value.purge = AsyncMock(
+            return_value=PurgeReport(kept=(1,), files_failed=("/cameras/fail.jpg",))
+        )
 
         request_data = {"event_ids": [1], "soft_delete": False}
 
@@ -1297,29 +1289,73 @@ class TestBulkOperationsErrorPaths:
 
         assert response.status_code == 207
         data = response.json()
-        assert data["succeeded"] == 1
+        assert data["succeeded"] == 0
+        assert data["failed"] == 1
+        assert "Failed to delete files" in data["results"][0]["error"]
 
-    @patch("backend.api.routes.events.get_event_service", autospec=True)
+    @patch("backend.api.routes.events.EventPurger", autospec=True)
     def test_bulk_delete_hard_delete_event_not_found_after_files(
-        self, mock_get_service, client: TestClient, mock_db_session: AsyncMock
+        self, mock_purger_cls, client: TestClient, mock_db_session: AsyncMock
     ):
-        """Test bulk hard delete when event not found after file deletion."""
-        mock_service = Mock()
-        mock_service.hard_delete_event = AsyncMock(return_value=(5, 0))
-        mock_get_service.return_value = mock_service
+        """Test bulk hard delete when event is not found or refused (not in Trash)."""
+        from backend.services.event_purger import PurgeReport
 
-        # Mock the query to return None (event not found)
-        mock_result = MagicMock()
-        mock_result.scalar_one_or_none.return_value = None
-        mock_db_session.execute.return_value = mock_result
+        mock_purger_cls.return_value.purge = AsyncMock(
+            return_value=PurgeReport(purged=(1,), refused=(2,), not_found=(999,))
+        )
 
-        request_data = {"event_ids": [999], "soft_delete": False}
+        request_data = {"event_ids": [1, 2, 999], "soft_delete": False}
 
         response = client.request("DELETE", "/api/events/bulk", json=request_data)
 
         assert response.status_code == 207
         data = response.json()
-        assert data["failed"] == 1
+        assert data["succeeded"] == 1
+        assert data["failed"] == 2
+        assert "not in Trash" in data["results"][1]["error"]
+        assert "not found" in data["results"][2]["error"].lower()
+
+    @patch("backend.api.routes.events.EventPurger", autospec=True)
+    def test_single_permanent_delete_and_empty_trash_adapters(
+        self, mock_purger_cls, client: TestClient, mock_db_session: AsyncMock
+    ):
+        """Test DELETE /api/events/{id}?permanent=true and DELETE /api/events/deleted adapters."""
+        from backend.services.event_purger import PurgeReport
+
+        mock_purge = AsyncMock()
+        mock_purger_cls.return_value.purge = mock_purge
+
+        # 1. Live event -> 409
+        mock_purge.return_value = PurgeReport(refused=(10,))
+        resp_409 = client.delete("/api/events/10?permanent=true")
+        assert resp_409.status_code == 409
+
+        # 2. Missing event -> 404
+        mock_purge.return_value = PurgeReport(not_found=(999,))
+        resp_404 = client.delete("/api/events/999?permanent=true")
+        assert resp_404.status_code == 404
+
+        # 3. Trashed event -> 204
+        mock_purge.return_value = PurgeReport(purged=(10,))
+        resp_204 = client.delete("/api/events/10?permanent=true")
+        assert resp_204.status_code == 204
+
+        # 4. Empty Trash -> 200
+        mock_result = MagicMock()
+        mock_result.scalars.return_value.all.return_value = [10, 11]
+        mock_db_session.execute.return_value = mock_result
+        mock_purge.return_value = PurgeReport(
+            purged=(10, 11),
+            files_deleted=("/cameras/a.jpg",),
+            rows_removed={"events": 2, "detections": 3},
+        )
+        resp_empty = client.delete("/api/events/deleted")
+        assert resp_empty.status_code == 200
+        body = resp_empty.json()
+        assert body["purged_count"] == 2
+        assert body["deleted_count"] == 2
+        assert body["purged"] == [10, 11]
+        assert body["detections_removed"] == 3
 
     @patch("backend.api.routes.events.get_event_service", autospec=True)
     def test_bulk_delete_exception_during_processing(
