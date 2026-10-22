@@ -121,8 +121,8 @@ HOST_JUSTIFIED: dict[str, str] = {
     # needs a real events.id (Alert.event_id is a non-nullable FK) and the
     # guard is the stack's data state — the test_webhook_deliveries.py:154
     # data-chain shape.
-    "backend/tests/golden/external/test_notification_sinks.py:73": "missing is a comprehension over os.environ reads — FEATURE_CHECK_SINK_* env absent, host state behind a local alias",
-    "backend/tests/golden/external/test_notification_sinks.py:171": "no events rows on the live stack — DB data chain, not repo content",
+    "backend/tests/golden/external/test_notification_sinks.py:74": "missing is a comprehension over os.environ reads — FEATURE_CHECK_SINK_* env absent, host state behind a local alias",
+    "backend/tests/golden/external/test_notification_sinks.py:172": "no events rows on the live stack — DB data chain, not repo content",
     # The golden webhook spec needs a real events.id (Alert.event_id is a
     # non-nullable FK); an empty events table is the stack's data state, the
     # same data-chain shape as test_risk_score_validation.py:199 above.

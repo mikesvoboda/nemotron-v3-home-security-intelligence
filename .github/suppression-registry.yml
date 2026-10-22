@@ -639,14 +639,14 @@ pytest_skip_imperative:
     expires: null
     reason: null
     host_justification: missing = _missing_env() — FEATURE_CHECK_* harness env absent, host state behind a local alias
-  - id: backend/tests/golden/external/test_notification_sinks.py:171
+  - id: backend/tests/golden/external/test_notification_sinks.py:172
     kind: environment
     owner: mikesvoboda
     tracking: null
     expires: null
     reason: no events on this stack; an alert needs a real events.id
     host_justification: no events rows on the live stack — DB data chain, not repo content
-  - id: backend/tests/golden/external/test_notification_sinks.py:73
+  - id: backend/tests/golden/external/test_notification_sinks.py:74
     kind: environment
     owner: mikesvoboda
     tracking: null
