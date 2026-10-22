@@ -5548,7 +5548,11 @@ export interface paths {
         get: operations["events_list_deleted_events"];
         put?: never;
         post?: never;
-        delete?: never;
+        /**
+         * Empty trash (permanently purge all soft-deleted events)
+         * @description Permanently purge all soft-deleted events currently in Trash (B4.4).
+         */
+        delete: operations["events_empty_trash"];
         options?: never;
         head?: never;
         patch?: never;
@@ -5772,20 +5776,8 @@ export interface paths {
         put?: never;
         post?: never;
         /**
-         * Soft delete a single event
-         * @description Soft delete a single event with optional cascade to related detections.
-         *
-         *     By default, cascade=True soft deletes all related detections using the same
-         *     timestamp as the event. This enables cascade restore by matching timestamps.
-         *
-         *     Args:
-         *         event_id: ID of the event to delete
-         *         cascade: If True, cascade soft delete to related detections
-         *         db: Database session
-         *         cache: Cache service for invalidation
-         *
-         *     Raises:
-         *         HTTPException: 404 if event not found, 409 if already deleted
+         * Soft delete or permanently purge a single event
+         * @description Soft delete a live event or permanently purge a trashed event (`?permanent=true`).
          */
         delete: operations["events_delete_event"];
         options?: never;
@@ -18193,6 +18185,7 @@ export interface components {
          *       "grafana_url": "/grafana",
          *       "log_retention_days": 7,
          *       "retention_days": 30,
+         *       "trash_retention_days": 30,
          *       "version": "0.1.0"
          *     }
          */
@@ -18249,6 +18242,11 @@ export interface components {
              */
             retention_days: number;
             /**
+             * Trash Retention Days
+             * @description Number of days to keep soft-deleted events in Trash before purging (0 disables the Trash clock)
+             */
+            trash_retention_days?: number;
+            /**
              * Version
              * @description Application version
              */
@@ -18297,6 +18295,11 @@ export interface components {
              * @description Number of days to retain events and detections
              */
             retention_days?: number | null;
+            /**
+             * Trash Retention Days
+             * @description Number of days to keep soft-deleted events in Trash before purging (0 disables the Trash clock)
+             */
+            trash_retention_days?: number | null;
         };
         /**
          * ContainerMetrics
@@ -20167,6 +20170,50 @@ export interface components {
              * @description ID of the polygon zone
              */
             zone_id: number;
+        };
+        /**
+         * EmptyTrashResponse
+         * @description Response schema for DELETE /api/events/deleted (Empty Trash, B4.4).
+         */
+        EmptyTrashResponse: {
+            /**
+             * Deleted Count
+             * @description Alias for purged_count (number of events permanently deleted)
+             */
+            deleted_count: number;
+            /**
+             * Detections Removed
+             * @description Number of detection rows deleted
+             * @default 0
+             */
+            detections_removed: number;
+            /**
+             * Files Deleted
+             * @description Number of media files deleted
+             * @default 0
+             */
+            files_deleted: number;
+            /**
+             * Files Failed
+             * @description Number of media files that failed to delete
+             * @default 0
+             */
+            files_failed: number;
+            /**
+             * Kept
+             * @description Event IDs kept in Trash because a file deletion failed
+             */
+            kept?: number[];
+            /**
+             * Purged
+             * @description Event IDs permanently purged from Trash
+             */
+            purged?: number[];
+            /**
+             * Purged Count
+             * @description Number of trashed events permanently purged
+             */
+            purged_count: number;
         };
         /**
          * EnrichmentModelInfo
@@ -48294,6 +48341,26 @@ export interface operations {
             };
         };
     };
+    events_empty_trash: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Trash emptied */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["EmptyTrashResponse"];
+                };
+            };
+        };
+    };
     events_export_events: {
         parameters: {
             query?: {
@@ -48545,6 +48612,8 @@ export interface operations {
     events_delete_event: {
         parameters: {
             query?: {
+                /** @description If True, permanently purge a soft-deleted event from Trash */
+                permanent?: boolean;
                 /** @description Cascade soft delete to related detections */
                 cascade?: boolean;
             };
@@ -48570,7 +48639,7 @@ export interface operations {
                 };
                 content?: never;
             };
-            /** @description Event already deleted */
+            /** @description Event already deleted or not in Trash for permanent delete */
             409: {
                 headers: {
                     [name: string]: unknown;
