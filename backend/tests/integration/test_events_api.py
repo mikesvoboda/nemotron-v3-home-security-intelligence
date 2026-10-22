@@ -438,9 +438,7 @@ class TestListEvents:
         assert minconf_setup["e085"].id in ids
         assert minconf_setup["e0849"].id not in ids
 
-    async def test_min_confidence_counts_event_once_across_pages(
-        self, async_client, minconf_setup
-    ):
+    async def test_min_confidence_counts_event_once_across_pages(self, async_client, minconf_setup):
         """Test an event with three qualifying detections appears once; total counts it once."""
         response = await async_client.get("/api/events?min_confidence=0.85")
         assert response.status_code == 200
@@ -464,9 +462,7 @@ class TestListEvents:
             response = await async_client.get(f"/api/events?min_confidence={value}")
             assert response.status_code == 422, value
 
-    async def test_min_confidence_cursor_and_offset_pages_agree(
-        self, async_client, minconf_setup
-    ):
+    async def test_min_confidence_cursor_and_offset_pages_agree(self, async_client, minconf_setup):
         """Test the EXISTS filter sees cursor and offset pages identically (count + list)."""
         # Cursor pagination (the route computes total only on the first page:
         # a cursor request skips the count entirely, events.py:553-557)

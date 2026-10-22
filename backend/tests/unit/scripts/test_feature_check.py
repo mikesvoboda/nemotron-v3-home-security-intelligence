@@ -943,7 +943,13 @@ def test_the_scenario_book_outcomes_survive_a_fixture_image_swap() -> None:
     # The several-detections clause: the high scenario carries more than one,
     # every pre-existing scenario still carries exactly one.
     assert len(by_name["f4.4-gold-high"]["detections"]) > 1
-    for name in ("person-at-door", "cat-on-porch", "car-in-driveway", "slow-reply", "harness-smoke"):
+    for name in (
+        "person-at-door",
+        "cat-on-porch",
+        "car-in-driveway",
+        "slow-reply",
+        "harness-smoke",
+    ):
         assert len(by_name[name]["detections"]) == 1
     # Routing still works: the book the fake loads at startup resolves every
     # image, hashes it, and the digests stay distinct.
