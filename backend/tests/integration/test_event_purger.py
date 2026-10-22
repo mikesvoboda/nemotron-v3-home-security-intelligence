@@ -21,7 +21,7 @@ from backend.models.event import Event
 from backend.models.event_detection import EventDetection
 from backend.models.face_identity import FaceDetectionEvent, FaceEmbedding, KnownPerson
 from backend.models.household import HouseholdMember, MemberRole, PersonEmbedding, TrustLevel
-from backend.services.batch_aggregator import BatchAggregator
+from backend.services.batch_aggregator import BatchAggregator, recover_orphaned_detections
 from backend.services.cleanup_service import CleanupService
 from backend.services.event_purger import EventPurger
 
@@ -220,7 +220,7 @@ class TestEventPurgerIntegration:
             det1 = Detection(
                 camera_id=cam_id,
                 file_path="/nonexistent/det1.jpg",
-                detected_at=now - timedelta(minutes=1),
+                detected_at=now - timedelta(minutes=15),
                 object_type="person",
                 confidence=0.9,
             )
@@ -256,7 +256,7 @@ class TestEventPurgerIntegration:
 
         # Verify orphan recovery finds nothing for the purged detection
         aggregator = BatchAggregator(redis_client=AsyncMock())
-        recovered = await aggregator.recover_orphaned_detections(max_age_hours=24)
+        recovered = await recover_orphaned_detections(aggregator)
         assert recovered == 0
         async with get_session() as db:
             assert await db.get(Detection, det1_id) is None

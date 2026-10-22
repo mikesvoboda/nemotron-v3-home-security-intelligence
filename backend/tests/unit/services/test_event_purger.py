@@ -27,6 +27,7 @@ from backend.models.face_identity import FaceDetectionEvent, FaceEmbedding, Know
 from backend.models.household import HouseholdMember, MemberRole, PersonEmbedding, TrustLevel
 from backend.models.household_org import Household
 from backend.models.property import Property
+from backend.services.batch_aggregator import BatchAggregator, recover_orphaned_detections
 from backend.services.cleanup_service import CleanupService
 from backend.services.event_purger import EventPurger, purge_deadline_for_event
 from backend.services.event_service import EventService
@@ -643,3 +644,54 @@ class TestEventPurgerUnit:
         assert report_zero.purged == (ev_zero_general_due.id,)
         assert await db_session.get(Event, ev_trash_old_but_started_recent.id) is not None
         assert await db_session.get(Event, ev_zero_general_due.id) is None
+
+    @pytest.mark.asyncio
+    async def test_after_purge_and_restart_orphan_recovery_finds_nothing(
+        self, db_session: _AsyncSQLiteSession
+    ) -> None:
+        """After a purge and a restart, orphan recovery finds nothing (4n-trash.md)."""
+        now = datetime.now(UTC)
+        ev = Event(
+            batch_id="b-orphan-purge",
+            camera_id="front_door",
+            started_at=now - timedelta(minutes=20),
+            ended_at=now - timedelta(minutes=15),
+            risk_score=60,
+            risk_level="medium",
+            summary="Event to purge",
+            deleted_at=now - timedelta(minutes=5),
+        )
+        db_session.add(ev)
+        await db_session.flush()
+
+        # Detection older than ORPHAN_MIN_AGE_MINUTES (3 min) so it would be
+        # eligible for orphan recovery if the purge left the detection row behind.
+        det = Detection(
+            camera_id="front_door",
+            file_path="/cameras/orphan_check.jpg",
+            detected_at=now - timedelta(minutes=15),
+            object_type="person",
+            confidence=0.92,
+        )
+        db_session.add(det)
+        await db_session.flush()
+        db_session.add(EventDetection(event_id=ev.id, detection_id=det.id))
+        await db_session.commit()
+
+        report = await EventPurger().purge([ev.id], reason="user", session=db_session)  # type: ignore[arg-type]
+        await db_session.commit()
+        assert report.purged == (ev.id,)
+        assert report.rows_removed["detections"] == 1
+
+        @contextlib.asynccontextmanager
+        async def _mock_get_session():
+            yield db_session
+
+        aggregator = BatchAggregator()
+        with patch(
+            "backend.core.database.get_session",
+            side_effect=_mock_get_session,
+            autospec=True,
+        ):
+            recovered = await recover_orphaned_detections(aggregator)
+        assert recovered == 0
