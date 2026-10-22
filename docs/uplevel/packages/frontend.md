@@ -328,10 +328,13 @@ Design: [`../4n-status.md`](../4n-status.md), "Packages" row `F4.8`. Covers the 
       per-model latency chart; the banner's `ai-vlm`; the alert badge on the events socket with its
       page-open load; the palette and `g y`; Tracing's Tempo link. Its cross-lane part (UR-9):
       removes the old `nemotron` and `rtdetr` fields, moves the `ai_models` key, regenerates the
-      contract and types, and edits `operations/performance.spec.ts:55` and `:66`.
+      contract and types, and edits `operations/performance.spec.ts:55` and `:66`; and it retires
+      the enable, disable and `/start` service routes and the worker stop and start routes with
+      their callers (`useServiceMutations`, `useWorkerActions`, their clients and the panels'
+      buttons), each pinned by a 404 test.
 - [ ] Golden path (Playwright) as the design gives it.
 
-**Done when:** steps 4–6 hold for its rows. F-293's row reads **retired**.
+**Done when:** steps 4–6 hold for its rows.
 
 ### F4.6 Scene changes in the UI
 

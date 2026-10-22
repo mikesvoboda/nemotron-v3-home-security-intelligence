@@ -497,7 +497,7 @@ too, and its row records that sensitivity left MQTT (ruling 311).
 ### B4.9 Scene changes
 
 **Flags:** `heavy`. **Assigned:** heavy-b, once `B4.7` merges (ruling 317). **Depends on:** `B4.7`
-merged for the build PR (the event source and rules' `sources`); the test-only PR may open first.
+merged (the event source and rules' `sources`).
 **PR:** none yet. (ruling 317, record 6347331324)
 
 Design: [`../4n-scene-changes.md`](../4n-scene-changes.md), "Packages" row `B4.9`. Covers F-208 and
@@ -514,7 +514,7 @@ F-287 with `F4.6`.
       resolver's source, rules' `sources` and the seeded "Camera tampering" rule with a fixed UUID;
       the sweep's clause; the routes; the live messages through `get_broadcaster`; the audit
       action; Trash's close and the purger's file; `scene_change_enabled` read again, and
-      `SCENE_CHANGE_SIMILARITY_THRESHOLD`.
+      `SCENE_CHANGE_SIMILARITY_THRESHOLD`; the regenerated contract and types (UR-83).
 - [ ] Golden path (pytest, `backend/tests/golden/external/`) as the design gives it.
 
 **Done when:** steps 4–6 hold for its rows.
@@ -534,8 +534,8 @@ F-099 with `F4.7`.
       the hourly expiry; cancel between batches with conditional status writes; every timeline
       filter; audit and rate limit; `cancelled` and `expired` through `ADD VALUE IF NOT EXISTS`;
       the request's three compliance fields removed; bulk cancel refusing export jobs; the Trash
-      filter in `detections.py`, without `file_path`; `EXPORT_DIR` on the data volume. The two old
-      export routes stay until `F4.7`.
+      filter in `detections.py`, without `file_path`; `EXPORT_DIR` on the data volume; the
+      regenerated contract and types (UR-83). The two old export routes stay until `F4.7`.
 - [ ] Golden path (pytest) as the design gives it.
 
 **Done when:** steps 4–6 hold for its rows.
@@ -556,14 +556,13 @@ Design: [`../4n-status.md`](../4n-status.md), "Packages" row `B4.11`. Covers the
       `VLM_SLEEP_IDLE_SECONDS`; the never-probed set for `ai-vlm`; the new fields beside the old
       (expand, with the `ai_models` key unmoved); the latency histograms; restart under
       `get_current_admin_user` for the four services, its two-step audit, the disabled check gone
-      and the persisted flags cleared; enable, disable, `/start` and the worker stop and start
-      routes retired, and worker restart guarded; the infrastructure-alerts proxy; `alertmanager.py`
-      and `prometheus_alerts` retired by a recorded upgrade; the mode-aware flush; the regenerated
-      contract and types.
+      and the persisted flags cleared; worker restart guarded; the infrastructure-alerts proxy;
+      `alertmanager.py` and `prometheus_alerts` retired by a recorded upgrade; the mode-aware flush;
+      the regenerated contract and types.
 - [ ] Golden path (pytest of the routes, with a fake engine) as the design gives it.
 
 **Done when:** steps 4–6 hold for its rows. F-140's real-tier check is the owner's witnessed restart
-on the live install (ruling 317).
+on the live install (ruling 317). F-293's row reads **retired**.
 
 ### BB.\* Background track
 

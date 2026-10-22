@@ -84,7 +84,8 @@ agent has approved its own files.
 
 ### W3.3 Living docs truth
 
-**Flags:** none. **Assigned:** docs, after `W3.2`: backend's, then frontend's (ruling 316).
+**Flags:** none. **Assigned:** docs, after `W3.2`: backend's, then frontend's, one PR per lane
+(ruling 316).
 **Depends on:** `R2`; the target lane's Phase 3 `done`.
 **PR:** none yet. (ruling 241)
 
@@ -572,7 +573,8 @@ row is corrected or named as closed, and the UR-89 review approves.
 
 ### [r307d] The deployment page says where the backend's models run
 
-**Flags:** none. **Assigned:** docs, first on its queue (ruling 307). **Depends on:** none.
+**Flags:** none. **Assigned:** docs, after `W3.2` and `W3.3` (rulings 307, 316). **Depends on:**
+none.
 **PR:** none yet. (ruling 307, record 6323846997)
 
 `docs/operator/deployment/README.md:164-166` says the backend's OSNet, face and ALPR weights "load
