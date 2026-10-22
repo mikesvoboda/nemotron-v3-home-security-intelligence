@@ -208,7 +208,9 @@ def field_findings(path: str, text: str) -> list[Finding]:
         one = "### " + block
         offered = next_claimable(one, [token], []) == token
         lead = LEADING_PR.match(value)
-        held = bool(lead) and held_claims(one, [{"number": lead.group(1), "title": ""}]) == [token]
+        held = lead is not None and held_claims(one, [{"number": lead.group(1), "title": ""}]) == [
+            token
+        ]
         stray_none = bool(NONE_WORD.search(value)) and not NONE_YET.search(value)
         if not (offered or held) or stray_none:
             shown = snap.truncate(" ".join(value.split()), 50)

@@ -497,9 +497,13 @@ async def main(args: argparse.Namespace) -> None:
     # Parallel with varying thread counts
     for threads in [2, 4, 8]:
         if threads <= num_threads:
+
+            def _run_parallel(t: int = threads) -> Any:
+                return benchmark_cpu_parallel(t, 500000)
+
             bench.run_sync(
                 f"CPU parallel ({threads} threads)",
-                lambda t=threads: benchmark_cpu_parallel(t, 500000),
+                _run_parallel,
                 iterations=iterations,
                 metadata={"type": "cpu_parallel", "threads": threads, "work_size": 500000},
             )

@@ -101,9 +101,7 @@ def _code_lines(script: str) -> str:
     gate caught this on itself in review). Stripping #-lines first makes the
     assertion about the executed command only.
     """
-    return "\n".join(
-        ln for ln in script.splitlines() if not ln.lstrip().startswith("#")
-    )
+    return "\n".join(ln for ln in script.splitlines() if not ln.lstrip().startswith("#"))
 
 
 def _split_legs(path: Path) -> list[str]:
@@ -131,7 +129,9 @@ def test_durations_file_is_the_shape_pytest_split_writes() -> None:
     data = _durations()
     assert isinstance(data, dict) and data, ".test_durations must be a non-empty JSON object"
     bad_shape = [k for k in data if not isinstance(k, str) or not NODEID_RE.match(k)]
-    assert not bad_shape, f"{len(bad_shape)} keys are not backend/tests nodeids, e.g. {bad_shape[:3]}"
+    assert not bad_shape, (
+        f"{len(bad_shape)} keys are not backend/tests nodeids, e.g. {bad_shape[:3]}"
+    )
     bad_val = [k for k, v in data.items() if not isinstance(v, (int, float)) or v < 0]
     assert not bad_val, f"{len(bad_val)} values are not non-negative numbers, e.g. {bad_val[:3]}"
 
@@ -147,13 +147,19 @@ def test_both_tiers_present_with_room() -> None:
     keys = list(data)
     unit = [k for k in keys if "/unit/" in k]
     integ = [k for k in keys if "/integration/" in k]
-    assert len(keys) >= MIN_KEYS_TOTAL, f"{len(keys)} keys < floor {MIN_KEYS_TOTAL} — file truncated?"
-    assert len(unit) >= MIN_KEYS_UNIT, f"{len(unit)} unit keys < floor {MIN_KEYS_UNIT} — unit-tier planning data lost"
+    assert len(keys) >= MIN_KEYS_TOTAL, (
+        f"{len(keys)} keys < floor {MIN_KEYS_TOTAL} — file truncated?"
+    )
+    assert len(unit) >= MIN_KEYS_UNIT, (
+        f"{len(unit)} unit keys < floor {MIN_KEYS_UNIT} — unit-tier planning data lost"
+    )
     assert len(integ) >= MIN_KEYS_INTEGRATION, (
         f"{len(integ)} integration keys < floor {MIN_KEYS_INTEGRATION} — integration-tier planning data lost"
     )
     total_s = sum(data.values())
-    assert total_s >= MIN_SECONDS_TOTAL, f"{total_s:.1f}s total < floor {MIN_SECONDS_TOTAL}s — weights look hollow"
+    assert total_s >= MIN_SECONDS_TOTAL, (
+        f"{total_s:.1f}s total < floor {MIN_SECONDS_TOTAL}s — weights look hollow"
+    )
 
 
 @pytest.mark.timeout(60)  # ~5.2k stat()s over the worktree; measured ~0.4s locally
@@ -226,7 +232,9 @@ def test_nodeid_mapping_round_trips_against_pytest_itself() -> None:
         classname, name = ".".join(names[:-1]), names[-1]
         if mint.junit_to_nodeid(classname, name) != nodeid:
             misses.append(nodeid)
-    assert not misses, f"{len(misses)}/{len(data)} keys fail the mangle round-trip, e.g. {misses[:3]}"
+    assert not misses, (
+        f"{len(misses)}/{len(data)} keys fail the mangle round-trip, e.g. {misses[:3]}"
+    )
 
 
 def test_comment_cannot_satisfy_a_pin_assertion() -> None:

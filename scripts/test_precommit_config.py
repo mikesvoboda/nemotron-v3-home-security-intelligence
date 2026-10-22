@@ -173,12 +173,7 @@ def test_the_two_prettier_hooks_pin_the_same_version():
 
     general_deps = _dep_versions("prettier")
     general_pin = next(
-        (
-            m.group(1)
-            for d in general_deps
-            for m in [re.match(r"(?:@?prettier)@(.+)$", d)]
-            if m
-        ),
+        (m.group(1) for d in general_deps for m in [re.match(r"(?:@?prettier)@(.+)$", d)] if m),
         None,
     )
     assert general_pin, f"hook id 'prettier' pins no prettier version in {general_deps}"

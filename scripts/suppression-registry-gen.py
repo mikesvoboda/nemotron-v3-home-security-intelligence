@@ -315,7 +315,7 @@ def main() -> int:
         # machine-minted here; the census+rules ARE the source of truth.
         try:
             current = yaml.safe_load(REGISTRY.read_text())
-        except OSError, yaml.YAMLError:
+        except (OSError, yaml.YAMLError):
             print(f"{REGISTRY} absent/unparseable", file=sys.stderr)
             return 1
         if current != yaml.safe_load(text):

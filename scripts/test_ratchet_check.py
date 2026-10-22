@@ -308,8 +308,7 @@ def test_golden_conditional_guard_never_mints_an_id(tmp_path):
     loc = locations(root)
     ids = [it["id"] for it in loc["golden_fixme"]] + [it["id"] for it in loc["golden_skip"]]
     assert ids == [
-        "frontend/tests/golden/timeline/media.spec.ts::"
-        "F-001 the video leg — UNPROVEN on this tier"
+        "frontend/tests/golden/timeline/media.spec.ts::F-001 the video leg — UNPROVEN on this tier"
     ], ids
     assert baseline_of(root)["golden_skip"] == 0
 
@@ -322,8 +321,7 @@ def test_golden_increase_with_entry_and_bumped_baseline_passes(tmp_path):
     reg = registry_of(root)
     reg["golden_fixme"].append(
         {
-            "id": "frontend/tests/golden/timeline/media.spec.ts::"
-            "F-001 the ordering leg sneaked in",
+            "id": "frontend/tests/golden/timeline/media.spec.ts::F-001 the ordering leg sneaked in",
             "kind": "todo",
             "owner": "tester",
             "tracking": "R-222-F296",

@@ -1520,7 +1520,9 @@ def _subset_reads(fake: FakeRunner, head_diff: str, main_diff: str, chain: str) 
     return fake
 
 
-MERGE_COMMIT_CHAIN = "e" * 39 + "1" + " " + APPROVED_HEAD[:7] + "c0ffee"  # a merge + the approved head
+MERGE_COMMIT_CHAIN = (
+    "e" * 39 + "1" + " " + APPROVED_HEAD[:7] + "c0ffee"
+)  # a merge + the approved head
 
 
 def test_a_subset_carry_where_main_holds_the_dropped_line_carries():
@@ -1532,7 +1534,9 @@ def test_a_subset_carry_where_main_holds_the_dropped_line_carries():
     p = pr(build(fake))
     assert p["own_diff"]["carry"] is True
     assert p["own_diff"]["subset_lines"] == 1
-    assert any("carry=yes (subset: 1 lines main holds)" in row for row in rendered_pr_block(build(fake)))
+    assert any(
+        "carry=yes (subset: 1 lines main holds)" in row for row in rendered_pr_block(build(fake))
+    )
 
 
 def test_a_dropped_line_main_does_not_hold_reads_no_carry():
@@ -1557,7 +1561,9 @@ def test_an_author_commit_between_the_heads_is_no_carry():
     """Condition 1: only update-branch merges may sit between the approved head and the
     head under judgment. A single-parent commit in the chain is an author commit."""
     fake = _approved_not_head(
-        _subset_reads(FakeRunner(), SUBSET_DIFF, MAIN_HOLDING_DIFF, "authorparent1\nauthorparent2\n")
+        _subset_reads(
+            FakeRunner(), SUBSET_DIFF, MAIN_HOLDING_DIFF, "authorparent1\nauthorparent2\n"
+        )
     )
     assert pr(build(fake))["own_diff"]["carry"] is False
 
@@ -1855,9 +1861,7 @@ def set_beats(fake: FakeRunner, **agents: str) -> None:
     fake.heartbeats = [beat_row(a, prose) for a, prose in agents.items()]
 
 
-def pr_item(
-    number: int, labels: list[str], title: str, draft: bool = False
-) -> dict[str, Any]:
+def pr_item(number: int, labels: list[str], title: str, draft: bool = False) -> dict[str, Any]:
     """A PR in the list shape `_prs` feeds `_pr_item` -- the only fields balance reads."""
     return {
         "number": number,
@@ -1976,6 +1980,7 @@ def test_a_heavy_package_is_never_proposed_to_a_fast_agent():
     move = bal(data)["flag"]["move"]
     assert "heavy-b" in move["to"]
     assert move["package"] == "r295"
+
 
 def test_the_render_prints_the_section_with_per_agent_rows():
     fake = FakeRunner()
@@ -2234,7 +2239,11 @@ def test_a_heavy_agent_s_claimables_read_the_owning_lanes_files():
     # no open PR) is not idle, so it is never the flag's idle side; the world's own imbalance
     # (ops-c idle, ops-a backlogged) is the first review's same-lane shape and fires as before.
     flag = bal(data)["flag"]
-    assert flag is None or flag["move"]["to"] != "uplevel-heavy-b" or flag["package"] in ("r273", "B2.3")
+    assert (
+        flag is None
+        or flag["move"]["to"] != "uplevel-heavy-b"
+        or flag["package"] in ("r273", "B2.3")
+    )
 
 
 def test_a_dependency_name_is_the_backticked_package_token_not_the_prose_around_it():
@@ -2250,22 +2259,36 @@ def test_a_dependency_name_is_the_backticked_package_token_not_the_prose_around_
     def v(field, rows):
         return dependency_verdict(dep_names("**Depends on:** " + field), rows)
 
-    rows = {"O2.4": "in progress", "B1.4": "done", "F2.1": "done", "O2.5": "awaiting real tier",
-            "O2.2": "done", "R2a": "done", "R2b": "done"}
+    rows = {
+        "O2.4": "in progress",
+        "B1.4": "done",
+        "F2.1": "done",
+        "O2.5": "awaiting real tier",
+        "O2.2": "done",
+        "R2a": "done",
+        "R2b": "done",
+    }
     # B2.3's verbatim live field: the prose suffix is state, not a name.
     assert v("`O2.4` (its `RESULT: PASS` posted).", rows) == "unmet"
     # Ruling-cite and PR-cite parentheticals are prose, not names.
     assert v("`F2.1`. Its status is", rows) == "met"
     assert dep_names("**Depends on:** `R2`; #7244 (`B3.3`) merged (ruling 260).") == ["R2", "B3.3"]
     assert dep_names("**Depends on:** `B1.5`, `O1.6`.") == ["B1.5", "O1.6"]
-    assert dep_names("**Depends on:** `R2` (rules.md §Claiming and assigning work); lands in") == ["R2"]
+    assert dep_names("**Depends on:** `R2` (rules.md §Claiming and assigning work); lands in") == [
+        "R2"
+    ]
     # Backticked PROSE is not a package token: state words, a branch name, a file, a sha.
     assert dep_names("**Depends on:** `R2`; the target lane's Phase 3 `done`.") == ["R2"]
     assert dep_names("**Depends on:** #7321 (ruling 295's red-`main` exemption) merged.") == []
-    assert dep_names("**Depends on:** `[r199]` merged (both edit `pipeline_workers.py`).") == ["[r199]"]
+    assert dep_names("**Depends on:** `[r199]` merged (both edit `pipeline_workers.py`).") == [
+        "[r199]"
+    ]
     assert dep_names("**Depends on:** `[r231]` merged (#7235, `5d5c4bcc5`).") == ["[r231]"]
     assert dep_names("**Depends on:** #7268 (`[r239]`) merged.") == ["[r239]"]
-    assert dep_names("**Depends on:** `R2`; both `O2.5` runs posted (ruling 260).") == ["R2", "O2.5"]
+    assert dep_names("**Depends on:** `R2`; both `O2.5` runs posted (ruling 260).") == [
+        "R2",
+        "O2.5",
+    ]
     # A `none`-prefixed field declares no names even when prose later backticks a token.
     assert dep_names("**Depends on:** none; it runs in parallel with backend's `[r130b]`.") == []
     assert dep_names("**Depends on:** none named; it builds on `O2.2`'s") == []

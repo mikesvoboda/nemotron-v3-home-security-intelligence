@@ -133,7 +133,7 @@ def get_gpu_memory_mb() -> float:
     """
     if torch.cuda.is_available():
         # Use PyTorch's memory tracking for better accuracy
-        return torch.cuda.memory_allocated(0) / (1024 * 1024)
+        return float(torch.cuda.memory_allocated(0) / (1024 * 1024))
 
     # Fallback to nvidia-smi
     try:
@@ -144,7 +144,7 @@ def get_gpu_memory_mb() -> float:
             check=True,
         )
         return float(result.stdout.strip().split("\n")[0])
-    except subprocess.CalledProcessError, FileNotFoundError, ValueError:
+    except (subprocess.CalledProcessError, FileNotFoundError, ValueError):
         return 0.0
 
 
@@ -168,7 +168,7 @@ def get_gpu_info() -> dict[str, Any]:
             "driver_version": parts[2] if len(parts) > 2 else "Unknown",
             "compute_capability": parts[3] if len(parts) > 3 else "Unknown",
         }
-    except subprocess.CalledProcessError, FileNotFoundError, ValueError, IndexError:
+    except (subprocess.CalledProcessError, FileNotFoundError, ValueError, IndexError):
         return {
             "name": "Unknown",
             "memory_total_mb": 0,
@@ -182,7 +182,7 @@ def get_tensorrt_version() -> str:
     try:
         import tensorrt as trt
 
-        return trt.__version__
+        return str(trt.__version__)
     except ImportError:
         return "Not installed"
 
@@ -407,7 +407,7 @@ def benchmark_yolo26_pytorch(
         result.vram_model_mb = vram_after - vram_before
 
         # Benchmark
-        latencies = []
+        latencies: Any = []
         for _ in range(benchmark_iterations):
             torch.cuda.synchronize()
             start = time.perf_counter()
@@ -497,7 +497,7 @@ def benchmark_yolo26_onnx(
         result.vram_model_mb = vram_after - vram_before
 
         # Benchmark
-        latencies = []
+        latencies: Any = []
         for _ in range(benchmark_iterations):
             if torch.cuda.is_available():
                 torch.cuda.synchronize()
@@ -582,7 +582,7 @@ def benchmark_yolo26_tensorrt(
         result.vram_model_mb = vram_after - vram_before
 
         # Benchmark
-        latencies = []
+        latencies: Any = []
         for _ in range(benchmark_iterations):
             torch.cuda.synchronize()
             start = time.perf_counter()
@@ -665,7 +665,7 @@ def benchmark_yolo26(
         result.vram_model_mb = vram_after - vram_before
 
         # Benchmark
-        latencies = []
+        latencies: Any = []
         for _ in range(benchmark_iterations):
             inputs = processor(images=test_image, return_tensors="pt")
             inputs = {k: v.to(device) for k, v in inputs.items()}
@@ -1081,12 +1081,12 @@ def main() -> None:
             print("-" * 40)
 
             # Export to ONNX
-            result = export_yolo26_onnx(model_path, args.export_path)
-            export_results.append(result)
+            exp_result = export_yolo26_onnx(model_path, args.export_path)
+            export_results.append(exp_result)
 
             # Export to TensorRT FP16
-            result = export_yolo26_tensorrt(model_path, args.export_path, half=True)
-            export_results.append(result)
+            exp_result = export_yolo26_tensorrt(model_path, args.export_path, half=True)
+            export_results.append(exp_result)
 
         if args.export_only:
             print("\n" + "=" * 70)
