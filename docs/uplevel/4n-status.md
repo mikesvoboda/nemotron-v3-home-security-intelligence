@@ -24,45 +24,63 @@ Facts read at `main` `aec5580aa`.
   `SystemBroadcaster` still loops over `nemotron` (`backend/services/system_broadcaster.py:831`);
   `PerformanceCollector` fills `ai_models["nemotron"]` from the VLM's `/slots`
   (`backend/services/performance_collector.py:98-99`, `:210-233`) and names a container `ai-yolo26`
-  (`:474-475`); `ServiceHealthMonitor` probes only `yolo26` (`backend/main.py:706`). The VLM is not
-  probed on purpose, so that a check never wakes it; its circuit breaker pushes its state instead
-  (`backend/main.py:1113-1132`).
+  (`:474-475`); `ServiceHealthMonitor` probes only `yolo26` (`backend/main.py:720-732`).
+- **The VLM is probed today, despite the rule.** The service monitor leaves it out so that a check
+  never wakes it; its circuit breaker pushes its state instead (`backend/main.py:1113-1132`). But
+  `/health/full` (`system.py:5276-5279`), `/api/health/ai-services`
+  (`health_ai_services.py:211-212`) and the collector's `/slots` (`performance_collector.py:220`)
+  all request it, and the container orchestrator's health loop probes it every interval and can
+  restart it: compose discovery gives `ai-vlm` a `/health` row
+  (`backend/services/health_monitor_orchestrator.py:297-302`). The VLM client records no call's
+  outcome; it pushes "unhealthy" only when a failure opens the breaker
+  (`backend/services/vlm_client.py:1083-1094`).
 - **The UI still keys on `rtdetr` and `nemotron`.** The header badge (F-011) types its services as
   `rtdetr | nemotron | florence | clip` (`frontend/src/hooks/useAIServiceStatus.ts:25`) and waits
   for an `ai_service_status` message (`:131`) that nothing sends. The dashboard row and model cards
   (F-037, F-126) read `details.rtdetr` and `details.nemotron`
   (`frontend/src/hooks/useAIMetrics.ts:144-145`); the services panel (F-139) has `rtdetr` and
   `nemotron` cards (`ServicesPanel.tsx:102-115`); the latency chart (F-173) reads
-  `rtdetr_latency_ms` (`PerformanceCharts.tsx:114-115`). F-015's banner was re-keyed by `[r267a]`
-  (`useServiceStatus.ts:38-67`) and lacks only `ai-vlm`.
+  `rtdetr_latency_ms` (`PerformanceCharts.tsx:165-166`, `:209-210`), and the Operations golden path
+  requires `ai-model-nemotron` (`frontend/tests/golden/operations/performance.spec.ts:55`, `:66`).
+  F-015's banner was re-keyed by `[r267a]` (`useServiceStatus.ts:38-67`) and lacks only `ai-vlm`.
 - **The latency series are pipeline stages.** `yolo26_latency_ms` comes from the watch-to-detect
   stage and `nemotron_latency_ms` from batch-to-analyse (`performance_collector.py:632-656`). The
-  detector has a request histogram (`backend/services/detector_client.py:280`); the VLM has none.
-- **Service controls restart real containers, unguarded.** `/api/system/services/{name}/restart`
-  (`backend/api/routes/services.py:155-321`) restarts through the host Podman socket mounted into
-  the backend (`backend/services/container_orchestrator.py:407-458`;
-  `docker-compose.prod.yml:427`), with no check beyond `EXPOSE_LAN`'s login
-  (`backend/api/middleware/auth.py`), weaker than `require_admin_access`
-  (`backend/api/routes/admin.py:322`). Enable and disable only flip a self-healing flag
-  (`container_orchestrator.py:342-405`); the UI's "stop" calls disable. Every card but `redis`
-  answers 404 (`services.py:185`). Workers have their own restart routes
-  (`system.py:4481`, `:4532`, `:4584`).
+  detector records a request histogram (`backend/services/detector_client.py:1139`); the VLM has
+  none.
+- **Service controls restart real containers, with no admin check.**
+  `/api/system/services/{name}/restart` (`backend/api/routes/services.py:155-321`) restarts through
+  the host Podman socket mounted into the backend
+  (`backend/services/container_orchestrator.py:407-458`; `docker-compose.prod.yml:427`), with no
+  check beyond `EXPOSE_LAN`'s login (`backend/api/middleware/auth.py:660-669`).
+  `require_admin_access` (`backend/api/routes/admin.py:322-337`) checks only that admin features
+  are on (`ADMIN_ENABLED`, default true), not who calls; the session-only `get_current_admin_user`
+  (`backend/api/routes/auth.py:485-503`) is the real admin check, and users carry `is_admin`, the
+  first to register being admin (`auth.py:210-217`). Enable and disable only flip a self-healing
+  flag that persists in Redis (`container_orchestrator.py:342-405`;
+  `backend/services/orchestrator/registry.py:322-356`), and restart refuses a disabled service
+  (`services.py:188`); the UI's "stop" calls disable. Every card but `redis` and `postgres` answers
+  404 (`services.py:185`), and the UI disables Postgres's buttons (`ServicesPanel.tsx:27`). Workers
+  have restart, stop and start routes (`system.py:4481`, `:4532`, `:4584`), unguarded. By rule every
+  test deployment runs with the orchestrator off and no engine socket (UR-134).
 - **Infrastructure alerts never reach the badge (F-009).** Alertmanager posts to
-  `/api/webhooks/alerts` (`monitoring/alertmanager.yml:180-192`;
-  `docker-compose.prod.yml:1280`), which emits `infrastructure_alert` on the events channel
-  (`backend/api/routes/webhooks.py:25-55`). The badge listens on `/ws/system`
-  (`frontend/src/hooks/usePrometheusAlertWebSocket.ts:403-404`) for another shape (`:161-181`). The
-  second receiver, `/api/v1/alertmanager/webhook` (`backend/api/routes/alertmanager.py`), is in no
-  configuration; R2 deletes it and its `prometheus_alerts` table (`r2-sheet.md:201`). An alert that
-  fired before the page opened shows only when Alertmanager repeats it, every 4 h
-  (`monitoring/alertmanager.yml:63`).
+  `/api/webhooks/alerts` (`monitoring/alertmanager.yml:180-192`; `docker-compose.prod.yml:1280`),
+  which emits `infrastructure_alert` on the events channel (`backend/api/routes/webhooks.py:25-55`).
+  The badge listens on `/ws/system` (`frontend/src/hooks/usePrometheusAlertWebSocket.ts:403-404`)
+  for another shape (`:161-181`). The second receiver, `/api/v1/alertmanager/webhook`
+  (`backend/api/routes/alertmanager.py`), is in no configuration; R2 deletes it and its
+  `prometheus_alerts` table (`r2-sheet.md:201`). An alert that fired before the page opened shows
+  only when Alertmanager repeats it: every 4 h by default, 1 to 24 h on its child routes
+  (`monitoring/alertmanager.yml:63`, `:73-119`).
 - **Three small breaks.** The palette's System entry and `g y` open `/system`
   (`frontend/src/components/common/CommandPalette.tsx:93-94`;
   `frontend/src/hooks/useKeyboardShortcuts.ts:28`); the page is `/operations`. Tracing's link opens
   `http://localhost:16686` (`frontend/src/components/tracing/TracingPage.tsx:105`); the stack has
   Grafana's Tempo data source (uid `tempo`). Flush queues deletes `hsi:queue:*`
-  (`admin.py:1360-1364`) while the pipeline's keys are `detection_queue`, `analysis_queue` and
-  `dlq:*` (`backend/core/constants.py:146-177`).
+  (`admin.py:1360-1364`), while the pipeline in production uses Redis streams
+  (`use_redis_streams` defaults to true, `backend/core/config.py:1946-1949`): `detections:stream`,
+  `analysis:stream` and their `:dlq` streams (`backend/services/redis_streams.py:73-74`,
+  `:873-874`), with the list keys `detection_queue`, `analysis_queue` and `dlq:*` only in list mode
+  (`backend/core/constants.py:146-177`).
 
 ## What the user can do when this is done
 
@@ -74,14 +92,16 @@ model takes to answer.
 
 ## Decisions
 
-| question                                   | decision                                                                                                                                                                                                                                                                                                         | why                                                                                                 |
-| ------------------------------------------ | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------- |
-| What can the services panel do?            | Restart only, admin-only and audited, for `ai-gateway`, `ai-vlm`, `redis` and `postgres`; worker cards use the worker restart routes. Enable and disable retire; self-healing stays automatic (owner, ST-1).                                                                                                     | One real action, guarded; enable and disable never stopped anything.                                |
-| What does "AI service healthy" mean?       | One backend health module behind every badge and card. The detector is ready when the gateway reports its model loaded; the VLM is ready when its last call succeeded and its breaker is closed. A sleeping VLM is "Idle (asleep)", neutral, never probed awake; loading is amber; failing is red (owner, ST-2). | The case people need to see, a model that is not loaded, shows; a quiet night does not look broken. |
-| Are the API names renamed?                 | Yes: `nemotron` becomes `ai_vlm` and `rtdetr` becomes `yolo26` in every status field and schema; branding and prompt management keep their names.                                                                                                                                                                | R2 ruled the re-key; a UI-only relabel would leave the old names in the contract.                   |
-| What does the latency chart show?          | Each model's inference latency: the detector's request histogram, and a new one for the VLM.                                                                                                                                                                                                                     | The chart's labels claim model latency; the stage timings stay on the pipeline panel.               |
-| How do infrastructure alerts reach the UI? | The badge reads `infrastructure_alert` on `/ws/events`, and loads the alerts firing now once, on page open, through a backend proxy of Alertmanager's `/api/v2/alerts`. The unused receiver and its table retire.                                                                                                | The one path Alertmanager posts to; no four-hour gap.                                               |
-| The small rows                             | `/system` becomes `/operations`; Tracing opens Grafana's Explore on the `tempo` data source; flush queues deletes the pipeline's own keys, overflow dead-letter queues included, and the unused prefix helper goes.                                                                                              | What R2 ruled, made exact.                                                                          |
+| question                                   | decision                                                                                                                                                                                                                                                                                                         | why                                                                                                  |
+| ------------------------------------------ | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------- |
+| What can the services panel do?            | Restart only, for `ai-gateway`, `ai-vlm`, `redis` and `postgres`; worker cards use the worker restart. Enable, disable, `/start` and the worker stop and start routes retire (owner, ST-1; T6).                                                                                                                  | One real action, guarded; the others never stopped anything, or bypass the guard.                    |
+| Who may restart?                           | An admin with a session, through `get_current_admin_user`, in every setup; API keys never. With LAN exposure off, Restart asks for an admin sign-in, or offers to create the first admin account. The audit names the person (owner, review T1).                                                                 | `require_admin_access` does not check who calls; a restart of Postgres is the household admin's act. |
+| Where is a real restart witnessed?         | The owner, on the live install after these packages deploy: sign in as admin, restart `ai-gateway` from Operations, read the audit row and the badge going loading → ready. Pytest with a fake engine proves the rest (owner, review T5).                                                                        | UR-134 keeps every test deployment away from the container engine.                                   |
+| What does "AI service healthy" mean?       | One backend health module behind every badge and card. The detector is ready when the gateway reports its model loaded; the VLM is ready when its last call succeeded and its breaker is closed. A sleeping VLM is "Idle (asleep)", neutral, never probed awake; loading is amber; failing is red (owner, ST-2). | The case people need to see, a model that is not loaded, shows; a quiet night does not look broken.  |
+| Are the API names renamed?                 | Yes, by expand then contract (T3): `B4.11` adds `ai_vlm` and `yolo26` beside `nemotron` and `rtdetr`; `F4.8` moves every consumer and removes the old names in the same PR (UR-9). Branding and prompt management keep their names.                                                                              | R2 ruled the re-key; each package stays green on its own.                                            |
+| What does the latency chart show?          | Each model's inference latency: the detector's request histogram, and a new one for the VLM.                                                                                                                                                                                                                     | The chart's labels claim model latency; the stage timings stay on the pipeline panel.                |
+| How do infrastructure alerts reach the UI? | The badge reads `infrastructure_alert` on `/ws/events`, and loads the alerts firing now once, on page open, through a backend proxy of Alertmanager's `/api/v2/alerts`. The unused receiver and its table retire.                                                                                                | The one path Alertmanager posts to; no wait for a repeat.                                            |
+| The small rows                             | `/system` becomes `/operations`; Tracing opens Grafana's Explore on the `tempo` data source; flush queues clears what the pipeline really uses, streams or lists by its mode (T2), and the unused prefix helper goes.                                                                                            | What R2 ruled, made exact.                                                                           |
 
 ## Approaches weighed
 
@@ -101,37 +121,61 @@ model takes to answer.
 - **Its interface:**
   - `state(service) -> ServiceState(service, state, detail, since)` for `yolo26` and `ai_vlm`.
     `yolo26` reads the gateway's model readiness (`model_loaded`), not its status code. `ai_vlm`
-    reads the circuit breaker's pushed state and the last call's outcome; a VLM with no call since
-    its idle timeout is `idle`, and the module never sends it a request.
+    reads what the VLM client records: each call's outcome and time, which the client starts
+    recording (T4), and the breaker's state from the circuit-breaker registry. A VLM with no call
+    for `VLM_SLEEP_IDLE_SECONDS` is `idle`; before its first call since start it is `unknown`. The
+    module never sends the VLM a request.
   - `snapshot() -> dict[str, ServiceState]`, the one shape every route and broadcast returns.
   - `on_change(callback)`: the broadcaster publishes `ai_service_status` on a change of state.
-  - Invariants: no path probes `ai-vlm`; a probe error is `failing` with its message, never
-    `ready`.
+  - Invariants: nothing in the backend requests `ai-vlm` for status, the orchestrator's health loop
+    included (T4); a probe error is `failing` with its message, never `ready`.
 - **Its adapters:** `GET /api/system/health`, `/health/full` and `/api/health/ai-services` return
   `snapshot()`'s entries; `SystemBroadcaster` and `PerformanceCollector` read it; the
   `ai_service_status` message feeds the header badge.
-- **Service controls:** `POST /api/system/services/{name}/restart` under `require_admin_access`,
-  audited with the person, for the four named services, `ai-vlm` gaining its registry row. The
-  enable and disable routes retire.
+- **Service controls** (T1, T6, T7):
+  - `POST /api/system/services/{name}/restart` takes `Depends(get_current_admin_user)` before the
+    orchestrator dependency, so a refusal (401, 403) comes before "engine not available" (503). It
+    accepts only `ai-gateway`, `ai-vlm`, `redis` and `postgres`. Worker restart takes the same
+    guard. Restart no longer refuses a service once disabled, and the upgrade clears every persisted
+    `enabled=false` once.
+  - **The audit:** before calling the engine, the route commits an audit row "restart requested"
+    naming `user.username`, then records the outcome in a fresh session, so restarting Postgres
+    cannot lose its own record.
+  - **Retired:** the enable and disable routes, `POST /services/{name}/start`, and the worker stop
+    and start routes.
+  - **The orchestrator's health loop** skips `ai-vlm` through a never-probed set beside
+    `RETIRED_LLM_SERVICES` (`container_orchestrator.py:69`); its registry row stays for restart.
+- **Flush queues** (T2): in streams mode (the default) it trims `detections:stream` and
+  `analysis:stream` to zero and acknowledges their consumer group's pending entries, then deletes
+  the two `:dlq` streams; it never deletes a work stream, whose consumer group the workers cache.
+  In list mode it deletes the list keys and the overflow dead-letter lists. It answers what it
+  cleared, by key.
 - **Infrastructure alerts:** `GET /api/system/infrastructure-alerts` proxies Alertmanager's firing
   alerts, mapped to the `infrastructure_alert` shape the socket carries.
 
 ## What changes
 
-- **backend (`B4.11`):** `ai_health.py` (new); `system.py`, `health_ai_services.py`,
-  `system_broadcaster.py`, `performance_collector.py` and `main.py`'s monitor read it;
-  `backend/api/schemas/performance.py` renames its fields; `detector_client.py`'s histogram feeds
-  the chart, and the VLM client gains one; `services.py` and `container_orchestrator.py` (restart
-  only, the admin guard, the audit, the `ai-vlm` row); the infrastructure-alerts proxy route;
-  `alertmanager.py` and the `prometheus_alerts` table retire with a recorded upgrade, through
-  `scripts/retired_paths.txt`; `admin.py`'s flush keys and `constants.py`'s helper;
-  `docs/openapi.json` and the generated types are regenerated (UR-83).
-- **frontend (`F4.8`):** `useAIServiceStatus`, `AIServiceStatus`, `useAIMetrics`,
-  `AIPerformanceSummaryRow`, `AIModelsSettings`, `ModelStatusCards`, `ServicesPanel`,
-  `PerformanceCharts`, `usePerformanceMetrics`, `PerformanceDashboard`, `useFullHealthQuery`,
-  `metricsParser`, `useServiceStatus` (`ai-vlm`), `usePrometheusAlertWebSocket` (events socket,
-  shape, page-open load), `CommandPalette`, `useKeyboardShortcuts`, `TracingPage`; test fixtures
-  (`test-utils/factories.ts`, `services/__mocks__/api.ts`).
+- **backend (`B4.11`, expand):** `ai_health.py` (new); `system.py`, `health_ai_services.py`,
+  `system_broadcaster.py`, `performance_collector.py` and `main.py`'s monitor read it; the VLM
+  client records each call's outcome and time, and the backend reads `VLM_SLEEP_IDLE_SECONDS`
+  (`config.py`, `.env.example` and the compose `environment:` block, UR-9);
+  `backend/api/schemas/performance.py` adds `ai_vlm` and `yolo26` fields beside `nemotron` and
+  `rtdetr`, filled from the same values (the `ai_models` key does not move yet, so the dashboard
+  does not show two cards); `detector_client.py`'s histogram feeds the chart, and the VLM client
+  gains one; `services.py`, `container_orchestrator.py` and the orchestrator registry (the admin
+  guard, the audit, the allowlist, the never-probed set, the retired routes, the cleared flags);
+  the worker routes in `system.py`; the infrastructure-alerts proxy; `alertmanager.py` and the
+  `prometheus_alerts` table retire with a recorded upgrade; `admin.py`'s mode-aware flush and
+  `constants.py`'s helper; `docs/openapi.json` and the generated types are regenerated (UR-83).
+- **frontend (`F4.8`, contract):** `useAIServiceStatus`, `AIServiceStatus`, `useAIMetrics`,
+  `AIPerformanceSummaryRow`, `AIModelsSettings`, `ModelStatusCards`, `ServicesPanel` (Restart
+  only, the sign-in prompt, Postgres no longer blocked), `PerformanceCharts`,
+  `usePerformanceMetrics`, `PerformanceDashboard`, `useFullHealthQuery`, `metricsParser`,
+  `useServiceStatus` (`ai-vlm`), `usePrometheusAlertWebSocket` (events socket, shape, page-open
+  load), `CommandPalette`, `useKeyboardShortcuts`, `TracingPage`; test fixtures
+  (`test-utils/factories.ts`, `services/__mocks__/api.ts`). **Its cross-lane part** (UR-9, T3): the
+  same PR removes the old `nemotron` and `rtdetr` fields, moves the `ai_models` key, regenerates
+  the contract and types, and edits `operations/performance.spec.ts:55` and `:66`.
 - **monitoring:** none; the Tempo data source and Alertmanager's sink stay.
 
 ## Failure handling
@@ -141,54 +185,92 @@ model takes to answer.
   follows them; it is never probed.
 - **Alertmanager unreachable on page open:** the badge shows what the socket brings and says the
   current list could not be loaded.
-- **A restart that fails:** the route answers the engine's error, and the audit records it.
+- **No engine socket** (the orchestrator off, as on every test deployment): restart answers 503
+  "engine not available" to an admin, after the sign-in check.
+- **A restart that fails:** the route answers the engine's error, and the outcome row records it.
 
 ## Tests
 
 - **Consolidation scope:** the six producers and their routes, `services.py`,
-  `container_orchestrator.py`, `webhooks.py`, `alertmanager.py`, `admin.py`'s flush, and the
-  frontend hooks and components named above.
-- **Tests through the interface:** each state for each service, including `idle` reached without a
-  probe and a probe error never `ready`; every route returns `snapshot()`'s shape; a state change
-  publishes `ai_service_status`; restart is refused without admin and audited with it; enable and
-  disable answer 404; the proxy's mapping; flush deletes exactly the pipeline's keys.
+  `container_orchestrator.py` and its health loop, the worker routes, `webhooks.py`,
+  `alertmanager.py`, `admin.py`'s flush, and the frontend hooks and components named above.
+- **Tests through the interface:**
+  - each state for each service, including `idle` reached without a probe, and a probe error never
+    `ready`;
+  - every route returns `snapshot()`'s shape, and a state change publishes `ai_service_status`;
+  - the orchestrator's health loop never requests `ai-vlm`;
+  - restart, with a fake engine: refused with 401 without a session, 403 for a non-admin and for
+    any API key; done and audited with the admin's name, the "requested" row committed first; 503
+    without an engine; a name outside the four is refused; a once-disabled service restarts;
+  - the retired routes answer 404;
+  - the proxy's mapping;
+  - flush in streams mode trims, acknowledges and keeps the consumer group, and in list mode
+    deletes the lists.
 
 ## Golden path
 
-- **Spec, UI** (Playwright): the header badge, the dashboard row and the model cards show the fake
-  stack's `yolo26` ready and `ai_vlm` idle; Operations' restart works as admin and is refused
-  otherwise; an infrastructure alert posted to the sink appears in the header, and one already
-  firing appears on page open; `g y` opens `/operations`; Tracing's link opens Grafana's Explore on
-  `tempo`. The edits to `dashboard/ai-summary-row.spec.ts`, `operations/performance.spec.ts`,
-  `operations/grafana-embeds.spec.ts` and `shell/palette.spec.ts` follow the new keys and links.
+- **Spec, UI** (Playwright):
+  - the header badge, the dashboard row and the model cards show the fake stack's `yolo26` ready
+    and `ai_vlm` idle;
+  - on Operations, Restart asks a signed-out user to sign in, refuses a non-admin, and shows an
+    admin "engine not available" (UR-134);
+  - an infrastructure alert posted to the sink appears in the header, and one already firing
+    appears on page open;
+  - `g y` opens `/operations`, and Tracing's link opens Grafana's Explore on `tempo`.
+
+  The edits to `dashboard/ai-summary-row.spec.ts`, `operations/performance.spec.ts`,
+  `operations/grafana-embeds.spec.ts` and `shell/palette.spec.ts` follow the new keys and links,
+  in the PR that changes each.
+
 - **Fake-stack scenario:** the fake gateway reports its model loaded; the fake VLM answers one call
   and then idles.
 - **Real-tier check:** on the GB300 test deployment the operator reads the badge with the VLM asleep
-  (idle, no request in the VLM's log from the check) and awake after one analysis (ready).
+  (idle, and no request in the VLM's log from any check, the orchestrator's loop included) and
+  awake after one analysis (ready). A real restart is the owner's, on the live install: sign in as
+  admin, restart `ai-gateway`, and read the audit row and the badge going loading → ready (T5).
 
 ## Privacy and security
 
-No personal data. Restart moves behind `require_admin_access` and is audited with the person; enable
-and disable retire. The infrastructure-alerts proxy needs a session or API key with
-`EXPOSE_LAN=true`, as every route does.
+No personal data. Restart, the one container action left, needs an admin session in every setup,
+never an API key, and is audited with the person before the engine is called; enable, disable,
+start and the worker stop and start routes retire. The orchestrator never probes the VLM. The
+infrastructure-alerts proxy needs a session or API key with `EXPOSE_LAN=true`, as every route does.
 
 ## Rollout and reversal
 
-The renamed API fields and the retired routes ship with their regenerated contract and types in the
-same packages. The `prometheus_alerts` table retires through a recorded upgrade. Code reversal is a
-revert; the upgrade stays.
+`B4.11` only adds: the new fields beside the old ones, the health module, the guard. `F4.8` moves
+every consumer and removes the old fields in the same PR, with the regenerated contract and types.
+The `prometheus_alerts` table retires through a recorded upgrade, and the persisted `enabled=false`
+flags are cleared once. Code reversal is a revert; the upgrades stay.
 
 ## Packages
 
-| package | lane (proposed) | depends on | contents                                                                                                                                                | its own golden path       |
-| ------- | --------------- | ---------- | ------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------- |
-| `B4.11` | backend         | none       | The health module and its readers, the renamed fields, the latency histograms, restart only under admin, the alerts proxy, the retirements, flush keys. | Backend pytest of routes. |
-| `F4.8`  | frontend        | `B4.11`    | The badge, row, cards, panel, chart, banner, the alert badge's socket and load, the palette, Tracing.                                                   | Playwright above.         |
+| package | lane (proposed) | depends on | contents                                                                                                                                                                                                                              | its own golden path       |
+| ------- | --------------- | ---------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------- |
+| `B4.11` | backend         | none       | Expand: the health module and its readers, the new fields beside the old, the latency histograms, restart only under the admin session with its audit, the never-probed VLM, the alerts proxy, the retirements, the mode-aware flush. | Backend pytest of routes. |
+| `F4.8`  | frontend        | `B4.11`    | Contract: the badge, row, cards, panel with its sign-in prompt, chart, banner, the alert badge's socket and load, the palette, Tracing; removes the old fields (UR-9).                                                                | Playwright above.         |
 
 Each runs the six steps as two PRs: a test-only consolidation PR, then the build.
 
+## Review
+
+An adversarial review (2026-10-22) and a fresh-context check of it found seven issues; the check
+confirmed every review finding and found more. Several cites in "Where it starts" were wrong or too
+broad and are corrected here. The owner ruled on two (T1, T5):
+
+| #   | finding                                                                                           | amendment                                                                                                                         |
+| --- | ------------------------------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------- |
+| T1  | `require_admin_access` does not check who calls, so any session or API key could restart Postgres | `get_current_admin_user`, session only, API keys never; with LAN exposure off, a sign-in prompt (owner); the audit names the user |
+| T2  | Flush cleared list keys while production runs on Redis streams                                    | A mode-aware flush: trim and acknowledge the work streams, delete their dead-letter streams, keep the consumer group              |
+| T3  | Renaming the fields in the backend first broke the frontend and its golden path                   | Expand in `B4.11`, contract in `F4.8` with every consumer and the golden edit (UR-9)                                              |
+| T4  | The orchestrator probes `ai-vlm` every interval and can restart it; no call outcome was recorded  | A never-probed set for the health loop; the VLM client records each call; the backend reads the sleep setting                     |
+| T5  | Test deployments run without the engine (UR-134), so no tier can witness a real restart           | The golden path proves the refusals; the owner witnesses one `ai-gateway` restart on the live install (owner)                     |
+| T6  | `/start` and the worker stop and start routes stayed open beside the guarded restart              | They retire; worker restart takes the guard and the audit                                                                         |
+| T7  | A service disabled today could never be restarted once enable retires                             | Restart drops the disabled check; the upgrade clears the flags                                                                    |
+
 ## Done when
 
-Each package: its golden path green on the fake stack and its real-tier check posted. F-293's row
-reads **retired** (R2a row 9 deletes its receiver); the other twelve rows read **works** once both
-packages have merged and the real-tier check is posted.
+Each package: its golden path green on the fake stack and its real-tier check posted, and for F-140
+the owner's witnessed restart on the live install. F-293's row reads **retired** (R2a row 9 deletes
+its receiver); the other twelve rows read **works** once both packages have merged and their checks
+are posted.

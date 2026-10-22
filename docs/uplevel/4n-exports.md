@@ -31,13 +31,14 @@ Facts read at `main` `aec5580aa`.
   (`exports.py:272`) and never passes it to the task (`:288-301`).
 - **Cancel only relabels (F-099).** `cancel_export` sets the row to `FAILED` (`exports.py:453`); the
   worker never checks for cancellation (`backend/services/job_tracker.py:538`), so a finished job
-  overwrites the row with `COMPLETED` (`exports.py:180-181`). The button's and the modal's Cancel
-  clear local state only (`ExportButton.tsx:223`, `ExportModal.tsx:178`); `ExportStatus` has no
+  overwrites the row with `COMPLETED` (`exports.py:180-181`). The modal's Cancel
+  (`ExportProgress.tsx:130-142`) and Data › Export's (`DataManagementPage.tsx:405-416`) call that
+  `DELETE`; the button's clears local state only (`ExportButton.tsx:223`). `ExportJobStatus` has no
   cancelled value (`backend/models/export_job.py:51-57`).
 - **Files live in RAM and never expire.** `EXPORT_DIR` is `/tmp/exports`
   (`export_service.py:54`), a tmpfs in production (`docker-compose.prod.yml:393-394`): a restart
   loses the files while their jobs read `COMPLETED`, and download then answers "not found on disk"
-  (`exports.py:519-523`). `expires_at` defaults to seven days (`export_job.py:142-146`) and nothing
+  (`exports.py:519-523`). `expires_at` defaults to seven days (`export_job.py:143-147`) and nothing
   reads it.
 - **The ZIP holds only the JSON** (`export_service.py:856-864`).
 - **An unused synchronous export leaks Trash.** `GET /api/events/export`
@@ -56,19 +57,19 @@ Facts read at `main` `aec5580aa`.
 From the timeline, the household exports the events it is looking at, with every filter it has
 set, as CSV, JSON, Excel, or a ZIP with each event's picture, and downloads the file. From Data ›
 Export it can also export its alert history. It can cancel an export in progress, and the job says
-it was cancelled. An export stays downloadable for a day, across restarts, and then expires.
+it was cancelled. An export stays downloadable for 24 hours, across restarts, and then expires.
 
 ## Decisions
 
-| question                          | decision                                                                                                                                                                                                                                                                   | why                                                                                                      |
-| --------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------- |
-| Which export types survive?       | Events, and Alerts as alert history from the alert rows `B4.1` writes. "Full Backup" leaves the export menu, and a link to Data › Backups takes its place (owner, EX-1).                                                                                                   | Alert history has rows to export now; a full backup would duplicate F-100 or contradict `4n-restore.md`. |
-| How many export paths?            | One: the database-backed job, `POST /api/exports` and its `/download`, for the button, the modal and Data › Export. `POST /api/events/export`, its tracker job and the unused `GET /api/events/export` retire; F-298 stays the integrator's synchronous API (owner, EX-2). | One history, one cancel, one download, and the Trash leak goes with the unused route.                    |
-| Where do files live, how long?    | On the data volume. An hourly cleanup deletes each file 24 hours after it finishes and marks its job expired (owner, EX-3).                                                                                                                                                | Files survive restarts, and a purged event lingers in an export for at most a day.                       |
-| What goes in an export?           | CSV, JSON and Excel carry text. ZIP carries the JSON and each event's thumbnail, named by event id, up to 1,000 events (owner, EX-4).                                                                                                                                      | A picture export for an insurer or the police, bounded in size; clips stay out.                          |
-| What does cancel do?              | The worker checks between batches, stops and deletes its partial file; the job reads `cancelled`, and a finishing job cannot overwrite it.                                                                                                                                 | Cancel means stopped, wherever it is pressed.                                                            |
-| Which filters apply?              | Every filter the timeline shows: camera, time, risk, verdict, object type, reviewed and search.                                                                                                                                                                            | An export should hold what the household is looking at.                                                  |
-| Who can export, and is it logged? | A session or API key with `EXPOSE_LAN=true`, as today. Starting an export and each download are audited, and starting exports is rate-limited.                                                                                                                             | Exports carry the household's events and pictures.                                                       |
+| question                          | decision                                                                                                                                                                                                                                                                                                         | why                                                                                                                    |
+| --------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------- |
+| Which export types survive?       | Events, and Alerts as alert history from the alert rows `B4.1` writes and the deliveries `B4.2` writes. "Full Backup" leaves the export menu, and a link to Data › Backups takes its place (owner, EX-1).                                                                                                        | Alert history has rows to export; a full backup would duplicate F-100 or contradict `4n-restore.md`.                   |
+| How many export paths?            | One: the database-backed job, `POST /api/exports` and its `/download`, for the button, the modal and Data › Export. `POST /api/events/export`, its tracker job and the unused `GET /api/events/export` retire, in the PR that moves the button (E4); F-298 stays the integrator's synchronous API (owner, EX-2). | One history, one cancel, one download, and the Trash leak goes with the unused route.                                  |
+| Where do files live, how long?    | On the data volume, one private file per job. A file can be downloaded for 24 hours from its job's completion, checked on every download, and is deleted by the next hourly cleanup, so within 25 hours (owner, EX-3; E1, E3).                                                                                   | Files survive restarts, no job can touch another's file, and a purged event lingers in an export for at most 25 hours. |
+| What goes in an export?           | CSV, JSON and Excel carry text. ZIP carries the JSON and each event's thumbnail, named by event id, up to 1,000 events (owner, EX-4).                                                                                                                                                                            | A picture export for an insurer or the police, bounded in size; clips stay out.                                        |
+| What does cancel do?              | The worker checks between batches, stops and deletes its partial file; the job reads `cancelled`, and a finishing job cannot overwrite it.                                                                                                                                                                       | Cancel means stopped, wherever it is pressed.                                                                          |
+| Which filters apply?              | Every filter the timeline shows: camera, time, risk, verdict, object type, reviewed and search.                                                                                                                                                                                                                  | An export should hold what the household is looking at.                                                                |
+| Who can export, and is it logged? | A session or API key with `EXPOSE_LAN=true`, as today. Starting an export and each download are audited, and starting exports is rate-limited. The request's `legal_hold`, `retention_days` and `compliance_metadata` fields go (E5).                                                                            | Exports carry the household's events and pictures; nothing may hold a file past its 24 hours.                          |
 
 ## Approaches weighed
 
@@ -85,46 +86,61 @@ it was cancelled. An export stays downloadable for a day, across restarts, and t
   type behind one entry. Domain terms, added to `docs/reference/glossary.md`: **export job**,
   **export type** (`events`, `alerts`), **expired export**.
 - **Its interface:**
-  - `run(job_id)` reads the job's type, format and filters, writes the file in batches, and
-    checks for cancellation between batches. It returns the file's path, size and row count, or
-    `Cancelled` (the partial file deleted), or raises `ExportTooLarge` for a ZIP over 1,000 events
-    (the job fails with that message).
-  - `events(filters)` and `alerts(filters)` yield rows in batches; `events` takes every timeline
-    filter and excludes trashed events; `alerts` returns, per alert: created, rule, camera,
-    severity, verdict and its source, match count, the people told and on which channels, and the
-    state (`open`, `acknowledged`, `dismissed`).
-  - `expire(now)` deletes files whose job finished over 24 hours ago and marks those jobs
-    `expired`.
+  - `run(job_id)` reads the job's type, format and filters and writes `EXPORT_DIR/<job
+id>.<ext>.part` in batches, checking for cancellation between batches (E1). After the last batch
+    it renames the file to `<job id>.<ext>` and makes the conditional `running → completed` write,
+    which stores that path and sets `expires_at` to the completion time plus
+    `EXPORT_RETENTION_HOURS` (E3); if that write loses to a cancel, it deletes the renamed file. It
+    returns the file's path, size and row count, or `Cancelled` (the partial file deleted), or
+    raises `ExportTooLarge` for a ZIP over 1,000 events (the job fails with that message).
+  - `events(filters)` and `alerts(filters)` yield rows in batches. `events` takes every timeline
+    filter and excludes trashed events. `alerts` returns, per alert: created, rule, camera (through
+    the alert's events), severity, verdict and its source (through `event_verifications`), match
+    count, the people told and on which channels (deliveries `sent` or `broadcast`), and the state
+    (`open`, `acknowledged`, `dismissed`; until `B4.5`, `pending` and `delivered` read `open`, as
+    upgrade 0012 maps them). It excludes an alert with no live event in `alert_events` (E6).
+  - `expire(now)` deletes the files of jobs whose `expires_at` has passed and marks them `expired`.
   - Invariants: a job ends in exactly one of `completed`, `failed`, `cancelled` or `expired`;
     every status write after `running` is conditional on the status it expects, so a late finish
-    cannot overwrite a cancel; a file is served only from the path stored on its job.
+    cannot overwrite a cancel; a job reads, writes and deletes only its own `<job id>.*` files; a
+    file is served only from the path stored on its job, under a readable `Content-Disposition`
+    name (`events_export_<UTC time>.<ext>`).
   - Configuration: `EXPORT_DIR` on the data volume, `EXPORT_RETENTION_HOURS` (24) and
     `EXPORT_ZIP_MAX_EVENTS` (1,000).
 - **Its adapters:**
   - **HTTP:** `POST /api/exports` (type, format, filters), list, status, `DELETE` (cancel), and
-    `/download`, which answers 410 "expired, export again" for an expired job.
+    `/download`, which answers 410 "expired, export again" when the job is `expired` or its
+    `expires_at` has passed (E3). `POST /api/jobs/bulk-cancel` refuses export jobs, which cancel
+    only through `DELETE /api/exports/{id}`, so there is one cancel.
   - **The worker:** the background task that runs a job.
   - **The cleanup:** an hourly job calling `expire`.
 
 ## What changes
 
-- **backend (`B4.10`):** `export_service.py` (types, batches, ZIP thumbnails, cancel, expiry);
-  `exports.py` (filters, conditional writes, 410, audit, rate limit); `export_job.py` (statuses
-  `cancelled` and `expired`, an additive recorded upgrade); the cleanup job; retire
-  `POST /api/events/export` and its tracker job from `jobs.py`, and `GET /api/events/export` from
-  `events.py`, through `scripts/retired_paths.txt`; `detections.py` (the Trash filter, no
-  `file_path`); `EXPORT_DIR` in `config.py`, `.env.example` and the compose volume (UR-9).
+- **backend (`B4.10`):** `export_service.py` (types, per-job files, batches, ZIP thumbnails,
+  cancel, expiry); `exports.py` (filters, conditional writes, the expiry check, 410, audit, rate
+  limit); `export_job.py` and its API mirror `ExportJobStatusEnum`
+  (`backend/api/schemas/export.py:26-32`) gain `cancelled` and `expired` through
+  `ALTER TYPE export_job_status ADD VALUE IF NOT EXISTS`, and `ExportJobCreate` loses `legal_hold`,
+  `retention_days` and `compliance_metadata` (the columns stay, unused); the cleanup job;
+  `jobs.py`'s bulk cancel; `detections.py` (the Trash filter, no `file_path`); `EXPORT_DIR` in
+  `config.py`, `.env.example` and the compose volume (UR-9). The two old export routes stay until
+  `F4.7`.
 - **frontend (`F4.7`):** `ExportButton.tsx` on `POST /api/exports` and `/download`, passing every
   timeline filter; `ExportModal.tsx` and `DataManagementPage.tsx` offer Events and Alerts and link
   to Backups; Cancel calls `DELETE` everywhere; the cancelled and expired states; the
-  `exportEventsCSV` client and the tracker polling go.
-- **docs:** the glossary terms; Trash's erasure text says a purged event can remain in an export for
-  at most a day (`4n-trash.md` and its user doc; UR-81).
+  `exportEventsCSV` and `exportEventsJSON` clients and the tracker polling go. **Its cross-lane
+  part** (UR-9, E4): the same PR retires `POST /api/events/export` and its tracker job
+  (`jobs.py`), and `GET /api/events/export` (`events.py`), with their tests; a "retired routes
+  answer 404" test pins them; `docs/openapi.json` and the generated types are regenerated (UR-83);
+  and the docs that name the two routes are corrected (UR-81).
+- **docs:** the glossary terms; Trash's erasure text says a purged event can remain in an export
+  for at most 25 hours (`4n-trash.md` and its user doc; UR-81).
 
 ## Failure handling
 
 - **A worker that dies mid-export** leaves the job `running`; at startup, jobs still `running` or
-  `pending` are marked `failed` ("interrupted"), and their partial files deleted.
+  `pending` are marked `failed` ("interrupted"), and their `<job id>.*.part` files deleted.
 - **A cancel during the last batch** wins: the finishing write is conditional on `running`.
 - **A missing thumbnail** is skipped and listed in the ZIP's JSON as absent.
 - **A full disk** fails the job with the error, deletes the partial file, and leaves other jobs
@@ -137,9 +153,11 @@ it was cancelled. An export stays downloadable for a day, across restarts, and t
   and `ExportButton`, `ExportModal`, `ExportProgress`, `useExportJobs`; the e2e spec that mocks a
   missing route is rewritten or retired.
 - **Tests through the interface:** each type and format; every timeline filter reaches the query;
-  trashed events never appear (events, ZIP, detections); cancel before start, mid-export and during
-  the last batch; a late finish never overwrites `cancelled`; the ZIP limit; expiry deletes the file
-  and answers 410; startup marks interrupted jobs; the retired routes answer 404.
+  trashed events and alerts with no live event never appear (events, alerts, ZIP, detections);
+  cancel before start, mid-export and during the last batch; a late finish never overwrites
+  `cancelled`; two jobs started in the same second get their own files; the ZIP limit; a job 24
+  hours and one minute old, not yet swept, answers 410; expiry deletes the file; startup marks
+  interrupted jobs; bulk cancel refuses an export job; in `F4.7`, the retired routes answer 404.
 
 ## Golden path
 
@@ -155,26 +173,43 @@ it was cancelled. An export stays downloadable for a day, across restarts, and t
 
 ## Privacy and security
 
-Exports carry event text, which can name people or plates, and in a ZIP their pictures. Files live
-on the data volume for at most 24 hours, excluded from backups, and are served only from the path
-stored on their job. With `EXPOSE_LAN=true` every route needs a session or API key; starting and
-downloading are audited, and starting is rate-limited. Trashed events never appear in any export.
+Exports carry event text, which can name people or plates, and in a ZIP their pictures. A file can
+be downloaded for 24 hours and is deleted within 25, lives on the data volume excluded from backups,
+and is served only from the path stored on its job. With `EXPOSE_LAN=true` every route needs a
+session or API key; starting and downloading are audited, and starting is rate-limited. Trashed
+events never appear in any export.
 
 ## Rollout and reversal
 
 The schema change is additive. On upgrade, existing jobs keep their status, and files left in
-`/tmp/exports` are gone with the tmpfs; their jobs are marked expired at startup. The retired
-routes go through `scripts/retired_paths.txt`. Code reversal is a revert; the recorded upgrade
-stays.
+`/tmp/exports` are gone with the tmpfs; their jobs are marked expired at startup. The previous
+release cannot read `cancelled` or `expired` (E2), so a code revert ships with one forward upgrade
+that rewrites both to `failed`, the reason in `error_message`, keeping the labels in the type; a
+revert without it is not supported.
 
 ## Packages
 
-| package | lane (proposed) | depends on                                                     | contents                                                                                                    | its own golden path   |
-| ------- | --------------- | -------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------- | --------------------- |
-| `B4.10` | backend         | `B4.1` and `B4.2` merged (the alert rows and their deliveries) | One job path, the two types, ZIP thumbnails, files and expiry, cancel, filters, audit, the retired routes.  | Backend pytest above. |
-| `F4.7`  | frontend        | `B4.10`                                                        | The button and modal on the one path, the Alerts type, the Backups link, cancel everywhere, the new states. | Playwright above.     |
+| package | lane (proposed) | depends on                                                     | contents                                                                                                                                       | its own golden path   |
+| ------- | --------------- | -------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------- | --------------------- |
+| `B4.10` | backend         | `B4.1` and `B4.2` merged (the alert rows and their deliveries) | One job path, the two types, ZIP thumbnails, per-job files and expiry, cancel, filters, audit.                                                 | Backend pytest above. |
+| `F4.7`  | frontend        | `B4.10`                                                        | The button and modal on the one path, the Alerts type, the Backups link, cancel everywhere, the new states; retires the two old routes (UR-9). | Playwright above.     |
 
 Each runs the six steps as two PRs: a test-only consolidation PR, then the build.
+
+## Review
+
+An adversarial review (2026-10-22) and a fresh-context check of it found six issues; the check
+confirmed every review finding and found three more. Three cites in "Where it starts" were wrong
+and are corrected here. None needed an owner ruling:
+
+| #   | finding                                                                                                                   | amendment                                                                                                    |
+| --- | ------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------ |
+| E1  | Files are named by a timestamp, so two jobs in one second share a file, and a cancel or expiry could delete another job's | One private file per job id, written as `.part` and renamed on completion; a job touches only its own files  |
+| E2  | A code revert cannot read `cancelled` or `expired`                                                                        | `ADD VALUE IF NOT EXISTS`; a forward upgrade rewrites both to `failed` before a revert                       |
+| E3  | The hourly cleanup let a file outlive 24 hours by up to an hour                                                           | `expires_at` set at completion and checked on every download; deleted within 25 hours                        |
+| E4  | Retiring the button's route before the button moves breaks it, and `retired_paths.txt` cannot retire a route              | The routes retire in `F4.7`, the PR that moves the button, pinned by a 404 test and the regenerated contract |
+| E5  | `legal_hold`, `retention_days` and `compliance_metadata` are accepted and ignored, and honouring them breaks EX-3         | The request fields go                                                                                        |
+| E6  | The alerts export had no Trash rule                                                                                       | An alert with no live event is left out                                                                      |
 
 ## Done when
 
