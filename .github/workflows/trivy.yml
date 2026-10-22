@@ -60,9 +60,10 @@ on:
 # CALLER's name, so with ci.yml's group `CI-<ref>` every child registered
 # the PARENT's own group; cancel-in-progress then killed the call job at
 # initialization (no check-run, no logs, needs.*.result=failure — proven
-# one-variable: w5 dies, w6 same-parent green). Standalone triggers are
-# deleted, so a group here guarded nothing; ci.yml's own concurrency
-# already cancels duplicate pushes whole-run. Precedent: integration-shard.yml.
+# one-variable: w5 dies, w6 same-parent green). The [r294] push trigger
+# restored a standalone trigger here, so a group at this level WOULD guard
+# the full-scan push runs; ci.yml's own concurrency already cancels
+# duplicate pushes whole-run for the called legs. Precedent: integration-shard.yml.
 
 permissions:
   contents: read
@@ -229,13 +230,18 @@ jobs:
             --warn-days 14
 
       - name: Run Trivy filesystem scan
-        # [r294 review round] the polarity is NOT skip_scan == 'true': in
-        # gate mode a met skip condition must SKIP the blocking scan (the
-        # resolver's own log line and the [r291] sibling's De Morgan
-        # complement). The inverted form ran the full blocking scan on
-        # every docs-only PR - re-opening the queue-freeze failure mode
-        # the skip exists to prevent, and contradicting the skip's premise.
-        if: steps.mode.outputs.mode != 'gate' || steps.mode.outputs.skip_scan != 'true'
+        # [r294 review round, r2] the blocking scan runs in FULL mode only —
+        # the [r291] sibling's form (dependency-audit.yml's blocking check,
+        # and this file's own image leg). Round 1's complement got the OTHER
+        # wrong case: `|| skip_scan != 'true'` runs the blocking scan on
+        # every gate+not-skip PR (manifest/allowlist/machinery touches), so
+        # the gate reds on pre-existing unexempted findings despite a clean
+        # delta — the certifi reclassification class this gate exists to
+        # forgive (reproduced on this head's own CI: gate-mode run with a
+        # clean delta verdict, then the blocking scan still executed).
+        # In gate mode the adjudicator is the verdict; skip_scan gates the
+        # ADJUDICATOR's legs, never the blocking scan.
+        if: steps.mode.outputs.mode != 'gate'
         uses: aquasecurity/trivy-action@master
         with:
           scan-type: 'fs'

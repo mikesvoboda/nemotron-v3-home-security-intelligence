@@ -527,8 +527,22 @@ def test_workflow_pins_the_review_round_fixes() -> None:
     both adjudicators fail closed on a committed trivy config file; the
     fs skip pathspec covers the gateway's live manifest."""
     wf = TRIVY_WORKFLOW.read_text()
-    # Blocking-scan step polarity: in gate+skip the blocking scan must NOT run.
-    assert "steps.mode.outputs.mode != 'gate' || steps.mode.outputs.skip_scan != 'true'" in wf
+    # Blocking-scan step polarity (round-2 UR-89): the blocking scan runs in
+    # FULL mode only — the [r291] sibling's form. Pinning the full-only form
+    # as a whole string (not a term) keeps both wrong cases red: the round-1
+    # defect (skip_scan == 'true' ran the scan on docs-only PRs) AND the
+    # round-2 defect (`|| skip_scan != 'true'` ran it on gate+not-skip PRs,
+    # red-ing the gate on pre-existing findings despite a clean delta).
+    assert "if: steps.mode.outputs.mode != 'gate'" in wf
+    blocking = wf.split("- name: Run Trivy filesystem scan\n")[1]
+    blocking = blocking[: blocking.index("- name:")]
+    step_code = "\n".join(
+        line for line in blocking.splitlines() if not line.lstrip().startswith("#")
+    )
+    assert "skip_scan" not in step_code, (
+        "the blocking fs scan must not consult skip_scan at all - "
+        "in gate mode the delta adjudicator is the verdict, not the raw scan"
+    )
     # The full scans ride a push trigger (box 2: "on every push to main").
     on_block = wf.split("workflow_call:")[0]
     assert "push:" in on_block and "branches: [main]" in on_block
