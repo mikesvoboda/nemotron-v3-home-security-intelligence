@@ -300,7 +300,7 @@ test.describe('golden path: trash page restore flows @critical', () => {
       /kept \d+ not in this backup/
     );
 
-    await completeState.getByRole('button', { name: 'Close', exact: true }).click();
+    await page.getByRole('button', { name: 'Close modal', exact: true }).click();
     await expect(completeState).toHaveCount(0);
 
     // 4. Re-open RestoreModal and upload a tampered archive to verify failure detail

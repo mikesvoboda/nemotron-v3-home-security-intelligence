@@ -314,7 +314,10 @@ function CompleteState({ job, onClose, onRestoreSafetyBackup }: CompleteStatePro
 
       {/* Per-table Summary */}
       {Object.keys(itemsRestored).length > 0 && (
-        <div className="rounded-lg bg-gray-800/50 p-4" data-testid="restore-table-summaries">
+        <div
+          className="max-h-48 overflow-y-auto rounded-lg bg-gray-800/50 p-4"
+          data-testid="restore-table-summaries"
+        >
           <p className="mb-2 text-sm font-medium text-gray-300">Items Restored:</p>
           <ul className="space-y-1.5 text-sm text-gray-400">
             {Object.entries(itemsRestored).map(([table, count]) => {
