@@ -1234,6 +1234,43 @@
             "title": "Id",
             "type": "string"
           },
+          "last_event_id": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "ID of latest folded event",
+            "title": "Last Event Id"
+          },
+          "last_seen_at": {
+            "anyOf": [
+              {
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Timestamp of latest folded event",
+            "title": "Last Seen At"
+          },
+          "match_count": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Number of folded event matches",
+            "title": "Match Count"
+          },
           "metadata": {
             "anyOf": [
               {
@@ -1272,6 +1309,18 @@
             "format": "date-time",
             "title": "Updated At",
             "type": "string"
+          },
+          "verdict_source": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Verdict source (local, cloud, detector)",
+            "title": "Verdict Source"
           },
           "version_id": {
             "default": 1,
@@ -1413,6 +1462,18 @@
           "severity": "critical"
         },
         "properties": {
+          "alert_on_rejected": {
+            "anyOf": [
+              {
+                "type": "boolean"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Alert even if the AI verdict is rejected",
+            "title": "Alert On Rejected"
+          },
           "camera_ids": {
             "anyOf": [
               {
@@ -1503,6 +1564,21 @@
             "description": "Whether to exclude household members from dwell time alerts",
             "title": "Exclude Household Members",
             "type": "boolean"
+          },
+          "excluded_camera_ids": {
+            "anyOf": [
+              {
+                "items": {
+                  "type": "string"
+                },
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Camera IDs excluded from this rule",
+            "title": "Excluded Camera Ids"
           },
           "min_confidence": {
             "anyOf": [
@@ -1726,6 +1802,18 @@
           "updated_at": "2025-12-28T12:00:00Z"
         },
         "properties": {
+          "alert_on_rejected": {
+            "anyOf": [
+              {
+                "type": "boolean"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Alert even if the AI verdict is rejected",
+            "title": "Alert On Rejected"
+          },
           "camera_ids": {
             "anyOf": [
               {
@@ -1816,6 +1904,21 @@
             "description": "Exclude household members from dwell time alerts",
             "title": "Exclude Household Members",
             "type": "boolean"
+          },
+          "excluded_camera_ids": {
+            "anyOf": [
+              {
+                "items": {
+                  "type": "string"
+                },
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Camera IDs excluded from this rule",
+            "title": "Excluded Camera Ids"
           },
           "id": {
             "description": "Alert rule UUID",
@@ -2036,6 +2139,18 @@
           "risk_threshold": 80
         },
         "properties": {
+          "alert_on_rejected": {
+            "anyOf": [
+              {
+                "type": "boolean"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Alert even if the AI verdict is rejected",
+            "title": "Alert On Rejected"
+          },
           "camera_ids": {
             "anyOf": [
               {
@@ -2163,6 +2278,21 @@
             ],
             "description": "Whether to exclude household members from dwell time alerts",
             "title": "Exclude Household Members"
+          },
+          "excluded_camera_ids": {
+            "anyOf": [
+              {
+                "items": {
+                  "type": "string"
+                },
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Camera IDs excluded from this rule",
+            "title": "Excluded Camera Ids"
           },
           "min_confidence": {
             "anyOf": [
@@ -2532,6 +2662,43 @@
             "title": "Id",
             "type": "string"
           },
+          "last_event_id": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "ID of latest folded event",
+            "title": "Last Event Id"
+          },
+          "last_seen_at": {
+            "anyOf": [
+              {
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Timestamp of latest folded event",
+            "title": "Last Seen At"
+          },
+          "match_count": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Number of folded event matches",
+            "title": "Match Count"
+          },
           "metadata": {
             "anyOf": [
               {
@@ -2570,6 +2737,18 @@
             "format": "date-time",
             "title": "Updated At",
             "type": "string"
+          },
+          "verdict_source": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Verdict source (local, cloud, detector)",
+            "title": "Verdict Source"
           }
         },
         "required": [
@@ -2662,6 +2841,7 @@
       "AlertStatus": {
         "description": "Alert status values.",
         "enum": [
+          "open",
           "pending",
           "delivered",
           "acknowledged",

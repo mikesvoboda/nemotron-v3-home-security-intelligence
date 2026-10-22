@@ -9,7 +9,7 @@ enabling programmatic management of alerts (create, read, update, delete).
 from datetime import datetime
 from typing import Any
 
-from pydantic import BaseModel, ConfigDict, Field
+from pydantic import BaseModel, ConfigDict, Field, field_validator
 
 from backend.api.schemas.alerts import AlertSeverity, AlertStatus, DedupKeyStr
 from backend.api.schemas.pagination import PaginationMeta
@@ -118,6 +118,30 @@ class AlertServiceResponse(BaseModel):
     created_at: datetime = Field(..., description="Creation timestamp")
     updated_at: datetime = Field(..., description="Last update timestamp")
     delivered_at: datetime | None = Field(None, description="Delivery timestamp")
+    verdict_source: str | None = Field(None, description="Verdict source (local, cloud, detector)")
+    match_count: int | None = Field(None, description="Number of folded event matches")
+    last_seen_at: datetime | None = Field(None, description="Timestamp of latest folded event")
+    last_event_id: int | None = Field(None, description="ID of latest folded event")
+
+    @field_validator("verdict_source", mode="before")
+    @classmethod
+    def _coerce_verdict_source(cls, v: object) -> str | None:
+        return v if isinstance(v, str) else None
+
+    @field_validator("match_count", mode="before")
+    @classmethod
+    def _coerce_match_count(cls, v: object) -> int:
+        return v if isinstance(v, int) and not isinstance(v, bool) else 1
+
+    @field_validator("last_seen_at", mode="before")
+    @classmethod
+    def _coerce_last_seen_at(cls, v: object) -> datetime | str | None:
+        return v if isinstance(v, (datetime, str)) else None
+
+    @field_validator("last_event_id", mode="before")
+    @classmethod
+    def _coerce_last_event_id(cls, v: object) -> int | None:
+        return v if isinstance(v, int) and not isinstance(v, bool) else None
 
 
 class AlertServiceListResponse(BaseModel):

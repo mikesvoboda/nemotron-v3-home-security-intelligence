@@ -49,7 +49,11 @@ from backend.core.logging import get_logger
 from backend.models import Alert, AlertRule, Event
 from backend.models.alert import AlertSeverityEnum as ModelAlertSeverity
 from backend.models.alert import AlertStatusEnum
+from backend.models.enrichment import ThreatDetection
+from backend.models.property import Property
 from backend.services.alert_engine import AlertRuleEngine
+from backend.services.alerting.policy import PolicyContext, evaluate_rule
+from backend.services.alerting.verdict import resolve as resolve_verdict
 from backend.services.cache_service import CacheService
 from backend.services.event_broadcaster import (
     EventBroadcaster,
@@ -218,6 +222,8 @@ async def create_rule(
         risk_threshold=rule_data.risk_threshold,
         object_types=rule_data.object_types,
         camera_ids=rule_data.camera_ids,
+        excluded_camera_ids=rule_data.excluded_camera_ids,
+        alert_on_rejected=bool(rule_data.alert_on_rejected),
         zone_ids=rule_data.zone_ids,
         min_confidence=rule_data.min_confidence,
         schedule=schedule,
@@ -291,6 +297,7 @@ def _apply_rule_updates(rule: AlertRule, rule_data: AlertRuleUpdate, update_dict
         "risk_threshold",
         "object_types",
         "camera_ids",
+        "excluded_camera_ids",
         "zone_ids",
         "min_confidence",
         "channels",
@@ -315,6 +322,8 @@ def _apply_rule_updates(rule: AlertRule, rule_data: AlertRuleUpdate, update_dict
         rule.dedup_key_template = rule_data.dedup_key_template
     if "cooldown_seconds" in update_dict and rule_data.cooldown_seconds is not None:
         rule.cooldown_seconds = rule_data.cooldown_seconds
+    if "alert_on_rejected" in update_dict and rule_data.alert_on_rejected is not None:
+        rule.alert_on_rejected = rule_data.alert_on_rejected
 
     # Pydantic model fields that need conversion
     if "schedule" in update_dict:
@@ -459,10 +468,57 @@ async def test_rule(
             results=[],
         )
 
-    # Test the rule against each event (engine injected via DI)
+    # Test the rule against each event (engine injected via DI; real engine runs policy)
     test_time = test_data.test_time or datetime.now(UTC)
 
-    test_results = await engine.test_rule_against_events(rule, events, test_time)
+    if type(engine) is AlertRuleEngine:
+        detections_by_event = await engine._batch_load_detections_for_events(events)
+        prop_row = (
+            (await db.execute(select(Property).order_by(Property.id.asc()).limit(1)))
+            .scalars()
+            .first()
+        )
+        household_tz = prop_row.timezone if prop_row and prop_row.timezone else "UTC"
+        test_results: list[dict[str, Any]] = []
+        for ev in events:
+            dets = detections_by_event.get(ev.id, [])
+            det_ids = [d.id for d in dets if d.id is not None]
+            threats: list[ThreatDetection] = []
+            if det_ids:
+                threats = list(
+                    (
+                        await db.execute(
+                            select(ThreatDetection).where(ThreatDetection.detection_id.in_(det_ids))
+                        )
+                    )
+                    .scalars()
+                    .all()
+                )
+            resolved = resolve_verdict(ev, dets)
+            ctx = PolicyContext(
+                event_id=ev.id,
+                camera_id=ev.camera_id,
+                timestamp=test_time,
+                resolved=resolved,
+                household_tz=household_tz,
+                detections=dets,
+                threats=threats,
+                rules=(rule,),
+            )
+            matched, matched_conditions, _eff_sev = evaluate_rule(rule, ctx)
+            test_results.append(
+                {
+                    "event_id": ev.id,
+                    "camera_id": ev.camera_id,
+                    "risk_score": ev.risk_score,
+                    "object_types": [d.object_type for d in dets if d.object_type],
+                    "matches": matched,
+                    "matched_conditions": matched_conditions if matched else [],
+                    "started_at": ev.started_at.isoformat() if ev.started_at else None,
+                }
+            )
+    else:
+        test_results = await engine.test_rule_against_events(rule, events, test_time)
 
     # Build response
     results = [
@@ -591,7 +647,11 @@ async def acknowledge_alert(
     alert = await _get_alert_or_404(alert_id, db)
 
     # Check if alert can be acknowledged
-    if alert.status not in (AlertStatusEnum.PENDING, AlertStatusEnum.DELIVERED):
+    if alert.status not in (
+        AlertStatusEnum.OPEN,
+        AlertStatusEnum.PENDING,
+        AlertStatusEnum.DELIVERED,
+    ):
         raise HTTPException(
             status_code=409,
             detail=f"Alert cannot be acknowledged. Current status: {alert.status.value}",
