@@ -162,7 +162,7 @@ The default assignment puts the reasoning engine on one GPU and detection on ano
 | GPU 1 | `ai-gateway` (Triton: `yolo26`, `reid`, `threat`) | `GPU_AI_SERVICES` (1) | All GPUs passed, then restricted by `CUDA_VISIBLE_DEVICES` |
 
 The backend's own lookup weights run on the CPU inside the backend container: the backend
-installs CPU-only PyTorch wheels (`pyproject.toml:995`), the face leg (SCRFD, ArcFace) is
+installs CPU-only PyTorch wheels (`pyproject.toml:993-994` and `:1002-1003`), the face leg (SCRFD, ArcFace) is
 pinned to `CPUExecutionProvider` (`backend/services/face_recognizer_loader.py:18-19`), and
 fast-alpr is not installed in the backend image (`backend/Dockerfile:150` syncs only the
 `face` extra). The weights load into process memory at boot only when
