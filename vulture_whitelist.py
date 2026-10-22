@@ -67,6 +67,8 @@ _.clean_seed_data
 _.clean_tables
 _.clean_cameras
 _.clean_detections
+_.clean_deliveries
+_.clean_webhooks
 _.clean_events
 _.clean_full_stack
 _.clean_logs
