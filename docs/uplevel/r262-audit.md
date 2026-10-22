@@ -5155,4 +5155,17 @@ reads, none by authorial preference.
   8c3c8a7f6 −16 pair as batch-5's Q-171; its two detail corrections: the faithful re-point is
   :1085-1087 (default at :1086), not the proof's mid-description :1085-1092, and the −92 comes
   entirely from the six hunks above the field (the named "-1199,70" hunk lies below the field
-  and moved nothing). c6's result is still pending at this fold.
+  and moved nothing). verify:7225_c6 (holding=true, journal line 25) closed the wave: c6 whole
+  at pin — :199 reads " adminSession," (import list, cat -A verified) while the claim const
+  sits at :240; born-stale-in-its-own-commit confirmed (59ad5233e birth blob 3cac2a71 already
+  carries the split; base/merge carry blob 267dc274 with :199/:240 untouched); all-refs sweep
+  finds exactly three blobs ever carrying the path, all reading the import line at :199; fix
+  re-point to :240 exact. One proof-wording correction: the birth commit 59ad5233e (10-15
+  20:21:38) is PRE-boundary, not post-graft — it predates d6344e031 (10-16 04:45:03) by ~8.4 h
+  by the audit's own date convention, and its lineage is intact (rev-list 3917 to true root
+  12fa68caa 2025-12-22, no shallow cut crossed); the operative conclusion survives on stronger
+  grounds (the file is absent at all three graft roots and at the birth parent, the birth walk
+  untruncated, so the birth tree is the deepest possible truth). Verify tally: nine 7225 items
+  verified (c1-c7 as-corrected + the dedup), one 7225_c1 mover-list refutation adjudicated at
+  assembly (five first-parent merges), one 7214_c2 as-filed provenance refuted with the docs
+  cell's own mover standing — zero defect refutations in the whole wave.
