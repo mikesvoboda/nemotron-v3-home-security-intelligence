@@ -403,7 +403,8 @@ Design: [`../4n-alerting.md`](../4n-alerting.md), "Packages" row 5.
       originals, then drops the old columns, the `delivered` value and
       `camera_notification_settings` (`threat_*` stays); the camera routes, `PATCH
 /api/notification/config` and the rest of `alert_engine` go; the `alert_rules` restore
-      adapter ships if `B4.6` has landed.
+      adapter ships if `B4.6` has landed; a default rule the contract stores as a row carries a
+      fixed id, as `B4.7`'s seeded rule does, so a restore cannot duplicate it.
 - [ ] Golden path: an upgrade-path test on a populated database with non-default rows, with
       `F4.2`'s golden path still green.
 
@@ -447,7 +448,9 @@ Design: [`../4n-arming.md`](../4n-arming.md), "Packages" row `B4.7`. Covers F-29
       `alert_rules.sources` and the seeded "External alerts" rule; the sweep's external clause; the
       app routes; the inbound webhooks on the four modes, with `/alert`'s namespaced `batch_id` and
       a pipeline run on every request; the scheduler; an additive recorded upgrade; the schemas and
-      generated API types. Arming configuration stays out of backups (`../4n-arming.md`).
+      generated API types. Arming configuration stays out of backups (`../4n-arming.md`). The
+      seeded "External alerts" rule carries a fixed id, and a test restores an archive holding it
+      into an install that has it and finds one rule.
 - [ ] Golden path (pytest, `backend/tests/golden/external/`) as the design gives it.
 
 **Done when:** steps 4–6 hold for F-290.
@@ -467,7 +470,8 @@ Design: [`../4n-arming.md`](../4n-arming.md), "Packages" row `B4.8`. Covers F-29
       topic-id fix (`:378`, and the same read at `:383`, `:393`, `:398`); one stored config with a
       CA path, seeded from `MQTT_*`; enabling refused without broker credentials or against a broker
       that accepts an anonymous login, with a warning when TLS is off; startup in `main.py`'s
-      lifespan when enabled; the `keep.toml` entries removed; the operator README's MQTT section and
+      lifespan when enabled, re-running that check and leaving MQTT off with the reason in
+      Settings if it fails; the `keep.toml` entries removed; the operator README's MQTT section and
       Mosquitto ACL; the operator README, `docs/ROADMAP.md` and
       `frontend/src/components/settings/AGENTS.md` stop describing the deleted MQTT publisher, Home
       Assistant discovery and MQTT settings UI (UR-81). If `F4.5` landed first, the MQTT section of
@@ -1077,7 +1081,8 @@ production changes: no `models.yml` swap, no switch flip.
 ### [r306a] Re-ID's default becomes the gateway
 
 **Flags:** `owner` (it changes production's model path). **Assigned:** backend, next on its queue
-(ruling 306). **Depends on:** `[r252]`'s proving run posting `RESULT: PASS` (ruling 306 item 1).
+(ruling 306). **Depends on:** O2.4's proving run posting `RESULT: PASS` (ruling 306 item 1);
+`[r252]`'s was spent without one, and `[r312a]`'s second run is the next (ruling 312).
 **PR:** none yet. (ruling 306, record 6323748868)
 
 `REID_BACKEND` (`backend/core/config.py:1445`) picks between the backend's resident OSNet copy

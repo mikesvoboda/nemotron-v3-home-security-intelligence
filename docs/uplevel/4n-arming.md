@@ -120,13 +120,14 @@ listed with who or what made it.
     The token is generated in Settings, shown once and stored as a SHA-256 digest.
   - **MQTT's trust** (A1, owner): the token stops only publishers that have never seen a command,
     since any client that can read `<prefix>/commands/#` reads it. The operator README gives a
-    Mosquitto ACL that lets only the backend's user read that prefix, and lets command senders
-    read `<prefix>/results/#`. Enabling is refused without
-    broker credentials, or when a test connection without them is accepted; with TLS off Settings
-    shows a warning. With TLS on, the certificate and host name are checked against the CA path in
-    the stored config. MQTT does not say who published a message, so the rate limit is global and
-    the audit names the token's fingerprint. One stored config, seeded from `MQTT_*`; the broker
-    password stays in `.env` or a secret file.
+    Mosquitto ACL that lets only the backend's user read that prefix, and lets command senders read
+    `<prefix>/results/#`. Enabling is refused without broker credentials, or when a test connection
+    without them is accepted; with TLS off Settings shows a warning. Startup when enabled runs the
+    same check, so a restored or hand-edited config that fails it leaves MQTT off and Settings says
+    why. With TLS on, the certificate and host name are checked against the CA path in the stored
+    config. MQTT does not say who published a message, so the rate limit is global and the audit
+    names the token's fingerprint. One stored config, seeded from `MQTT_*`; the broker password
+    stays in `.env` or a secret file.
   - **Scheduler** (A3): an in-process job that sleeps until the next occurrence, or until a
     schedule save wakes it, then calls `apply_schedule(now)` with the source `schedule`; boot calls
     it too. Under the `arming_state` lock it re-reads the schedule and takes the latest occurrence
@@ -153,10 +154,13 @@ listed with who or what made it.
   and the sweep's external clause; the app routes; `inbound_webhooks.py` on the new vocabulary,
   with `/alert`'s external event; the scheduler; the schemas and generated API types (regenerated,
   UR-83). Arming configuration (each mode's exclusions, the schedule) stays out of backups: a
-  restored install arms every camera in Home, Away and Night, the safe direction, and the household
-  re-enters its choices. `alert_rules.sources` defaults to `camera`, so an older archive's rules
-  restore as camera rules and the seeded "External alerts" rule, absent from the archive, is kept
-  (`4n-restore.md`, "Versions"); no restore adapter changes.
+  restore never changes arming, so a reinstalled system restored from an archive arms every camera
+  in Home, Away and Night, the safe direction, and a restore in place keeps the local choices.
+  `alert_rules.sources` defaults to `camera`, so an older archive's rules insert as camera rules and
+  keep their local value on update (`4n-restore.md`, "Versions"); no restore adapter changes. The
+  seeded "External alerts" rule carries a fixed id, so a restore merges an archived copy into it by
+  id instead of inserting a second rule that would alert twice; an archive without it keeps the
+  local one (`4n-restore.md`'s merge keeps rows not in the archive).
 - **backend (`B4.8`):** `mqtt_command_handler.py` (topics, token, id check, global rate limit,
   de-duplication, results, the id fix at `:378` and the same read at `:383`, `:393`, `:398`,
   acknowledge, PTZ; sensitivity removed); `mqtt_client.py`
@@ -281,7 +285,9 @@ token from a subscriber, and signed commands do not fit Home Assistant. The owne
 The plan PR's review (#7338) added two items: results move to `<prefix>/results/{id}`, so the ACL
 can let senders read them without reading the commands; and arming configuration stays out of
 backups, since a restored install that arms every camera fails safe and `sources` defaults to
-`camera` for older archives' rules.
+`camera` for older archives' rules. The next plan PR (#7338's round-3 notes) added three: the
+restore wording covers a restore in place; MQTT's startup re-runs the enable check; and the seeded
+"External alerts" rule carries a fixed id, so a restore cannot duplicate it.
 
 ## Done when
 

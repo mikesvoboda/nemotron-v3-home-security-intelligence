@@ -237,10 +237,12 @@ Constraints on what you build; reopening one is a ruling (UR-44).
 - **UR-84** Out of scope: rewriting git history, renaming `setup.py`, and widening frontend Stryker
   beyond its three utility files. (the deleted README section "Rulings of record")
 - **UR-85** Production re-ID moves to the GPU: OSNet-AIN served by Triton through the gateway
-  (`REID_BACKEND=gateway`), once `[r252]`'s proving run posts `RESULT: PASS`. `[r306a]` then flips
-  the default and `[r306b]` removes the backend's CPU copy; until the flip it stays `local`. A
-  proven GPU path stands without a CPU fallback. The parity gate stays at 0.999 (ruling 68), and
-  re-ID on ONNX Runtime instead of a TensorRT plan stays unauthorised. (rulings 107, 306)
+  (`REID_BACKEND=gateway`), once O2.4's proving run posts `RESULT: PASS`: `[r252]`'s was spent
+  without one, and `[r312a]`'s second run, on the latest supported Triton image, is the next.
+  `[r306a]` then flips the default and `[r306b]` removes the backend's CPU copy; until the flip it
+  stays `local`. A proven GPU path stands without a CPU fallback. The parity gate stays at 0.999
+  (ruling 68). Serving re-ID through ONNX Runtime instead of a TensorRT plan stays unauthorised;
+  `[r312a]` measures it inside Triton as a probe only. (rulings 107, 306, 312)
 - **UR-86** Triton is the one model server, and stays so for now (OD-39): no package compares it
   with an alternative, and GPU memory and latency are recorded under Triton inside each model's own
   test (ruling 302). Every neural-network model the product runs that can run on the GPU is served
@@ -249,6 +251,14 @@ Constraints on what you build; reopening one is a ruling (UR-44).
   models leave. Triton's `nv_*` metrics stay. The face models keep the VSS phase-1 plan's F12
   conditions except "CPU": exactly two SHA-256-pinned ONNX files, never `insightface.FaceAnalysis`,
   and model IDs unchanged. (rulings 89, 302, 307)
+- **UR-187** The AI stack runs the latest supported release of each component: the Triton server
+  image, TensorRT, ONNX Runtime, CUDA, the VLM server and the ML frameworks in `ai/`. "Supported"
+  means the vendor's support matrix covers the serving GPU (GB300: Blackwell, aarch64) and the
+  driver on the owner's host; an image's forward-compatibility libraries count, as `26.09-py3`'s did
+  on the GB300 (#7343, `6330800872`). A component behind its latest supported release is an upgrade
+  package, flagged `heavy`, with every affected model rebuilt, CI green and a real-tier run. A pin
+  held back gives its reason and a review date in the file that pins it. `[r312b]`'s inventory is
+  the list this rule tracks. (ruling 312)
 - **UR-87** Future plans go in `docs/superpowers/<date>-<slug>/`; `docs/plans/` is frozen history,
   and a dated plan created anywhere else is a violation (OD-33). (ruling 89)
 - **UR-21** `AGENTS.md` files live only at boundaries, listed with a reason. `agents_md_validator.py`
