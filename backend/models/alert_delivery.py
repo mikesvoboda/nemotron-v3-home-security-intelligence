@@ -132,6 +132,16 @@ class Recipient(Base):
         viewonly=True,
     )
 
+    def __init__(self, **kwargs: object) -> None:
+        """Initialize with column defaults (the repo's construction-time idiom)."""
+        super().__init__(**kwargs)
+        if not hasattr(self, "id") or self.id is None:
+            self.id = str(uuid7())
+        if not hasattr(self, "enabled") or self.enabled is None:
+            self.enabled = True
+        if not hasattr(self, "critical_breaks_quiet") or self.critical_breaks_quiet is None:
+            self.critical_breaks_quiet = True
+
 
 class RecipientChannel(Base):
     """A delivery channel (browser/email/webhook/webpush) for one recipient.
@@ -204,6 +214,18 @@ class RecipientChannel(Base):
     )
 
     recipient: Mapped[Recipient] = relationship(back_populates="channels")
+
+    def __init__(self, **kwargs: object) -> None:
+        """Initialize with column defaults (the repo's construction-time idiom)."""
+        super().__init__(**kwargs)
+        if not hasattr(self, "id") or self.id is None:
+            self.id = str(uuid7())
+        if not hasattr(self, "on_local_network") or self.on_local_network is None:
+            self.on_local_network = False
+        if not hasattr(self, "include_names") or self.include_names is None:
+            self.include_names = False
+        if not hasattr(self, "enabled") or self.enabled is None:
+            self.enabled = True
 
 
 class NotificationDelivery(Base):

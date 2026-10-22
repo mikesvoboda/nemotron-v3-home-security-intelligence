@@ -70,7 +70,7 @@ def plan(
             kind_name = getattr(kind_raw, "value", kind_raw)
             try:
                 kind = DeliveryChannelKind(kind_name)
-            except (ValueError, TypeError):
+            except ValueError, TypeError:
                 continue
             status = DeliveryStatus.PENDING
             if stale:
