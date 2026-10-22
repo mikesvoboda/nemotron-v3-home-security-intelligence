@@ -59,6 +59,7 @@ class AlertSeverityEnum(StrEnum):
 class AlertStatusEnum(StrEnum):
     """Alert status values."""
 
+    OPEN = auto()
     PENDING = auto()
     DELIVERED = auto()
     ACKNOWLEDGED = auto()
@@ -128,9 +129,20 @@ class Alert(Base):
     # High priority alerts trigger [URGENT] email subjects and priority webhook fields
     is_high_priority: Mapped[bool] = mapped_column(Boolean, default=False, nullable=False)
 
+    # Alert pipeline core columns (B4.1 / 4n-alerting.md)
+    verdict_source: Mapped[str | None] = mapped_column(String(32), nullable=True)
+    match_count: Mapped[int] = mapped_column(Integer, nullable=False, default=1, server_default="1")
+    last_seen_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+    last_event_id: Mapped[int | None] = mapped_column(
+        Integer, ForeignKey("events.id", ondelete="SET NULL"), nullable=True
+    )
+
     # Relationships
-    event: Mapped[Event] = relationship("Event", back_populates="alerts")
+    event: Mapped[Event] = relationship("Event", back_populates="alerts", foreign_keys=[event_id])
     rule: Mapped[AlertRule | None] = relationship("AlertRule", back_populates="alerts")
+    alert_events: Mapped[list[AlertEvent]] = relationship(
+        "AlertEvent", back_populates="alert", cascade="all, delete-orphan"
+    )
 
     # Indexes for common queries
     __table_args__ = (
@@ -162,6 +174,7 @@ class Alert(Base):
         """
         # Apply defaults for boolean fields that should default to False
         kwargs.setdefault("is_high_priority", False)
+        kwargs.setdefault("match_count", 1)
 
         super().__init__(**kwargs)
 
@@ -205,6 +218,10 @@ class Alert(Base):
                 "severity": severity_value,
                 "status": status_value,
                 "dedup_key": self.dedup_key,
+                "verdict_source": self.verdict_source,
+                "match_count": self.match_count,
+                "last_seen_at": self.last_seen_at.isoformat() if self.last_seen_at else None,
+                "last_event_id": self.last_event_id,
                 "created_at": self.created_at.isoformat() if self.created_at else None,
                 "updated_at": self.updated_at.isoformat() if self.updated_at else None,
             }
@@ -216,6 +233,10 @@ class Alert(Base):
             "rule_id": self.rule_id,
             "severity": severity_value,
             "status": status_value,
+            "verdict_source": self.verdict_source,
+            "match_count": self.match_count,
+            "last_seen_at": self.last_seen_at,
+            "last_event_id": self.last_event_id,
             "created_at": self.created_at,
             "updated_at": self.updated_at,
             "delivered_at": self.delivered_at,
@@ -276,6 +297,14 @@ class AlertRule(Base):
     # Condition: Camera IDs to apply to (JSONB array)
     # Empty or null means all cameras
     camera_ids: Mapped[list | None] = mapped_column(JSONB, nullable=True)
+
+    # Condition: Excluded camera IDs (B4.1 / 4n-alerting.md)
+    excluded_camera_ids: Mapped[list | None] = mapped_column(JSONB, nullable=True)
+
+    # Override: Alert even if the AI says no threat (B4.1 / 4n-alerting.md)
+    alert_on_rejected: Mapped[bool] = mapped_column(
+        Boolean, default=False, server_default="false", nullable=False
+    )
 
     # Condition: Zone IDs to match (JSONB array)
     # Empty or null means any zone
@@ -381,6 +410,7 @@ class AlertRule(Base):
         # Apply defaults for boolean fields that should default to False
         kwargs.setdefault("exclude_household_members", False)
         kwargs.setdefault("threat_detection_enabled", False)
+        kwargs.setdefault("alert_on_rejected", False)
 
         super().__init__(**kwargs)
 
@@ -389,3 +419,51 @@ class AlertRule(Base):
             f"<AlertRule(id={self.id!r}, name={self.name!r}, "
             f"enabled={self.enabled}, severity={self.severity.value!r})>"
         )
+
+
+class AlertEvent(Base):
+    """Join table recording every event covered by an alert (created or folded, B4.1)."""
+
+    __tablename__ = "alert_events"
+
+    alert_id: Mapped[str] = mapped_column(
+        UUID(as_uuid=False),
+        ForeignKey("alerts.id", ondelete="CASCADE"),
+        primary_key=True,
+    )
+    event_id: Mapped[int] = mapped_column(
+        Integer,
+        ForeignKey("events.id", ondelete="CASCADE"),
+        primary_key=True,
+    )
+
+    alert: Mapped[Alert] = relationship("Alert", back_populates="alert_events")
+
+    __table_args__ = (
+        Index("idx_alert_events_alert_id", "alert_id"),
+        Index("idx_alert_events_event_id", "event_id"),
+    )
+
+
+class ActivitySnooze(Base):
+    """Household activity snooze silencing (camera_id, object_type) until a deadline (B4.1)."""
+
+    __tablename__ = "activity_snoozes"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
+    camera_id: Mapped[str] = mapped_column(String(255), nullable=False)
+    object_type: Mapped[str] = mapped_column(String(100), nullable=False)
+    until: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
+    source_event_id: Mapped[int | None] = mapped_column(
+        Integer, ForeignKey("events.id", ondelete="SET NULL"), nullable=True
+    )
+    source_alert_id: Mapped[str | None] = mapped_column(
+        UUID(as_uuid=False), ForeignKey("alerts.id", ondelete="SET NULL"), nullable=True
+    )
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), default=utc_now, nullable=False
+    )
+
+    __table_args__ = (
+        Index("idx_activity_snoozes_camera_object_until", "camera_id", "object_type", "until"),
+    )

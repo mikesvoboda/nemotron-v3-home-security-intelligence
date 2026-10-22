@@ -20,7 +20,7 @@
 -- alerts / alert_rules: the shape BEFORE NEM-5051 (channels and metadata are plain json)
 -- ---------------------------------------------------------------------------------------
 CREATE TABLE alerts (
-    id          SERIAL PRIMARY KEY,
+    id          UUID PRIMARY KEY,
     camera_id   TEXT,
     channels    JSON,
     metadata    JSON
@@ -44,10 +44,10 @@ CREATE TABLE alert_rules (
     smoke_fire_confidence_threshold NUMERIC
 );
 
-INSERT INTO alerts (camera_id, channels, metadata) VALUES
-    ('cam-front', '{"k": 1}',       '{"note": "one"}'),
-    ('cam-back',  '{"k": 2}',       '{"note": "two"}'),
-    ('cam-door',  '["email", "sms"]', '{"nested": {"deep": true}}');
+INSERT INTO alerts (id, camera_id, channels, metadata) VALUES
+    ('00000000-0000-0000-0000-000000000001', 'cam-front', '{"k": 1}',       '{"note": "one"}'),
+    ('00000000-0000-0000-0000-000000000002', 'cam-back',  '{"k": 2}',       '{"note": "two"}'),
+    ('00000000-0000-0000-0000-000000000003', 'cam-door',  '["email", "sms"]', '{"nested": {"deep": true}}');
 
 INSERT INTO alert_rules (name, object_types, camera_ids, zone_ids, schedule, conditions, channels)
 VALUES ('front-person', '["person"]', '["cam-front"]', '["porch"]', '{"days": ["mon"]}',

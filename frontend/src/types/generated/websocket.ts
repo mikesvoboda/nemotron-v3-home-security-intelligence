@@ -11,7 +11,7 @@
  *   backend/api/schemas/websocket.py
  *   backend/api/schemas/event_verification.py
  *
- * Generated at: 2026-10-08T11:55:15Z
+ * Generated at: 2026-10-22T03:00:15Z
  *
  * Note: WebSocket messages are not covered by OpenAPI, so we generate these
  * types separately to ensure frontend/backend type synchronization.
@@ -72,7 +72,7 @@ export type WebSocketAlertSeverity = 'low' | 'medium' | 'high' | 'critical';
  *
  * Mirrors backend.models.alert.AlertStatusEnum for WebSocket message validation.
  */
-export type WebSocketAlertStatus = 'pending' | 'delivered' | 'acknowledged' | 'dismissed';
+export type WebSocketAlertStatus = 'open' | 'pending' | 'delivered' | 'acknowledged' | 'dismissed';
 
 /**
  * Standard error codes for WebSocket validation errors.
@@ -240,7 +240,7 @@ export interface WebSocketAlertData {
   /** Alert severity level ("low", "medium", "high", "critical") */
   severity: 'low' | 'medium' | 'high' | 'critical';
   /** Current alert status ("pending", "delivered", "acknowledged", "dismissed") */
-  status: 'pending' | 'delivered' | 'acknowledged' | 'dismissed';
+  status: 'open' | 'pending' | 'delivered' | 'acknowledged' | 'dismissed';
   /** Deduplication key for alert grouping */
   dedup_key: string;
   /** ISO 8601 timestamp when the alert was created */
