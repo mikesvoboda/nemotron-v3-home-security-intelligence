@@ -234,4 +234,88 @@ test.describe('golden path: trash page restore flows @critical', () => {
 
     expect(() => closedByGuard(page)).toThrow(GUARD_MESSAGE);
   });
+
+  test('F-101 Data › Restore from backup modal uploads a backup ZIP, shows the safety backup link and per-table summary, and reports failure detail on a tampered archive', async ({
+    page,
+  }) => {
+    test.info().skip(!harness.ready, harness.ready ? '' : harness.why);
+    if (!harness.ready) return;
+    const h = harness;
+    const session = await loginAsAdmin(page, h);
+
+    // 1. Create a real backup via the backend API (202 Accepted) and download its ZIP bytes
+    const createRes = await fetch(`${h.api}/api/backup`, {
+      method: 'POST',
+      headers: { ...apiCookie(session), 'Content-Type': 'application/json' },
+      body: JSON.stringify({}),
+    });
+    expect(createRes.status).toBe(202);
+    const created = (await createRes.json()) as { job_id: string; status: string };
+    expect(created.job_id).toBeTruthy();
+
+    let backupStatus = '';
+    for (let i = 0; i < 60; i++) {
+      const job = await api<{ status: string }>(h, session, `/api/backup/${created.job_id}`);
+      backupStatus = job.status;
+      if (backupStatus === 'completed' || backupStatus === 'failed') break;
+      await new Promise((r) => setTimeout(r, 1000));
+    }
+    expect(backupStatus).toBe('completed');
+
+    const dlRes = await fetch(`${h.api}/api/backup/${created.job_id}/download`, {
+      headers: apiCookie(session),
+    });
+    expect(dlRes.status).toBe(200);
+    const zipBuffer = Buffer.from(await dlRes.arrayBuffer());
+    expect(zipBuffer.length).toBeGreaterThan(0);
+
+    // 2. Open /data and launch RestoreModal
+    const pageErrors: string[] = [];
+    page.on('pageerror', (err) => pageErrors.push(String(err)));
+
+    await page.goto(`${h.ui}/data`, { waitUntil: 'domcontentloaded' });
+    const backupSection = page.getByTestId('backup-section');
+    await expect(backupSection).toBeVisible();
+
+    await backupSection.getByRole('button', { name: 'Restore', exact: true }).click();
+    await expect(page.getByRole('heading', { name: 'Restore from Backup' })).toBeVisible();
+    await expect(page.getByTestId('restore-warning')).toBeVisible();
+
+    // 3. Upload the real backup ZIP and wait for completion
+    await page.getByTestId('file-input').setInputFiles({
+      name: 'golden_restore.zip',
+      mimeType: 'application/zip',
+      buffer: zipBuffer,
+    });
+
+    const completeState = page.getByTestId('complete-state');
+    await expect(completeState).toBeVisible({ timeout: 60_000 });
+    await expect(page.getByTestId('safety-backup-banner')).toBeVisible();
+    await expect(page.getByTestId('safety-backup-download-link')).toBeVisible();
+    await expect(page.getByTestId('safety-backup-restore-link')).toBeVisible();
+    await expect(page.getByTestId('restore-table-summary-cameras')).toContainText(
+      /restored \d+ cameras/
+    );
+    await expect(page.getByTestId('restore-table-summary-cameras')).toContainText(
+      /kept \d+ not in this backup/
+    );
+
+    await page.getByRole('button', { name: 'Close modal', exact: true }).click();
+    await expect(completeState).toHaveCount(0);
+
+    // 4. Re-open RestoreModal and upload a tampered archive to verify failure detail
+    await backupSection.getByRole('button', { name: 'Restore', exact: true }).click();
+    await page.getByTestId('file-input').setInputFiles({
+      name: 'tampered.zip',
+      mimeType: 'application/zip',
+      buffer: Buffer.from('not a valid zip archive'),
+    });
+
+    const errorState = page.getByTestId('error-state');
+    await expect(errorState).toBeVisible({ timeout: 30_000 });
+    await expect(page.getByTestId('restore-error-detail')).toContainText(/Invalid backup file/i);
+    expect(pageErrors).toEqual([]);
+
+    expect(() => closedByGuard(page)).toThrow(GUARD_MESSAGE);
+  });
 });
