@@ -669,43 +669,53 @@ def stage_ort_probe() -> np.ndarray:
     """Stage 6 ([r312a] box 2): embeddings from the ORT-probe Triton container.
 
     The probe's HTTP port is NOT published to the host, so this fetches from
-    INSIDE the probe container (podman exec): the same crop bytes, base64ed,
-    POSTed to its own loopback. The decomposed graph is what the probe serves
-    (the container was started against $RUN/ortprobe), and the same /work mount
-    this probe already runs under supplies the crops."""
-    import base64
+    INSIDE the probe container (podman exec -i): the probe container mounts
+    ONLY its model repository, so the exec'd program is deliberately PURE --
+    it reads the preprocessed rows from STDIN, POSTs each to the probe's own
+    loopback, and writes the embeddings to STDOUT. Reading batch.npy and
+    writing stage6-fetch.json stay on the stage-probe side, the side whose
+    container carries the -v "$RUN":/work mount."""
     import json
     import subprocess
-    import urllib.request
 
-    names, vectors = [], []
     inner = (
-        "import base64,json,sys,urllib.request;"
-        'sys.path.insert(0,"/work");'
-        "from pathlib import Path;"
-        'SUFFIX={".jpg",".jpeg",".png",".bmp",".webp"};'
-        'crops=sorted(x for x in Path("/work/crops").iterdir() if x.is_file() and x.suffix.lower() in SUFFIX);'
+        "import json,sys,urllib.request;"
+        "rows=json.load(sys.stdin);"
         "out=[];"
-        "for p in crops:"
-        'b=base64.b64encode(p.read_bytes()).decode();'
-        'r=urllib.request.Request("http://localhost:8000/v2/models/reid-ort/infer",'
-        'data=json.dumps({"inputs":[{"name":"input","shape":[1,3,256,128],"datatype":"FP32","data":'
-        "[float(x) for x in np.load('/work/layercompare/batch.npy')[len(out)].tolist()]}],"
+        "\nfor r in rows:\n"
+        '  req=urllib.request.Request("http://localhost:8000/v2/models/reid-ort/infer",'
+        'data=json.dumps({"inputs":[{"name":"input","shape":[1,3,256,128],"datatype":"FP32","data":r}],'
         '"outputs":[{"name":"embedding"}]}).encode(),'
         'headers={"Content-Type":"application/json"});'
-        "v=json.loads(urllib.request.urlopen(r,timeout=120).read());"
-        "emb=v['outputs'][0]['data'];"
-        "out.append(emb);"
-        'json.dump(out,open("/work/stage6-fetch.json","w"))'
+        "emb=json.loads(urllib.request.urlopen(req,timeout=120).read())['outputs'][0]['data'];"
+        "out.append(emb)\n"
+        "json.dump(out,sys.stdout)"
     )
-    subprocess.run(
-        ["podman", "exec", f"{os.environ.get('CTR_NAME', 'b22-reid-gw')}-ortprobe",
+    # The rows: the SAME batch.npy the decomposer's faithfulness gate ate and
+    # the measure half builds from, read on the mount-carrying side.
+    reader = (
+        "import json,sys;"
+        "import numpy as np;"
+        "b=np.load('/work/layercompare/batch.npy');"
+        "sys.stdout.write(json.dumps([r.reshape(-1).tolist() for r in b]))"
+    )
+    rows = subprocess.run(
+        [sys.executable, "-c", reader],
+        capture_output=True, text=True, check=True, timeout=60,
+    ).stdout
+    proc = subprocess.run(
+        ["podman", "exec", "-i",
+         f"{os.environ.get('CTR_NAME', 'b22-reid-gw')}-ortprobe",
          "python3", "-c", inner],
-        check=False, timeout=600,
+        input=rows, capture_output=True, text=True, check=False, timeout=600,
     )
+    if proc.returncode != 0 or not proc.stdout.strip():
+        raise SystemExit(
+            f"the ORT probe fetch failed (rc={proc.returncode}): "
+            f"{proc.stderr.strip()[:400]}"
+        )
     got = RUN / "stage6-fetch.json"
-    if not got.is_file():
-        raise SystemExit("the ORT probe fetch wrote no stage6-fetch.json")
+    got.write_text(proc.stdout)
     vectors = json.loads(got.read_text())
     return np.asarray(vectors, dtype=np.float32)
 

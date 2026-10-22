@@ -17,6 +17,7 @@ header tells the truth about where the sequence differs from o24-run-safe.sh.
 
 from __future__ import annotations
 
+import ast
 import json
 import re
 import subprocess
@@ -1011,6 +1012,56 @@ def test_the_ort_probe_fetches_embeddings_and_the_stage_table_reads_them(script_
     assert '"6"' in table or "'6'" in table, (
         "the cosine table never reads the ORT probe's stage leg: the probe "
         "would serve embeddings nothing measures"
+    )
+
+
+def test_the_ort_probe_fetch_program_parses_and_serves_what_it_reads(script_text: str) -> None:
+    """The stage-6 fetch's inner program is a STRING literal in stage_probe.py
+    (python -c), so the outer AST check that proves the probe file parses sees
+    it only as an opaque constant -- a fetch whose inner text has a syntax
+    error, a missing import or a non-JSON-shaped request body would be
+    invisible to every committed check and die only at operator time, inside
+    the '|| true'-contained leg (stage 6 then reads unknown forever, no one
+    knows why). So the pin extracts the `inner` string and:
+
+    - parses it (a compound statement cannot follow a semicolon; the shipped
+      program had exactly that shape: ``out=[];for p in crops:``),
+    - the numpy import sits in whichever program uses np.load (the row-reader),
+    - the infer body is a FLAT row-major data list (Triton's HTTP infer
+      protocol: row-major values; a (3,256,128) row through .tolist() nests,
+      and float() over the nested lists raises TypeError),
+    - and the exec'd program is PURE: the probe container mounts ONLY the
+      model repo, so its rows arrive on stdin and its embeddings leave on
+      stdout -- no /work path reference (that file simply is not in there)."""
+    probe = _heredoc(script_text, "stage_probe.py", "PROBE")
+    tree = ast.parse(probe)
+    fn = next(
+        n for n in ast.walk(tree) if isinstance(n, ast.FunctionDef) and n.name == "stage_ort_probe"
+    )
+    strings = {
+        t.id: n.value.value
+        for n in ast.walk(fn)
+        if isinstance(n, ast.Assign) and isinstance(n.value, ast.Constant)
+        for t in n.targets
+        if isinstance(t, ast.Name)
+    }
+    inner = strings["inner"]
+    ast.parse(inner)  # the fetch program itself is real python
+    reader = strings["reader"]  # the row-builder: np.load lives THERE
+    ast.parse(reader)  # and it is real python too
+    assert "import numpy" in reader, "the reader uses np.load without importing numpy"
+    assert ".reshape(-1).tolist()" in reader or ".flatten().tolist()" in reader, (
+        "the rows must be FLAT row-major lists: a (3,256,128) row through "
+        ".tolist() nests, and float()/Triton's JSON infer reject that shape"
+    )
+    assert "/work" not in inner, (
+        "the exec'd program reads/writes /work paths, but the probe container "
+        "mounts only the model repository -- the files are not inside it"
+    )
+    assert "sys.stdin" in inner and "sys.stdout" in inner, (
+        "the exec'd fetch must take its rows from stdin and write its "
+        "embeddings to stdout: the container has no run-dir mount to read "
+        "or write files through"
     )
 
 
