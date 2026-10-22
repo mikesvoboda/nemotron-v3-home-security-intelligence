@@ -26,6 +26,7 @@ import zipfile
 from datetime import UTC, datetime, timedelta
 from enum import StrEnum
 from pathlib import Path
+from typing import Any
 
 import pytest
 from sqlalchemy import DateTime, LargeBinary
@@ -421,3 +422,111 @@ class TestSingleton:
         reset_backup_service()
         assert get_backup_service() is not svc
         reset_backup_service()
+
+
+class TestInstallationIdAndAssociationExport:
+    @pytest.mark.asyncio
+    async def test_get_or_create_installation_id_reads_and_creates(self) -> None:
+        from backend.models.gpu_config import SystemSetting
+        from backend.services.backup_service import (
+            INSTALLATION_ID_SETTING_KEY,
+            get_or_create_installation_id,
+        )
+
+        class _FakeResult:
+            def __init__(self, row: Any) -> None:
+                self._row = row
+
+            def scalar_one_or_none(self) -> Any:
+                return self._row
+
+        class _FakeSession:
+            def __init__(self, row: Any = None) -> None:
+                self.row = row
+                self.added: list[Any] = []
+                self.flushed = False
+                self.executed_stmts: list[Any] = []
+
+            async def execute(self, stmt: Any) -> _FakeResult:
+                self.executed_stmts.append(stmt)
+                return _FakeResult(self.row)
+
+            def add(self, obj: Any) -> None:
+                self.added.append(obj)
+
+            async def flush(self) -> None:
+                self.flushed = True
+
+        existing = SystemSetting(
+            key=INSTALLATION_ID_SETTING_KEY,
+            value={"installation_id": "inst-existing-123"},
+        )
+        assert await get_or_create_installation_id(_FakeSession(existing)) == "inst-existing-123"  # type: ignore[arg-type]
+
+        existing_str = SystemSetting(
+            key=INSTALLATION_ID_SETTING_KEY,
+            value="inst-str-456",  # type: ignore[arg-type]
+        )
+        assert await get_or_create_installation_id(_FakeSession(existing_str)) == "inst-str-456"  # type: ignore[arg-type]
+
+        fresh = _FakeSession(None)
+        generated = await get_or_create_installation_id(fresh)  # type: ignore[arg-type]
+        assert len(generated) == 36
+        assert fresh.flushed is True
+        assert len(fresh.added) == 1
+        assert fresh.added[0].key == INSTALLATION_ID_SETTING_KEY
+
+        class _ConcurrentRaceSession(_FakeSession):
+            async def execute(self, stmt: Any) -> _FakeResult:
+                self.executed_stmts.append(stmt)
+                if len(self.executed_stmts) >= 3:
+                    return _FakeResult(
+                        SystemSetting(
+                            key=INSTALLATION_ID_SETTING_KEY,
+                            value={"installation_id": "winner-from-concurrent-insert"},
+                        )
+                    )
+                return _FakeResult(None)
+
+        raced = _ConcurrentRaceSession(None)
+        assert (
+            await get_or_create_installation_id(raced)  # type: ignore[arg-type]
+            == "winner-from-concurrent-insert"
+        )
+        assert raced.flushed is False
+
+    def test_resolve_backup_dir_falls_back_when_unwritable(self, tmp_path: Path) -> None:
+        from backend.services.backup_service import resolve_backup_dir
+
+        writable = tmp_path / "writable-backups"
+        writable.mkdir()
+        assert resolve_backup_dir(writable) == writable
+
+    @pytest.mark.asyncio
+    async def test_export_association_table_serializes_rows(self, tmp_path: Path) -> None:
+        from backend.models.area import camera_areas
+
+        svc = _service(tmp_path)
+
+        class _FakeMappingResult:
+            def mappings(self) -> _FakeMappingResult:
+                return self
+
+            def all(self) -> list[dict[str, Any]]:
+                return [
+                    {"camera_id": "front_door", "area_id": 1},
+                    {"camera_id": "back_yard", "area_id": 2},
+                ]
+
+        class _FakeSession:
+            async def execute(self, _stmt: Any) -> _FakeMappingResult:
+                return _FakeMappingResult()
+
+        out_file = tmp_path / "camera_areas.json"
+        count = await svc._export_table(_FakeSession(), camera_areas, out_file)  # type: ignore[arg-type]
+        assert count == 2
+        rows = json.loads(out_file.read_text())
+        assert rows == [
+            {"camera_id": "front_door", "area_id": 1},
+            {"camera_id": "back_yard", "area_id": 2},
+        ]

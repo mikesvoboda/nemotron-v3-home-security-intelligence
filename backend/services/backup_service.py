@@ -22,6 +22,7 @@ from typing import Any, ClassVar
 from uuid import uuid4
 
 from sqlalchemy import Table, inspect, select
+from sqlalchemy.dialects.postgresql import insert as pg_insert
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import undefer
 
@@ -92,10 +93,7 @@ async def get_or_create_installation_id(db: AsyncSession) -> str:
     if type(db).__module__.startswith("unittest.mock"):
         return "local-installation-id"
 
-    try:
-        result = await db.execute(
-            select(SystemSetting).where(SystemSetting.key == INSTALLATION_ID_SETTING_KEY)
-        )
+    def _extract_id(result: Any) -> str | None:
         setting: SystemSetting | None = None
         if hasattr(result, "scalar_one_or_none"):
             candidate = result.scalar_one_or_none()
@@ -105,7 +103,6 @@ async def get_or_create_installation_id(db: AsyncSession) -> str:
             rows = result.scalars().all()
             if rows and isinstance(rows[0], SystemSetting):
                 setting = rows[0]
-
         if setting is not None:
             val = setting.value
             if isinstance(val, dict):
@@ -114,10 +111,34 @@ async def get_or_create_installation_id(db: AsyncSession) -> str:
                     return existing
             elif isinstance(val, str) and val:
                 return val
+        return None
+
+    try:
+        result = await db.execute(
+            select(SystemSetting).where(SystemSetting.key == INSTALLATION_ID_SETTING_KEY)
+        )
+        existing_id = _extract_id(result)
+        if existing_id:
+            return existing_id
     except Exception:
         logger.debug("Could not read installation_id from database; generating new ID")
 
     new_id = str(uuid4())
+    try:
+        await db.execute(
+            pg_insert(SystemSetting)
+            .values(key=INSTALLATION_ID_SETTING_KEY, value={"installation_id": new_id})
+            .on_conflict_do_nothing(index_elements=[SystemSetting.key])
+        )
+        result = await db.execute(
+            select(SystemSetting).where(SystemSetting.key == INSTALLATION_ID_SETTING_KEY)
+        )
+        existing_id = _extract_id(result)
+        if existing_id:
+            return existing_id
+    except Exception:
+        logger.debug("pg_insert on_conflict_do_nothing unavailable; falling back to db.add")
+
     try:
         db.add(
             SystemSetting(

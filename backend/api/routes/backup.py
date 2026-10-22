@@ -41,6 +41,7 @@ from backend.services.backup_service import (
     BACKUP_DIR,
     SHARED_BACKUP_TABLES,
     BackupService,
+    get_or_create_installation_id,
     resolve_backup_dir,
 )
 from backend.services.restore_service import (
@@ -60,6 +61,9 @@ async def _open_independent_session(
     fallback_db: AsyncSession,
 ) -> AsyncGenerator[AsyncSession]:
     """Open an independent AsyncSession, falling back to fallback_db only in mock-only tests."""
+    if not isinstance(fallback_db, AsyncSession):
+        yield fallback_db
+        return
     try:
         factory = get_session_factory()
     except RuntimeError:
@@ -210,68 +214,72 @@ async def run_backup_job(
     db: AsyncSession,
 ) -> None:
     """Run a backup job in the background."""
-    try:
-        result = await db.execute(select(BackupJob).where(BackupJob.id == job_id))
-        job = result.scalar_one_or_none()
-
-        if job is None:
-            logger.error("Backup job not found in database", extra={"job_id": job_id})
-            return
-
-        job.status = BackupJobStatusModel.RUNNING
-        job.started_at = utc_now()
-        job.total_tables = len(SHARED_BACKUP_TABLES)
-        job.current_step = "Starting backup..."
-        await db.commit()
-
-        job_ref = job
-
-        async def progress_callback(percent: int, step: str) -> None:
-            await db.refresh(job_ref)
-            job_ref.progress_percent = percent
-            job_ref.current_step = step
-            job_ref.completed_tables = int((percent / 100) * job_ref.total_tables)
-            await db.commit()
-
-        backup_result = await backup_service.create_backup(
-            db=db,
-            job_id=job_id,
-            progress_callback=progress_callback,
-        )
-
-        await db.refresh(job)
-        job.status = BackupJobStatusModel.COMPLETED
-        job.completed_at = utc_now()
-        job.progress_percent = 100
-        job.completed_tables = job.total_tables
-        job.current_step = "Complete"
-        job.file_path = str(backup_result.file_path)
-        job.file_size_bytes = backup_result.file_size
-        job.manifest_json = backup_result.manifest.to_dict() if backup_result.manifest else None
-        await db.commit()
-
-        logger.info(
-            "Backup job completed",
-            extra={
-                "job_id": job_id,
-                "file_path": backup_result.file_path,
-                "file_size": backup_result.file_size,
-            },
-        )
-
-    except Exception as e:
-        logger.exception("Backup job failed", extra={"job_id": job_id})
-
+    async with _open_independent_session(db) as job_db:
         try:
-            result = await db.execute(select(BackupJob).where(BackupJob.id == job_id))
+            result = await job_db.execute(select(BackupJob).where(BackupJob.id == job_id))
             job = result.scalar_one_or_none()
-            if job is not None:
-                job.status = BackupJobStatusModel.FAILED
-                job.completed_at = utc_now()
-                job.error_message = str(e)
-                await db.commit()
-        except Exception:
-            logger.exception("Failed to update job failure status")
+
+            if job is None:
+                logger.error("Backup job not found in database", extra={"job_id": job_id})
+                return
+
+            job.status = BackupJobStatusModel.RUNNING
+            job.started_at = utc_now()
+            job.total_tables = len(SHARED_BACKUP_TABLES)
+            job.current_step = "Starting backup..."
+            await get_or_create_installation_id(job_db)
+            await job_db.commit()
+
+            job_ref = job
+
+            async def progress_callback(percent: int, step: str) -> None:
+                await job_db.refresh(job_ref)
+                job_ref.progress_percent = percent
+                job_ref.current_step = step
+                job_ref.completed_tables = int((percent / 100) * job_ref.total_tables)
+                await job_db.commit()
+
+            backup_result = await backup_service.create_backup(
+                db=job_db,
+                job_id=job_id,
+                progress_callback=progress_callback,
+            )
+
+            await job_db.refresh(job)
+            job.status = BackupJobStatusModel.COMPLETED
+            job.completed_at = utc_now()
+            job.progress_percent = 100
+            job.completed_tables = job.total_tables
+            job.current_step = "Complete"
+            job.file_path = str(backup_result.file_path)
+            job.file_size_bytes = backup_result.file_size
+            job.manifest_json = backup_result.manifest.to_dict() if backup_result.manifest else None
+            await job_db.commit()
+
+            logger.info(
+                "Backup job completed",
+                extra={
+                    "job_id": job_id,
+                    "file_path": backup_result.file_path,
+                    "file_size": backup_result.file_size,
+                },
+            )
+
+        except Exception as e:
+            logger.exception("Backup job failed", extra={"job_id": job_id})
+
+            try:
+                if hasattr(job_db, "rollback"):
+                    await job_db.rollback()
+                result = await job_db.execute(select(BackupJob).where(BackupJob.id == job_id))
+                job = result.scalar_one_or_none()
+                if job is not None:
+                    job.status = BackupJobStatusModel.FAILED
+                    job.completed_at = utc_now()
+                    job.error_message = str(e)
+                    await job_db.commit()
+            except Exception:
+                logger.exception("Failed to update job failure status")
 
 
 async def run_restore_job(
@@ -487,6 +495,7 @@ async def create_backup(
     )
 
     db.add(backup_job)
+    await get_or_create_installation_id(db)
     await db.commit()
 
     backup_service = BackupService(backup_dir=resolve_backup_dir(BACKUP_DIR))

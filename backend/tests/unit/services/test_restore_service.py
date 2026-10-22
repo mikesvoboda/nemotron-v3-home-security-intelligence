@@ -17,6 +17,7 @@ import json
 import zipfile
 from datetime import UTC, datetime
 from pathlib import Path
+from typing import Any
 from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
@@ -563,6 +564,7 @@ class TestRestoreTable:
 
         call_count = 0
         original_init = Camera.__init__
+        Camera.__init__ = original_init  # type: ignore[method-assign]
 
         def mock_init(self, **kwargs):
             nonlocal call_count
@@ -1017,3 +1019,483 @@ class TestSupportedBackupVersion:
         assert len(parts) == 2
         assert parts[0].isdigit()
         assert parts[1].isdigit()
+
+
+class _FakeScalarResult:
+    def __init__(self, items: list[Any]) -> None:
+        self._items = items
+
+    def scalar_one_or_none(self) -> Any:
+        return self._items[0] if self._items else None
+
+    def scalars(self) -> _FakeScalarResult:
+        return self
+
+    def all(self) -> list[Any]:
+        return list(self._items)
+
+    def mappings(self) -> _FakeScalarResult:
+        return self
+
+
+class _InMemoryAsyncDB:
+    """Lightweight in-memory async session for exercising all 12 restore merge strategies."""
+
+    def __init__(self, initial: list[Any] | None = None) -> None:
+        self.objects: list[Any] = list(initial or [])
+        self.deleted: list[Any] = []
+        self.committed = False
+        self.rolled_back = False
+        self.next_id = 100
+
+    async def execute(self, stmt: Any) -> _FakeScalarResult:
+        stmt_str = str(stmt)
+        if "pg_get_serial_sequence" in stmt_str or "setval" in stmt_str:
+            return _FakeScalarResult([1])
+        if stmt_str.lstrip().upper().startswith("DELETE"):
+            if "camera_areas" in stmt_str:
+                self.objects = [o for o in self.objects if not isinstance(o, dict)]
+            elif "activity_baselines" in stmt_str:
+                from backend.models.baseline import ActivityBaseline
+
+                self.objects = [o for o in self.objects if not isinstance(o, ActivityBaseline)]
+            elif "class_baselines" in stmt_str:
+                from backend.models.baseline import ClassBaseline
+
+                self.objects = [o for o in self.objects if not isinstance(o, ClassBaseline)]
+            return _FakeScalarResult([])
+        if stmt_str.lstrip().upper().startswith("INSERT"):
+            return _FakeScalarResult([])
+
+        target_cls = None
+        try:
+            desc = getattr(stmt, "column_descriptions", None)
+            if desc and isinstance(desc[0], dict):
+                entity = desc[0].get("entity")
+                if isinstance(entity, type):
+                    target_cls = entity
+        except Exception:
+            target_cls = None
+
+        if target_cls is not None:
+            matches = [o for o in self.objects if isinstance(o, target_cls)]
+            try:
+                compiled = stmt.compile()
+                params = compiled.params
+            except Exception:
+                params = {}
+            for k, v in params.items():
+                col = k.split("_1")[0]
+                if isinstance(v, (list, tuple, set)):
+                    matches = [o for o in matches if getattr(o, col, None) in v]
+                else:
+                    matches = [o for o in matches if getattr(o, col, None) == v]
+            return _FakeScalarResult(matches)
+
+        if "camera_areas" in stmt_str:
+            return _FakeScalarResult([o for o in self.objects if isinstance(o, dict)])
+
+        return _FakeScalarResult([])
+
+    def add(self, obj: Any) -> None:
+        from datetime import UTC, datetime
+
+        if getattr(obj, "created_at", None) is None and hasattr(obj, "created_at"):
+            obj.created_at = datetime.now(UTC)
+        if obj not in self.objects:
+            self.objects.append(obj)
+
+    async def flush(self) -> None:
+        for obj in self.objects:
+            if hasattr(obj, "id") and getattr(obj, "id", None) is None:
+                obj.id = self.next_id
+                self.next_id += 1
+
+    async def commit(self) -> None:
+        await self.flush()
+        self.committed = True
+
+    async def rollback(self) -> None:
+        self.rolled_back = True
+
+    async def delete(self, obj: Any) -> None:
+        self.deleted.append(obj)
+        self.objects = [o for o in self.objects if o is not obj]
+
+    async def refresh(self, _obj: Any) -> None:
+        return None
+
+
+class TestAllTableMergesAndRoutesUnit:
+    """Exercise all 12 table merge strategies (same & foreign installation) and route helpers."""
+
+    @staticmethod
+    def _build_full_archive(
+        tmp_path: Path,
+        *,
+        backup_id: str = "full-bk-1",
+        version: str = "1.1",
+        installation_id: str | None = "inst-same",
+        extra_tables: dict[str, list[dict[str, Any]]] | None = None,
+    ) -> Path:
+        tables_data: dict[str, list[dict[str, Any]]] = {
+            "households": [{"id": 1, "name": "Svoboda Home"}],
+            "properties": [{"id": 1, "household_id": 1, "name": "Main House"}],
+            "areas": [{"id": 1, "property_id": 1, "name": "Front Yard"}],
+            "cameras": [
+                {
+                    "id": "front_door",
+                    "name": "Front Door",
+                    "folder_path": "/export/foscam/front_door",
+                    "status": "online",
+                    "property_id": 1,
+                }
+            ],
+            "camera_areas": [{"camera_id": "front_door", "area_id": 1}],
+            "zones": [
+                {
+                    "id": "zone_porch",
+                    "camera_id": "front_door",
+                    "name": "Porch",
+                    "zone_type": "entry_point",
+                    "coordinates": [[0.1, 0.1], [0.9, 0.1], [0.9, 0.9], [0.1, 0.9]],
+                    "shape": "rectangle",
+                }
+            ],
+            "activity_baselines": [
+                {
+                    "id": 50,
+                    "camera_id": "front_door",
+                    "hour": 12,
+                    "day_of_week": 1,
+                    "avg_count": 3.5,
+                    "sample_count": 10,
+                }
+            ],
+            "class_baselines": [
+                {
+                    "id": 60,
+                    "camera_id": "front_door",
+                    "detection_class": "person",
+                    "hour": 12,
+                    "frequency": 2.0,
+                    "sample_count": 8,
+                }
+            ],
+            "household_members": [
+                {
+                    "id": 1,
+                    "household_id": 1,
+                    "name": "Alice",
+                    "role": "resident",
+                    "trusted_level": "full",
+                    "known_person_id": 42,
+                }
+            ],
+            "prompt_versions": [
+                {
+                    "id": 1,
+                    "model": "nemotron",
+                    "version": 1,
+                    "config_json": json.dumps({"system_prompt": " prompt v1 "}),
+                    "is_active": True,
+                }
+            ],
+            "settings": [
+                {"key": "retention_days", "value": {"days": 30}},
+                {"key": "installation_id", "value": {"installation_id": "foreign-inst-999"}},
+            ],
+            "alert_rules": [
+                {
+                    "id": "11111111-2222-3333-4444-555555555555",
+                    "name": "Night Person Alert",
+                    "severity": "high",
+                    "enabled": True,
+                }
+            ],
+        }
+        if extra_tables:
+            tables_data.update(extra_tables)
+
+        contents: dict[str, dict[str, Any]] = {}
+        import hashlib
+
+        zip_path = tmp_path / f"{backup_id}.zip"
+        with zipfile.ZipFile(zip_path, "w") as zf:
+            for tname, rows in tables_data.items():
+                payload = json.dumps(rows, indent=2)
+                zf.writestr(f"{tname}.json", payload)
+                contents[tname] = {
+                    "count": len(rows),
+                    "checksum": hashlib.sha256(payload.encode()).hexdigest(),
+                }
+            manifest: dict[str, Any] = {
+                "backup_id": backup_id,
+                "version": version,
+                "created_at": "2026-10-22T06:00:00Z",
+                "contents": contents,
+            }
+            if installation_id is not None:
+                manifest["installation_id"] = installation_id
+            zf.writestr("manifest.json", json.dumps(manifest))
+        return zip_path
+
+    @pytest.mark.asyncio
+    async def test_restore_same_and_foreign_installation_all_tables(self, tmp_path: Path) -> None:
+        from backend.models.face_identity import KnownPerson
+        from backend.models.gpu_config import SystemSetting
+
+        service = RestoreService()
+        db_same = _InMemoryAsyncDB(
+            [
+                SystemSetting(
+                    key="installation_id",
+                    value={"installation_id": "inst-same"},
+                ),
+                KnownPerson(id=42, name="Alice"),
+            ]
+        )
+        zip_same = self._build_full_archive(
+            tmp_path, backup_id="bk-same", installation_id="inst-same"
+        )
+        res_same = await service.restore_from_backup(zip_same, db_same)  # type: ignore[arg-type]
+        assert res_same.same_installation is True
+        assert res_same.total_items >= 12
+        assert res_same.cleared_known_person_links == []
+        assert "households" in res_same.added_rows
+
+        res_same_2 = await service.restore_from_backup(zip_same, db_same)  # type: ignore[arg-type]
+        assert res_same_2.same_installation is True
+        assert res_same_2.tables["cameras"].updated == 1
+        assert res_same_2.tables["zones"].updated == 1
+        assert res_same_2.tables["alert_rules"].updated == 1
+        assert res_same_2.tables["prompt_versions"].updated == 1
+        assert res_same_2.tables["settings"].updated == 1
+
+        zip_foreign = self._build_full_archive(
+            tmp_path, backup_id="bk-foreign", installation_id="inst-other"
+        )
+        res_foreign = await service.restore_from_backup(zip_foreign, db_same)  # type: ignore[arg-type]
+        assert res_foreign.same_installation is False
+        assert res_foreign.cleared_known_person_links == ["Alice"]
+
+        zip_v10 = self._build_full_archive(
+            tmp_path,
+            backup_id="bk-v10",
+            version="1.0",
+            installation_id=None,
+            extra_tables={
+                "events": [{"id": 1}],
+                "alerts": [{"id": "a1"}],
+                "prompts": [{"id": 1}],
+                "baselines": [
+                    {
+                        "camera_id": "front_door",
+                        "hour": 9,
+                        "day_of_week": 2,
+                        "avg_count": 1.0,
+                        "sample_count": 4,
+                    }
+                ],
+            },
+        )
+        res_v10 = await service.restore_from_backup(zip_v10, db_same)  # type: ignore[arg-type]
+        assert res_v10.same_installation is False
+        assert set(res_v10.skipped_tables) == {"events", "alerts", "prompts"}
+
+    @pytest.mark.asyncio
+    async def test_camera_clash_and_invalid_record_errors(self, tmp_path: Path) -> None:
+        from backend.models.camera import Camera
+
+        service = RestoreService()
+        existing_cam = Camera(
+            id="other_cam",
+            name="Front Door",
+            folder_path="/export/foscam/other",
+            status="online",
+        )
+        db = _InMemoryAsyncDB([existing_cam])
+        cam_file = tmp_path / "cameras.json"
+        cam_file.write_text(
+            json.dumps(
+                [
+                    {
+                        "id": "front_door",
+                        "name": "Front Door",
+                        "folder_path": "/export/foscam/front_door",
+                        "status": "online",
+                    }
+                ]
+            )
+        )
+        with pytest.raises(RestoreError, match="clashes on unique name"):
+            await service._restore_table(db, "cameras", cam_file)  # type: ignore[arg-type]
+
+        bad_zones = tmp_path / "zones.json"
+        bad_zones.write_text(json.dumps(["not-a-dict"]))
+        with pytest.raises(RestoreError, match="expected object"):
+            await service._restore_table(db, "zones", bad_zones)  # type: ignore[arg-type]
+
+    @pytest.mark.asyncio
+    async def test_backup_routes_and_background_jobs_unit(self, tmp_path: Path) -> None:
+        from io import BytesIO
+        from unittest.mock import MagicMock
+
+        from fastapi import BackgroundTasks, HTTPException, UploadFile
+
+        from backend.api.routes.backup import (
+            _backup_model_to_response,
+            _restore_model_to_response,
+            create_backup,
+            delete_backup,
+            download_backup,
+            get_backup_status,
+            get_restore_status,
+            list_backups,
+            run_backup_job,
+            run_restore_job,
+            start_restore,
+        )
+        from backend.api.schemas.backup import BackupJobCreate
+        from backend.models.backup_job import (
+            BackupJob,
+            BackupJobStatus,
+            RestoreJob,
+            RestoreJobStatus,
+        )
+        from backend.models.gpu_config import SystemSetting
+        from backend.services.backup_service import BackupService
+
+        bjob = BackupJob(
+            id="bjob-1",
+            status=BackupJobStatus.COMPLETED,
+            total_tables=12,
+            completed_tables=12,
+            progress_percent=100,
+            file_path="/app/data/backups/backup.zip",
+            file_size_bytes=512,
+            manifest_json={
+                "backup_id": "bjob-1",
+                "version": "1.1",
+                "created_at": "2026-10-22T06:00:00Z",
+                "installation_id": "inst-1",
+                "label": "before restore of x",
+                "contents": {"cameras": {"count": 1, "checksum": "abc"}},
+            },
+        )
+        bjob.created_at = datetime(2026, 10, 22, 6, 0, tzinfo=UTC)
+        b_resp = _backup_model_to_response(bjob)
+        assert b_resp.manifest is not None
+        assert b_resp.manifest.installation_id == "inst-1"
+        assert b_resp.manifest.label == "before restore of x"
+
+        rjob = RestoreJob(
+            id="rjob-1",
+            status=RestoreJobStatus.COMPLETED,
+            total_tables=12,
+            completed_tables=12,
+            progress_percent=100,
+            items_restored={
+                "cameras": 1,
+                "_details": {
+                    "safety_backup_id": "safety-1",
+                    "same_installation": False,
+                    "tables": {"cameras": {"inserted": 1, "updated": 0, "replaced": 0, "kept": 0}},
+                    "added_rows": {"cameras": ["Front Door"]},
+                    "cleared_known_person_links": ["Alice"],
+                    "skipped_tables": ["events"],
+                },
+            },
+        )
+        rjob.created_at = datetime(2026, 10, 22, 6, 5, tzinfo=UTC)
+        r_resp = _restore_model_to_response(rjob)
+        assert r_resp.items_restored == {"cameras": 1}
+        assert r_resp.safety_backup_id == "safety-1"
+        assert r_resp.same_installation is False
+        assert r_resp.tables is not None and r_resp.tables["cameras"].inserted == 1
+        assert r_resp.added_rows == {"cameras": ["Front Door"]}
+        assert r_resp.cleared_known_person_links == ["Alice"]
+        assert r_resp.skipped_tables == ["events"]
+
+        bk_svc = BackupService(backup_dir=tmp_path / "backups")
+        run_bjob = BackupJob(id="bjob-run", status=BackupJobStatus.PENDING, total_tables=12)
+        run_bjob.created_at = datetime(2026, 10, 22, 6, 0, tzinfo=UTC)
+        db_for_backup = _InMemoryAsyncDB(
+            [
+                run_bjob,
+                SystemSetting(key="installation_id", value={"installation_id": "inst-same"}),
+            ]
+        )
+        await run_backup_job("bjob-run", bk_svc, db_for_backup)  # type: ignore[arg-type]
+        assert run_bjob.status == BackupJobStatus.COMPLETED
+        assert run_bjob.file_path is not None
+
+        run_rjob = RestoreJob(id="rjob-run", status=RestoreJobStatus.PENDING, total_tables=12)
+        run_rjob.created_at = datetime(2026, 10, 22, 6, 10, tzinfo=UTC)
+        db_for_restore = _InMemoryAsyncDB(
+            [
+                run_rjob,
+                SystemSetting(key="installation_id", value={"installation_id": "inst-same"}),
+            ]
+        )
+        upload_copy = self._build_full_archive(
+            tmp_path, backup_id="upload-copy", installation_id="inst-same"
+        )
+        zip_bytes = upload_copy.read_bytes()
+        await run_restore_job(
+            run_rjob.id,
+            upload_copy,
+            RestoreService(),
+            db_for_restore,  # type: ignore[arg-type]
+            backup_service=bk_svc,
+        )
+        assert run_rjob.status == RestoreJobStatus.COMPLETED
+        assert run_rjob.items_restored is not None
+        assert "_details" in run_rjob.items_restored
+
+        fail_rjob = RestoreJob(id="rjob-fail", status=RestoreJobStatus.PENDING, total_tables=12)
+        fail_rjob.created_at = datetime(2026, 10, 22, 6, 15, tzinfo=UTC)
+        db_fail = _InMemoryAsyncDB([fail_rjob])
+        broken_bk = MagicMock(spec=BackupService)
+        broken_bk.create_backup.side_effect = RuntimeError("disk full")
+        await run_restore_job(
+            fail_rjob.id,
+            tmp_path / "nonexistent.zip",
+            RestoreService(),
+            db_fail,  # type: ignore[arg-type]
+            backup_service=broken_bk,
+        )
+        assert fail_rjob.status == RestoreJobStatus.FAILED
+        assert "Safety backup failed before restore" in (fail_rjob.error_message or "")
+
+        bg = BackgroundTasks()
+        start_resp = await create_backup(BackupJobCreate(), bg, db_for_backup)  # type: ignore[arg-type]
+        assert start_resp.status.value == "pending"
+
+        list_resp = await list_backups(db_for_backup)  # type: ignore[arg-type]
+        assert list_resp.total >= 1
+
+        status_resp = await get_backup_status("bjob-run", db_for_backup)  # type: ignore[arg-type]
+        assert status_resp.id == "bjob-run"
+
+        with pytest.raises(HTTPException) as exc404:
+            await get_backup_status("missing-id", db_for_backup)  # type: ignore[arg-type]
+        assert exc404.value.status_code == 404
+
+        dl_resp = await download_backup("bjob-run", db_for_backup)  # type: ignore[arg-type]
+        assert str(dl_resp.path) == str(run_bjob.file_path)
+
+        upload = UploadFile(filename="backup.zip", file=BytesIO(zip_bytes))
+        restore_start = await start_restore(bg, upload, db_for_restore)  # type: ignore[arg-type]
+        assert restore_start.status.value == "pending"
+
+        bad_upload = UploadFile(filename="backup.txt", file=BytesIO(b"hello"))
+        with pytest.raises(HTTPException) as exc400:
+            await start_restore(bg, bad_upload, db_for_restore)  # type: ignore[arg-type]
+        assert exc400.value.status_code == 400
+
+        r_status = await get_restore_status("rjob-run", db_for_restore)  # type: ignore[arg-type]
+        assert r_status.id == "rjob-run"
+
+        del_resp = await delete_backup("bjob-run", db_for_backup)  # type: ignore[arg-type]
+        assert del_resp == {"deleted": True}
