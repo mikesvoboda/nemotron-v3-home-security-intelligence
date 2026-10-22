@@ -175,3 +175,10 @@ _.RegisterRequest
 # zero behavior change).
 _.clock
 _.session_arg
+
+# The relay failed-arm test's listen stub mirrors socket.socket.listen(backlog);
+# the stub only raises, the parameter exists for the mirrored signature
+# (measured 2026-10-22, PR #7364 Dead Code job 119937262928: 100%-confidence
+# false positive on a signature-required parameter).
+_.backlog
+_.address
