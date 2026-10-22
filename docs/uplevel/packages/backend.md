@@ -344,7 +344,9 @@ Design: [`../4n-alerting.md`](../4n-alerting.md), "Packages" row 2. Covers F-236
 
 - [x] The test-only PR (step 2): the notification and webhook_service suites consolidated under
       the zero kill-loss protocol (616 and 1100 mutants, kill-loss 0 both modules; the batteries'
-      EQUIVALENT residue moved into `accepted_survivors.toml`, 17 entries).
+      EQUIVALENT residue moved into `accepted_survivors.toml`, 17 entries); plus the
+      `backend.api.routes.notification` suite (77 mutants, kill-loss 0) measured after UR-89 review
+      found it unmeasured.
 - [ ] The build PR: recipients, channels, the outbox, `planner`, the worker, email and webhook, the
       local-network flag, name redaction, history, browser rows; recipients and channels join the
       backup list without their secrets if `B4.6` has landed (else `B4.6` adds them); an

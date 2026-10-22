@@ -1311,6 +1311,7 @@ class TestAlertModelPriorityField:
 # =============================================================================
 # Consolidated from test_notification_batch38_u.py (B4.2 step 2)
 # =============================================================================
+# TARGET-MODULE: backend.services.notification
 
 # (Battery U docstring, preserved verbatim — it is evidence.)
 # Battery U — campaign #19 of the ladder (batch-38): kill-real coverage for
