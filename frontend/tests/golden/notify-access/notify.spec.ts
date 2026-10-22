@@ -44,14 +44,14 @@
  *         the fake tier renders docker-compose.sinks.yml with the stack, and
  *         its backend env sets SMTP_HOST=mail-sink + SMTP_FROM_ADDRESS
  *         (the mail golden leg dials them), so email_configured flips TRUE
- *         (services/notification.py:141-146: host AND from address) while
+ *         (services/notification.py:141-147: host AND from address) while
  *         webhook stays FALSE — DEFAULT_WEBHOOK_URL is deliberately NOT set
  *         (docker-compose.sinks.yml: the Settings field-validator runs
  *         validate_webhook_url at boot and would refuse a private DNS name)
- *         — and push is a literal False (:153-155). So the config contract
+ *         — and push is a literal False (:153-156). So the config contract
  *         under test is email-configured / webhook-and-push-not:
  *         available_channels is ['email'], the UI renders the SMTP detail
- *         grid for email (NotificationSettings.tsx:1060-1081) but the
+ *         grid for email (NotificationSettings.tsx:1060-1082) but the
  *         webhook not-configured guidance (:1174-1178), and the channels
  *         summary shows the EMAIL badge (:1186-1191) instead of the
  *         no-channels text (:1193). The webhook/push pins keep the F-235
@@ -231,10 +231,10 @@ test.describe('DO-2 notifications golden path', () => {
 
     // --- API leg: the flags follow the sinks overlay's env, by predicate ---
     // The overlay sets SMTP_HOST + SMTP_FROM_ADDRESS (the mail leg dials them),
-    // so is_email_configured (notification.py:141-146) is true. DEFAULT_WEBHOOK_URL
+    // so is_email_configured (notification.py:141-147) is true. DEFAULT_WEBHOOK_URL
     // is deliberately unset (the boot validator would refuse an in-network name),
     // so is_webhook_configured (:149-151) stays false, and push is a literal False
-    // (:153-155). The values asserted for smtp_host/smtp_port are the overlay's own
+    // (:153-156). The values asserted for smtp_host/smtp_port are the overlay's own
     // spellings (docker-compose.sinks.yml) as the rendered env carries them.
     const cfg = await api.getJson('/api/notification/config');
     expect(cfg.status, 'GET notification/config answers 200').toBe(200);

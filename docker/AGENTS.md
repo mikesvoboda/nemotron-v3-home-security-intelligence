@@ -7,6 +7,9 @@ This directory contains custom Docker images maintained for the project.
 ```
 docker/
 ├── AGENTS.md                    # This file
+├── ci-sinks/                    # The notification sinks' image (r308a)
+│   ├── Dockerfile
+│   └── sink.py
 ├── fake-ai/                     # The fake AI stack's image (O2.1)
 │   └── Dockerfile
 └── python-freethreaded/         # Python 3.14 with --disable-gil

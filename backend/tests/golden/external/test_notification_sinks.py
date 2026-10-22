@@ -41,6 +41,7 @@ from __future__ import annotations
 
 import json
 import os
+import time
 import uuid
 from typing import Any
 
@@ -182,8 +183,6 @@ def test_the_webhook_sink_receives_the_acknowledgement_payload(
         assert acked.status_code == 200, acked.text[:300]
 
         deadline = 90.0
-        import time
-
         while deadline > 0:
             deliveries = logged_in_api.get(
                 f"/api/outbound-webhooks/{webhook_id}/deliveries", params={"limit": 50}

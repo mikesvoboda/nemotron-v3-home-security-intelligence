@@ -451,8 +451,9 @@ scripts/feature-check.sh --real --image-tag <sha7>
 
 `--fake` runs these steps in order:
 
-1. Renders `docker-compose.ci.yml` with `docker-compose.fake-ai.yml` and turns
-   the rendering into a **test deployment**.
+1. Renders `docker-compose.ci.yml` with `docker-compose.fake-ai.yml` and
+   `docker-compose.sinks.yml` and turns the rendering into a **test
+   deployment**.
 2. Renders the test deployment again and checks it with the preflight.
 3. Starts it, with one camera folder per scenario of the fake AI's scenario
    book in the watched folder.

@@ -12,7 +12,7 @@
     "services": {
       "ai-gateway": {
         "build": {
-          "context": "/agents/agent-uplevel-ops-b/workspace",
+          "context": "/checkout",
           "dockerfile": "docker/fake-ai/Dockerfile",
           "args": {
             "BACKEND_IMAGE": "ghcr.io/mikesvoboda/nemotron-v3-home-security-intelligence/backend:0cd79ef"
@@ -72,7 +72,7 @@
       },
       "ai-vlm": {
         "build": {
-          "context": "/agents/agent-uplevel-ops-b/workspace",
+          "context": "/checkout",
           "dockerfile": "docker/fake-ai/Dockerfile",
           "args": {
             "BACKEND_IMAGE": "ghcr.io/mikesvoboda/nemotron-v3-home-security-intelligence/backend:0cd79ef"
@@ -275,7 +275,7 @@
       },
       "mail-sink": {
         "build": {
-          "context": "/agents/agent-uplevel-ops-b/workspace",
+          "context": "/checkout",
           "dockerfile": "docker/ci-sinks/Dockerfile"
         },
         "cap_drop": ["ALL"],
@@ -368,7 +368,7 @@
       },
       "push-sink": {
         "build": {
-          "context": "/agents/agent-uplevel-ops-b/workspace",
+          "context": "/checkout",
           "dockerfile": "docker/ci-sinks/Dockerfile"
         },
         "cap_drop": ["ALL"],
@@ -451,7 +451,7 @@
       },
       "webhook-sink": {
         "build": {
-          "context": "/agents/agent-uplevel-ops-b/workspace",
+          "context": "/checkout",
           "dockerfile": "docker/ci-sinks/Dockerfile"
         },
         "cap_drop": ["ALL"],
