@@ -2031,8 +2031,12 @@ FIXED_ISO = "2026-03-04T05:06:07.891011+00:00"
 SECRET = "ab" * 32  # nosemgrep: hardcoded-password
 SECRET_A = "a" * 64
 # probe7: HMAC over json.dumps(payload, sort_keys=True, separators=(",",":"))
-SIG_P1 = "4012d12033f6bfe41db94b44a97ac0b5434779648ccd370c53ff31d117a6aa4f"  # pragma: allowlist secret
-SIG_P3 = "31f13e5e1b6da4560d8cca7ec6a477f41b1eb3724711410670f3685c699aec72"  # pragma: allowlist secret
+SIG_P1 = (
+    "4012d12033f6bfe41db94b44a97ac0b5434779648ccd370c53ff31d117a6aa4f"  # pragma: allowlist secret
+)
+SIG_P3 = (
+    "31f13e5e1b6da4560d8cca7ec6a477f41b1eb3724711410670f3685c699aec72"  # pragma: allowlist secret
+)
 BASE_HEADERS = {"Content-Type": "application/json", "User-Agent": "NemotronWebhook/1.0"}
 
 # Payloads whose signatures above were measured with SECRET (probe6/probe7).
