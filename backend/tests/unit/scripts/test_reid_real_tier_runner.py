@@ -736,9 +736,11 @@ def test_layercompare_mode_is_accepted_and_dispatched(script_text: str) -> None:
     produces "the stage table and the layer compare" — the layer compare is a
     superset, not a replacement, or the second operator run would lose the
     stage table the Done-when quotes)."""
-    assert "--mode is parity or stages" not in script_text or re.search(
-        r"layercompare", script_text[script_text.index("--mode is") :][:200]
-    ) or _code(script_text).count("layercompare") >= 1, "mode validator never mentions layercompare"
+    assert (
+        "--mode is parity or stages" not in script_text
+        or re.search(r"layercompare", script_text[script_text.index("--mode is") :][:200])
+        or _code(script_text).count("layercompare") >= 1
+    ), "mode validator never mentions layercompare"
     validator = [ln for ln in _code(script_text).splitlines() if "--mode is" in ln]
     assert validator and any("layercompare" in ln for ln in validator), (
         "the --mode validation line refuses layercompare: the operator's run "
@@ -913,7 +915,7 @@ def test_the_layer_report_executes_and_names_first_diverging_layer(
         for i in range(3)
     ]
     broken = dict(rows[1], min_cos=0.987, op_type="ReduceMean", name="mean_in1_1")
-    rc, out = _run_layer_report(probe, tmp_path, rows[:1] + [broken] + rows[2:])
+    rc, out = _run_layer_report(probe, tmp_path, [*rows[:1], broken, *rows[2:]])
     assert str(1) in out and ("ReduceMean" in out or "mean_in1_1" in out), (
         f"the report did not name the first diverging layer with its op/name:\n{out}"
     )
