@@ -37,6 +37,7 @@ import sys
 from dataclasses import dataclass
 from datetime import date, datetime, timedelta
 from pathlib import Path
+from typing import Any
 
 GHSA_RE = re.compile(r"/GHSA-([0-9a-z]{4}-[0-9a-z]{4}-[0-9a-z]{4})$")
 
@@ -55,13 +56,14 @@ def run_audit(frontend: Path) -> dict:
         print(f"npm audit --json failed rc={r.returncode}:\n{r.stderr[-800:]}", file=sys.stderr)
         sys.exit(1)
     try:
-        return json.loads(r.stdout)
+        loaded: dict[str, Any] = json.loads(r.stdout)
+        return loaded
     except json.JSONDecodeError:
         print("npm audit --json produced unparsable output", file=sys.stderr)
         sys.exit(1)
 
 
-def _fix_state(fix) -> bool:
+def _fix_state(fix: Any) -> bool:
     """True when npm reports an IN-RANGE (non-major) fix path.
 
     npm puts the actual fix at the vulnerability level (e.g. the braces chain's
@@ -248,7 +250,11 @@ class Verdict:
 
 
 def adjudicate_front(
-    frontend: Path, registry: str | None, warn_days: int, full_report: bool, strict_coverage: bool = False
+    frontend: Path,
+    registry: str | None,
+    warn_days: int,
+    full_report: bool,
+    strict_coverage: bool = False,
 ) -> Verdict:
     """Adjudicate ONE tree: run npm audit there, read its registry, apply
     today's rules. `registry` None means the frontend's own
@@ -349,7 +355,11 @@ def adjudicate_front(
             if strict_coverage:
                 named = e.get("package")
                 matched = (
-                    set(a["packages"]) if named is None else {named} if named in a["packages"] else set()
+                    set(a["packages"])
+                    if named is None
+                    else {named}
+                    if named in a["packages"]
+                    else set()
                 )
                 for p in matched:
                     covered_pairs.add((hit, p))
@@ -384,9 +394,7 @@ def adjudicate_front(
             # package, so it lands in the delta set with the same message.
             for pkg in sorted(set(a["packages"]) - {q for (g, q) in covered_pairs if g == hit}):
                 sev = ",".join(sorted(a["severities"]))
-                errors.append(
-                    f"{gid}: audit finding ({sev}) on ['{pkg}'] is UNEXEMPTED"
-                )
+                errors.append(f"{gid}: audit finding ({sev}) on ['{pkg}'] is UNEXEMPTED")
                 unexempted.add((gid, pkg))
 
     if full_report:

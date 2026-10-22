@@ -46,15 +46,17 @@ import sys
 from dataclasses import dataclass
 from datetime import date, datetime, timedelta
 from pathlib import Path
+from typing import Any
 
 DEFAULT_REGISTRY = ".pip-audit-exemptions.json"
 
 
-def load_audit(path: Path) -> dict:
+def load_audit(path: Path) -> dict[str, Any]:
     """Read a pip-audit `-f json` report; '-' means stdin."""
     raw = sys.stdin.read() if str(path) == "-" else path.read_text()
     try:
-        return json.loads(raw)
+        loaded: dict[str, Any] = json.loads(raw)
+        return loaded
     except json.JSONDecodeError:
         print(
             "pip-audit JSON report is unparsable - the gate fails closed "
@@ -294,7 +296,11 @@ def advisory_aliases(audit_path: Path) -> dict[str, set[str]]:
 
 
 def adjudicate(
-    audit_path: Path, reg_path: Path, warn_days: int, full_report: bool, strict_coverage: bool = False
+    audit_path: Path,
+    reg_path: Path,
+    warn_days: int,
+    full_report: bool,
+    strict_coverage: bool = False,
 ) -> Verdict:
     """Run today's registry rules against one audit report.
 
@@ -402,8 +408,11 @@ def adjudicate(
                 matched = (
                     {p.split("==", 1)[0].lower() for p in a["packages"]}
                     if named is None
-                    else {p.split("==", 1)[0].lower() for p in a["packages"]
-                          if p.split("==", 1)[0].lower() == named.lower()}
+                    else {
+                        p.split("==", 1)[0].lower()
+                        for p in a["packages"]
+                        if p.split("==", 1)[0].lower() == named.lower()
+                    }
                 )
                 for p in matched:
                     covered_pairs.add((hit, p))

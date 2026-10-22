@@ -181,7 +181,9 @@ def read_inventory(text: str) -> dict[str, Row]:
                     raise ReadError(f"{cells[0]}: {len(cells)} cells, too few for status/evidence")
                 status = cells[cols["status"]]
                 if status not in STATUSES:
-                    raise ReadError(f"{cells[0]}: status {status!r} is not one of {', '.join(STATUSES)}")
+                    raise ReadError(
+                        f"{cells[0]}: status {status!r} is not one of {', '.join(STATUSES)}"
+                    )
                 if cells[0] in rows:
                     raise ReadError(f"{cells[0]} is declared twice")
                 rows[cells[0]] = Row(cells[0], status, cells[cols["evidence"]])
@@ -207,7 +209,9 @@ def _spec_path(classname: str, backend: bool) -> tuple[str, list[str]]:
     """(repo-relative spec path, the class names a pytest leg sits in)."""
     if backend:
         parts = classname.split(".")
-        module = max((i for i, p in enumerate(parts) if p.startswith("test_")), default=len(parts) - 1)
+        module = max(
+            (i for i, p in enumerate(parts) if p.startswith("test_")), default=len(parts) - 1
+        )
         return "/".join(parts[: module + 1]) + ".py", parts[module + 1 :]
     _, sep, rest = classname.partition("golden/")
     return (f"frontend/tests/golden/{rest}" if sep else classname), []
@@ -222,9 +226,9 @@ def leg_rows(title: str, *, backend: bool, classes: Sequence[str] = ()) -> tuple
                 return tuple(dict.fromkeys(f"F-{n}" for n in ids))
         return ()
     for segment in reversed(title.split(SEGMENT)):
-        ids = title_ids(segment)
-        if ids:
-            return ids
+        row_ids = title_ids(segment)
+        if row_ids:
+            return row_ids
     return ()
 
 
@@ -238,7 +242,9 @@ def title_homes(root: Path) -> dict[str, frozenset[str]]:
     frontend = sorted((root / FRONTEND_GOLDEN).rglob("*.spec.ts"))
     backend = sorted((root / BACKEND_GOLDEN).rglob("test_*.py"))
     if not frontend:
-        raise ReadError(f"{root / FRONTEND_GOLDEN}: no golden spec to read the rows' home jobs from")
+        raise ReadError(
+            f"{root / FRONTEND_GOLDEN}: no golden spec to read the rows' home jobs from"
+        )
     homes: dict[str, set[str]] = {}
     try:
         for path in frontend:
@@ -303,12 +309,16 @@ def read_summary(path: Path) -> tuple[str, str, list[Leg]]:
     for specs, is_backend in ((playwright, False), (backend, True)):
         for key, outcome in specs.items():
             if outcome not in OUTCOMES:
-                raise ReadError(f"{path}: leg {key!r} has outcome {outcome!r}, not one of {OUTCOMES}")
+                raise ReadError(
+                    f"{path}: leg {key!r} has outcome {outcome!r}, not one of {OUTCOMES}"
+                )
             classname, sep, title = key.partition("::")
             if not sep:
                 raise ReadError(f"{path}: leg {key!r} is not '<spec>::<title>'")
             spec, classes = _spec_path(classname, is_backend)
-            legs.append(Leg(spec, title, outcome, leg_rows(title, backend=is_backend, classes=classes)))
+            legs.append(
+                Leg(spec, title, outcome, leg_rows(title, backend=is_backend, classes=classes))
+            )
     run = f"{summary.get('project', '?')} at {str(summary.get('commit') or '?')[:9]}"
     return JOBS[mode], run, legs
 
@@ -320,17 +330,34 @@ def read_known(text: str, rows: Mapping[str, Row]) -> dict[tuple[str, str], Know
     except tomllib.TOMLDecodeError as error:
         raise ReadError(f"known list: {error}") from error
     entries = data.get("known", [])
-    if set(data) - {"known"} or not isinstance(entries, list) or not all(isinstance(e, dict) for e in entries):
+    if (
+        set(data) - {"known"}
+        or not isinstance(entries, list)
+        or not all(isinstance(e, dict) for e in entries)
+    ):
         raise ReadError(f"known list: expected only [[known]] tables, read keys {sorted(data)}")
     known: dict[tuple[str, str], Known] = {}
     for entry in entries:
-        row, jobs, legs, why = entry.get("row"), entry.get("jobs"), entry.get("legs"), entry.get("why")
+        row, jobs, legs, why = (
+            entry.get("row"),
+            entry.get("jobs"),
+            entry.get("legs"),
+            entry.get("why"),
+        )
         if row not in rows:
             raise ReadError(f"known list: {row!r} is not an inventory row")
         if not isinstance(jobs, list) or not jobs or not set(jobs) <= set(JOB_NAMES):
-            raise ReadError(f"known list: {row} jobs {jobs!r} must be a non-empty list of {sorted(JOB_NAMES)}")
-        if not isinstance(legs, list) or not legs or not all(isinstance(t, str) and t.strip() for t in legs):
-            raise ReadError(f"known list: {row} legs {legs!r} must be a non-empty list of test titles")
+            raise ReadError(
+                f"known list: {row} jobs {jobs!r} must be a non-empty list of {sorted(JOB_NAMES)}"
+            )
+        if (
+            not isinstance(legs, list)
+            or not legs
+            or not all(isinstance(t, str) and t.strip() for t in legs)
+        ):
+            raise ReadError(
+                f"known list: {row} legs {legs!r} must be a non-empty list of test titles"
+            )
         if not isinstance(why, str) or not why.strip():
             raise ReadError(f"known list: {row} says no why")
         for job in jobs:
@@ -346,7 +373,11 @@ def find_summary(root: Path) -> Path:
     if len(found) != 1:
         raise ReadError(
             f"{root}: expected exactly one */artifacts/summary.json, found {len(found)}"
-            + (f": {', '.join(str(p) for p in found)}" if found else " (the harness wrote no summary)")
+            + (
+                f": {', '.join(str(p) for p in found)}"
+                if found
+                else " (the harness wrote no summary)"
+            )
         )
     return found[0]
 
@@ -392,7 +423,9 @@ def _stale(row: Row, job: str, entry: Known, mapped: Sequence[Leg]) -> list[str]
     for title in entry.legs:
         leg = by_title.get(title)
         if leg is None:
-            stale.append(f"{where} lists `{title}`, which this run did not map to {row.id}: fix or remove it")
+            stale.append(
+                f"{where} lists `{title}`, which this run did not map to {row.id}: fix or remove it"
+            )
         elif leg.outcome == "passed":
             stale.append(f"{where} lists `{title}`, which passed: remove it from the entry")
     return stale
@@ -411,7 +444,9 @@ def judge(
     for leg in legs:
         for row_id in leg.rows:
             if row_id not in rows:
-                verdict.failures.append(f"{row_id} is not an inventory row, yet a leg names it: {_leg_line(leg)}")
+                verdict.failures.append(
+                    f"{row_id} is not an inventory row, yet a leg names it: {_leg_line(leg)}"
+                )
                 continue
             by_row.setdefault(row_id, []).append(leg)
     by_spec: dict[str, bool] = {}
@@ -432,10 +467,14 @@ def judge(
                     f" home, so a spec there must carry {row.id} in a title and execute"
                 )
             elif unexcused:
-                verdict.failures.append(f"{row.id} ({row.status}): " + "; ".join(_leg_line(leg) for leg in unexcused))
-            elif excused:
+                verdict.failures.append(
+                    f"{row.id} ({row.status}): " + "; ".join(_leg_line(leg) for leg in unexcused)
+                )
+            elif excused and entry is not None:
                 verdict.known.append(
-                    f"{row.id} ({row.status}): " + "; ".join(_leg_line(leg) for leg in excused) + f"\n    known: {entry.why}"
+                    f"{row.id} ({row.status}): "
+                    + "; ".join(_leg_line(leg) for leg in excused)
+                    + f"\n    known: {entry.why}"
                 )
             elif not mapped:
                 verdict.deferred.append(row.id)
@@ -447,8 +486,12 @@ def judge(
                 f"    evidence text: {paste_text(mapped, job)}"
             )
         elif mapped:
-            outcomes = ", ".join(f"{n} {o}" for o in OUTCOMES if (n := sum(leg.outcome == o for leg in mapped)))
-            verdict.info.append(f"{row.id} ({row.status}): {len(mapped)} leg(s) mapped ({outcomes}); not judged")
+            outcomes = ", ".join(
+                f"{n} {o}" for o in OUTCOMES if (n := sum(leg.outcome == o for leg in mapped))
+            )
+            verdict.info.append(
+                f"{row.id} ({row.status}): {len(mapped)} leg(s) mapped ({outcomes}); not judged"
+            )
         if entry:
             verdict.failures += _stale(row, job, entry, mapped)
     return verdict
@@ -469,7 +512,9 @@ def report(verdict: Verdict) -> None:
         for line in lines:
             print(f"{title}: {line}")
     if verdict.deferred:
-        print(f"not judged here (no leg in this run; the other job is their home): {', '.join(verdict.deferred)}")
+        print(
+            f"not judged here (no leg in this run; the other job is their home): {', '.join(verdict.deferred)}"
+        )
     for spec in verdict.unnamed_specs:
         count = sum(leg.spec == spec for leg in verdict.legs)
         print(f"names no row: {spec} ({count} leg(s))")
@@ -489,7 +534,9 @@ def run(summaries: Iterable[Path], inventory: Path, known_path: Path, specs_root
     try:
         known_text = known_path.read_text(encoding="utf-8")
     except OSError as error:
-        raise ReadError(f"{known_path}: cannot read the known-disagreement list: {error}") from error
+        raise ReadError(
+            f"{known_path}: cannot read the known-disagreement list: {error}"
+        ) from error
     known = read_known(known_text, rows)
     homes = title_homes(specs_root)
     status = 0
@@ -505,12 +552,19 @@ def run(summaries: Iterable[Path], inventory: Path, known_path: Path, specs_root
 def main(argv: Sequence[str] | None = None) -> int:
     parser = argparse.ArgumentParser(description=__doc__.splitlines()[0])
     source = parser.add_mutually_exclusive_group(required=True)
-    source.add_argument("--run-root", type=Path, help="a Feature check root holding exactly one run")
-    source.add_argument("--summary", type=Path, action="append", help="a run's summary.json (repeatable)")
+    source.add_argument(
+        "--run-root", type=Path, help="a Feature check root holding exactly one run"
+    )
+    source.add_argument(
+        "--summary", type=Path, action="append", help="a run's summary.json (repeatable)"
+    )
     parser.add_argument("--inventory", type=Path, default=INVENTORY)
     parser.add_argument("--known", type=Path, default=KNOWN)
     parser.add_argument(
-        "--specs-root", type=Path, default=REPO_ROOT, help="the tree whose golden spec titles give each row's home job"
+        "--specs-root",
+        type=Path,
+        default=REPO_ROOT,
+        help="the tree whose golden spec titles give each row's home job",
     )
     args = parser.parse_args(argv)
     try:

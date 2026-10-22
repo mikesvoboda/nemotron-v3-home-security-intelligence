@@ -342,11 +342,11 @@ Box 1's **DECIDE** for `scripts/ai-quality-analysis.py` is answered: keep it, a 
 tool (`docs/reference/backend-entry-points.md:1471`) whose import #7319's `keep.toml` entry keeps
 (ruling 298 item 3).
 
-- [ ] Delete the scripts nothing references (~14 at `d6ba78d5`, `00 §7`) and the one-off
+- [x] Delete the scripts nothing references (~14 at `d6ba78d5`, `00 §7`) and the one-off
       investigation scripts. Scripts referenced only by `scripts/AGENTS.md`: **DECIDE** keep (a
       documented operator tool) or delete, one line each in the PR.
-- [ ] Extend the ruff and mypy pre-commit scope to `scripts/`. **MEASURE** the violations; fix them.
-- [ ] Wire into CI or delete the script tests no workflow runs (`test_gen_ai_contract.py`,
+- [x] Extend the ruff and mypy pre-commit scope to `scripts/`. **MEASURE** the violations; fix them.
+- [x] Wire into CI or delete the script tests no workflow runs (`test_gen_ai_contract.py`,
       `test_synthetic_media.py`, `test_vlm_probes.py`) and `tests/benchmark/`.
 
 **Done when:** every file in `scripts/` is referenced by CI, a hook, `setup.py`, another script, or
@@ -1511,3 +1511,47 @@ Split out of `B4.2` so it is ready before `B4.2`'s build PR
 
 **Done when:** a smoke test sends one message to each sink and reads it back in CI, and the UR-89
 review approves.
+
+### [r309] The labelled frame set for `[r303]`
+
+**Flags:** none. **Assigned:** ops-b, after `[r308a]` (ruling 309). **Depends on:** none.
+**PR:** none yet. (ruling 309, record 6327202214)
+
+`[r303]`'s detector bake-off scores the candidates on about 400 real stills from the owner's
+cameras, stratified into day, night/IR and distant subjects, with at least 100 in each stratum that
+contain a person or a vehicle. An open-vocabulary detector from a different family than every
+candidate (OWLv2 or Grounding DINO, as synthbench's §4.1 rule requires) pre-boxes them, and the
+owner corrects the boxes. Classes: person and vehicle first; any other product class the pre-box
+finds is kept. The frames and labels stay on the host: no frame, crop or label file enters the
+repo, a PR, a CI artifact or any cloud service.
+
+- [ ] A stratified sampler over the camera upload tree, seeded and repeatable, that writes its
+      selection list (paths and strata only) on the host.
+- [ ] The independent pre-box pass, writing COCO-format boxes.
+- [ ] A locally run labelling tool loaded with the frames and pre-boxes, with a short guide for the
+      owner, and an export to the COCO file the bake-off reads.
+
+The PR says where each step runs (the owner's host login or a venue that mounts the camera tree);
+it never needs the frames in a sandbox's git tree.
+
+**Done when:** the owner has corrected the set, and the PR posts the counts per stratum and class
+(no images) and the labelled file's SHA-256.
+
+### [r311a] An MQTT broker in the CI harness
+
+**Flags:** none. **Assigned:** ops-b, after `[r309]` (ruling 311). **Depends on:** none.
+**PR:** none yet. (ruling 311, record 6328311780)
+
+`B4.8`'s golden path sends the arming commands through a real broker, beside `[r308a]`'s sinks
+([`../4n-arming.md`](../4n-arming.md), "What changes", ops).
+
+- [ ] The CI harness starts a Mosquitto broker with a password file, an ACL that lets only the
+      backend's user read `<prefix>/commands/#` and lets the sender read `<prefix>/results/#` (the
+      one the operator README gives with `B4.8`), and a TLS listener with a test CA. A golden test
+      can connect as the backend, as a command sender and as an unprivileged user. A second
+      listener accepts anonymous logins, for `B4.8`'s refusal step.
+
+**Done when:** `B4.8`'s golden path can run against it (ruling 311): a smoke test in CI publishes a
+command as the sender, receives it as the backend, sees nothing as the unprivileged user, connects
+over TLS with the test CA, and connects anonymously to the second listener; and the UR-89 review
+approves.

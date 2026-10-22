@@ -523,7 +523,7 @@ class _FakeProc:
         self.stdout = stdout
         self.stderr = stderr
 
-    def communicate(self, timeout: float | None = None) -> tuple[str, str]:
+    def communicate(self, timeout: float | None = None) -> tuple[str, str]:  # noqa: ARG002
         return self.stdout, self.stderr
 
     def poll(self) -> int:

@@ -53,7 +53,7 @@ def cosine(a: np.ndarray, b: np.ndarray) -> float:
 
 def timing_summary(samples_ms: list[float], *, crops_per_event: int) -> dict[str, float]:
     """Median and p95 per crop, and the median per-crop time times an event's crops."""
-    arr = np.asarray(samples_ms, dtype=np.float64)
+    arr: np.ndarray = np.asarray(samples_ms, dtype=np.float64)
     median = float(np.median(arr))
     return {
         "median_ms": median,
