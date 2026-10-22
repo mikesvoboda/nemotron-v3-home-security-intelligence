@@ -219,7 +219,7 @@ UR-147.
 | W1.3    | docs                    | 1          | Remove dead references now                     |               | done        | #6915 |
 | W2.1    | docs                    | 2          | The boundary list and the line caps            |               | done        | #6920 |
 | W2.2    | docs                    | 2          | Docs rulings for `R2`                          |               | done        | #6923 |
-| W3.1    | docs                    | 3          | Boundaries only                                |               | in progress | #7331 |
+| W3.1    | docs                    | 3          | Boundaries only                                |               | in progress | #7331, #7351 |
 | W3.2    | docs                    | 3          | Rewrite the boundary files to the standard     |               | not started |     |
 | W3.3    | docs                    | 3          | Living docs truth                              |               | not started |     |
 | W3.4    | docs                    | 3          | Carry out the docs rulings                     |               | done        | #7250 |
