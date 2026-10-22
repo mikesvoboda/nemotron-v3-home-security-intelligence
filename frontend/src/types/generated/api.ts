@@ -39108,6 +39108,12 @@ export interface components {
              */
             name: string;
             /**
+             * On Local Network
+             * @description Allow private/unique-local targets and plain HTTP for this webhook (the household's own network). Loopback, link-local and metadata addresses stay blocked either way.
+             * @default false
+             */
+            on_local_network: boolean;
+            /**
              * Payload Template
              * @description Custom payload template (Jinja2)
              */
@@ -39427,6 +39433,12 @@ export interface components {
              * @description Webhook name
              */
             name: string;
+            /**
+             * On Local Network
+             * @description Whether private/unique-local targets are allowed for this webhook
+             * @default false
+             */
+            on_local_network: boolean;
             /** Payload Template */
             payload_template?: string | null;
             /** Retry Delay Seconds */
@@ -39570,6 +39582,11 @@ export interface components {
             max_retries?: number | null;
             /** Name */
             name?: string | null;
+            /**
+             * On Local Network
+             * @description Set true to allow private/unique-local targets and plain HTTP for this webhook
+             */
+            on_local_network?: boolean | null;
             /** Payload Template */
             payload_template?: string | null;
             /** Retry Delay Seconds */

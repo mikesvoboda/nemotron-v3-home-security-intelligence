@@ -1047,7 +1047,9 @@ async def lifespan(_app: FastAPI) -> AsyncGenerator[None]:
             from backend.services.webhook_retry_worker import WebhookRetryWorker
             from backend.services.webhook_service import WebhookService
 
-            webhook_retry_worker = WebhookRetryWorker(get_session_factory(), service=WebhookService())
+            webhook_retry_worker = WebhookRetryWorker(
+                get_session_factory(), service=WebhookService()
+            )
             await worker_supervisor.register_worker(
                 "webhook-retry-worker",
                 webhook_retry_worker._run,

@@ -38197,6 +38197,12 @@
             "title": "Name",
             "type": "string"
           },
+          "on_local_network": {
+            "default": false,
+            "description": "Allow private/unique-local targets and plain HTTP for this webhook (the household's own network). Loopback, link-local and metadata addresses stay blocked either way.",
+            "title": "On Local Network",
+            "type": "boolean"
+          },
           "payload_template": {
             "anyOf": [
               {
@@ -38595,6 +38601,12 @@
             "title": "Name",
             "type": "string"
           },
+          "on_local_network": {
+            "default": false,
+            "description": "Whether private/unique-local targets are allowed for this webhook",
+            "title": "On Local Network",
+            "type": "boolean"
+          },
           "payload_template": {
             "anyOf": [
               {
@@ -38858,6 +38870,18 @@
               }
             ],
             "title": "Name"
+          },
+          "on_local_network": {
+            "anyOf": [
+              {
+                "type": "boolean"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Set true to allow private/unique-local targets and plain HTTP for this webhook",
+            "title": "On Local Network"
           },
           "payload_template": {
             "anyOf": [
