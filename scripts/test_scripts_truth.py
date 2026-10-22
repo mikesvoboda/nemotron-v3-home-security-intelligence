@@ -33,17 +33,6 @@ import yaml
 
 REPO_ROOT = Path(__file__).resolve().parent.parent
 
-# Ruling 298 item 2: files under scripts/ edited by open PRs (#7328 [r291],
-# #7330 [r290]) are left byte-untouched by O3.7 so they do not conflict; the
-# four #7330 files that need formatting are deferred in ruff-format's exclude
-# until #7330 merges.
-R298_DEFERRED_FORMAT_FILES = {
-    "scripts/test_coordinator_snapshot.py",
-    "scripts/test_lane_tick.py",
-    "scripts/uplevel/coordinator_snapshot.py",
-    "scripts/uplevel/lane_tick.py",
-}
-
 DELETED_PATHS = (
     # Box 1: unreferenced scripts (~14 at d6ba78d5, 00 §7) and one-off investigation scripts
     "scripts/ai-entrypoint.sh",
@@ -316,13 +305,8 @@ def test_scripts_passes_ruff_and_mypy() -> None:
     )
     assert ruff_check.returncode == 0, ruff_check.stdout + ruff_check.stderr
 
-    tracked_py = [
-        f
-        for f in _tracked_files(REPO_ROOT)
-        if f.startswith("scripts/") and f.endswith(".py") and f not in R298_DEFERRED_FORMAT_FILES
-    ]
     ruff_fmt = subprocess.run(
-        [sys.executable, "-m", "ruff", "format", "--check", *tracked_py],
+        [sys.executable, "-m", "ruff", "format", "--check", "scripts/"],
         cwd=REPO_ROOT,
         capture_output=True,
         text=True,

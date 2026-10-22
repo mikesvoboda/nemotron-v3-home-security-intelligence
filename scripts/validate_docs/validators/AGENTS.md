@@ -196,11 +196,11 @@ Citation
 ```python
 @dataclass
 class ValidationResult:
-    citation: Citation      # The citation that was validated
+    citation: Citation  # The citation that was validated
     status: CitationStatus  # VALID, ERROR, WARNING, STALE
     level: ValidationLevel  # Which validation level
-    message: str           # Human-readable description
-    details: dict          # Additional details
+    message: str  # Human-readable description
+    details: dict  # Additional details
 ```
 
 ## Related Documentation

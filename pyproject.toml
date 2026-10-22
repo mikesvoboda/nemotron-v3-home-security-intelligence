@@ -545,12 +545,6 @@ ignore = [
 "scripts/test_inventory_witness.py" = [
     "RUF001",
 ]
-# Ruling 298 item 2 (O3.7): leave alone files under scripts/ edited by open PR
-# #7330 ([r290]) and fix them after that PR merges.
-"scripts/test_lane_tick.py" = [
-    "C408",
-    "RUF028",
-]
 
 [tool.ruff.format]
 quote-style = "double"
@@ -570,17 +564,6 @@ plugins = ["pydantic.mypy"]
 
 [[tool.mypy.overrides]]
 module = "backend.tests.*"
-ignore_errors = true
-
-# Ruling 298 item 2 (O3.7): leave alone files under scripts/ edited by open PRs
-# (#7328 [r291], #7330 [r290]) until those PRs merge.
-[[tool.mypy.overrides]]
-module = [
-    "scripts.check-npm-audit-exemptions",
-    "scripts.check-pip-audit-exemptions",
-    "scripts.uplevel.coordinator_snapshot",
-    "scripts.uplevel.lane_tick",
-]
 ignore_errors = true
 
 [[tool.mypy.overrides]]
