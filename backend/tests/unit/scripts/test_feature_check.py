@@ -150,12 +150,181 @@ def test_the_test_deployment_keeps_only_the_golden_path_services(
     deployment = fc.as_test_deployment(extra, project=PROJECT, run_dir=RUN_DIR)
     assert sorted(deployment["services"]) == sorted(fc.FAKE_SERVICES)
     assert deployment["name"] == PROJECT
+    # [r308a] The sink services ride the keep-list too (b9 sinks join
+    # FAKE_SERVICES) — pinned as a membership assert, not a count, so the
+    # count pin above stays the cap against unlisted growth.
+    assert {"mail-sink", "webhook-sink", "push-sink"} <= set(deployment["services"])
 
 
 def test_the_test_deployment_refuses_a_missing_service(base: dict[str, Any]) -> None:
     del base["services"]["ai-vlm"]
     with pytest.raises(fc.HarnessError, match="ai-vlm"):
         fc.as_test_deployment(base, project=PROJECT, run_dir=RUN_DIR)
+
+
+# ---------------------------------------------------------------------------
+# [r308a] The notification sinks: three CI services beside FAKE_SERVICES, the
+# golden env the backend leg reads them through, and the on-this-network
+# marking.
+# ---------------------------------------------------------------------------
+
+
+@pytest.mark.parametrize(
+    ("service", "env_key"),
+    [
+        ("mail-sink", "FEATURE_CHECK_SINK_SMTP_URL"),
+        ("mail-sink", "FEATURE_CHECK_SINK_MAIL_HTTP_URL"),
+        ("webhook-sink", "FEATURE_CHECK_SINK_WEBHOOK_URL"),
+        ("push-sink", "FEATURE_CHECK_SINK_PUSH_URL"),
+    ],
+)
+def test_each_sink_publishes_the_url_its_golden_env_names(
+    base: dict[str, Any], deployment: dict[str, Any], service: str, env_key: str
+) -> None:
+    """Every sink env key names a service the fake stack actually starts.
+
+    The env is written by hand in ``_golden``; the mapping here is the
+    discipline that keeps the two sides from drifting — if a sink is renamed
+    or a key stops matching a service, this pair of asserts goes red together.
+    """
+    assert env_key.startswith("FEATURE_CHECK_SINK_"), env_key
+    assert service in deployment["services"], service
+    # The URL a golden spec reads back through must be published on loopback
+    # like every other test-deployment port (the keep-loop's own pin above).
+    ports = deployment["services"][service].get("ports") or []
+    assert ports, f"{service} must publish its read-back port to the host"
+    for port in ports:
+        assert port["host_ip"] == "127.0.0.1", port
+        assert not port.get("published"), port
+
+
+def test_the_backend_env_names_the_sinks(base: dict[str, Any], deployment: dict[str, Any]) -> None:
+    """The backend's CI env carries the addresses the golden specs dial.
+
+    Compose-level (not ``_golden``-level) so the facts live where the stack
+    spells them: the backend reaches the sinks in-network by service DNS name,
+    and the golden env re-derives the host side from the published ports.
+    """
+    env = _env_of(deployment["services"]["backend"])
+    assert env["FEATURE_CHECK_SINKS_MODE"] == "on-this-network"
+    assert env["SMTP_HOST"] == "mail-sink"
+    assert env["SMTP_PORT"] == "8025"
+    assert env["SMTP_USE_TLS"] == "false"
+    assert env["SMTP_FROM_ADDRESS"] == "alerts@nemotron.test"
+    assert env["DEFAULT_EMAIL_RECIPIENTS"] == '["sinks@nemotron.test"]'
+    # The webhook sink is reachable in-network at its DNS name; its marking
+    # (the compose label) is what B4.2's per-channel flag will consume.
+    assert env["FEATURE_CHECK_SINK_WEBHOOK_HOST"] == "webhook-sink:8091"
+    assert env["FEATURE_CHECK_SINK_PUSH_HOST"] == "push-sink:8092"
+
+
+def _env_of(service: dict[str, Any]) -> dict[str, str]:
+    """The service's environment as a mapping, list or dict form alike.
+
+    Compose's render is a mapping here (the CI stack spells ``- KEY=VALUE``
+    list entries, which ``config --format json`` normalizes to an object); a
+    list form is kept because that is what the compose files themselves spell.
+    """
+    out: dict[str, str] = {}
+    raw = service.get("environment") or []
+    if isinstance(raw, dict):
+        return {str(k): str(v) for k, v in raw.items()}
+    for entry in raw:
+        key, _, value = str(entry).partition("=")
+        out[key] = value
+    return out
+
+
+def test_the_webhook_sink_carries_the_on_this_network_marking(base: dict[str, Any]) -> None:
+    """The label the box demands, spelled where the sink is spelled.
+
+    Fail-closed pairing: the harness refuses to render a stack whose
+    ``webhook-sink`` lacks the label (pinned below), and the backend env
+    carries the same string, so a rename on one side reds the other.
+    """
+    assert base["services"]["webhook-sink"]["labels"]["uplevel.r308a/sink"] == "on-this-network"
+
+
+def test_the_render_refuses_a_sink_without_its_marking(base: dict[str, Any]) -> None:
+    """Fail-closed: drop the label and the run refuses rather than unmarked."""
+    base["services"]["webhook-sink"]["labels"] = {}
+    with pytest.raises(fc.HarnessError, match="on-this-network"):
+        fc.as_test_deployment(base, project=PROJECT, run_dir=RUN_DIR)
+
+
+def _backend_leg(
+    calls: list[tuple[list[str], dict[str, Any]]],
+) -> tuple[list[str], dict[str, Any]]:
+    """The ``uv run pytest`` call the golden stage makes for the backend."""
+    for argv, kwargs in calls:
+        if argv[:3] == ["uv", "run", "pytest"]:
+            return argv, kwargs
+    raise AssertionError(f"no backend pytest leg among {len(calls)} recorded calls")
+
+
+def test_the_backend_leg_gets_the_sink_urls_the_harness_published(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """[r308a] The golden env names each sink at the address the run published.
+
+    The harness resolves each sink's read-back port the way it resolves the
+    backend's (``compose port``), and exports it as ``FEATURE_CHECK_SINK_*``.
+    Pinned by construction: the recorded ``env`` carries each name, and its
+    value is exactly what ``_address`` derived from the fixture's canned
+    ``compose port`` answers — not a literal that would pass while the lookup
+    drifted (the fixture's answer table is ``_SINK_PORT_ANSWERS``).
+    """
+    calls: list[tuple[list[str], dict[str, Any]]] = []
+    run = _golden_only_run(tmp_path, monkeypatch, True, calls)
+    # One spec file so the backend leg enters and records its env (the
+    # helper's default BACKEND_GOLDEN target is deliberately empty and
+    # deliberately uncreated — mkdir is ours to make). _golden() spells the
+    # suite as a path RELATIVE to REPO_ROOT, so the relocated directory needs
+    # a REPO_ROOT that contains it — the same move _golden_leg makes; safe
+    # because _run is faked and nothing else in golden() reads REPO_ROOT.
+    monkeypatch.setattr(fc, "REPO_ROOT", tmp_path)
+    golden = tmp_path / "no-backend-golden"
+    golden.mkdir()
+    (golden / "test_one.py").write_text("def test_one():\n", encoding="utf-8")
+    run.golden()
+    _, kwargs = _backend_leg(calls)
+    env = kwargs["env"]
+    for service, target, name in (
+        ("mail-sink", 8025, "FEATURE_CHECK_SINK_SMTP_URL"),
+        ("mail-sink", 8026, "FEATURE_CHECK_SINK_MAIL_HTTP_URL"),
+        ("webhook-sink", 8091, "FEATURE_CHECK_SINK_WEBHOOK_URL"),
+        ("push-sink", 8092, "FEATURE_CHECK_SINK_PUSH_URL"),
+    ):
+        want = fc.Run._address(run, service, target)  # type: ignore[arg-type] - reads the same fixture answers the env did
+        assert env.get(name) == want, (name, env.get(name), want)
+        assert want.startswith("http://127.0.0.1:"), want
+
+
+def test_the_backend_leg_env_carries_the_sink_marking_and_smtp_shape(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """The golden env carries what the sinks' specs need to describe the run.
+
+    ``FEATURE_CHECK_SINKS_MODE`` must read exactly ``on-this-network`` — the
+    box's marking is data the spec asserts on, not a comment — and the SMTP
+    shape must match the backend container's own env (the compose overlay's
+    ``SMTP_USE_TLS=false`` is the pair with the sink's no-STARTTLS surface).
+    """
+    calls: list[tuple[list[str], dict[str, Any]]] = []
+    run = _golden_only_run(tmp_path, monkeypatch, True, calls)
+    # Same REPO_ROOT move as the URL pin above: _golden() spells the suite
+    # relative to REPO_ROOT, and tmp_path is outside the repo.
+    monkeypatch.setattr(fc, "REPO_ROOT", tmp_path)
+    golden = tmp_path / "no-backend-golden"
+    golden.mkdir()
+    (golden / "test_one.py").write_text("def test_one():\n", encoding="utf-8")
+    run.golden()
+    _, kwargs = _backend_leg(calls)
+    env = kwargs["env"]
+    assert env["FEATURE_CHECK_SINKS_MODE"] == "on-this-network"
+    # The SMTP URL's port is the canned compose-port answer's (1825), i.e. the
+    # value is host-side derived, not the in-network 8025 spelling.
+    assert env["FEATURE_CHECK_SINK_SMTP_URL"].endswith(":1825"), env["FEATURE_CHECK_SINK_SMTP_URL"]
 
 
 # ---------------------------------------------------------------------------
@@ -937,6 +1106,9 @@ def test_the_real_tier_takes_the_vlm_from_agent_gpu_and_keeps_the_fake_detector(
     # host.docker.internal resolves in the sandbox's Docker on its own; a
     # host-gateway entry would name the sandbox, not the GB300's runner.
     assert "extra_hosts" not in backend
+    # [r308a] the sinks are golden-path services, not AI fakes: --real keeps
+    # them (REAL_SERVICES derives from FAKE_SERVICES, and only ai-vlm drops).
+    assert {"mail-sink", "webhook-sink", "push-sink"} <= set(real_deployment["services"])
 
 
 def test_the_real_test_deployment_reaches_the_host_only_on_the_agent_gpu_port(
@@ -1801,6 +1973,44 @@ def _named_registry(problem: str) -> str:
     return found.group(1)
 
 
+# [r308a] What `docker compose port` answers for the notification sinks in a
+# fixture run: (service, target-port) -> the line compose prints. 127.0.0.1 is
+# what compose prints for a loopback-published port (the overlay pins
+# 127.0.0.1: only), matching the live-run convention at :3521's canned answer;
+# `_address` splits host:published and formats http://<host>:<published>, so
+# these answers yield the loopback URLs the golden env pins assert on.
+_SINK_PORT_ANSWERS = {
+    ("mail-sink", 8025): "127.0.0.1:1825\n",
+    ("mail-sink", 8026): "127.0.0.1:1826\n",
+    ("webhook-sink", 8091): "127.0.0.1:1891\n",
+    ("push-sink", 8092): "127.0.0.1:1892\n",
+}
+
+
+def _canned_port_answer(run: Any, calls: list[tuple[list[str], dict[str, Any]]], fake: Any) -> Any:
+    """Wrap ``fake`` so `compose port` for a sink answers its canned line.
+
+    The backend leg's env pins read what `_address` derived from these
+    answers (pinned by construction, not literals), so a fixture that claims
+    the harness exported sink URLs must be able to answer the lookup.
+    """
+
+    def fake_with_ports(self: Any, command: list[str], **kwargs: Any) -> Any:
+        out = fake(self, command, **kwargs)
+        # compose port's argv ends `port <service> <port>`; match on the verb
+        # so a future "-f ..." tail cannot misplace the check.
+        if (
+            len(command) >= 3
+            and command[-3] == "port"
+            and (command[-2], int(command[-1])) in _SINK_PORT_ANSWERS
+        ):
+            answer = _SINK_PORT_ANSWERS[(command[-2], int(command[-1]))]
+            return subprocess.CompletedProcess(command, 0, answer, "")
+        return out
+
+    return fake_with_ports
+
+
 def _golden_only_run(
     tmp_path: Path,
     monkeypatch: pytest.MonkeyPatch,
@@ -1887,6 +2097,7 @@ def _golden_only_run(
             Path(report).write_text(_RAN_JUNIT, encoding="utf-8")
         return subprocess.CompletedProcess(command, rc, "", "")
 
+    fake = _canned_port_answer(run, calls, fake)
     monkeypatch.setattr(fc.Run, "_run", fake)
     return run
 
@@ -1941,8 +2152,18 @@ def test_the_golden_step_installs_frontend_deps_only_when_absent(
         assert "npm_ci" not in run.summary["results"]["golden"]
     else:
         assert installs == [["npm", "ci"]]
-        assert commands[0] == ["npm", "ci"], "the install must come BEFORE the container leg"
-        install_kwargs = calls[0][1]
+        # "Before the leg" reads off positions, not index 0: the [r308a] sink
+        # env block resolves four `compose port` lookups before anything else
+        # runs, and those are recorded calls too. The leg is identified the
+        # same way _golden_container does.
+        leg = next(
+            i
+            for i, (c, _) in enumerate(calls)
+            if c[1:3] == ["run", "--rm"] and "--project=golden" in " ".join(c)
+        )
+        first_npm = next(i for i, (c, _) in enumerate(calls) if c[:2] == ["npm", "ci"])
+        assert first_npm < leg, "the install must come BEFORE the container leg"
+        install_kwargs = calls[first_npm][1]
         assert install_kwargs["cwd"] == tmp_path / "frontend"
         assert install_kwargs["timeout"] == 1800, "the 300 s default cannot survive a cold install"
         assert "env" not in install_kwargs, "npm must not see the run env (admin password)"
@@ -2502,7 +2723,18 @@ def test_the_leg_runs_on_the_engine_the_harness_runs_on(
     run.engine = engine
     run.golden()
     engine_calls = [c[:2] for c, _ in calls if c[0] in ("docker", "podman")]
-    assert engine_calls == [[engine, "image"], [engine, "pull"], [engine, "run"]], engine_calls
+    # [r308a] The sink read-back ports are resolved by `compose port` before
+    # the leg runs (four lookups, one per exported URL), so the engine sees
+    # them too; the `run` at the tail is the Playwright leg itself.
+    assert engine_calls == [
+        [engine, "compose"],
+        [engine, "compose"],
+        [engine, "compose"],
+        [engine, "compose"],
+        [engine, "image"],
+        [engine, "pull"],
+        [engine, "run"],
+    ], engine_calls
     argv, _ = _golden_container(calls)
     suffix = ",z" if engine == "podman" else ""
     frontend = tmp_path / "frontend"
@@ -2736,13 +2968,17 @@ def test_a_failed_frontend_install_is_a_named_step_not_a_crash(
     # the docstring's claim that check=False lets the run continue, and the
     # third entry is that claim: a failed install still attempts the leg, so it
     # arrives as a named step rather than a crash. A [:2] slice keeps the order
-    # and deletes the evidence. (Measured: exactly these three calls, with the
-    # image already present so no pull sits between them.)
-    assert [c[:2] for c, _ in calls] == [
+    # and deletes the evidence. (Measured: exactly these, with the image
+    # already present so no pull sits between them, plus the [r308a] sink
+    # read-back lookups that now precede the install — each a `compose port`
+    # on the engine.)
+    heads = [c[:2] for c, _ in calls]
+    assert heads[:4] == [["docker", "compose"]] * 4, heads  # the sink lookups
+    assert heads[4:] == [
         ["npm", "ci"],
         ["docker", "image"],
         ["docker", "run"],
-    ]
+    ], heads
     assert run.summary["results"]["golden"]["npm_ci"] == "exit 243"
     assert any("npm ci in frontend/ exited 243" in p for p in problems)
 
@@ -2830,6 +3066,7 @@ def _golden_leg(
         Path(report).write_text(junit_text, encoding="utf-8")
         return subprocess.CompletedProcess(command, 0, "", "")
 
+    fake = _canned_port_answer(run, [], fake)
     monkeypatch.setattr(fc.Run, "_run", fake)
     return run
 
@@ -2929,7 +3166,12 @@ def test_a_stalled_pull_is_a_named_problem_and_never_starts_the_leg(
     """
     calls: list[tuple[list[str], dict[str, Any]]] = []
     run = _golden_only_run(tmp_path, monkeypatch, False, calls, image_present=False)
-    monkeypatch.setattr(fc.Run, "_run", _stalled_pull_recorder(calls))
+    # The recorder replaces _run wholesale, shedding the helper's canned sink
+    # lookups — so it wraps through the same seam, or the [r308a] env block's
+    # `compose port` answers would raise before the pull ever stalls.
+    monkeypatch.setattr(
+        fc.Run, "_run", _canned_port_answer(run, calls, _stalled_pull_recorder(calls))
+    )
     problems = run.golden()
     golden_results = run.summary["results"]["golden"]
     assert golden_results["playwright_image_pull"] == "exit timed out"
@@ -6422,6 +6664,13 @@ def test_golden_seeded_runs_golden_seeded_playwright_project(
     def fake_run(command: list[str], **_kwargs: Any) -> subprocess.CompletedProcess[str]:
         cmd = [str(c) for c in command]
         commands.append(cmd)
+        # [r308a] The sink read-back lookups (`compose port mail-sink 8025` et
+        # al.) precede the leg; answer them from the fixture table or the env
+        # block raises before anything under test runs.
+        if len(cmd) >= 3 and cmd[-3] == "port" and (cmd[-2], int(cmd[-1])) in _SINK_PORT_ANSWERS:
+            return subprocess.CompletedProcess(
+                cmd, 0, _SINK_PORT_ANSWERS[(cmd[-2], int(cmd[-1]))], ""
+            )
         if "playwright" in " ".join(cmd):
             junit = run.artifacts / "golden-playwright.xml"
             junit.write_text(

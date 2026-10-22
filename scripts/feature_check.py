@@ -75,6 +75,14 @@ from typing import Any
 REPO_ROOT = Path(__file__).resolve().parents[1]
 CI_STACK = REPO_ROOT / "docker-compose.ci.yml"
 FAKE_OVERLAY = REPO_ROOT / "docker-compose.fake-ai.yml"
+# [r308a] The notification-sink overlay: the mail sink, the webhook sink and
+# the Web Push service fake, rendered with the CI stack above (never alone —
+# its services join ci-net, which only the CI stack defines).
+SINKS_OVERLAY = REPO_ROOT / "docker-compose.sinks.yml"
+# The webhook sink's marking, spelled once: the compose label carries it, the
+# fail-closed check below enforces it, and the golden env records it
+# (FEATURE_CHECK_SINKS_MODE).
+SINKS_MODE = "on-this-network"
 SCENARIO_DIR = REPO_ROOT / "backend" / "ai_contract" / "fake" / "scenario_fixtures"
 SCRIPTS_DIR = REPO_ROOT / "scripts"
 BACKEND_GOLDEN = REPO_ROOT / "backend" / "tests" / "golden"
@@ -92,8 +100,23 @@ GOLDEN_SHARDS_MANIFEST = FRONTEND / "golden-shards.json"
 # The lock ruling 143 names as the golden image's version source.
 PACKAGE_LOCK = FRONTEND / "package-lock.json"
 
-# The services the golden paths need: the CI stack and the two fakes.
-FAKE_SERVICES = ("postgres", "redis", "backend", "frontend", "ai-vlm", "ai-gateway")
+# The services the golden paths need: the CI stack, the two fakes, and —
+# since [r308a] — the three notification sinks (the mail sink, the webhook
+# sink, the Web Push service fake), which the golden env reads back through.
+# The sink overlay (docker-compose.sinks.yml) is rendered with the stack in
+# :meth:`Run.render` and carries the on-this-network marking on the webhook
+# sink, fail-closed in :func:`as_test_deployment`.
+FAKE_SERVICES = (
+    "postgres",
+    "redis",
+    "backend",
+    "frontend",
+    "ai-vlm",
+    "ai-gateway",
+    "mail-sink",
+    "webhook-sink",
+    "push-sink",
+)
 CAMERA_TARGET = "/cameras"
 PROJECT_LABEL = "com.docker.compose.project"
 PROJECT_PREFIX = "hsi-check-"
@@ -216,6 +239,7 @@ SERVICE_KEYS = frozenset(
         "extra_hosts",
         "healthcheck",
         "image",
+        "labels",
         "networks",
         "ports",
         "pull_policy",
@@ -230,6 +254,12 @@ SERVICE_KEYS = frozenset(
 TOP_LEVEL_KEYS = frozenset({"name", "services", "networks", "volumes"})
 BUILD_KEYS = frozenset({"context", "dockerfile", "args", "target"})
 SECURITY_OPTS = frozenset({"no-new-privileges:true", "no-new-privileges"})
+# [r308a] Labels a test deployment may carry: the marking namespace the CI
+# notification sinks use. A label is inert inside the render, but compose
+# stamps it onto the container, where `docker inspect` reads it — so anything
+# outside this namespace (an automation hook, an external orchestrator's
+# selector) is refused until a rule for it is written here.
+LABEL_PREFIXES = ("uplevel.",)
 
 _ENGINE_SOCKET = re.compile(
     r"(?:^|/)(?:docker|podman|containerd|crio|cri-dockerd|buildkitd)\.sock$"
@@ -484,6 +514,19 @@ def as_test_deployment(
         for dependency in depends_on or {}:
             if dependency not in keep:
                 raise HarnessError(f"{name} depends on {dependency}, which a test deployment omits")
+        # [r308a] The webhook sink's "on this network" marking is fail-closed:
+        # a render whose webhook-sink lost the label refuses the run instead of
+        # standing up an unmarked sink the golden env would still name as the
+        # marked one. The label is what B4.2's per-channel flag reads; the
+        # golden env carries the same string (``FEATURE_CHECK_SINKS_MODE``).
+        if name == "webhook-sink":
+            labels = service.get("labels") or {}
+            if labels.get("uplevel.r308a/sink") != SINKS_MODE:
+                raise HarnessError(
+                    f"webhook-sink lacks the on-this-network marking: "
+                    f"labels['uplevel.r308a/sink'] is {labels.get('uplevel.r308a/sink')!r}, "
+                    f"not {SINKS_MODE!r}"
+                )
         ports = [
             {
                 "mode": "ingress",
@@ -1223,6 +1266,14 @@ def _service_setting_problems(name: str, service: Mapping[str, Any], services: A
     if isinstance(build, Mapping):
         for key in sorted(set(build) - BUILD_KEYS):
             problems.append(f"{name}: build.{key} is a build setting the preflight has no rule for")
+    labels = service.get("labels")
+    if isinstance(labels, Mapping):
+        for key in sorted(labels):
+            if not str(key).startswith(LABEL_PREFIXES):
+                problems.append(
+                    f"{name}: label {key} is outside the marking namespace the "
+                    "preflight allows (uplevel.*); a rule for it belongs here first"
+                )
     return problems
 
 
@@ -2301,7 +2352,9 @@ class Run:
             self.render_prod_shape(vlm)
             return
         base = json.loads(
-            self.compose([CI_STACK, FAKE_OVERLAY], "config", "--format", "json").stdout
+            self.compose(
+                [CI_STACK, FAKE_OVERLAY, SINKS_OVERLAY], "config", "--format", "json"
+            ).stdout
         )
         deployment = as_test_deployment(
             base,
@@ -3074,6 +3127,20 @@ asyncio.run(main())
             "FEATURE_CHECK_ADMIN_USERNAME": self.admin["username"],
             "FEATURE_CHECK_ADMIN_PASSWORD": self.admin["password"],
         }
+        # [r308a] The notification sinks' golden env: the host-side loopback URL
+        # of each sink's read-back surface (resolved the way the backend's own
+        # address is, `compose port`), plus the marking the run stands up. The
+        # webhook's in-network address is NOT exported here as a URL — it is
+        # FEATURE_CHECK_SINK_WEBHOOK_HOST in the backend's own env
+        # (docker-compose.sinks.yml), and the webhook-create leg takes it from
+        # there: from inside the backend container the host-side loopback URL
+        # points at the backend, not the sink.
+        if self.mode == "fake" and not self.prod_shape:
+            env["FEATURE_CHECK_SINKS_MODE"] = SINKS_MODE
+            env["FEATURE_CHECK_SINK_SMTP_URL"] = self._address("mail-sink", 8025)
+            env["FEATURE_CHECK_SINK_MAIL_HTTP_URL"] = self._address("mail-sink", 8026)
+            env["FEATURE_CHECK_SINK_WEBHOOK_URL"] = self._address("webhook-sink", 8091)
+            env["FEATURE_CHECK_SINK_PUSH_URL"] = self._address("push-sink", 8092)
         problems = []
         results: dict[str, Any] = {}
         project_name = "golden-seeded" if self.seeded else "golden"

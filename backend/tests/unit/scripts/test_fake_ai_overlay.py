@@ -74,7 +74,13 @@ class TestTheOverlayIsNeverADefault:
         assert defaults == [], f"compose would load {defaults} with no -f"
 
     def test_no_compose_file_or_env_template_pulls_it_in(self) -> None:
-        """Neither a compose `include:` nor a COMPOSE_FILE default names it."""
+        """Neither a compose `include:` nor a COMPOSE_FILE default names it.
+
+        Comment lines are stripped before the search: the rule is about
+        wiring, and a compose file's own usage example names this overlay in
+        prose (the sinks overlay's header spells the full `-f` chain). A pin
+        that reads raw text reds on prose and stops testing its rule.
+        """
         sources = [
             *REPO_ROOT.glob("docker-compose*.yml"),
             *REPO_ROOT.glob("config/docker-compose*.yml"),
@@ -84,7 +90,14 @@ class TestTheOverlayIsNeverADefault:
         naming = [
             str(p.relative_to(REPO_ROOT))
             for p in sources
-            if p != OVERLAY and p.is_file() and OVERLAY.name in p.read_text(encoding="utf-8")
+            if p != OVERLAY
+            and p.is_file()
+            and OVERLAY.name
+            in "\n".join(
+                line
+                for line in p.read_text(encoding="utf-8").splitlines()
+                if not line.lstrip().startswith("#")
+            )
         ]
 
         assert naming == []
