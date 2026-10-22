@@ -628,8 +628,9 @@ says why. Delete it when O2.1's fake AI stack runs here instead.
 #### feature-check.sh
 
 **Purpose:** O2.2's harness. It runs the golden paths against a **test
-deployment**: the CI stack with the fake AI (`docker-compose.fake-ai.yml`)
-under a compose project of its own, which touches nothing else on the machine.
+deployment**: the CI stack with the fake AI (`docker-compose.fake-ai.yml`) and
+the notification sinks (`docker-compose.sinks.yml`) under a compose project of
+its own, which touches nothing else on the machine.
 
 **Usage:**
 
