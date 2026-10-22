@@ -419,7 +419,7 @@ Design: [`../4n-alerting.md`](../4n-alerting.md), "Packages" row 5.
 
 **Flags:** `heavy`. **Assigned:** heavy-b, after `O3.7` and `[r312b]`; `[r307a]` keeps its place
 ahead of it if O2.4 passes first (rulings 308, 312). **Depends on:** none.
-**PR:** #7345, #7350. (ruling 308, record 6326364266)
+**PR:** #7345, #7350, #7358. (ruling 308, record 6326364266)
 
 Design: [`../4n-restore.md`](../4n-restore.md), its `RestoreModal` part included (UR-9). Covers
 F-101.
@@ -442,11 +442,11 @@ the fast lanes.
 
 **Flags:** `heavy`. **Assigned:** heavy-a, after `B4.4` (ruling 311). **Depends on:** `B4.1`
 merged for the build PR; the test-only PR may open first.
-**PR:** none yet. (ruling 311, record 6328311780)
+**PR:** #7357. (ruling 311, record 6328311780)
 
 Design: [`../4n-arming.md`](../4n-arming.md), "Packages" row `B4.7`. Covers F-290.
 
-- [ ] The test-only PR (step 2): `inbound_webhooks.py` and the alerting `policy` and `pipeline`.
+- [x] The test-only PR (step 2): `inbound_webhooks.py` and the alerting `policy` and `pipeline`.
 - [ ] The build PR: `arming.py` (`mode_at`, `is_armed`, `set_mode`, `apply_schedule`,
       `next_scheduled`); the four arming tables, with `schedule_updated_at` and a change log that
       carries every mode's exclusions; the policy hook (raised while unarmed, the mode-scoped
