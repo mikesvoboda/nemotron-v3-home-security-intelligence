@@ -1,4 +1,4 @@
-ARG TRITON_IMAGE=nvcr.io/nvidia/tritonserver:26.01-py3
+ARG TRITON_IMAGE=nvcr.io/nvidia/tritonserver:26.09-py3
 FROM ${TRITON_IMAGE}
 
 # Resolve dependencies on the same import path the application uses. Newer
