@@ -2,6 +2,7 @@ import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { render, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { type ReactNode } from 'react';
+import { BrowserRouter } from 'react-router-dom';
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 
 import AlertsPage from './AlertsPage';
@@ -24,7 +25,13 @@ function createWrapper() {
   });
 
   return function Wrapper({ children }: { children: ReactNode }) {
-    return <QueryClientProvider client={queryClient}>{children}</QueryClientProvider>;
+    return (
+      <QueryClientProvider client={queryClient}>
+        {/* EntityDetailModal (mounted by EventDetailModal) calls useNavigate()
+            unconditionally, so the wrapper must supply a Router context. */}
+        <BrowserRouter>{children}</BrowserRouter>
+      </QueryClientProvider>
+    );
   };
 }
 

@@ -1679,15 +1679,19 @@ describe('EventTimeline', () => {
     });
 
     it('event cards are clickable with cursor-pointer', async () => {
-      renderWithProviders(<EventTimeline />);
+      // View Details buttons (and their per-event aria-labels) render only
+      // when the timeline is given an onViewEventDetails handler.
+      renderWithProviders(<EventTimeline onViewEventDetails={vi.fn()} />);
 
       await waitFor(() => {
         expect(screen.getByText('Person detected near entrance')).toBeInTheDocument();
       });
 
-      // Find event cards by their role (they should have role="button" since onClick is provided)
+      // View Details buttons are real buttons with a per-event aria-label
+      // (`View details for event ${id}`); the card root deliberately omits
+      // role="button" to avoid the WCAG nested-interactive violation.
       const cardButtons = screen.getAllByRole('button', {
-        name: /View details for event from/,
+        name: /^View details for event \d+$/,
       });
       expect(cardButtons.length).toBeGreaterThan(0);
     });
@@ -1720,8 +1724,8 @@ describe('EventTimeline', () => {
       });
 
       // Export Modal button should be present
-      expect(screen.getByLabelText('Open export modal')).toBeInTheDocument();
-      expect(screen.getByText('Export Modal')).toBeInTheDocument();
+      expect(screen.getByLabelText('Open export modal with more options')).toBeInTheDocument();
+      expect(screen.getByText('More Options')).toBeInTheDocument();
     });
 
     it('opens Export Modal when button is clicked', async () => {
@@ -1736,7 +1740,7 @@ describe('EventTimeline', () => {
       expect(screen.queryByTestId('export-modal')).not.toBeInTheDocument();
 
       // Click Export Modal button
-      const exportModalButton = screen.getByLabelText('Open export modal');
+      const exportModalButton = screen.getByLabelText('Open export modal with more options');
       await user.click(exportModalButton);
 
       // Modal should now be open
@@ -1754,7 +1758,7 @@ describe('EventTimeline', () => {
       });
 
       // Open the modal
-      const exportModalButton = screen.getByLabelText('Open export modal');
+      const exportModalButton = screen.getByLabelText('Open export modal with more options');
       await user.click(exportModalButton);
 
       await waitFor(() => {
@@ -1780,7 +1784,7 @@ describe('EventTimeline', () => {
       });
 
       // Open the modal
-      const exportModalButton = screen.getByLabelText('Open export modal');
+      const exportModalButton = screen.getByLabelText('Open export modal with more options');
       await user.click(exportModalButton);
 
       await waitFor(() => {
@@ -1815,7 +1819,7 @@ describe('EventTimeline', () => {
       await user.selectOptions(riskSelect, 'high');
 
       // Open the modal
-      const exportModalButton = screen.getByLabelText('Open export modal');
+      const exportModalButton = screen.getByLabelText('Open export modal with more options');
       await user.click(exportModalButton);
 
       await waitFor(() => {
@@ -1872,7 +1876,7 @@ describe('EventTimeline', () => {
       });
     });
 
-    it('applies reduced opacity to snoozed event cards', async () => {
+    it('shows the SnoozeBadge on the snoozed card and leaves unsnoozed cards clean', async () => {
       const snoozedEvents: Event[] = [
         {
           ...mockEvents[0],
@@ -1889,8 +1893,12 @@ describe('EventTimeline', () => {
 
       await waitFor(() => {
         const snoozedCard = screen.getByTestId('event-card-1');
-        expect(snoozedCard).toHaveClass('opacity-60');
+        // NEM-3640: the SnoozeBadge replaced the opacity-60 treatment, so the
+        // signal lives in a badge inside the card, not a card-level class.
+        expect(within(snoozedCard).getByText(/Snoozed until/)).toBeInTheDocument();
       });
+      const unsnoozedCard = screen.getByTestId('event-card-2');
+      expect(within(unsnoozedCard).queryByText(/Snoozed until/)).not.toBeInTheDocument();
     });
 
     it('does not show snooze indicator for events without snooze_until', async () => {
@@ -2025,9 +2033,15 @@ describe('EventTimeline', () => {
       renderWithProviders(<EventTimeline />);
 
       await waitFor(() => {
-        // Should show camera-based group headers
-        expect(screen.getByTestId('group-camera_1')).toBeInTheDocument();
-        expect(screen.getByText('Front Door')).toBeInTheDocument();
+        // Should show camera-based group headers. The group key is the raw
+        // camera_id ('camera-1' with a hyphen), and the header label comes
+        // from cameraNameMap (built from the fetchCameras mock). The header
+        // <h3> has no title attribute; EventCard's camera-name <h3>s do.
+        const group = screen.getByTestId('group-camera-1');
+        expect(group).toBeInTheDocument();
+        const headers = within(group).getAllByRole('heading', { name: 'Front Door' });
+        expect(headers.length).toBe(3); // 1 group header + 2 event-card camera labels
+        expect(headers[0]).not.toHaveAttribute('title');
       });
     });
 
