@@ -544,12 +544,12 @@ F-099 with `F4.7`.
 
 **Flags:** `heavy`, `owner` (it changes an auth check and host-privileged tooling, UR-98); label
 `cell:heavy-b`. **Assigned:** heavy-b, now (ruling 317). **Depends on:** none.
-**PR:** none yet. (ruling 317, record 6347331324)
+**PR:** #7366. (ruling 317, record 6347331324)
 
 Design: [`../4n-status.md`](../4n-status.md), "Packages" row `B4.11`. Covers the status rows with
 `F4.8`.
 
-- [ ] The test-only PR (step 2): the six AI-health producers and their routes, `services.py`,
+- [x] The test-only PR (step 2): the six AI-health producers and their routes, `services.py`,
       `container_orchestrator.py` and its health loop, the worker routes, `webhooks.py`,
       `alertmanager.py` and `admin.py`'s flush.
 - [ ] The build PR: `ai_health.py` and its readers; the VLM client's call record and
