@@ -441,7 +441,6 @@ def test_b32_no_non_shipping_backend_modules(real_out):
     assert be_dead == [], f"non-shipping modules remain under backend/: {be_dead}"
 
 
-
 @pytest.mark.timeout(120)  # shares the real_out walk
 def test_done_when_shipping_modules_are_reported_live(real_out):
     shipping = set(real_out["shipping"])

@@ -41,6 +41,7 @@ import re
 import subprocess
 import sys
 from pathlib import Path
+from typing import Any
 
 REPO_ROOT = Path(__file__).resolve().parent.parent
 INVENTORY = REPO_ROOT / "docs" / "reference" / "feature-inventory.md"
@@ -50,10 +51,11 @@ END = "<!-- r2-python-dead-list:end -->"
 MEANINGFUL_MAX_FILES = 100
 
 
-def _load_reach():
+def _load_reach() -> Any:
     spec = importlib.util.spec_from_file_location(
         "reachability", REPO_ROOT / "scripts" / "reachability.py"
     )
+    assert spec is not None and spec.loader is not None
     mod = importlib.util.module_from_spec(spec)
     spec.loader.exec_module(mod)
     return mod
@@ -94,7 +96,7 @@ def _claims_from_text(text: str) -> dict[str, list[str]]:
     try:
         mods_idx = cols.index("modules")
     except ValueError:
-        raise SystemExit("r2-python-dead-list: inventory header has no `modules` column")
+        raise SystemExit("r2-python-dead-list: inventory header has no `modules` column") from None
     claims: dict[str, list[str]] = {}
     for line in rows:
         cells = [c.strip() for c in line.strip().strip("|").split("|")]
@@ -124,17 +126,19 @@ def _width_map() -> dict[str, tuple[str, str, int]]:
     )
     widths: dict[str, tuple[str, str, int]] = {}
     cur: str | None = None
+    short = ""
+    date = ""
     count = 0
     for line in out.splitlines():
         if line.startswith("\x01"):
             if cur is not None:
-                widths[cur] = (short, date, count)  # type: ignore[name-defined]
+                widths[cur] = (short, date, count)
             full, short, date = line.strip("\x01").split(" \x01")
             cur, count = full, 0
         elif line.strip():
             count += 1
     if cur is not None:
-        widths[cur] = (short, date, count)  # type: ignore[name-only]
+        widths[cur] = (short, date, count)
     return widths
 
 
@@ -168,8 +172,7 @@ def build_table(
         col = last_meaningful(rel, widths) if history else "`-` 1970-01-01"
         rows.append(f"| `{rel}` | {lane} | {dead[rel]} | {col} | non-shipping |")
     ex_rows = [
-        f"| `{rel}` | {dead[rel]} | {'/'.join(sorted(set(claimed[rel])))} |"
-        for rel in exceptions
+        f"| `{rel}` | {dead[rel]} | {'/'.join(sorted(set(claimed[rel])))} |" for rel in exceptions
     ]
     parts = [
         f"Measured at tool-inputs `{head}` by `scripts/r2-python-dead-list.py` — the "
@@ -195,12 +198,11 @@ def build_table(
     return "\n".join(parts), len(listed), listed_lines
 
 
-def build_r2_prose(listed: int, listed_lines: int, dead: dict[str, int],
-                   claimed: dict[str, list[str]], head: str) -> str:
+def build_r2_prose(
+    listed: int, listed_lines: int, dead: dict[str, int], claimed: dict[str, list[str]], head: str
+) -> str:
     exceptions = sorted(set(dead) & set(claimed))
-    ex_clause = "; ".join(
-        f"`{rel}` ({'/'.join(sorted(set(claimed[rel])))})" for rel in exceptions
-    )
+    ex_clause = "; ".join(f"`{rel}` ({'/'.join(sorted(set(claimed[rel])))})" for rel in exceptions)
     return (
         f"Measured at tool-inputs `{head}` from the fixed tool (`scripts/reachability.py` "
         f"after the O2.3b ancestor fix, ruling 73): {listed} non-shipping Python modules "
@@ -210,7 +212,8 @@ def build_r2_prose(listed: int, listed_lines: int, dead: dict[str, int],
         f"{ex_clause}. "
         f"The ancestor-rule note for the ruling: parent packages of shipping modules ship "
         f"(import runs them), so the list cannot be the pre-O2.3b count; regenerating it "
-        f"is `scripts/r2-python-dead-list.py`.")
+        f"is `scripts/r2-python-dead-list.py`."
+    )
 
 
 def replace_region(text: str, label: str, body: str) -> str:
@@ -228,18 +231,26 @@ def replace_region(text: str, label: str, body: str) -> str:
 
 def main(argv: list[str] | None = None) -> int:
     ap = argparse.ArgumentParser(description=__doc__.splitlines()[0])
-    ap.add_argument("--check", action="store_true",
-                    help="regenerate in memory and compare; exit 1 on drift")
-    ap.add_argument("--history", action="store_true",
-                    help="recompute the git-history column (needs full history)")
+    ap.add_argument(
+        "--check", action="store_true", help="regenerate in memory and compare; exit 1 on drift"
+    )
+    ap.add_argument(
+        "--history",
+        action="store_true",
+        help="recompute the git-history column (needs full history)",
+    )
     args = ap.parse_args(argv)
 
     reach = _load_reach()
     entries, allow = reach.load_entry_points(reach.DEFAULT_ENTRIES)
     keep = reach.load_keep(reach.DEFAULT_KEEP)
     out = reach.analyze(
-        REPO_ROOT, entries=entries, candidate_dirs=reach.DEFAULT_CANDIDATE_DIRS,
-        keep=keep, dynamic_allow=allow)
+        REPO_ROOT,
+        entries=entries,
+        candidate_dirs=reach.DEFAULT_CANDIDATE_DIRS,
+        keep=keep,
+        dynamic_allow=allow,
+    )
     dead = {m["module"]: m["lines"] for m in out["not_shipping"]}
     claimed = claimed_by_rows()
     # Stamp = hash of the tool's INPUTS (walker + both configs), not a commit
@@ -263,8 +274,10 @@ def main(argv: list[str] | None = None) -> int:
     if not args.check:
         INVENTORY.write_text(new_inv, encoding="utf-8")
         R2_SHEET.write_text(new_r2, encoding="utf-8")
-        print(f"wrote §4 table ({listed} modules, {listed_lines} lines) + r2-sheet prose "
-              f"at head {head} (history column: {'on' if history else 'off'})")
+        print(
+            f"wrote §4 table ({listed} modules, {listed_lines} lines) + r2-sheet prose "
+            f"at head {head} (history column: {'on' if history else 'off'})"
+        )
         return 0
 
     # --check: compare against committed regions. The history column is
@@ -277,12 +290,14 @@ def main(argv: list[str] | None = None) -> int:
     # marker-edge whitespace matching byte-for-byte would make the gate
     # redden on formatting, which is not freshness.
     problems: list[str] = []
-    for label, old, new in (
+    for label, raw_old, raw_new in (
         ("feature-inventory.md", _region(inv_text), _region(new_inv)),
         ("r2-sheet.md", _region(r2_text), _region(new_r2)),
     ):
+        old, new = (
+            (_mask_history(raw_old), _mask_history(raw_new)) if not history else (raw_old, raw_new)
+        )
         if not history:
-            old, new = _mask_history(old), _mask_history(new)
             problems += _history_format_problems(_region(inv_text))
         if old.strip() != new.strip():
             problems.append(f"{label}: region drifted (run the tool without --check)")
@@ -290,8 +305,10 @@ def main(argv: list[str] | None = None) -> int:
         for p in problems:
             print(f"STALE: {p}", file=sys.stderr)
         return 1
-    print(f"fresh: {listed} modules / {listed_lines} lines at head {head} "
-          f"(history column: {'recomputed' if history else 'format-checked'})")
+    print(
+        f"fresh: {listed} modules / {listed_lines} lines at head {head} "
+        f"(history column: {'recomputed' if history else 'format-checked'})"
+    )
     return 0
 
 
@@ -300,8 +317,11 @@ def _walker_hash() -> str:
     Content-addressed: stable across clones, checkouts, and time; changes
     exactly when the tool that produced the table changes."""
     h = hashlib.sha256()
-    for rel in ("scripts/reachability.py", "scripts/reachability/entry_points.toml",
-                "scripts/reachability/keep.toml"):
+    for rel in (
+        "scripts/reachability.py",
+        "scripts/reachability/entry_points.toml",
+        "scripts/reachability/keep.toml",
+    ):
         h.update(rel.encode())
         h.update((REPO_ROOT / rel).read_bytes())
     return h.hexdigest()[:10]
@@ -309,15 +329,19 @@ def _walker_hash() -> str:
 
 def _region(text: str) -> str:
     s, e = text.find(START), text.find(END)
-    return text[s + len(START):e]
+    return text[s + len(START) : e]
 
 
 def _mask_history(text: str) -> str:
     # The per-file history column (4th cell; the 3-col exceptions rows are
     # anchored out by the "non-shipping" note cell). The tool-inputs stamp
     # needs no mask: it hashes file CONTENT, identical in every checkout.
-    return re.sub(r"^\| (`[^`]+`) \| (\w+) \| (\d+) \| .+? \| (non-shipping) \|$",
-                  r"| \1 | \2 | \3 | @H@ | \4 |", text, flags=re.M)
+    return re.sub(
+        r"^\| (`[^`]+`) \| (\w+) \| (\d+) \| .+? \| (non-shipping) \|$",
+        r"| \1 | \2 | \3 | @H@ | \4 |",
+        text,
+        flags=re.M,
+    )
 
 
 def _history_format_problems(text: str) -> list[str]:
@@ -332,8 +356,9 @@ def _history_format_problems(text: str) -> list[str]:
         # real sha + date cell anywhere, or the documented bare "-" cell
         # (every commit touching the file was wide — 22 rows today,
         # reproduced from history)
-        if not re.search(r"\| `[0-9a-f]{7,40}` \d{4}-\d{2}-\d{2} \||\| - \| non-shipping \|$",
-                        line):
+        if not re.search(
+            r"\| `[0-9a-f]{7,40}` \d{4}-\d{2}-\d{2} \||\| - \| non-shipping \|$", line
+        ):
             bad.append(f"malformed history cell: {line[:80]}")
     return bad
 

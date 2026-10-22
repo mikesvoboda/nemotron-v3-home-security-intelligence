@@ -170,11 +170,11 @@ LOCAL_USES_RE = re.compile(r"""^\s*(?:-\s+)?uses:\s*['"]?(\./[^\s'"]+)['"]?\s*$"
 DOT_LEAD_RE = re.compile(r"^\.\.*/")
 
 PATH_TOKEN_RE = re.compile(
-    r"(?<![\w./@$:%-])"                    # not a fragment of a longer token (%: percent-encoded URL halves)
+    r"(?<![\w./@$:%-])"  # not a fragment of a longer token (%: percent-encoded URL halves)
     r"[A-Za-z0-9_-]+(?:\.[A-Za-z0-9_-]+)*"  # segment
     r"(?:/[A-Za-z0-9_-]+(?:\.[A-Za-z0-9_-]+)*)+"  # ... + >=1 more
     r"/?"
-    r"(?![\w./@-])"                          # not the head of a longer token
+    r"(?![\w./@-])"  # not the head of a longer token
 )
 
 REGEX_METACHARS = set(".*+?()[]{}|^$")
@@ -184,14 +184,86 @@ GLOB_METACHARS = set("*?[]")
 # path under the tool. (Command domains see the PATH after the tool as its own
 # token anyway — node scripts/x.py yields scripts/x.py.)
 TOOL_FIRST = {
-    "curl", "wget", "jq", "yq", "node", "npm", "npx", "pnpm", "yarn", "python", "python3",
-    "uv", "pip", "pip3", "pytest", "ruff", "black", "bash", "sh", "zsh", "git", "gh", "docker",
-    "podman", "docker-compose", "compose", "grep", "sed", "awk", "tar", "zip", "unzip", "find",
-    "xargs", "mkdir", "rm", "cp", "mv", "cat", "echo", "make", "cargo", "go", "java", "gradle",
-    "semgrep", "bandit", "trivy", "grype", "gitleaks", "snyk", "alembic", "celery", "gunicorn",
-    "uvicorn", "playwright", "stryker", "lhci", "tsc", "eslint", "prettier", "vitest", "knip",
-    "typedoc", "mkdocs", "sphinx-build", "redocly", "openssl", "mysql", "psql", "redis-cli",
-    "kubectl", "helm", "aws", "az", "gcloud", "huggingface-cli", "hf", "mutmut", "vulture",
+    "curl",
+    "wget",
+    "jq",
+    "yq",
+    "node",
+    "npm",
+    "npx",
+    "pnpm",
+    "yarn",
+    "python",
+    "python3",
+    "uv",
+    "pip",
+    "pip3",
+    "pytest",
+    "ruff",
+    "black",
+    "bash",
+    "sh",
+    "zsh",
+    "git",
+    "gh",
+    "docker",
+    "podman",
+    "docker-compose",
+    "compose",
+    "grep",
+    "sed",
+    "awk",
+    "tar",
+    "zip",
+    "unzip",
+    "find",
+    "xargs",
+    "mkdir",
+    "rm",
+    "cp",
+    "mv",
+    "cat",
+    "echo",
+    "make",
+    "cargo",
+    "go",
+    "java",
+    "gradle",
+    "semgrep",
+    "bandit",
+    "trivy",
+    "grype",
+    "gitleaks",
+    "snyk",
+    "alembic",
+    "celery",
+    "gunicorn",
+    "uvicorn",
+    "playwright",
+    "stryker",
+    "lhci",
+    "tsc",
+    "eslint",
+    "prettier",
+    "vitest",
+    "knip",
+    "typedoc",
+    "mkdocs",
+    "sphinx-build",
+    "redocly",
+    "openssl",
+    "mysql",
+    "psql",
+    "redis-cli",
+    "kubectl",
+    "helm",
+    "aws",
+    "az",
+    "gcloud",
+    "huggingface-cli",
+    "hf",
+    "mutmut",
+    "vulture",
     "lychee",  # user_agent "lychee/0.14" is tool/version prose, not a path
 }
 
@@ -206,8 +278,17 @@ HOST_FIRST = {"grype-db-server", "localhost", "host.docker.internal"}
 GIT_REF_FIRST = {"refs", "origin", "upstream", "heads", "remotes", "tags", "FETCH_HEAD"}
 
 # Directory names skipped by the tree-suffix scan (VCS, deps, caches).
-SKIP_DIR_NAMES = {".git", "node_modules", ".venv", "venv", "__pycache__", ".mypy_cache",
-                  ".pytest_cache", ".ruff_cache", ".next"}
+SKIP_DIR_NAMES = {
+    ".git",
+    "node_modules",
+    ".venv",
+    "venv",
+    "__pycache__",
+    ".mypy_cache",
+    ".pytest_cache",
+    ".ruff_cache",
+    ".next",
+}
 
 # Command/YAML-domain named paths that cannot be committed files. Each entry
 # states the evidence it was earned with; pinned alive by
@@ -256,9 +337,9 @@ MISSING_OK: dict[str, str] = {
     # actions/download-artifact's ``path: reports`` (:170-173). Exists only
     # on the runner — git ls-files reports/ → 0 entries.
     "reports/backend-unit-report.json": "artifact test-reports, downloaded"
-                                        " into reports/ at runtime (generated)",
+    " into reports/ at runtime (generated)",
     "reports/backend-integration-report.json": "artifact test-reports, downloaded"
-                                               " into reports/ at runtime (generated)",
+    " into reports/ at runtime (generated)",
     "reports/mutation/mutation.json": "stryker report file (generated)",
     "frontend/reports/mutation/mutation-report.html": "stryker HTML report (generated)",
     "frontend/lighthouse-output.txt": "lhci stdout capture (generated)",
@@ -274,8 +355,8 @@ MISSING_OK: dict[str, str] = {
     # --- files a workflow itself writes at run time. ---
     "backend/tests/unit/test_o112_hooks_selftest.py": "ci.yml writes it via heredoc, then runs it",
     "test-results/nightly-unit.xml": "module-import-budget.yml's pytest step writes this junit"
-                                     " (--junit-xml) in the same job that then runs the gate on the"
-                                     " directory; never committed, like the other junit paths",
+    " (--junit-xml) in the same job that then runs the gate on the"
+    " directory; never committed, like the other junit paths",
     # --- bot-prompt example paths (pr-review-bot.yml prose in run: text).
     # Media types need NO entry: application/json is invisible via mechanism
     # (2) above, text/html and text/plain too (no text/ dir), and
@@ -289,8 +370,8 @@ MISSING_OK: dict[str, str] = {
 # Earned the same way, pinned the same way.
 PATTERN_OK: dict[str, str] = {
     "^mutants/": "mutmut scratch dir (gitignored; .gitignore mutants/) — the exclude"
-                 " guards local runs, exactly the live-convention case .wp25-feed/"
-                 " lost when its contents moved into the archive (deleted by UR-19)",
+    " guards local runs, exactly the live-convention case .wp25-feed/"
+    " lost when its contents moved into the archive (deleted by UR-19)",
     r"\.tsbuildinfo$": "tsc incremental build cache suffix (gitignored build output)",
 }
 
@@ -341,8 +422,7 @@ def workflow_labels(root: Path) -> list[str]:
     """
     entries, _ = tree_facts(root)
     return sorted(
-        e for e in entries
-        if e.startswith(".github/workflows/") and e.endswith((".yml", ".yaml"))
+        e for e in entries if e.startswith(".github/workflows/") and e.endswith((".yml", ".yaml"))
     )
 
 
@@ -486,7 +566,9 @@ def token_ok(tok: str, root: Path, anchors: list[str]) -> bool:
     if DOT_LEAD_RE.match(tok):
         return False  # ./x duplicates x (checked unled); ../x climbs outside the tree
     segs = tok.strip("/").split("/")
-    if any(seg.startswith("-") or seg.endswith("-") or seg.startswith(".") or not seg for seg in segs):
+    if any(
+        seg.startswith("-") or seg.endswith("-") or seg.startswith(".") or not seg for seg in segs
+    ):
         return False  # flag-like (--maxkb=1 truncated), truncated (shard-, ai-parity-)
     if all(re.fullmatch(r"[\d.]+[a-z%]*", s) for s in segs):
         return False  # numbers/metrics prose (1/2, 25.3m/20.7m, run-id lists)
@@ -719,9 +801,7 @@ def resolve(token: str, root: Path, anchors: list[str]) -> bool:
     paths, dirs = tree_facts(root)
     if clean in paths or clean in dirs:
         return True
-    return any(
-        f"{a}/{clean}" in paths or f"{a}/{clean}" in dirs for a in anchors
-    )
+    return any(f"{a}/{clean}" in paths or f"{a}/{clean}" in dirs for a in anchors)
 
 
 def tree_ends_with(root: Path, suffix: str) -> bool:
@@ -834,8 +914,7 @@ def find_missing(root: Path, use_allowlists: bool = True) -> list[str]:
                         seen.add(("addr", rel))
                         if not resolve(rel, root, anchors):
                             findings.append(
-                                f"{label}: {target} — local reusable-workflow"
-                                " call names nothing"
+                                f"{label}: {target} — local reusable-workflow call names nothing"
                             )
                 continue
             if domain == "comment":
@@ -870,7 +949,9 @@ def test_workflow_files_are_found() -> None:
     names = [p.name for p in workflow_files(REPO_ROOT)]
     assert len(names) > 20, f"expected dozens of workflows, found {len(names)}"
     assert "ci.yml" in names and "deploy.yml" in names, "the gate's own targets vanished"
-    assert len(config_sources(REPO_ROOT)) == len(names) + 1, "pre-commit config missing from sources"
+    assert len(config_sources(REPO_ROOT)) == len(names) + 1, (
+        "pre-commit config missing from sources"
+    )
 
 
 @pytest.mark.timeout(120)  # the tree-suffix scans walk the repo once (~seconds)
@@ -932,12 +1013,12 @@ def test_allowlists_stay_fully_earned() -> None:
         assert reason, f"PATTERN_OK entry {alt!r} has no reason"
         # read through the scan basis (worktree-or-index), same one basis the
         # gate itself uses — a half-finished rm must not crash the pin
-        assert alt in cfg.text(), (
-            f"PATTERN_OK entry {alt!r} is no longer named — delete it"
-        )
+        assert alt in cfg.text(), f"PATTERN_OK entry {alt!r} is no longer named — delete it"
         raw = find_missing(REPO_ROOT, use_allowlists=False)
         earned = any(alt in f for f in raw)
-        assert earned, f"PATTERN_OK entry {alt!r} is not earned — the un-allowlisted gate reports no finding for it; delete it"
+        assert earned, (
+            f"PATTERN_OK entry {alt!r} is not earned — the un-allowlisted gate reports no finding for it; delete it"
+        )
 
 
 def test_selftest_discriminates(tmp_path: Path) -> None:
@@ -981,8 +1062,12 @@ def test_selftest_discriminates(tmp_path: Path) -> None:
     assert not token_ok("origin/main", tmp_path, [])
     assert not token_ok("1/2", tmp_path, []) and not token_ok("25.3m/20.7m", tmp_path, [])
     assert not token_ok("curl/jq", tmp_path, [])
-    assert not token_ok("github.com/a/b", tmp_path, []) and not token_ok("api.github.com/x/y", tmp_path, [])
-    assert not token_ok("coverage/shard-", tmp_path, []) and not token_ok(".github/ai-parity-", tmp_path, [])
+    assert not token_ok("github.com/a/b", tmp_path, []) and not token_ok(
+        "api.github.com/x/y", tmp_path, []
+    )
+    assert not token_ok("coverage/shard-", tmp_path, []) and not token_ok(
+        ".github/ai-parity-", tmp_path, []
+    )
     assert not token_ok("--exclude/x", tmp_path, [])
     assert token_ok("frontend/scripts", tmp_path, []) and token_ok("docs/x.md", tmp_path, [])
     # extensionless: prose compounds silent, dead dir under a LIVE parent still a candidate
@@ -1000,14 +1085,19 @@ def test_selftest_discriminates(tmp_path: Path) -> None:
     (tmp_path / "docker" / "sub" / "Dockerfile").write_text("x\n")
     clear_tree_caches()
     assert not token_ok("curl/jq", tmp_path, [])  # no curl dir: tool prose stays silent
-    assert token_ok("docs/curl", tmp_path, []) and check_address("docs/curl", tmp_path, []) is not None
+    assert (
+        token_ok("docs/curl", tmp_path, []) and check_address("docs/curl", tmp_path, []) is not None
+    )
     #  ^ near-miss: the tree-first rule is about segment 0 only — a tool name
     #    in a NONFIRST position under a live dir is a path claim and still
     #    flags (the excuse must not spread down the token)
     assert token_ok("docker/nope", tmp_path, [])  # docker IS a dir: tool name no longer excuses it
     assert check_address("docker/nope", tmp_path, []) is not None  # …and flags when dead
     assert check_address("docker/sub/Dockerfile", tmp_path, []) is None  # live sibling silent
-    assert token_ok("live/nope.txt", tmp_path, []) and check_address("live/nope.txt", tmp_path, []) is not None
+    assert (
+        token_ok("live/nope.txt", tmp_path, [])
+        and check_address("live/nope.txt", tmp_path, []) is not None
+    )
     # line classification end-to-end through a miniature workflow file
     wf = tmp_path / ".github" / "workflows"
     wf.mkdir(parents=True)
@@ -1032,8 +1122,10 @@ def test_selftest_discriminates(tmp_path: Path) -> None:
     assert cd_anchors(lines) == ["frontend"]
     toks = [
         m.group(0)
-        for d, t in lines if d in ("command", "yaml")
-        for m in [PATH_TOKEN_RE.search(strip_comment_value(t))] if m
+        for d, t in lines
+        if d in ("command", "yaml")
+        for m in [PATH_TOKEN_RE.search(strip_comment_value(t))]
+        if m
     ]
     assert "docs" in toks or "scripts/guard.mjs" in toks
     # blank lines inside a ``run: |`` block (ops-A B3 on #6926): YAML ends a
@@ -1073,9 +1165,7 @@ def test_selftest_discriminates(tmp_path: Path) -> None:
     # (under the shipped order the exempt bare-``if`` key swallowed it as
     # prose; the pin below is that line, domain-pinned both ways).
     guard = classify_lines(
-        "      - run: |\n"
-        "          if [ -f reports/x.json ]; then\n"
-        "          # uses: ./nonsense\n",
+        "      - run: |\n          if [ -f reports/x.json ]; then\n          # uses: ./nonsense\n",
         False,
     )
     assert guard[1][0] == "command", guard
@@ -1086,7 +1176,10 @@ def test_selftest_discriminates(tmp_path: Path) -> None:
     assert classify_lines("        if: github.ref == 'x'\n", False)[0][0] == "skip"
     # local reusable-workflow calls: live callee silent, dead callee flagged,
     # external actions still skipped (near-miss both directions)
-    assert LOCAL_USES_RE.match("    uses: ./.github/workflows/x.yml").group(1) == "./.github/workflows/x.yml"
+    assert (
+        LOCAL_USES_RE.match("    uses: ./.github/workflows/x.yml").group(1)
+        == "./.github/workflows/x.yml"
+    )
     assert LOCAL_USES_RE.match("  - uses: './a/b.yml'").group(1) == "./a/b.yml"
     assert LOCAL_USES_RE.match("    uses: actions/checkout@v4") is None
     assert LOCAL_USES_RE.match("    uses: ./.github/workflows/x.yml  # comment") is None
@@ -1117,7 +1210,9 @@ def test_index_basis_survives_worktree_deletion(tmp_path: Path) -> None:
     (wf / "gone.yml").write_text(
         "jobs:\n  j:\n    steps:\n      - run: cat scripts/ghost.md\n", encoding="utf-8"
     )
-    (wf / "kept.yml").write_text("jobs:\n  j:\n    steps:\n      - run: echo hi\n", encoding="utf-8")
+    (wf / "kept.yml").write_text(
+        "jobs:\n  j:\n    steps:\n      - run: echo hi\n", encoding="utf-8"
+    )
     subprocess.run(["git", "init", "-q", "."], cwd=tmp_path, check=True)
     subprocess.run(["git", "add", "-A"], cwd=tmp_path, check=True)
     labels = [s.label for s in config_sources(tmp_path)]

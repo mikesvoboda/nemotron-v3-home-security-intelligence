@@ -190,7 +190,7 @@ class FLIRConverter(DatasetConverter):
 
         for ann in annotations:
             cat_id = ann.get("category_id")
-            cat_name = categories.get(cat_id, "unknown")
+            cat_name = categories.get(int(cat_id), "unknown") if cat_id is not None else "unknown"
             bbox = ann.get("bbox", [])  # [x, y, width, height]
 
             if len(bbox) != 4:

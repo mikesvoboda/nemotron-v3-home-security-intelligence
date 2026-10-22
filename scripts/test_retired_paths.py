@@ -211,7 +211,11 @@ def dated_entry_lines(text: str) -> set[int]:
             continue
         group = [tokens[i]]
         j = i + 1
-        while j < len(tokens) and tokens[j].type in (tokenize.NL, tokenize.COMMENT, tokenize.STRING):
+        while j < len(tokens) and tokens[j].type in (
+            tokenize.NL,
+            tokenize.COMMENT,
+            tokenize.STRING,
+        ):
             # a source line between the last fragment and this token that is
             # blank ends the record, wherever the parens are (see docstring)
             if any(no in blank for no in range(group[-1].end[0] + 1, tokens[j].start[0])):
@@ -291,9 +295,7 @@ def _directory_term(term: str) -> re.Pattern[str]:
     derived term collides with a real name. A derived *substring* collides the
     same way. Pinned both directions in ``test_selftest_discriminates``.
     """
-    return re.compile(
-        r"(?:(?<![A-Za-z0-9._\-/])(?:\.{0,2}/)?|(?<=/)\.\./)" + re.escape(term)
-    )
+    return re.compile(r"(?:(?<![A-Za-z0-9._\-/])(?:\.{0,2}/)?|(?<=/)\.\./)" + re.escape(term))
 
 
 def _entry_terms(entry: RetiredEntry) -> tuple[str, ...]:
@@ -510,9 +512,12 @@ def find_violations(root: Path, list_path: Path | None = None) -> list[str]:
 
 # ---------------------------------------------------------------- pytest face
 
+
 def test_retired_list_is_committed_and_nonempty() -> None:
     assert RETIRED_LIST.is_file(), "scripts/retired_paths.txt must be committed"
-    assert read_retired_paths(RETIRED_LIST), "the retired-paths list is empty — a gate with nothing on it"
+    assert read_retired_paths(RETIRED_LIST), (
+        "the retired-paths list is empty — a gate with nothing on it"
+    )
 
 
 # Both scan tests carry a 30s mark (owner ruling 141; the suite's default
@@ -533,7 +538,9 @@ def test_retired_paths_are_gone() -> None:
 
 @pytest.mark.timeout(30)  # CI-measured 9.15s (ruling 141); see the pin above
 def test_no_living_reference_names_a_retired_path() -> None:
-    violations = [v for v in find_violations(REPO_ROOT) if not v.endswith("retired path exists again")]
+    violations = [
+        v for v in find_violations(REPO_ROOT) if not v.endswith("retired path exists again")
+    ]
     assert not violations, (
         "living text names a retired path — rewrite it (or record it with a\n"
         "dated [V YYYY-MM-DD] tag if it is history):\n" + "\n".join(violations)
@@ -544,7 +551,9 @@ def test_gate_is_wired_into_ci() -> None:
     """Self-pin, mirroring test_shard_retry_wiring.py's last check: a gate that
     can be deleted from its only CI invocation without a red is already dead."""
     ci = (REPO_ROOT / ".github" / "workflows" / "ci.yml").read_text(encoding="utf-8")
-    assert "scripts/test_retired_paths.py" in ci, "this gate must ride ci.yml's collection-sanity list"
+    assert "scripts/test_retired_paths.py" in ci, (
+        "this gate must ride ci.yml's collection-sanity list"
+    )
 
 
 def test_list_entries_stay_inside_the_repo(tmp_path: Path) -> None:
@@ -581,16 +590,19 @@ def test_cite_gate_snapshot_exemption_is_per_file(tmp_path: Path) -> None:
         p.write_text("Run it with gone.txt today.\n", encoding="utf-8")
     flagged = find_violations(tmp_path, tmp_path / "scripts" / "retired_paths.txt")
     assert any("gone.txt" in v for v in flagged), (
-        f"the planted reference flagged NOTHING — every arm below is vacuous: {flagged}")
+        f"the planted reference flagged NOTHING — every arm below is vacuous: {flagged}"
+    )
     for rel in exempt:
         assert not any(v.startswith(rel + ":") for v in flagged), (
             f"snapshot record {rel} is being flagged — the per-file exemption broke:\n"
-            + "\n".join(flagged))
+            + "\n".join(flagged)
+        )
     for rel in (f"{data}/entailments.json", f"{data}/SHA256SUMS"):
         assert any(v.startswith(rel + ":") for v in flagged), (
             f"living text {rel} named a retired path and was NOT flagged — the "
             "exemption widened to a directory, which is exactly what per-file "
-            "listing exists to prevent")
+            "listing exists to prevent"
+        )
 
 
 def test_selftest_discriminates(tmp_path: Path) -> None:
@@ -608,10 +620,7 @@ def test_selftest_discriminates(tmp_path: Path) -> None:
     """
     (tmp_path / "scripts").mkdir()
     (tmp_path / "scripts" / "retired_paths.txt").write_text(
-        "gone.txt\n"
-        "sub/gone.md ; ghost.yml\n"
-        "sub/dir/\n"
-        "archive/\n",
+        "gone.txt\nsub/gone.md ; ghost.yml\nsub/dir/\narchive/\n",
         encoding="utf-8",
     )
     (tmp_path / "docs").mkdir()
@@ -646,26 +655,28 @@ def test_selftest_discriminates(tmp_path: Path) -> None:
     )
     (tmp_path / "docs" / "weird.md").write_bytes(b"caf\xe9 gone.txt lives in latin-1\n")
     (tmp_path / "scripts" / "notes.py").write_text(
-        '# [V 2026-09-28] gone.txt used to hold the list\n'  # 1 tagged comment: exempt
+        "# [V 2026-09-28] gone.txt used to hold the list\n"  # 1 tagged comment: exempt
         "# gone.txt mention with no tag\n"  # 2 living: flagged
-        'ENTRY = (\n'
+        "ENTRY = (\n"
         '    "[V 2026-09-27] first line of the record\\n"\n'  # 4 exempt (group head)
         '    "second line names gone.txt and belongs to the record\\n"\n'  # 5 exempt
-        ')\n'
-        'LIVE = (\n'
+        ")\n"
+        "LIVE = (\n"
         '    "no tag here\\n"\n'
         '    "and gone.txt on a continuation line is a living claim\\n"\n'  # 9 flagged
-        ')\n'
+        ")\n"
         'TQ = """[V 2026-09-26] a triple-quoted record opens with the tag\n'  # 11 head
-        'and its second line names gone.txt inside the record\n'  # 12 exempt
+        "and its second line names gone.txt inside the record\n"  # 12 exempt
         '"""\n'  # 13
         'PARKED = ("[V 2026-09-25] record head\\n"\n'  # 14 exempt (head)
-        '\n'  # 15 the blank ends the record
+        "\n"  # 15 the blank ends the record
         '    "gone.txt parked past a blank line is a living claim")\n',  # 16 flagged
         encoding="utf-8",
     )
     (tmp_path / "docs" / "plans").mkdir()
-    (tmp_path / "docs" / "plans" / "2026-09-28-rec.md").write_text("gone.txt was deleted.\n", encoding="utf-8")
+    (tmp_path / "docs" / "plans" / "2026-09-28-rec.md").write_text(
+        "gone.txt was deleted.\n", encoding="utf-8"
+    )
 
     # Path resurrected: existence violation is reported.
     (tmp_path / "gone.txt").write_text("i am back\n", encoding="utf-8")
@@ -691,12 +702,16 @@ def test_selftest_discriminates(tmp_path: Path) -> None:
     assert any(f.startswith("docs/terms.md:3:") for f in refs), refs  # basename branch alive
     assert not any(f.startswith("docs/terms.md:4:") for f in refs), refs  # dir term path-anchored
     assert any(f.startswith("docs/terms.md:5:") for f in refs), refs  # directory flags contents
-    assert not any(f.startswith("docs/terms.md:6:") for f in refs), refs  # openapi-archive/ survives
+    assert not any(f.startswith("docs/terms.md:6:") for f in refs), (
+        refs
+    )  # openapi-archive/ survives
     assert any(f.startswith("docs/terms.md:7:") for f in refs), refs  # root dir entry alive
     assert any(f.startswith("docs/terms.md:8:") for f in refs), refs  # ../ ./ prefixes fire
     assert not any(f.startswith("docs/terms.md:9:") for f in refs), refs  # prefix+tail survives
     assert any(f.startswith("docs/terms.md:10:") for f in refs), refs  # interior ../ fires (J)
-    assert not any(f.startswith("docs/terms.md:11:") for f in refs), refs  # interior ./ is the OTHER tree
+    assert not any(f.startswith("docs/terms.md:11:") for f in refs), (
+        refs
+    )  # interior ./ is the OTHER tree
     assert any(f.startswith("docs/weird.md:1:") for f in refs), refs  # encoding drift hides nothing
 
     # Python record shapes: a triple-quoted tagged record (lines 11-13) is
@@ -847,7 +862,11 @@ def test_walk_pruning_is_behaviour_preserving(tmp_path: Path) -> None:
     # reshuffled traversal would reorder it and fail here.
     refs = [f.split(":")[0] for f in findings if ":0: " not in f]
     assert refs == [
-        "aaa/inside.md", "build", "live.md", "pkg/src/app/keep.md", "zzz.md",
+        "aaa/inside.md",
+        "build",
+        "live.md",
+        "pkg/src/app/keep.md",
+        "zzz.md",
     ], findings
 
     # A DANGLING symlink whose NAME is a retired path flags even though the
@@ -950,7 +969,8 @@ def test_prefilter_skips_only_files_that_cannot_match(tmp_path: Path) -> None:
         "No reference here at all, just prose about the gate.\n" * 3, encoding="utf-8"
     )
     (tmp_path / "notes" / "shadow.md").write_text(
-        "Serve it with ghost.yml.\n", encoding="utf-8"  # declared alias only
+        "Serve it with ghost.yml.\n",
+        encoding="utf-8",  # declared alias only
     )
     (tmp_path / "notes" / "short.md").write_text("link long-name.txt here\n", encoding="utf-8")
     # literal substring of a retired term, but the anchor rejects it
@@ -999,8 +1019,13 @@ def test_prefilter_skips_only_files_that_cannot_match(tmp_path: Path) -> None:
     # files naming it), and `archive/` precedes `sub/dir/` at equal length (so a
     # key flip changes the compiled pattern).
     assert terms == (
-        "a/long-name.txt", "long-name.txt", "sub/gone.md",
-        "ghost.yml", "archive/", "sub/dir/", "gone.md",
+        "a/long-name.txt",
+        "long-name.txt",
+        "sub/gone.md",
+        "ghost.yml",
+        "archive/",
+        "sub/dir/",
+        "gone.md",
     ), terms
     # And the ORDER of the list file must not change what gets compiled: dedup
     # plus the key sort makes the result a function of the term SET.
@@ -1074,15 +1099,24 @@ def test_cost_guards_are_still_in_the_source() -> None:
     # nosemgrep: path-traversal-open - reads this file's own path, not input
     src = Path(__file__).read_text(encoding="utf-8")
     src = src[: src.index("def test_cost_guards_are_still_in_the_source")]
-    assert src.count(
-        "        if finder is not None and next(finder(text), None) is None:\n"
-        "            continue\n") == 1, "the per-file term prefilter was removed"
-    assert src.count(
-        '            if name not in SKIP_DIR_NAMES and not '
-        '_is_excluded_file(f"{rel_dir}{name}/")') == 1, "the directory prune was loosened"
+    assert (
+        src.count(
+            "        if finder is not None and next(finder(text), None) is None:\n"
+            "            continue\n"
+        )
+        == 1
+    ), "the per-file term prefilter was removed"
+    assert (
+        src.count(
+            "            if name not in SKIP_DIR_NAMES and not "
+            '_is_excluded_file(f"{rel_dir}{name}/")'
+        )
+        == 1
+    ), "the directory prune was loosened"
 
 
 # --------------------------------------------------------------- standalone
+
 
 def main() -> int:
     if not RETIRED_LIST.is_file():

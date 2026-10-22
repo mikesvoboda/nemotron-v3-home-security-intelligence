@@ -77,7 +77,9 @@ def reader_texts(root: Path) -> list[tuple[str, str]]:
             out.append((rel, p.read_text(encoding="utf-8", errors="replace")))
     for glob in READER_GLOBS:
         for p in sorted(root.glob(glob)):
-            out.append((p.relative_to(root).as_posix(), p.read_text(encoding="utf-8", errors="replace")))
+            out.append(
+                (p.relative_to(root).as_posix(), p.read_text(encoding="utf-8", errors="replace"))
+            )
     return out
 
 

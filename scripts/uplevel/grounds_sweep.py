@@ -45,6 +45,7 @@ import argparse
 import re
 import sys
 from pathlib import Path
+from typing import NoReturn
 
 CONTROL_KEYS = (
     "backend/services/alpr_service.py:559",
@@ -66,21 +67,21 @@ def parse_args() -> argparse.Namespace:
     return ap.parse_args()
 
 
-def fail(msg):
+def fail(msg: str) -> NoReturn:
     """Refuse loudly: name what failed, exit 2 (an exit CODE, not sys.exit(str)'s implicit 1)."""
     print(msg, file=sys.stderr)
     sys.exit(2)
 
 
-def anchor(lines, start, end, needle, name):
+def anchor(lines: list[str], start: int, end: int, needle: str, name: str) -> int:
     """Index of the line in [start,end) containing needle, or exit 2 naming the anchor."""
     for i in range(start, end):
         if needle in lines[i]:
             return i
-    fail(f"grounds_sweep: anchor missing: {name} ({needle!r} between lines {start+1}-{end})")
+    fail(f"grounds_sweep: anchor missing: {name} ({needle!r} between lines {start + 1}-{end})")
 
 
-def coords(blob):
+def coords(blob: str) -> set[str]:
     """Coordinate pairs a blob's code spans carry; a bare `:NNN` binds the last full path seen."""
     out = []
     last = None
@@ -108,10 +109,10 @@ def main() -> int:
         fail(f"grounds_sweep: cannot read {path}: {e}")
 
     print(f"grounds sweep over {path}")
-    s1 = next((i for i, l in enumerate(lines) if l.startswith("## 1.")), None)
+    s1 = next((i for i, ln in enumerate(lines) if ln.startswith("## 1.")), None)
     if s1 is None:
         fail("grounds_sweep: anchor missing: '## 1.' heading")
-    s2 = next((i for i, l in enumerate(lines) if l.startswith("## 2.")), None)
+    s2 = next((i for i, ln in enumerate(lines) if ln.startswith("## 2.")), None)
     if s2 is None or s2 <= s1:
         fail("grounds_sweep: anchor missing: '## 2.' heading after '## 1.'")
     gstart = anchor(lines, s1, s2, "Not listed, with the reason", "exclusion line")
@@ -124,10 +125,10 @@ def main() -> int:
 
     named = set(re.findall(r"\bF-\d{3}\b", "\n".join(lines[s1:s2])))
 
-    s3 = next((i for i, l in enumerate(lines) if l.startswith("## 3.")), None)
+    s3 = next((i for i, ln in enumerate(lines) if ln.startswith("## 3.")), None)
     if s3 is None or s3 <= s2:
         fail("grounds_sweep: anchor missing: '## 3.' heading")
-    s4 = next((i for i, l in enumerate(lines) if l.startswith("## 4.")), None)
+    s4 = next((i for i, ln in enumerate(lines) if ln.startswith("## 4.")), None)
     if s4 is None or s4 <= s3:
         fail("grounds_sweep: anchor missing: '## 4.' heading")
 

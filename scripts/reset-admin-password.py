@@ -6,6 +6,7 @@ Usage:
     # Or from inside backend container:
     python scripts/reset-admin-password.py
 """
+
 import asyncio
 import os
 import re
@@ -49,11 +50,10 @@ def _load_env_and_fix_database_url() -> None:
 async def main() -> None:
     _load_env_and_fix_database_url()
 
-    from sqlalchemy import select
-
     from backend.core.database import get_session, init_db
     from backend.models.user import User
     from backend.services.auth_service import hash_password
+    from sqlalchemy import select
 
     await init_db()
 
