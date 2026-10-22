@@ -7,7 +7,13 @@
  * @see NEM-3626
  */
 
+import type { components } from '../types/generated/api';
 import type { AlertResponse } from '../types/alerts';
+
+/** Alert row from the Alert Service list (the alerts table, B4.1/F4.1). */
+export type AlertServiceResponse = components['schemas']['AlertServiceResponse'];
+/** List wrapper: `items` plus the pagination block. */
+export type AlertServiceListResponse = components['schemas']['AlertServiceListResponse'];
 
 // Re-export AlertResponse from types for use by consumers
 export type { AlertResponse } from '../types/alerts';
@@ -170,6 +176,68 @@ export async function dismissAlert(alertId: string): Promise<AlertResponse> {
     });
 
     return handleResponse<AlertResponse>(response);
+  } catch (error) {
+    if (error instanceof AlertsApiError) {
+      throw error;
+    }
+    // Wrap network errors
+    throw new AlertsApiError(error instanceof Error ? error.message : 'Network error', 0, false);
+  }
+}
+
+// ============================================================================
+// Alert Service list (the alerts table, not events)
+// ============================================================================
+
+/** Query parameters for listing alerts through the Alert Service. */
+export interface ListAlertsParams {
+  /** Filter by alert status ("open", "pending", "delivered", "acknowledged", "dismissed") */
+  status?: string;
+  /** Filter by severity ("low", "medium", "high", "critical") */
+  severity?: string;
+  /** Filter by the event that triggered the alert */
+  event_id?: number;
+  /** Filter by the rule that matched */
+  rule_id?: string;
+  /** Maximum number of results (server default 50, max 1000) */
+  limit?: number;
+  /** Number of results to skip */
+  offset?: number;
+}
+
+/**
+ * List alerts through the Alert Service (`GET /api/alert-service/alerts`).
+ *
+ * This reads the alerts table itself (F4.1) — the rows the alerting pipeline
+ * writes — not the events feed the Alerts page used before F4.1. The response
+ * is the generated `AlertServiceListResponse`: `items` plus a
+ * `pagination` block (`total`, `limit`, `offset`, `has_more`).
+ *
+ * @param params - Optional status/severity/event/rule filters and pagination
+ * @returns The generated list response (items + pagination)
+ * @throws AlertsApiError on non-2xx responses
+ */
+export async function fetchAlerts(
+  params: ListAlertsParams = {}
+): Promise<AlertServiceListResponse> {
+  const baseUrl = getBaseUrl();
+  const search = new URLSearchParams();
+  if (params.status !== undefined) search.set('status', params.status);
+  if (params.severity !== undefined) search.set('severity', params.severity);
+  if (params.event_id !== undefined) search.set('event_id', String(params.event_id));
+  if (params.rule_id !== undefined) search.set('rule_id', params.rule_id);
+  if (params.limit !== undefined) search.set('limit', String(params.limit));
+  if (params.offset !== undefined) search.set('offset', String(params.offset));
+  const qs = search.toString();
+
+  try {
+    const response = await fetch(`${baseUrl}/api/alert-service/alerts${qs ? `?${qs}` : ''}`, {
+      headers: {
+        'Content-Type': 'application/json',
+      },
+    });
+
+    return await handleResponse<AlertServiceListResponse>(response);
   } catch (error) {
     if (error instanceof AlertsApiError) {
       throw error;

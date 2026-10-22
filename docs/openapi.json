@@ -2719,6 +2719,7 @@
       "AlertServiceResponse": {
         "description": "Schema for alert response from Alert Service operations.",
         "example": {
+          "camera_id": "front_door",
           "channels": [
             "pushover"
           ],
@@ -2734,6 +2735,18 @@
           "updated_at": "2025-01-31T12:00:00Z"
         },
         "properties": {
+          "camera_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Camera that produced the triggering event, read through the event (F4.1: the Alerts page's camera column; None when the event is gone)",
+            "title": "Camera Id"
+          },
           "channels": {
             "description": "Notification channels",
             "items": {

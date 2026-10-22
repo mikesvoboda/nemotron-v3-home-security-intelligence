@@ -1,47 +1,73 @@
 /**
- * F2.3 DO-1 golden path, alerts half (inventory F-077 + F-080; claim #6996).
+ * F4.1 golden: the Alerts page over the ALERT table (inventory F-078 + F-079;
+ * claim #7367).
  *
- * Drops car-in-driveway.jpg (harness.ts explains the claim and the tier
- * arithmetic) and pins the SEVERITY BAND end to end, which is what this page
- * is: /alerts pages only `high` and `critical` (useAlertsQuery fetches exactly
- * those two risk levels), so
+ * F4.1 rebuilt this page: /alerts now lists alert ROWS (GET
+ * /api/alert-service/alerts — the table B4.1's pipeline writes) instead of the
+ * events feed, and the design's witness sentence is "the alert appears live,
+ * then acknowledge, dismiss, snooze" (docs/uplevel/4n-alerting.md:321). Each
+ * verb below is driven and its wire effect pinned, in that order — the order
+ * is not decoration: legacy acknowledge refuses a non-open alert with 409
+ * (backend/api/routes/alerts.py), so Acknowledge MUST run while the row is
+ * still open, and dismiss after it needs no restore because legacy dismiss
+ * blocks only already-dismissed rows.
  *
- *   - the drop (uncertain, risk 45 → `medium`) must be IN the store and
- *     ABSENT from /alerts. The presence half is pinned first — a
- *     `risk_level=medium` read returns it — so the absence is the filter
- *     working, not the pipeline losing the event. An absence claim with no
- *     present control proves nothing.
- *   - the one alert the page shows is the harness's own smoke event
- *     (harness-smoke.jpg, risk 61 → `high`), dropped by feature_check.py's
- *     smoke() before golden starts (measured in the 2026-10-11 CI run: dropped
- *     07:42:18Z, golden launched 07:42:55Z). That is stack state this spec may
- *     rely on and must not re-create — re-dropping its bytes inside the
- *     watcher's 300 s sha256 window would just dedupe.
+ * Where the alert comes from: the harness's own smoke event
+ * (harness-smoke.jpg, risk 61 → high), dropped by feature_check.py's smoke()
+ * before golden starts — stack state this spec may rely on and must not
+ * re-create (re-dropping its bytes inside the watcher's 300 s sha256 window
+ * would just dedupe). The pipeline's derivation, each link code-verified:
+ *   - the default rule is always in the pipeline's rule list (policy.py
+ *     default_rule_from_settings: threshold 60, risk_filters
+ *     critical/high/medium, severity MEDIUM, dedup "{camera_id}:default",
+ *     cooldown 300);
+ *   - smoke scores 61 ≥ threshold 60 and 'high' ∈ risk_filters, so
+ *     _check_verdict_and_severity matches, and _higher_severity(rule MEDIUM,
+ *     event HIGH) yields the alert severity HIGH;
+ *   - the verdict chain lands on 'local' (fake VLM verdict + score → the
+ *     local branch of verdict.py's source chain);
+ *   - the created row (pipeline.py): status OPEN, event_id = the smoke event,
+ *     match_count 1, channels [], metadata {rule_name 'default',
+ *     matched_conditions, recognised}.
  *
- * Prev/next is therefore pinned as the shipped BOUNDS behaviour, not as
- * navigation: with exactly one alert, AlertsPage.handleNavigate computes
- * index-1 / index+1 and its `newIndex >= 0 && newIndex < alerts.length` guard
- * makes both a silent no-op, and EventDetailModal renders both buttons
- * unconditionally (no disabled state). That is the honest assertion for a
- * one-alert stack — real two-alert navigation needs a second `high` event,
- * which the shipped book cannot give a docs-owned spec (see the PR body's
- * harness ask). Pinning a no-op here is strictly better than a vacuous
- * count-equals-one check, and strictly worse than real navigation, which is
- * why the ask is filed rather than glossed.
+ * Cross-run safety, the reason the run ENDS dismissed: the pipeline folds a
+ * new match into an alert only while its status is OPEN and its last_seen_at
+ * sits within the 300 s cooldown of the new event (pipeline.py
+ * _find_open_alert_in_memory). Folding never changes alert.event_id, so a run
+ * that left the alert OPEN would let the NEXT run's smoke event (inside the
+ * cooldown) fold silently into the old row — and this spec's poll would then
+ * wait forever for a row naming the new event. A DISMISSED row is
+ * un-foldable, so every run creates a fresh alert carrying its own event_id.
+ * The pre-flight sweep below dismisses any OPEN smoke-camera row a dead
+ * earlier run may have left, and the final cleanup PUT pins the end state
+ * unconditionally.
  *
- * The grid order is not assumed: sortedAlerts sorts severity rank then newest
- * first (AlertsPage.tsx:125-134), so with one alert it is that alert — pinned
- * by testid, and the drop's card is pinned ABSENT.
+ * The medium drop's absence moves to the alert-table level:
+ * car-in-driveway (45) fails the default rule's threshold gate — 45 < 60 —
+ * so no alert row may name the drop's event_id. Its PRESENT control is the
+ * tier read (the drop is in the store at its own tier), so the absence is the
+ * policy working, not the pipeline losing the event.
+ * analytics.spec.ts (same directory, sorted after this file) still reads the
+ * drop's data — the drop must happen here, exactly as it did when the old
+ * spec owned it.
+ *
+ * What was removed with the old page and is NOT re-pinned: severity summary,
+ * #risk-filter, grouped camera view, event-card testids, and the modal
+ * prev/next round-trip — all chrome of the events-feed page the rewrite
+ * deleted. The refresh instrument moves to the page's own endpoint, exact
+ * pathname /api/alert-service/alerts; the Sidebar's useOpenAlertCount ALSO
+ * fires that pathname once on mount (limit=1), so the refresh leg baselines
+ * only after the request stream goes quiet.
  */
 import type { Page } from '@playwright/test';
 
 import { expect, test } from '../guard';
 import {
   adminSessionAlerts as adminSession,
+  apiWrite,
   assertDropEventStored,
   assertDropStoredItsDetection,
   assertGuardSurvivesAlerts as assertGuardSurvives,
-  assertSoleAlertIsSmoke,
   authedFetchAlerts as authedFetch,
   awaitVerdictedEvents,
   dropDo1Fixture,
@@ -56,256 +82,320 @@ test.skip(
   `golden path needs the feature-check stack (${harness.ready ? '' : harness.why})`
 );
 
-/** Counts requests this PAGE sends to GET /api/events — the alerts hook's own
- *  endpoint (fetchEvents builds `/api/events?…`, services/api.ts:2292; the
- *  pathname is exact, so /api/events/stats and /api/events/<id>/… never
- *  inflate it). Installed before the /alerts navigation; a delta is a refetch. */
-function installEventsCounter(page: Page): () => number {
+/** Wire shape of a row from GET /api/alert-service/alerts (the fields the
+ *  asserts below read; AlertServiceResponse in schemas/alert_service.py). */
+interface AlertRow {
+  id: string;
+  event_id: number;
+  severity: string;
+  status: string;
+  verdict_source: string | null;
+  match_count: number | null;
+  camera_id: string | null;
+  channels: string[];
+  metadata: Record<string, unknown> | null;
+  created_at: string;
+}
+
+/** Counts requests this PAGE sends to the alerts list — the page's own
+ *  endpoint, matched on the EXACT pathname so sibling routes never inflate
+ *  it. Installed before the /alerts navigation; a delta is a refetch. */
+function installAlertsCounter(page: import('@playwright/test').Page): () => number {
   let count = 0;
   page.on('request', (request) => {
-    if (new URL(request.url()).pathname === '/api/events') count += 1;
+    if (new URL(request.url()).pathname === '/api/alert-service/alerts') count += 1;
   });
   return () => count;
 }
 
-test.describe('DO-1 golden path: /alerts severity band, chrome and detail modal (F-077, F-080) @critical', () => {
-  // Budget, itemised: 165 s for awaitVerdictedEvents (the drop's verdict) + the
-  // page drive. The sibling green run needed 38.5 s of drive, but the poll runs
-  // BEFORE it, so the worst case is a near-deadline drop plus a full drive —
-  // 165 + 60 (drive headroom over the measured 38.5) = 225, +15 s margin.
-  // 200 s could time out on a slow-but-successful pipeline and read as a spec
-  // defect when it is a harness delay.
+/** Read the alert-service list with the admin session. */
+async function listAlerts(
+  api: ReturnType<typeof authedFetch>,
+  query: string
+): Promise<{ status: number; rows: AlertRow[]; total: number }> {
+  const { status, body } = await api.getJson(`/api/alert-service/alerts?${query}`);
+  const items = (body?.items ?? []) as AlertRow[];
+  return { status, rows: items, total: Number(body?.pagination?.total ?? 0) };
+}
+
+/** THIS row, across every filter and every earlier run: rule name and camera
+ *  name are NOT unique keys (earlier runs leave dismissed smoke-camera rows
+ *  behind, and the 'all' filter renders them all) — but the snooze select's
+ *  aria-label carries the alert id (`Snooze alert ${alert.id}`), which is.
+ *  A row that lost its id-bearing select would also lose every action below,
+ *  so keying on it is the honest identity, not a convenience. */
+function alertRow(page: Page, alertId: string) {
+  return page
+    .locator('[data-testid="alert-row"]')
+    .filter({ has: page.locator(`select[aria-label="Snooze alert ${alertId}"]`) });
+}
+
+test.describe('F4.1 golden: /alerts lists alert rows and the design verbs work (F-078, F-079) @critical', () => {
+  // Budget, itemised: 165 s for awaitVerdictedEvents (the drop's verdict) +
+  // 60 s worst case for the smoke-alert poll (its own deadline, inside the
+  // same window) + ~60 s of UI drive + margin. Same shape as the old spec's
+  // 240 s: a near-deadline drop plus a full drive must still fit.
   test.setTimeout(240_000);
 
-  test('a medium-risk drop stays off /alerts, the high harness alert carries its chrome, and the detail modal round-trips', async ({
+  test('the smoke alert appears live on /alerts, then acknowledge, dismiss and snooze land on the wire', async ({
     page,
   }) => {
     test.info().skip(!harness.ready, harness.ready ? '' : harness.why);
     if (!harness.ready) return;
     const h = harness;
 
-    // Installed before ANY navigation on this page so no /api/events request
+    // Installed before ANY navigation so no /api/alert-service/alerts request
     // can slip past the listener — the refresh leg below reads a delta.
-    const countEventsRequests = installEventsCounter(page);
+    const countAlertsRequests = installAlertsCounter(page);
 
     // 1. The drop, through O2.2's own helper (documented contract, as
-    //    dashboard-drop.spec.ts does).
+    //    dashboard-drop.spec.ts does). analytics.spec.ts reads the drop's
+    //    data afterwards — the claim travels with this file's header.
     dropDo1Fixture(h);
 
-    // 2. Backend first — the page's own listing predicate is
-    //    fetchEvents({risk_level}) per level (useAlertsQuery), so the store is
-    //    read on exactly those terms before any UI.
+    // 2. Backend first: the store read on the page's own terms before any UI.
     const session = await adminSession(h);
     const api = authedFetch(h, session);
+
+    // PRE-FLIGHT SWEEP (cross-run safety, this header's contract): a run that
+    // died between its verbs leaves OPEN smoke-camera rows whose event_id can
+    // never be re-derived (the fold never rewrites event_id). Left open, the
+    // next smoke event inside the cooldown folds silently into such a row and
+    // starves this run's poll — so sweep them dismissed FIRST. Only rows for
+    // THIS fixture's camera are touched; other cameras' alerts are not ours.
+    {
+      const { rows: openRows } = await listAlerts(api, 'status=open&limit=100');
+      for (const stale of openRows.filter((r) => r.camera_id === h.smokeCameraId)) {
+        await apiWrite(h, session, 'PUT', `/api/alert-service/alerts/${stale.id}`, {
+          status: 'dismissed',
+        });
+      }
+    }
+
+    // The PRESENT control for the absence below: the drop is in the store,
+    // tiered exactly where the book puts it, so the pipeline ran.
     const items = await awaitVerdictedEvents(h, api, 165_000);
     const dropEventId = assertDropEventStored(items, h);
     assertDropStoredItsDetection(items, h);
-
-    // PRESENT control for every absence below: the drop is in the store and
-    // tiered exactly where the book puts it, so /alerts hiding it is the filter.
     const dropTier = expectedTier(h.scenario.verdict.risk_score);
     const tierPage = await api.getJson(`/api/events?risk_level=${dropTier}`);
     expect(tierPage.status, `the ${dropTier} page answers`).toBe(200);
     const tierIds = ((tierPage.body?.items ?? []) as Record<string, any>[]).map((e) =>
       String(e.id)
     );
-    expect(tierIds, 'the drop is listed by its own tier — the pipeline ran').toContain(dropEventId);
+    expect(tierIds, 'the drop is listed by its own tier — the pipeline ran').toContain(
+      dropEventId
+    );
 
-    // And the alert page the drive is built on: exactly one high/critical event.
-    const highPage = await api.getJson('/api/events?risk_level=high');
-    expect(highPage.status, 'the risk_level filter answers').toBe(200);
-    const high = (highPage.body?.items ?? []) as Record<string, any>[];
-    const alertId = assertSoleAlertIsSmoke(high, h, dropEventId);
-    const criticalPage = await api.getJson('/api/events?risk_level=critical');
-    const critical = (criticalPage.body?.items ?? []) as Record<string, any>[];
-    expect(critical.length, 'nothing on this stack scores into critical').toBe(0);
+    // 3. THE ALERT APPEARS LIVE. Poll the page's own endpoint for an OPEN row
+    //    naming this run's smoke camera. The smoke event may still be inside
+    //    the pipeline when the drive starts (smoke() drops ~40 s before
+    //    golden, but "appears live" is the design's own claim, so the poll is
+    //    part of the pin). Only fresh rows can carry the camera + open
+    //    pairing at this point: the sweep above cleared older ones, and the
+    //    fold cannot resurrect a dismissed row.
+    const smokePollDeadline = Date.now() + 60_000;
+    let smokeAlert: AlertRow | undefined;
+    let dropAlertCount = 0;
+    while (Date.now() < smokePollDeadline) {
+      const { rows } = await listAlerts(api, 'status=open&limit=100');
+      dropAlertCount = rows.filter((r) => String(r.event_id) === String(dropEventId)).length;
+      smokeAlert = rows.find((r) => r.camera_id === h.smokeCameraId);
+      if (smokeAlert && dropAlertCount === 0) break;
+      await new Promise((resolve) => setTimeout(resolve, 3_000));
+    }
+    expect(
+      smokeAlert,
+      'no open alert for the smoke camera within 60 s: the pipeline did not alert the ' +
+        'smoke drop (threshold 60 / risk_filters) or an OPEN row survived the sweep and ' +
+        'folded this one away — see this file header, cross-run safety'
+    ).toBeDefined();
+    expect(
+      dropAlertCount,
+      'the medium drop produced NO alert row — 45 fails the default rule threshold ' +
+        '(60) end to end (policy.py _check_verdict_and_severity)'
+    ).toBe(0);
 
-    // 3. /alerts chrome (F-077), unmocked.
+    // The row's full derived shape, each field tied to its source link.
+    const alert = smokeAlert as AlertRow;
+    expect(alert.severity, '_higher_severity(rule MEDIUM, event HIGH) → HIGH').toBe('high');
+    expect(alert.status, 'a fresh pipeline row starts OPEN').toBe('open');
+    expect(alert.verdict_source, 'the fake VLM verdict chain lands on local').toBe('local');
+    expect(alert.match_count, 'a fresh row has folded nothing yet').toBe(1);
+    expect(alert.channels, 'nothing has been told yet').toEqual([]);
+    expect((alert.metadata ?? {}).rule_name, 'the default rule names itself in metadata').toBe(
+      'default'
+    );
+    expect(String(alert.event_id), 'row sanity: not the drop').not.toBe(String(dropEventId));
+
+    // The camera NAME the row renders (cameraNameMap over /api/cameras;
+    // AlertsPage falls back to the raw id only while the cameras query is in
+    // flight). Read, not guessed — the row's rendered Camera line is pinned
+    // below as chrome.
+    const camPage = await api.getJson('/api/cameras');
+    const cameras = ((camPage.body?.items ?? []) as Record<string, any>[]).filter(
+      (c) => String(c.id) === h.smokeCameraId
+    );
+    expect(cameras.length, 'the smoke camera is seeded').toBe(1);
+    const cameraName = String(cameras[0].name ?? h.smokeCameraId);
+
+    // 4. The page. Logged in, booting to /alerts — the open filter is the
+    //    shipped default. The row is pinned by rule name AND camera name
+    //    together: the store is global, and another camera could carry its
+    //    own default-rule alert — a filter on 'default' alone would make the
+    //    action buttons below ambiguous (strict mode would redden, but with a
+    //    message pointing at the wrong cause).
     await login(page, h, session);
     await page.goto(`${h.ui}/alerts`, { waitUntil: 'domcontentloaded' });
     await expect(page.getByTestId('alerts-page')).toBeVisible({ timeout: 30_000 });
 
-    // Severity summary renders a bucket only for a non-zero count, over the
-    // LOADED alerts (AlertsPage riskCounts :113-122, the summary block
-    // :390-420): so High shows and Critical does not — and neither does
-    // Medium, which is the band filter visible in the chrome even though the
-    // drop exists.
-    const summary = page.getByTestId('alert-severity-summary');
-    await expect(summary, 'the high alert produces a severity summary').toBeVisible();
-    await expect(summary.getByText('High', { exact: true })).toBeVisible();
-    await expect(summary.getByText('Critical', { exact: true })).toHaveCount(0);
-    await expect(summary.getByText('Medium', { exact: true })).toHaveCount(0);
-
-    // Page-level count line, outside the grouped container (AlertsPage.tsx:487):
-    // the pluralization is driven by totalCount, so with one alert the copy is
-    // singular — a real pin of that expression, not of a guessed string.
-    await expect(
-      page.getByText(`${high.length} alert${high.length === 1 ? '' : 's'} found`)
-    ).toBeVisible();
-
-    // Grouped view: the alert's OWN camera gets the group, and the group's
-    // count line is per-camera ("1 alert", AlertCameraGroup.tsx:126/154),
-    // default-expanded (:56). The drop's camera must get NO group at all.
-    const alertGroup = page.getByTestId(`alert-camera-group-${h.smokeCameraId}`);
-    await expect(alertGroup, 'the alert groups under its camera').toBeVisible();
-    await expect(alertGroup.getByText('1 alert', { exact: true })).toBeVisible();
-    await expect(
-      alertGroup.getByText(h.smokeScenario.verdict.summary),
-      'the group shows the stored verdict summary, not chrome'
-    ).toBeVisible();
-    await expect(
-      page.getByTestId(`alert-camera-group-${h.cameraId}`),
-      'the medium drop gets no camera group'
-    ).toHaveCount(0);
-
-    // Severity filter: Critical empties to the band truth and the empty-state
-    // copy names the filter it found nothing for — the template literal at
-    // AlertsPage.tsx:528 (the 'all' sentence beside it is :527).
-    await page.locator('#risk-filter').selectOption('critical');
-    await expect(
-      page.getByText('There are no critical risk events to review.'),
-      'the high alert stays off the critical page — the 29/59/84 bands hold end to end'
-    ).toBeVisible({ timeout: 15_000 });
-
-    // High filter must show it (the filter is not just "everything"), and All
-    // restores the same one alert.
-    await page.locator('#risk-filter').selectOption('high');
-    await expect(alertGroup, 'the High filter lists the high alert').toBeVisible({
+    const row = alertRow(page, alert.id);
+    await expect(row, 'the smoke alert appears live on the page').toBeVisible({
       timeout: 15_000,
     });
-    await page.locator('#risk-filter').selectOption('all');
-    await expect(alertGroup, 'All restores the alerts').toBeVisible({ timeout: 15_000 });
+    await expect(
+      page.getByText(/alert(s)? found/),
+      'the count line renders from totalCount'
+    ).toBeVisible();
 
-    // Refresh (F-077's "refreshes" clause). handleRefresh (AlertsPage.tsx:350-352)
-    // is `void refetch()`, so the click's observable is an events REQUEST — and
-    // it is attributable to the click here: useAlertsInfiniteQuery's
-    // refetchInterval defaults to false (useAlertsQuery.ts:237) and AlertsPage
-    // passes no interval, so nothing else on this page asks for /api/events on
-    // a timer. A survival-only assertion would pass on a dead onClick, which is
-    // the stale-pass this leg exists to prevent.
-    // Baseline only once the request stream is QUIET. Each selectOption above
-    // changes the query key, and each change refetches /api/events; the 'all'
-    // leg's visibility wait can return while that refetch is still in flight
-    // (the group never went hidden between 'high' and 'all'). A filter request
-    // counted as the baseline would let a dead onClick pass on the retry, and a
-    // late one would pass on the delta — so require 3 equal samples (1.5 s)
-    // first. Bounded at 15 s: a stream that never settles fails loudly here
-    // instead of silently attributing someone else's request to the click.
-    let eventsRequestsBefore = countEventsRequests();
+    // The row's chrome, each piece the rewrite ships (AlertsPage.tsx):
+    await expect(
+      page.getByTestId(`alert-severity-${alert.severity}`),
+      'the severity badge is the derived tier'
+    ).toBeVisible();
+    await expect(
+      page.getByText('verified locally', { exact: true }),
+      'the verdict badge reads the local chain'
+    ).toBeVisible();
+    await expect(
+      page.getByText('nobody yet', { exact: true }),
+      'with empty channels the row says who was NOT told'
+    ).toBeVisible();
+    await expect(
+      row.getByText(`Camera: ${cameraName}`, { exact: false }),
+      'the row resolves the camera id to its seeded name'
+    ).toBeVisible();
+
+    // 5. ACKNOWLEDGE — the design's first verb. The page calls the legacy
+    //    route (alertsApi.ts acknowledgeAlert → POST /api/alerts/{id}/
+    //    acknowledge), the same Alert table; the route admits OPEN and
+    //    broadcasts ALERT_ACKNOWLEDGED, which invalidates alertsQueryKeys.all
+    //    and repaints the row out of the open filter.
+    await row.getByRole('button', { name: 'Acknowledge' }).click();
+    const ackDeadline = Date.now() + 20_000;
+    let acked = false;
+    while (Date.now() < ackDeadline && !acked) {
+      const { rows: openRows } = await listAlerts(api, 'status=open&limit=100');
+      const { rows: ackRows } = await listAlerts(api, 'status=acknowledged&limit=100');
+      acked =
+        !openRows.some((r) => r.id === alert.id) && ackRows.some((r) => r.id === alert.id);
+      if (!acked) await new Promise((resolve) => setTimeout(resolve, 2_000));
+    }
+    expect(acked, 'acknowledge moved the row open → acknowledged on the wire').toBe(true);
+    await expect(row, 'the acknowledged row leaves the open list').toHaveCount(0, {
+      timeout: 15_000,
+    });
+
+    // 6. DISMISS — from acknowledged, which legacy dismiss admits (it blocks
+    //    only already-dismissed rows). Driven through the all filter where
+    //    the row still renders.
+    await page.locator('#status-filter').selectOption('all');
+    const rowAll = alertRow(page, alert.id);
+    await expect(rowAll, 'the all filter shows the acknowledged row').toBeVisible({
+      timeout: 15_000,
+    });
+    await rowAll.getByRole('button', { name: 'Dismiss' }).click();
+    const disDeadline = Date.now() + 20_000;
+    let dismissed = false;
+    while (Date.now() < disDeadline && !dismissed) {
+      const { rows: disRows } = await listAlerts(api, 'status=dismissed&limit=100');
+      dismissed = disRows.some((r) => r.id === alert.id);
+      if (!dismissed) await new Promise((resolve) => setTimeout(resolve, 2_000));
+    }
+    expect(dismissed, 'dismiss moved the row to dismissed on the wire').toBe(true);
+
+    // 7. SNOOZE — the design's third verb, riding the row's triggering event
+    //    (AlertsPage handleSnooze → useSnoozeEvent → PATCH /api/events/{id}
+    //    snooze_until; the backend syncs that write into an activity snooze).
+    //    Restore the row to open so it renders on the open page again — the
+    //    snooze rides the EVENT, not the alert status; the row is merely the
+    //    shipped control surface.
+    await apiWrite(h, session, 'PUT', `/api/alert-service/alerts/${alert.id}`, {
+      status: 'open',
+    });
+    await page.locator('#status-filter').selectOption('open');
+    await expect(row, 'the restored row is back on the open page').toBeVisible({
+      timeout: 15_000,
+    });
+    await row.locator(`select[aria-label="Snooze alert ${alert.id}"]`).selectOption('900');
+    // The wire fact: the event's snooze_until lands ~15 min ahead (the client
+    // computes Date.now() + seconds; api.ts snoozeEvent). Poll the
+    // single-event GET.
+    const snoozeDeadline = Date.now() + 20_000;
+    let snoozedUntil: string | null = null;
+    while (Date.now() < snoozeDeadline && snoozedUntil === null) {
+      const { body } = await api.getJson(`/api/events/${alert.event_id}`);
+      const until = (body as Record<string, unknown> | null)?.snooze_until;
+      snoozedUntil = typeof until === 'string' ? until : null;
+      if (snoozedUntil === null) await new Promise((resolve) => setTimeout(resolve, 2_000));
+    }
+    expect(snoozedUntil, 'the snooze click stored snooze_until on the event').not.toBeNull();
+    const deltaMinutes = (new Date(String(snoozedUntil)).getTime() - Date.now()) / 60_000;
+    expect(
+      deltaMinutes,
+      `a 15-minute option stores ~15 min ahead (got ${deltaMinutes.toFixed(2)})`
+    ).toBeGreaterThan(13);
+    expect(deltaMinutes).toBeLessThan(17);
+
+    // Clean the snooze residue NOW, not in an afterAll: PATCH null is what
+    // the client's own unsnooze does (api.ts) and what deletes the synced
+    // activity-snooze rows (_sync_event_activity_snooze). The event belongs
+    // to the harness smoke camera — a run that died after this point would
+    // otherwise leave the smoke event snoozed for the whole household.
+    await apiWrite(h, session, 'PATCH', `/api/events/${alert.event_id}`, {
+      snooze_until: null,
+    });
+
+    // 8. Cross-run cleanup, the header's contract: leave every alert row
+    //    naming this run's smoke event DISMISSED (the restore above re-opened
+    //    this one; PUT again unconditionally so the end state does not depend
+    //    on timing). A dismissed row cannot fold the next run's smoke event.
+    await apiWrite(h, session, 'PUT', `/api/alert-service/alerts/${alert.id}`, {
+      status: 'dismissed',
+    });
+    const final = await listAlerts(api, `event_id=${alert.event_id}`);
+    expect(
+      final.rows.every((r) => r.status === 'dismissed'),
+      "every alert row naming this run's smoke event ends dismissed — the fold " +
+        "(OPEN-only) cannot swallow the next run's alert"
+    ).toBe(true);
+
+    // 9. Refresh (F-078's "refreshes" clause). handleRefresh is `void
+    //    refetch()` — the click's observable is a REQUEST to the page's own
+    //    endpoint, and it is attributable to the click: useAlertsQuery's
+    //    refetchInterval defaults to false and the page passes none, so
+    //    nothing on this page polls on a timer. The Sidebar's
+    //    useOpenAlertCount DOES fire the same pathname once on mount
+    //    (limit=1), so the baseline is taken only after the request stream
+    //    goes quiet — three equal samples 500 ms apart, bounded at 15 s so a
+    //    stream that never settles fails here instead of silently
+    //    attributing someone else's request to the click.
+    let alertsRequestsBefore = countAlertsRequests();
     let quietSamples = 0;
     for (let sample = 0; sample < 30 && quietSamples < 3; sample++) {
       await page.waitForTimeout(500);
-      const now = countEventsRequests();
-      quietSamples = now === eventsRequestsBefore ? quietSamples + 1 : 0;
-      eventsRequestsBefore = now;
+      const now = countAlertsRequests();
+      quietSamples = now === alertsRequestsBefore ? quietSamples + 1 : 0;
+      alertsRequestsBefore = now;
     }
-    expect(quietSamples, 'the events stream settled before the click').toBe(3);
-
-    await page.getByLabel('Refresh alerts').click();
+    expect(quietSamples, 'the alerts request stream went quiet for the baseline').toBe(3);
+    await page.getByRole('button', { name: 'Refresh alerts' }).click();
     await expect
-      .poll(() => countEventsRequests(), {
-        message: 'the refresh button issued another events request',
-        timeout: 15_000,
-      })
-      .toBeGreaterThan(eventsRequestsBefore);
-    await expect(alertGroup, 'and the alert survives the refresh').toBeVisible({ timeout: 15_000 });
-    await expect(page.getByTestId('alerts-grouped-view')).toBeVisible();
+      .poll(() => countAlertsRequests(), { timeout: 10_000, intervals: [200, 400, 800] })
+      .toBeGreaterThan(alertsRequestsBefore);
 
-    // Grid view: one card, pinned by testid, and the drop's card absent. The
-    // infinite-scroll sentinel reports the end of a one-page list.
-    await page.getByLabel('Grid view').click();
-    const grid = page.getByTestId('alerts-grid-view');
-    await expect(grid).toBeVisible();
-    const cards = grid.locator('[data-testid^="event-card-"]');
-    await expect(cards, 'exactly the high alert lists in the grid').toHaveCount(1);
-    await expect(cards.nth(0), 'the grid card is the high alert').toHaveAttribute(
-      'data-testid',
-      `event-card-${alertId}`
-    );
-    await expect(
-      grid.locator(`[data-testid="event-card-${dropEventId}"]`),
-      'the medium drop never reaches the grid'
-    ).toHaveCount(0);
-    await expect(page.getByText('All alerts loaded')).toBeVisible();
-
-    // 4. Event detail through the grid card's OWN click path (F-080):
-    //    EventCard onClick → setSelectedEventForModal → shared
-    //    EventDetailModal. Its detections ride a lazy
-    //    GET /api/events/<id>/detections — observe (not intercept; the guard
-    //    would reject a stub) that it answers with the stored detection.
-    const detectionsResponse = page.waitForResponse(
-      (response) => new URL(response.url()).pathname === `/api/events/${alertId}/detections`,
-      { timeout: 20_000 }
-    );
-    await page.getByTestId(`event-card-${alertId}`).click();
-    const modal = page.getByTestId('event-detail-modal');
-    await expect(modal, 'the alert click opened the shared detail modal').toBeVisible({
-      timeout: 15_000,
-    });
-    const detResp = await detectionsResponse;
-    expect(detResp.status(), 'the modal detections endpoint answers').toBe(200);
-    const detBody = await detResp.json().catch(() => null);
-    // DetectionListResponse: {items: [...], pagination: {...}}
-    const stored = Array.isArray(detBody)
-      ? detBody
-      : ((detBody?.items ?? detBody?.detections ?? []) as Record<string, any>[]);
-    expect(stored.length, 'the modal loads the stored detection, not an empty list').toBe(
-      h.smokeScenario.detections.length
-    );
-    expect(
-      Math.round(Number(stored[0].confidence) * 100),
-      'the stored confidence round-trips the book value at UI rounding'
-    ).toBe(Math.round(h.smokeScenario.detections[0].confidence * 100));
-    expect(String(stored[0].object_type), 'the stored detection carries the book class').toBe(
-      h.smokeScenario.detections[0].class
-    );
-
-    // risk-score is scoped to the modal ON PURPOSE: StatsRow.tsx:231 carries a
-    // second data-testid="risk-score" in frontend/src. It is dashboard-only and
-    // not mounted on /alerts today (that is why a page-wide locator passed the
-    // CI run), but a shared shell that ever renders StatsRow would turn every
-    // page-wide pin below into a strict-mode violation. The modal owns this one.
-    await expect(modal.getByTestId('risk-score'), 'the modal shows the stored score').toContainText(
-      String(h.smokeScenario.verdict.risk_score)
-    );
-    await expect(page.getByTestId('ai-analysis-section')).toContainText(
-      h.smokeScenario.verdict.summary
-    );
-    // detection-camera is the modal's title = the event's camera_name, which
-    // AlertsPage resolves from /api/cameras; feature_check.py seeds each
-    // camera with the scenario's own name — seed_cameras at
-    // scripts/feature_check.py:1282-1296, name bound at :1286 and POSTed as the
-    // camera's name at :1289.
-    await expect(page.getByTestId('detection-camera')).toContainText(h.smokeScenario.name);
-
-    // 5. Prev/next on a one-alert stack (F-080): the buttons exist and are
-    //    clickable (no disabled state — EventDetailModal.tsx:1262-1277), and
-    //    handleNavigate's bounds guard makes BOTH a no-op, so the score must
-    //    HOLD. Arrow keys run the same handler (:413-427) and must hold too.
-    //    This is the shipped behaviour pinned honestly; the two-alert case is
-    //    the PR body's harness ask, not a claim made here.
-    const score = modal.getByTestId('risk-score'); // scoped for the reason above
-    const smokeScoreText = String(h.smokeScenario.verdict.risk_score);
-    await modal.getByRole('button', { name: 'Previous event' }).click();
-    await expect(score, 'Previous is a bounds no-op on the only alert').toContainText(
-      smokeScoreText
-    );
-    await modal.getByRole('button', { name: 'Next event' }).click();
-    await expect(score, 'Next is a bounds no-op on the only alert').toContainText(smokeScoreText);
-    await page.keyboard.press('ArrowLeft');
-    await expect(score, 'ArrowLeft agrees with the button').toContainText(smokeScoreText);
-    await page.keyboard.press('ArrowRight');
-    await expect(score, 'ArrowRight agrees with the button').toContainText(smokeScoreText);
-
-    // 6. Close through the modal's own button; grouped chrome intact (toggle
-    //    back proves the page survived the navigation).
-    await page.getByTestId('close-modal-button').click();
-    await expect(modal, 'the close button closed the modal').toBeHidden({ timeout: 10_000 });
-    await page.getByLabel('Group by camera').click();
-    await expect(page.getByTestId('alerts-grouped-view')).toBeVisible();
-    await expect(alertGroup).toBeVisible();
-
-    // 7. End-to-end honesty: still the harness's UI; guard survived the drive.
+    // End-of-spec honesty: the guard survived the whole drive (F2.1's pin,
+    // re-armed so a DO-1 spec that reached for a mock fails LOUD).
     await assertGuardSurvives(page, h);
   });
 });

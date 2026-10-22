@@ -13902,6 +13902,7 @@ export interface components {
          * AlertServiceResponse
          * @description Schema for alert response from Alert Service operations.
          * @example {
+         *       "camera_id": "front_door",
          *       "channels": [
          *         "pushover"
          *       ],
@@ -13918,6 +13919,11 @@ export interface components {
          *     }
          */
         AlertServiceResponse: {
+            /**
+             * Camera Id
+             * @description Camera that produced the triggering event, read through the event (F4.1: the Alerts page's camera column; None when the event is gone)
+             */
+            camera_id?: string | null;
             /**
              * Channels
              * @description Notification channels

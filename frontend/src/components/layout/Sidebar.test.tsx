@@ -32,6 +32,14 @@ vi.mock('../../hooks/useIsMobile', () => ({
   useViewport: () => viewportState.current,
 }));
 
+// F4.1: the Alerts & Rules hub renders the open count from this hook; the
+// test controls it with a hoisted mutable so a badge test can raise it.
+const alertCountState = vi.hoisted(() => ({ current: 0 }));
+
+vi.mock('../../hooks/useOpenAlertCount', () => ({
+  useOpenAlertCount: () => alertCountState.current,
+}));
+
 const renderWithRouter = (initialEntries: string[] = ['/'], mode: ViewMode = 'easy') => {
   return renderWithNavigation(<Sidebar />, {
     initialEntries,
@@ -45,6 +53,7 @@ describe('Sidebar', () => {
     localStorage.clear();
     mockSetMobileMenuOpen.mockClear();
     menuState.current = false;
+    alertCountState.current = 0;
     viewportState.current = createNavigationFixture().desktopViewport;
   });
 
@@ -87,6 +96,22 @@ describe('Sidebar', () => {
     const dashboardHub = screen.getByTestId('sidebar-hub-dashboard');
     expect(dashboardHub).not.toHaveClass('bg-[#76B900]');
     expect(dashboardHub).not.toHaveAttribute('aria-current');
+  });
+
+  it('renders the Alerts open count on the nav item (F4.1)', () => {
+    alertCountState.current = 3;
+    renderWithRouter();
+    const badges = screen.getAllByText('3');
+    expect(badges.length).toBeGreaterThanOrEqual(1);
+    alertCountState.current = 0;
+  });
+
+  it('hides the Alerts badge when the open count is 0 (F4.1)', () => {
+    alertCountState.current = 0;
+    renderWithRouter();
+    // No count-only badge spans; the static "!" badges (if any) stay theirs.
+    expect(screen.queryByText('0')).not.toBeInTheDocument();
+  });
   });
 
   it('highlights the owning hub for secondary tabs (e.g. /settings/rules -> Alerts & Rules)', () => {
