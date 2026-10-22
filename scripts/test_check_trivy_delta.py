@@ -141,7 +141,7 @@ def test_finding_in_both_base_and_head_passes_the_gate(tmp_path: Path) -> None:
 def test_head_only_finding_fails_the_gate(tmp_path: Path) -> None:
     h = Harness(tmp_path)
     r = h.run(
-        trivy_doc(CERTIFI_FINDING + [{"id": FIXTURE_ID, "pkg": FIXTURE_PKG}]),
+        trivy_doc([*CERTIFI_FINDING, {"id": FIXTURE_ID, "pkg": FIXTURE_PKG}]),
         CERTIFI_IGNORE,
         base_report=trivy_doc(CERTIFI_FINDING),
         base_ignore=CERTIFI_IGNORE,
@@ -160,7 +160,7 @@ def test_head_only_finding_on_the_same_advisory_but_new_package_fails(
     one package does not cover a NEW package the change adds."""
     h = Harness(tmp_path)
     r = h.run(
-        trivy_doc(CERTIFI_FINDING + [{"id": CERTIFI_ID, "pkg": "certifi-copy"}]),
+        trivy_doc([*CERTIFI_FINDING, {"id": CERTIFI_ID, "pkg": "certifi-copy"}]),
         CERTIFI_IGNORE,
         base_report=trivy_doc(CERTIFI_FINDING),
         base_ignore=CERTIFI_IGNORE,
@@ -272,7 +272,7 @@ def test_missing_base_ignore_file_fails_closed(tmp_path: Path) -> None:
     (h.tmp / "head.json").write_text(trivy_doc(CERTIFI_FINDING))
     (h.tmp / "head.trivyignore").write_text(CERTIFI_IGNORE)
     (h.tmp / "base.json").write_text(trivy_doc(CERTIFI_FINDING))
-    r = subprocess.run(argv, capture_output=True, text=True)
+    r = subprocess.run(argv, check=False, capture_output=True, text=True)
     assert r.returncode == 1, r.stdout + r.stderr
 
 
@@ -291,7 +291,7 @@ def test_base_report_without_base_ignore_is_a_usage_error(tmp_path: Path) -> Non
     (h.tmp / "head.json").write_text(trivy_doc([]))
     (h.tmp / "head.trivyignore").write_text("")
     (h.tmp / "base.json").write_text(trivy_doc([]))
-    r = subprocess.run(argv, capture_output=True, text=True)
+    r = subprocess.run(argv, check=False, capture_output=True, text=True)
     assert r.returncode == 1, r.stdout + r.stderr
 
 
@@ -380,6 +380,7 @@ def test_workflow_gate_legs_route_through_the_checker() -> None:
     assert "trivy-mode: gate" in wf or "trivy-mode: gate" in CI_WORKFLOW.read_text()
     ci = CI_WORKFLOW.read_text()
     assert "trivy-mode: gate" in ci
+
 
 # --- the review round (UR-89 + UR-95 findings, red-first) ---------------------
 
