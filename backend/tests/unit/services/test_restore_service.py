@@ -136,31 +136,14 @@ class TestValidateManifest:
         # Should not raise
         service._validate_manifest(sample_manifest)
 
-    def test_validate_manifest_missing_backup_id(self, sample_manifest):
-        """Test manifest without backup_id raises error."""
-        del sample_manifest["backup_id"]
+    @pytest.mark.parametrize("field", ["backup_id", "version", "created_at"])
+    def test_validate_manifest_missing_required_field(self, sample_manifest, field):
+        """Test manifest without a required field raises BackupValidationError."""
+        del sample_manifest[field]
         service = RestoreService()
 
         with pytest.raises(
-            BackupValidationError, match="Missing required manifest field: backup_id"
-        ):
-            service._validate_manifest(sample_manifest)
-
-    def test_validate_manifest_missing_version(self, sample_manifest):
-        """Test manifest without version raises error."""
-        del sample_manifest["version"]
-        service = RestoreService()
-
-        with pytest.raises(BackupValidationError, match="Missing required manifest field: version"):
-            service._validate_manifest(sample_manifest)
-
-    def test_validate_manifest_missing_created_at(self, sample_manifest):
-        """Test manifest without created_at raises error."""
-        del sample_manifest["created_at"]
-        service = RestoreService()
-
-        with pytest.raises(
-            BackupValidationError, match="Missing required manifest field: created_at"
+            BackupValidationError, match=f"Missing required manifest field: {field}"
         ):
             service._validate_manifest(sample_manifest)
 
@@ -188,19 +171,10 @@ class TestValidateManifest:
         with pytest.raises(BackupValidationError, match="Invalid content info for table cameras"):
             service._validate_manifest(sample_manifest)
 
-    def test_validate_manifest_missing_count(self, sample_manifest):
-        """Test manifest with missing count raises error."""
-        del sample_manifest["contents"]["cameras"]["count"]
-        service = RestoreService()
-
-        with pytest.raises(
-            BackupValidationError, match="Missing count or checksum for table cameras"
-        ):
-            service._validate_manifest(sample_manifest)
-
-    def test_validate_manifest_missing_checksum(self, sample_manifest):
-        """Test manifest with missing checksum raises error."""
-        del sample_manifest["contents"]["cameras"]["checksum"]
+    @pytest.mark.parametrize("field", ["count", "checksum"])
+    def test_validate_manifest_missing_content_field(self, sample_manifest, field):
+        """Test manifest with missing count or checksum raises BackupValidationError."""
+        del sample_manifest["contents"]["cameras"][field]
         service = RestoreService()
 
         with pytest.raises(
@@ -320,27 +294,21 @@ class TestVerifyChecksums:
 class TestIsDatetimeField:
     """Test _is_datetime_field method."""
 
-    def test_is_datetime_field_with_at_suffix(self):
-        """Test field ending with _at is recognized as datetime."""
+    @pytest.mark.parametrize(
+        ("field_name", "value"),
+        [
+            ("created_at", "2024-01-15T10:30:00Z"),
+            ("updated_at", "2024-01-15T10:30:00Z"),
+            ("started_at", "2024-01-15T10:30:00Z"),
+            ("start_date", "2024-01-15"),
+            ("event_time", "2024-01-15T10:30:00"),
+            ("event_timestamp", "2024-01-15T10:30:00"),
+        ],
+    )
+    def test_is_datetime_field_recognized_suffixes(self, field_name, value):
+        """Test fields ending with _at/_date/_time/_timestamp are recognized as datetime."""
         service = RestoreService()
-        assert service._is_datetime_field("created_at", "2024-01-15T10:30:00Z")
-        assert service._is_datetime_field("updated_at", "2024-01-15T10:30:00Z")
-        assert service._is_datetime_field("started_at", "2024-01-15T10:30:00Z")
-
-    def test_is_datetime_field_with_date_suffix(self):
-        """Test field ending with _date is recognized as datetime."""
-        service = RestoreService()
-        assert service._is_datetime_field("start_date", "2024-01-15")
-
-    def test_is_datetime_field_with_time_suffix(self):
-        """Test field ending with _time is recognized as datetime."""
-        service = RestoreService()
-        assert service._is_datetime_field("event_time", "2024-01-15T10:30:00")
-
-    def test_is_datetime_field_with_timestamp_suffix(self):
-        """Test field ending with _timestamp is recognized as datetime."""
-        service = RestoreService()
-        assert service._is_datetime_field("event_timestamp", "2024-01-15T10:30:00")
+        assert service._is_datetime_field(field_name, value)
 
     def test_is_datetime_field_non_datetime_field(self):
         """Test non-datetime field is not recognized."""
@@ -444,37 +412,22 @@ class TestProcessRecordData:
 class TestGetModelClass:
     """Test _get_model_class method."""
 
-    def test_get_model_class_returns_camera_model(self):
-        """Test getting Camera model class."""
+    @pytest.mark.parametrize(
+        ("table_name", "expected_class_name"),
+        [
+            ("cameras", "Camera"),
+            ("events", "Event"),
+            ("alerts", "Alert"),
+            ("zones", "CameraZone"),
+        ],
+    )
+    def test_get_model_class_returns_expected_model(self, table_name, expected_class_name):
+        """Test getting mapped model class for known backup tables."""
         service = RestoreService()
-        model_class = service._get_model_class("cameras")
+        model_class = service._get_model_class(table_name)
 
         assert model_class is not None
-        assert model_class.__name__ == "Camera"
-
-    def test_get_model_class_returns_event_model(self):
-        """Test getting Event model class."""
-        service = RestoreService()
-        model_class = service._get_model_class("events")
-
-        assert model_class is not None
-        assert model_class.__name__ == "Event"
-
-    def test_get_model_class_returns_alert_model(self):
-        """Test getting Alert model class."""
-        service = RestoreService()
-        model_class = service._get_model_class("alerts")
-
-        assert model_class is not None
-        assert model_class.__name__ == "Alert"
-
-    def test_get_model_class_returns_zone_model(self):
-        """Test getting CameraZone model class."""
-        service = RestoreService()
-        model_class = service._get_model_class("zones")
-
-        assert model_class is not None
-        assert model_class.__name__ == "CameraZone"
+        assert model_class.__name__ == expected_class_name
 
     def test_get_model_class_unknown_table_returns_none(self):
         """Test unknown table returns None."""
@@ -943,19 +896,13 @@ class TestRestoreTableOrder:
 class TestRestoreServiceExceptions:
     """Test custom exception classes."""
 
-    def test_backup_validation_error_is_exception(self):
-        """Test BackupValidationError is an Exception."""
-        error = BackupValidationError("test")
-        assert isinstance(error, Exception)
-
-    def test_backup_corrupted_error_is_exception(self):
-        """Test BackupCorruptedError is an Exception."""
-        error = BackupCorruptedError("test")
-        assert isinstance(error, Exception)
-
-    def test_restore_error_is_exception(self):
-        """Test RestoreError is an Exception."""
-        error = RestoreError("test")
+    @pytest.mark.parametrize(
+        "exc_cls",
+        [BackupValidationError, BackupCorruptedError, RestoreError],
+    )
+    def test_custom_error_is_exception(self, exc_cls):
+        """Test custom restore exception classes inherit from Exception."""
+        error = exc_cls("test")
         assert isinstance(error, Exception)
 
 
