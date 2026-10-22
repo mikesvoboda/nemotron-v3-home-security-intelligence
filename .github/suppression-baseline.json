@@ -4,7 +4,7 @@
   "excluded_test_trees": 4,
   "flake_allowlist": 0,
   "frontend_only": 0,
-  "frontend_quarantine": 13,
+  "frontend_quarantine": 0,
   "frontend_skip": 49,
   "frontend_todo": 0,
   "golden_fixme": 2,
