@@ -140,7 +140,7 @@ export interface ThreatSummary {
 
 /**
  * Single threat detection from the AI pipeline.
- * Used by ThreatIndicator, ThreatBoundingBox components.
+ * Used by ThreatIndicator and detection/BoundingBoxOverlay.
  *
  * Matches backend/services/threat_detection_loader.py::ThreatDetection
  */

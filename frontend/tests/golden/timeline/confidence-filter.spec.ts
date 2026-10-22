@@ -7,10 +7,10 @@
  *     map is CONFIDENCE_THRESHOLD (EventTimeline.tsx:86): 'high' → 0.85,
  *     'medium' → 0.70, 'any' → 0; '' removes the parameter. The list reloads
  *     server-side: min_confidence is an EXISTS through event_detections
- *     (events.py:494-513) on the SAME query the page reads.
+ *     (events.py:499-518) on the SAME query the page reads.
  *   F-055 (event detail): "…shows detected objects (with confidence) and draws
  *     bounding boxes on the still image …". The modal's list is its OWN fetch
- *     (EventDetailModal.tsx:431), and boxesForSelectedImage (:446) draws every
+ *     (EventDetailModal.tsx:430), and boxesForSelectedImage (:452) draws every
  *     IMAGE detection sharing the selected detection's file_path on
  *     DetectionImage via BoundingBoxOverlay.
  *
@@ -374,8 +374,9 @@ async function dropAndConverge(
 }
 
 test.beforeAll(async () => {
-  // Two drops + fake VLM replies + possible dedupe waits: the HOOK's timeout
-  // (a test.setTimeout inside a test does not move it).
+  // Two drops + fake VLM replies + possible dedupe waits: the HOOK's timeout.
+  // Each test body also calls test.setTimeout(90_000) — inside a test,
+  // test.setTimeout moves THAT test's clock, not the hook's.
   test.setTimeout(480_000);
   const session = await adminSession(timeline);
   highEventId = await dropAndConverge(
@@ -433,6 +434,7 @@ test.describe('F4.4 confidence filter (F-044) + detected objects (F-055) — the
   test("deep link ?min_confidence=0.85 ('High') shows only the 0.90 event; the select holds the choice", async ({
     page,
   }) => {
+    test.setTimeout(90_000);
     const session = await adminSession(timeline);
     // Ground truth first, from the endpoint the page itself reads.
     const truth = await api<{ items: EventRow[] }>(
@@ -472,6 +474,7 @@ test.describe('F4.4 confidence filter (F-044) + detected objects (F-055) — the
   test("deep link ?min_confidence=0.7 ('Medium+') shows both seeded events; DOM mirrors the API", async ({
     page,
   }) => {
+    test.setTimeout(90_000);
     const session = await adminSession(timeline);
     const truth = await api<{ items: EventRow[] }>(
       timeline,
@@ -528,6 +531,7 @@ test.describe('F4.4 confidence filter (F-044) + detected objects (F-055) — the
   test('deep link ?verdict=rejected shows the rejected seed and the select holds it', async ({
     page,
   }) => {
+    test.setTimeout(90_000);
     const session = await adminSession(timeline);
     const truth = await api<{ items: EventRow[] }>(
       timeline,
@@ -557,6 +561,7 @@ test.describe('F4.4 confidence filter (F-044) + detected objects (F-055) — the
   test('selecting High in the UI sends min_confidence=0.85 and the list reloads to the 0.90 event only', async ({
     page,
   }) => {
+    test.setTimeout(90_000);
     const session = await adminSession(timeline);
     await bootTimeline(page, `/timeline?camera=${encodeURIComponent(harness.highCameraId)}`);
 
@@ -591,6 +596,7 @@ test.describe('F4.4 confidence filter (F-044) + detected objects (F-055) — the
   test('opening the high event shows its objects (2) and draws their boxes on the still', async ({
     page,
   }) => {
+    test.setTimeout(90_000);
     const session = await adminSession(timeline);
     const row = await eventRow(session, highEventId);
     const dets = await detectionItems(session, highEventId);

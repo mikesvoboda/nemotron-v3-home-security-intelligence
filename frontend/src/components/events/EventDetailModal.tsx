@@ -79,14 +79,13 @@ import type { LightboxImage } from '../common/Lightbox';
 import type { BoundingBox } from '../detection/BoundingBoxOverlay';
 
 /**
- * Weapon classes draw red in the overlay (F4.4): the colour ThreatBoundingBox
- * used for high-priority threats, carried onto the shared overlay now that
- * the threats-only component is retired. Tailwind red-500.
+ * Weapon classes draw red in the overlay (F4.4): the colour the retired
+ * threats-only box component used for high-priority threats, carried onto the
+ * shared detection/BoundingBoxOverlay. Tailwind red-500.
  */
 const WEAPON_BOX_COLOUR = '#ef4444';
 
 /** Threat classes from the shared vocabulary - a weapon box is red. */
-const THREAT_COLOUR_CLASSES = THREAT_CLASSES;
 
 /**
  * A detection as the modal displays it: the label, its confidence, and the
@@ -475,9 +474,9 @@ export default function EventDetailModal({
         label: d.object_type || 'object',
         confidence: d.confidence ?? 0,
         // A weapon draws red regardless of the class palette (F4.4): the
-        // threat colour ThreatBoundingBox used, carried onto the same-kind
-        // overlay now that the threats-only component is retired.
-        ...(THREAT_COLOUR_CLASSES.has((d.object_type || '').toLowerCase()) && {
+        // threat colour the retired threats-only box component used, carried
+        // onto the same-kind overlay.
+        ...(THREAT_CLASSES.has((d.object_type || '').toLowerCase()) && {
           color: WEAPON_BOX_COLOUR,
         }),
       }));

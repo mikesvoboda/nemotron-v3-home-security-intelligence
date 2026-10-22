@@ -287,7 +287,7 @@ execute. **A count the row does not own** — **F-076**'s
 promise is cost/token/budget (always zero: the read routes exist — `backend/api/routes/cost_analytics.py:94` — but no production or seeding path records into a ledger anyone reads back); the `COUNT(Detection.id)` behind its
 GPU-cost subtitle (`backend/api/routes/cost_analytics.py:104`) rides beside the promise, unlike F-071
 where the count _is_ the promise. **Media download asks for the raw frame** — **F-059** and **F-296**
-fetch `getDetectionFullImageUrl` → `?full=true` (`frontend/src/services/api.ts:3168`–`:3197`), which returns the
+fetch `getDetectionFullImageUrl` → `?full=true` (`frontend/src/services/api.ts:3158`–`:3161`), which returns the
 original source image with no box drawn (`backend/api/routes/detections.py:1257`–`:1266`), so the bytes
 the user gets are hardware-written; which detection it downloads is decided by the leg, and that is the
 narrower thing the row does. **User-entered** — F-270, F-271, F-275, F-272 and the write-side rows
