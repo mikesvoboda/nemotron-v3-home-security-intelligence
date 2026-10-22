@@ -1595,7 +1595,7 @@ stage at or above 0.999; and the UR-89 review approves.
 
 **Flags:** `heavy`, `owner` (it changes what ships, UR-98); label `cell:heavy-b`. **Assigned:**
 heavy-b, after `O3.7`, ahead of `[r307a]` and `B4.6` (ruling 312). **Depends on:** none.
-**PR:** none yet. (ruling 312, records 6329693164 and 6331303299)
+**PR:** #7343. (ruling 312, records 6329693164 and 6331303299)
 
 UR-187 starts here: the gateway built on `nvcr.io/nvidia/tritonserver:26.01-py3`
 (`ai/gateway/Dockerfile:1`), on which ONNX Runtime's CUDA execution provider had failed on the GB300
