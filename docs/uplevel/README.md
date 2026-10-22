@@ -212,6 +212,7 @@ UR-147.
 | BB.\*   | backend                 | 4          | Background track                               |               | not started |     |
 | F4.\*   | frontend                | 4          | Feature track, frontend parts                  | design: heavy | not started |     |
 | F4.4    | frontend                | 4          | Timeline filters and detections                |               | awaiting real tier | #7352, #7362 |
+| F4.1    | frontend                | 4          | The Alerts page                                |               | in progress | #7367 |
 | FB.\*   | frontend                | 4          | Background track                               |               | not started |     |
 | OB.2    | ops                     | after 1    | CI dedupe                                      |               | done        | #6963 |
 | OB.3    | ops                     | after 1    | Image weight                                   |               | done        | #7307 |

@@ -260,7 +260,7 @@ merged; it runs beside `B4.2`. **PR:** #7367. (ruling 308, record 6326364266)
 Design: [`../4n-alerting.md`](../4n-alerting.md), "Packages" row 2, beside `B4.2`. Covers F-078,
 F-079.
 
-- [ ] The test-only PR (step 2).
+- [x] The test-only PR (step 2).
 - [ ] The build PR: alert rows; Acknowledge, Dismiss, Snooze; the timeline's Snooze moves to
       activity snoozes; `alerts.spec.ts` and the snooze steps of `event-detail-modal.spec.ts`
       rewritten.
