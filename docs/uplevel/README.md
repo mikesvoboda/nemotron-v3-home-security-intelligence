@@ -196,7 +196,7 @@ UR-147.
 | B3.3    | backend                 | 3          | Settings and residue truth                     |               | in progress | #7244, #7322 |
 | F3.1    | frontend                | 3          | Retire ruled-out features, frontend part       | heavy         | done        | #7220, #7224, #7228, #7232, #7233, #7243, #7247, #7249, #7253, #7254, #7255, #7258, #7261, #7266, #7270, #7272, #7273, #7277, #7286, #7300, #7304, #7309, #7311 |
 | F3.2    | frontend                | 3          | Unreachable files and the knip gate            |               | done        | #7246 |
-| F3.3    | frontend                | 3          | Quarantined tests                              |               | in progress | #7325 |
+| F3.3    | frontend                | 3          | Quarantined tests                              |               | done        | #7325 |
 | O3.1    | ops                     | 3          | Prune `ai/` to what ships                      |               | done        | #7256 |
 | O3.2    | ops                     | 3          | Compose base and overlays                      |               | not started |     |
 | O3.3    | ops                     | 3          | `models.yml` and env truth                     |               | done        | #7281 |
