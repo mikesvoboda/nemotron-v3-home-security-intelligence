@@ -40,15 +40,24 @@
  *         (:347/:355) — is a real branch, not a guessed string.
  *  F-233  delete: DELETE → 204, the list drops it, and a second DELETE of
  *         the now-unknown id → 404 (:401/:407) — one leg proves both.
- *  F-235  GET /api/notification/config in the no-env CI stack (neither
- *         docker-compose.ci.yml nor docker-compose.fake-ai.yml carries any
- *         SMTP/webhook env — grepped at implementation): the three
- *         configured flags are false and available_channels is []
- *         (services/notification.py:141-166: email needs host AND from
- *         address, webhook needs default_webhook_url, push is a literal
- *         False). The UI renders that state, not a spinner: the two
- *         not-configured guidance strings (:1113-1119, :1174-1178) and the
- *         empty channels summary (:1193) are visible.
+ *  F-235  GET /api/notification/config in the sinks CI stack: since [r308a]
+ *         the fake tier renders docker-compose.sinks.yml with the stack, and
+ *         its backend env sets SMTP_HOST=mail-sink + SMTP_FROM_ADDRESS
+ *         (the mail golden leg dials them), so email_configured flips TRUE
+ *         (services/notification.py:141-146: host AND from address) while
+ *         webhook stays FALSE — DEFAULT_WEBHOOK_URL is deliberately NOT set
+ *         (docker-compose.sinks.yml: the Settings field-validator runs
+ *         validate_webhook_url at boot and would refuse a private DNS name)
+ *         — and push is a literal False (:153-155). So the config contract
+ *         under test is email-configured / webhook-and-push-not:
+ *         available_channels is ['email'], the UI renders the SMTP detail
+ *         grid for email (NotificationSettings.tsx:1060-1081) but the
+ *         webhook not-configured guidance (:1174-1178), and the channels
+ *         summary shows the EMAIL badge (:1186-1191) instead of the
+ *         no-channels text (:1193). The webhook/push pins keep the F-235
+ *         status story alive on this tier; the email-true side is the
+ *         round-2 red this spec ate when the sinks landed (run 39711770794:
+ *         expected false, received true — the pin was stale, not the stack).
  *  F-236  the shipped STUB contract, demoted honestly (the inventory's
  *         'expects a log' action can never pass — routes/notification.py:412
  *         returns a literal empty list): GET /api/notification/history → 200
@@ -209,7 +218,9 @@ test.describe('DO-2 notifications golden path', () => {
   // The boot now runs through settledSettings (./harness.ts): drain the burst,
   // navigate, wait for the config-gated sentinel, re-drive on a shed coat — the
   // dashboard harness's proven discipline, kept local per ruling 87.
-  test('F-235 channels: the no-env stack is not-configured end to end', async ({ page }) => {
+  test('F-235 channels: the sinks stack is email-configured, webhook-and-push-not', async ({
+    page,
+  }) => {
     // settledSettings' arithmetic ceiling is 48 s (3 drives x (2 s quiet + 10 s
     // sentinel + 4 s refill)) plus the coat poller's round-trips; 90 s is ~2x that
     // and matches the driveUntilBooted tier (../dashboard/config-modal.spec.ts:252,
@@ -218,24 +229,40 @@ test.describe('DO-2 notifications golden path', () => {
     const h = harness as Harness;
     const api = await signIn(page, h);
 
-    // --- API leg: every configured predicate is false by compose, not guess ---
+    // --- API leg: the flags follow the sinks overlay's env, by predicate ---
+    // The overlay sets SMTP_HOST + SMTP_FROM_ADDRESS (the mail leg dials them),
+    // so is_email_configured (notification.py:141-146) is true. DEFAULT_WEBHOOK_URL
+    // is deliberately unset (the boot validator would refuse an in-network name),
+    // so is_webhook_configured (:149-151) stays false, and push is a literal False
+    // (:153-155). The values asserted for smtp_host/smtp_port are the overlay's own
+    // spellings (docker-compose.sinks.yml) as the rendered env carries them.
     const cfg = await api.getJson('/api/notification/config');
     expect(cfg.status, 'GET notification/config answers 200').toBe(200);
-    expect(cfg.body?.email_configured, 'no SMTP env in the CI stack').toBe(false);
-    expect(cfg.body?.webhook_configured, 'no webhook env in the CI stack').toBe(false);
+    expect(cfg.body?.email_configured, 'SMTP_HOST + SMTP_FROM_ADDRESS ride the sinks overlay').toBe(
+      true
+    );
+    expect(
+      cfg.body?.webhook_configured,
+      'no DEFAULT_WEBHOOK_URL: the boot validator refuses an in-network name'
+    ).toBe(false);
     expect(cfg.body?.push_configured, 'push_configured is a shipped constant false').toBe(false);
-    expect(cfg.body?.available_channels, 'no channel passes its predicate').toEqual([]);
+    expect(cfg.body?.available_channels, 'only email passes its predicate').toEqual(['email']);
+    expect(cfg.body?.smtp_host, 'the overlay dials the mail sink by service DNS').toBe('mail-sink');
 
-    // --- UI leg: the guidance REPLACES the test buttons (that is the pin) ---
+    // --- UI leg: the email section shows ITS configured face, webhook its
+    // not-configured one, and the channels summary carries the EMAIL badge ---
     await settledSettings(page, h, '/settings/notifications');
-    await expect(page.getByText('Email notifications are not configured.')).toBeVisible();
+    // The email section renders the SMTP detail grid (NotificationSettings.tsx
+    // :1062-1081) — the configured branch the old no-env pin never saw.
+    await expect(page.getByText('SMTP Host')).toBeVisible();
+    await expect(page.getByText('mail-sink')).toBeVisible();
+    // The webhook guidance still replaces its controls (still not configured,
+    // :1174-1178) — the F-235 status story survives for the webhook half.
     await expect(page.getByText('Webhook notifications are not configured.')).toBeVisible();
-    await expect(page.getByText('No notification channels configured')).toBeVisible();
-    // NO button-absence assert: the DESKTOP Test button (:668) renders in
-    // this stack regardless of channel config (it is browser-side), so a
-    // global "no Test buttons" count fails against a healthy app. The email/
-    // webhook sections showing guidance INSTEAD of their buttons is already
-    // pinned by the guidance strings above plus the flags=false API leg.
+    // The channels summary lists the channel instead of the no-channels text
+    // (:1186-1194): the EMAIL badge renders, the empty-state sentence does not.
+    await expect(page.getByText('EMAIL', { exact: true })).toBeVisible();
+    await expect(page.getByText('No notification channels configured')).toHaveCount(0);
   });
 
   test('F-236 history: the stub contract is 200-empty and the panel says so verbatim', async ({
