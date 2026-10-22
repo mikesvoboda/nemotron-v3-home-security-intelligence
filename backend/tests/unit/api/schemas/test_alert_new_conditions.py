@@ -182,6 +182,8 @@ class TestCombinedSchemaValidation:
             "risk_threshold",
             "object_types",
             "camera_ids",
+            "excluded_camera_ids",
+            "alert_on_rejected",
             "zone_ids",
             "min_confidence",
             "schedule",

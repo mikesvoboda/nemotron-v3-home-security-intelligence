@@ -133,9 +133,11 @@ def test_0011_registered_with_a_check():
 
 
 def test_0011_is_last_in_order():
-    """The registry's order ends with 0011: a retirement upgrade that ran before the tables
-    it reads existed would fail, and order is this runner's whole contract."""
-    assert registry.ids()[-1] == UPGRADE_ID
+    """0011 sits at index 10 immediately after 0010-retire-scheduled-reports-table: a
+    retirement upgrade that ran before the tables it reads existed would fail, and order
+    is this runner's whole contract."""
+    ids = registry.ids()
+    assert ids.index(UPGRADE_ID) == ids.index("0010-retire-scheduled-reports-table") + 1 == 10
 
 
 def test_0011_statement_census():
