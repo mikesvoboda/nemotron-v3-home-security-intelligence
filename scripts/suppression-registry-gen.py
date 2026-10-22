@@ -65,8 +65,17 @@ OWNER = "mikesvoboda"
 # the id. Emitting `X: []` is what makes "none right now" a recorded fact:
 # golden_skip is a category [r173] mints that happens to measure zero today
 # (all golden suppression is fixme-form), and it must read as "zero registered,
-# zero allowed", not as "not watched".
-ALWAYS_PRESENT = ("flake_allowlist", "frontend_only", "frontend_todo", "golden_skip")
+# zero allowed", not as "not watched". frontend_quarantine joined them when F3.3
+# (#7325) emptied the quarantine list: the ratchet still needs the key present
+# ("a category may not hide"), and the next quarantined file must register
+# against a recorded zero, not a vague absence.
+ALWAYS_PRESENT = (
+    "flake_allowlist",
+    "frontend_only",
+    "frontend_todo",
+    "golden_skip",
+    "frontend_quarantine",
+)
 
 # WP2.4b per-entry environment adjudications for imperative skips whose
 # guard text names no host machinery (census host_probe=False) but where

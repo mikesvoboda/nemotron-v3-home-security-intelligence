@@ -183,14 +183,25 @@ that is the baseline `O3.4` pins, so "exits 0" reads relative to it (ruling 257)
 ### F3.3 Quarantined tests
 
 **Flags:** none. **Depends on:** `R2`.
-**PR:** none yet. (ruling 241)
+**PR:** #7325. (ruling 241)
 
-`vite.config.ts` excludes 16 test files; three are empty.
+`vite.config.ts` excluded 13 test files (the R-T7-VITEST set: 62 deterministic
+test-drift failures quarantined 2026-09-12, later shrank to 13 when F3.2 found
+three of the 16 entries named files no longer on disk).
 
-- [ ] Fix or delete each excluded file.
+- [x] Fix or delete each excluded file. All 12 remaining files repaired and
+      green (634 passed | 3 skipped across the 12); one file deleted
+      (`TimeGroupedEvents.simple.test.tsx`, empty scaffold with no suite left to
+      run). The repair also surfaced two production bugs: the local
+      `handleResponse` in `useHouseholdApi.ts` threw bare `Error`s, silently
+      disabling the NEM-1940 smart-retry layer for every household endpoint (now
+      throws `ApiError` so 503 retries and 500 does not), and
+      `EventTimeline.tsx` passed a `snoozedUntil` prop EventCard does not read,
+      so the NEM-3640 SnoozeBadge never rendered from the timeline page (now
+      passes `snooze_until`).
 
 **Done when:** the exclusion list is empty, or every remaining entry carries a reason and an
-inventory row.
+inventory row. The exclusion list is empty; the full unquarantined suite is green.
 
 ## Phase 4 — Complete the product
 
