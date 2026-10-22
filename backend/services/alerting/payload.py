@@ -92,8 +92,9 @@ def build_delivery_task(
     plaintext never persists — design 4n-alerting.md:186).
 
     A missing alert row (purged while a delivery was pending) yields a task
-    with an empty payload; the adapter's send on an empty payload is skipped
-    upstream by the worker recording a failure, so the cycle lives on.
+    with an empty payload; the adapter sends what it gets (an email renders an
+    empty summary), the send succeeds, and the row records ``sent`` — an
+    empty send is preferred over retrying a delivery whose alert is gone.
     """
     from backend.models.alert_delivery import DeliveryChannelKind
 
@@ -144,4 +145,30 @@ def build_delivery_task(
     return _build
 
 
-__all__ = ["build_delivery_task", "build_payload"]
+def known_names_loader(
+    session_factory: async_sessionmaker[AsyncSession],
+) -> Callable[..., Awaitable[set[str]]]:
+    """The production worker's ``known_names_loader`` (F13, 4n-alerting.md:288).
+
+    The worker calls it once per claim cycle; the bare-name pass of
+    :func:`redact_names` needs the gallery names (known people, household
+    members — vehicle owners are household members via
+    ``RegisteredVehicle.owner_id``). One short session per cycle; the names
+    rarely change between cycles, so the cost is one small SELECT batch per
+    send wave, not per delivery.
+    """
+    from sqlalchemy import select
+
+    from backend.models.face_identity import KnownPerson
+    from backend.models.household import HouseholdMember
+
+    async def _load() -> set[str]:
+        async with session_factory() as session:
+            person_names = (await session.execute(select(KnownPerson.name))).scalars().all()
+            member_names = (await session.execute(select(HouseholdMember.name))).scalars().all()
+        return {name for name in (*person_names, *member_names) if name}
+
+    return _load
+
+
+__all__ = ["build_delivery_task", "build_payload", "known_names_loader"]

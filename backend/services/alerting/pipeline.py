@@ -189,7 +189,11 @@ class AlertPipeline:
                 )
                 await owned_session.commit()
 
-        await self._publish_alerts(result.created_alerts, result.updated_alerts)
+        reached_ids = await self._publish_alerts(result.created_alerts, result.updated_alerts)
+        # B4.2 (4n-alerting.md:115): the browser rows are marked ``broadcast``
+        # once the publish returns — the worker's republish ladder takes only
+        # the rows the publish missed (reached nobody or raised).
+        await self._mark_browser_rows_broadcast(reached_ids)
         # B4.2: the deliveries are committed — wake the worker so sends start
         # immediately (the poll interval is only the fallback).
         if result.planned_deliveries:
@@ -197,6 +201,15 @@ class AlertPipeline:
 
             wake_delivery_worker()
         return result
+
+    async def publish_and_mark(self, result: PipelineResult) -> None:
+        """Publish the result's alerts and mark its browser rows ``broadcast``.
+
+        The post-commit tail the production callers (``vlm_analyzer``) run
+        after their own commit; ``process()`` runs the same sequence inline.
+        """
+        reached_ids = await self._publish_alerts(result.created_alerts, result.updated_alerts)
+        await self._mark_browser_rows_broadcast(reached_ids)
 
     def _process_in_memory(
         self,
@@ -843,27 +856,38 @@ class AlertPipeline:
         self,
         created_alerts: Sequence[Alert],
         updated_alerts: Sequence[Alert],
-    ) -> None:
+    ) -> set[str]:
+        """Publish the alert frames; return the alert ids whose publish reached
+        at least one client (or completed without a count — the frame went out).
+
+        The pipeline marks the browser delivery rows ``broadcast`` for those
+        ids once the publish returns (4n-alerting.md:115); a publish that
+        reached nobody or raised leaves the rows ``pending`` for the worker's
+        15 s republish ladder (F3).
+        """
         if not created_alerts and not updated_alerts:
-            return
+            return set()
         broadcaster = self._broadcaster
         if broadcaster is None:
             if self._redis is None:
-                return
+                return set()
             try:
                 from backend.services.event_broadcaster import get_broadcaster
 
                 broadcaster = await get_broadcaster(self._redis)
             except Exception as exc:
                 logger.warning(f"Failed to acquire broadcaster for alert publish: {exc}")
-                return
+                return set()
 
+        reached_ids: set[str] = set()
         for alert in created_alerts:
             try:
-                await broadcaster.broadcast_alert(
+                reached = await broadcaster.broadcast_alert(
                     alert.to_dict(for_websocket=True),
                     WebSocketAlertEventType.ALERT_CREATED,
                 )
+                if reached is None or reached > 0:
+                    reached_ids.add(str(alert.id))
             except Exception as exc:
                 logger.warning(
                     "Failed to publish alert_created frame",
@@ -872,15 +896,41 @@ class AlertPipeline:
 
         for alert in updated_alerts:
             try:
-                await broadcaster.broadcast_alert(
+                reached = await broadcaster.broadcast_alert(
                     alert.to_dict(for_websocket=True),
                     WebSocketAlertEventType.ALERT_UPDATED,
                 )
+                if reached is None or reached > 0:
+                    reached_ids.add(str(alert.id))
             except Exception as exc:
                 logger.warning(
                     "Failed to publish alert_updated frame",
                     extra={"alert_id": alert.id, "error": str(exc)},
                 )
+        return reached_ids
+
+    async def _mark_browser_rows_broadcast(self, alert_ids: set[str]) -> None:
+        """Mark the alerts' pending browser delivery rows ``broadcast`` (B4.2).
+
+        The pipeline publishes the browser channel's frame itself; once the
+        publish reaches a client, its rows are done — the worker's republish
+        ladder only exists for rows the publish missed. No-op without a
+        session factory (the in-memory test path keeps no DB rows).
+        """
+        if not alert_ids or self._memory_store is not None:
+            return
+        async with self._session_factory() as session:
+            await session.execute(
+                # Internal SET-list, values bound; the ids are a bound array.
+                text(  # nosemgrep: python.sqlalchemy.security.audit.avoid-sqlalchemy-text.avoid-sqlalchemy-text
+                    "UPDATE notification_deliveries SET "
+                    "status = 'broadcast', sent_at = timezone('utc', now()), "
+                    "updated_at = timezone('utc', now()) "
+                    "WHERE alert_id = ANY(:ids) AND kind = 'browser' AND status = 'pending'"
+                ),
+                {"ids": sorted(alert_ids)},
+            )
+            await session.commit()
 
     async def sweep_unprocessed(
         self,

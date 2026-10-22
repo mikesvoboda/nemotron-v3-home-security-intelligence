@@ -8,9 +8,11 @@ Redis pub/sub fake, the payload shaped exactly like the pipeline's
 the two outcomes the ladder keys off — nobody listening (the row stays pending)
 and at least one subscriber reached (success with the subscriber count).
 
-The DB side of browser rows (pending → expired ladder) is pinned in the
-worker's claim tests; the payload-vs-frame shape distinction is asserted here
-because it is what makes the republish pass validation at all.
+The DB side of the browser ladder (fresh rows unclaimed, republish after 15 s,
+expiry after 5 minutes, no-clients stays pending) is pinned in
+`test_delivery_worker_db.py`'s browser-ladder block; the payload-vs-frame shape
+distinction is asserted here because it is what makes the republish pass
+validation at all.
 """
 
 from __future__ import annotations

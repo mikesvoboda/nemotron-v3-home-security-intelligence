@@ -22,17 +22,19 @@ from backend.services.alerting.worker import (
 
 class TestBackoffLadder:
     def test_ladder_shape(self) -> None:
-        assert BACKOFF_SECONDS == (30, 120, 600)
+        # 4n-alerting.md:117: backoff 30 s, 2 min, 10 min, 30 min, then failed.
+        assert BACKOFF_SECONDS == (30, 120, 600, 1800)
         assert next_backoff(1) == timedelta(seconds=30)
         assert next_backoff(2) == timedelta(minutes=2)
         assert next_backoff(3) == timedelta(minutes=10)
+        assert next_backoff(4) == timedelta(minutes=30)
 
-    def test_fourth_failure_is_terminal(self) -> None:
-        assert next_backoff(4) is None
+    def test_fifth_failure_is_terminal(self) -> None:
         assert next_backoff(5) is None
+        assert next_backoff(6) is None
 
-    def test_max_attempts_is_four(self) -> None:
-        assert MAX_ATTEMPTS == 4
+    def test_max_attempts_is_five(self) -> None:
+        assert MAX_ATTEMPTS == 5
 
     def test_browser_ladder_constants(self) -> None:
         assert timedelta(seconds=15) == BROWSER_REPUBLISH_AFTER

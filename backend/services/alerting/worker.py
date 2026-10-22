@@ -4,12 +4,17 @@ Claims pending/retrying deliveries past their next_attempt_at under a lease
 (``FOR UPDATE SKIP LOCKED`` — multiple workers never claim the same row), sends
 OUTSIDE any transaction under a per-channel-kind timeout, and records the
 outcome: sent, or retrying with the next backoff (30 s / 2 min / 10 min / 30 min),
-or failed after the ladder is exhausted.
+or failed after the ladder is exhausted. The claim itself increments
+``attempts`` and moves ``next_attempt_at`` the lease out — a send whose process
+dies is re-claimed when the lease ends, and each re-claim is charged to the
+ladder, so even a dying sender cannot retry forever.
 
-Browser rows: the pipeline publishes on commit; the worker's browser ladder is
-the republish — a browser delivery still pending 15 s later is re-broadcast
-(client-side notification tag dedups), and one still pending after 5 minutes
-expires.
+Browser rows: the pipeline publishes on commit and marks the rows ``broadcast``
+once the publish reaches a client; the worker's browser ladder is the
+republish — a browser delivery still ``pending`` 15 s after it was created is
+re-broadcast (client-side notification tag dedups), one still ``pending`` after
+5 minutes expires, and a republish that finds nobody listening stays ``pending``
+due again after 15 s. Browser rows never consume the backoff ladder.
 
 Wake: the pipeline calls ``worker.wake()`` after committing new deliveries;
 the poll interval is the fallback.
@@ -18,6 +23,7 @@ the poll interval is the fallback.
 from __future__ import annotations
 
 import asyncio
+import inspect
 import logging
 import time
 from collections.abc import Awaitable, Callable, Mapping
@@ -38,9 +44,9 @@ logger = logging.getLogger(__name__)
 LEASE_SECONDS = 120  # the claim lease: next_attempt_at jumps forward this much
 POLL_INTERVAL_SECONDS = 15.0
 # Backoff ladder by ATTEMPTS ALREADY MADE when scheduling the next try:
-# after attempt 1 -> 30 s, 2 -> 2 min, 3 -> 10 min, 4 -> fail (30m was attempt-4's schedule).
-BACKOFF_SECONDS: tuple[int, ...] = (30, 120, 600)
-MAX_ATTEMPTS = 4  # attempts 1..4; a 4th failure marks the delivery failed
+# after attempt 1 -> 30 s, 2 -> 2 min, 3 -> 10 min, 4 -> 30 min, 5 -> fail.
+BACKOFF_SECONDS: tuple[int, ...] = (30, 120, 600, 1800)
+MAX_ATTEMPTS = 5  # attempts 1..5; a 5th failure marks the delivery failed
 BROWSER_REPUBLISH_AFTER = timedelta(seconds=15)
 BROWSER_EXPIRE_AFTER = timedelta(minutes=5)
 CHANNEL_TIMEOUT_SECONDS: Mapping[str, float] = {
@@ -53,17 +59,22 @@ CHANNEL_TIMEOUT_SECONDS: Mapping[str, float] = {
 _CLAIM_SQL = text(
     """
     UPDATE notification_deliveries
-    SET next_attempt_at = :lease_until, updated_at = timezone('utc', now())
+    SET next_attempt_at = :lease_until, attempts = attempts + 1,
+        updated_at = timezone('utc', now())
     WHERE id IN (
         SELECT id FROM notification_deliveries
         WHERE status IN ('pending', 'retrying')
           AND (next_attempt_at IS NULL OR next_attempt_at <= :now)
+          -- A browser row's first window belongs to the pipeline's publish on
+          -- commit (F3): the worker only claims it once it is 15 s old (the
+          -- republish ladder), and never claims one older than the expiry.
+          AND (kind <> 'browser' OR created_at <= :browser_horizon)
         ORDER BY next_attempt_at
         LIMIT :batch
         FOR UPDATE SKIP LOCKED
     )
     RETURNING id, alert_id, recipient_id, channel_id, kind, status, attempts,
-              idempotency_key
+              idempotency_key, created_at
     """
 )
 
@@ -72,7 +83,8 @@ def next_backoff(attempts: int) -> timedelta | None:
     """Backoff for the NEXT attempt given attempts already made.
 
     Returns None when the ladder is exhausted (the delivery is failed).
-    attempts is 1-based count of sends already tried.
+    attempts is 1-based count of sends already tried — the claim writes it,
+    so a send that dies with its worker still consumed one.
     """
     if attempts >= MAX_ATTEMPTS:
         return None
@@ -88,7 +100,7 @@ class NotificationDeliveryWorker:
         channels: Mapping[str, Channel],
         *,
         build_payload: Callable[..., Awaitable[DeliveryTask]] | None = None,
-        known_names_loader: Callable[[], set[str]] | None = None,
+        known_names_loader: Callable[[], set[str] | Awaitable[set[str]]] | None = None,
         poll_interval: float = POLL_INTERVAL_SECONDS,
         batch_size: int = 20,
     ) -> None:
@@ -157,7 +169,10 @@ class NotificationDeliveryWorker:
         claimed = await self._claim(now)
         if not claimed:
             return 0
-        known_names = self._known_names_loader()
+        loaded = self._known_names_loader()
+        # The loader may be sync (tests pass a set factory) or async (the
+        # production loader queries per cycle) — await only when awaitable.
+        known_names = await loaded if inspect.isawaitable(loaded) else loaded
         results = await asyncio.gather(
             *(self._send_one(row, known_names, now) for row in claimed),
             return_exceptions=True,
@@ -169,10 +184,16 @@ class NotificationDeliveryWorker:
 
     async def _claim(self, now: datetime) -> list[dict[str, Any]]:
         lease_until = now + timedelta(seconds=LEASE_SECONDS)
+        browser_horizon = now - BROWSER_REPUBLISH_AFTER
         async with self._session_factory() as session:
             result = await session.execute(
                 _CLAIM_SQL,
-                {"now": now, "lease_until": lease_until, "batch": self._batch_size},
+                {
+                    "now": now,
+                    "lease_until": lease_until,
+                    "batch": self._batch_size,
+                    "browser_horizon": browser_horizon,
+                },
             )
             rows = [dict(r._mapping) for r in result]
             await session.commit()
@@ -181,6 +202,13 @@ class NotificationDeliveryWorker:
     async def _send_one(self, row: dict[str, Any], known_names: set[str], now: datetime) -> None:
         """Send one claimed delivery and record the outcome (no transaction held)."""
         kind = str(row["kind"])
+        created_at = row.get("created_at")
+        if kind == DeliveryChannelKind.BROWSER.value and created_at is not None:
+            created = created_at if created_at.tzinfo else created_at.replace(tzinfo=UTC)
+            if now - created >= BROWSER_EXPIRE_AFTER:
+                # The republish ladder's end: still pending after 5 minutes.
+                await self._record(row, DeliveryStatus.EXPIRED)
+                return
         channel = self._channels.get(kind)
         timeout = CHANNEL_TIMEOUT_SECONDS.get(kind, 15.0)
         task = await self._build_payload(
@@ -201,6 +229,16 @@ class NotificationDeliveryWorker:
             outcome = SendResult(success=False, error=f"adapter_error: {exc!r}")
         if outcome.success:
             await self._record_success(row, kind)
+        elif kind == DeliveryChannelKind.BROWSER.value:
+            # A republish that found nobody listening stays ``pending`` due
+            # again after 15 s — browser rows never consume the backoff
+            # ladder; the 5-minute expiry above ends them.
+            await self._record(
+                row,
+                DeliveryStatus.PENDING,
+                next_attempt_in=BROWSER_REPUBLISH_AFTER,
+                now=now,
+            )
         else:
             await self._record_failure(row, now, outcome.error or "send_failed")
 
@@ -220,7 +258,9 @@ class NotificationDeliveryWorker:
         now: datetime | None,
         error: str,
     ) -> None:
-        attempts = int(row["attempts"]) + 1
+        # The claim already counted this send in ``attempts``; the failure only
+        # schedules the next leg of the ladder (or fails the row).
+        attempts = int(row["attempts"])
         backoff = next_backoff(attempts)
         if backoff is None:
             await self._record(

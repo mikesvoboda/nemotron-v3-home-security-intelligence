@@ -58,6 +58,7 @@ async def _seed_delivery(
     next_attempt_at: datetime | None = None,
     attempts: int = 0,
     kind: str = "email",
+    created_age: timedelta | None = None,
 ) -> dict[str, str]:
     recipient_id = str(uuid7())
     channel_id = str(uuid7())
@@ -114,7 +115,7 @@ async def _seed_delivery(
                 "INSERT INTO notification_deliveries (id, alert_id, recipient_id, channel_id, kind,"
                 " status, attempts, next_attempt_at, idempotency_key, created_at, updated_at)"
                 " VALUES (:id, :aid, :rid, :cid, :kind, :status, :attempts, :nxt, :idem,"
-                " timezone('utc', now()), timezone('utc', now()))"
+                " timezone('utc', now()) - (:age)::interval, timezone('utc', now()))"
             ),
             {
                 "id": delivery_id,
@@ -126,6 +127,7 @@ async def _seed_delivery(
                 "attempts": attempts,
                 "nxt": next_attempt_at,
                 "idem": f"idem-{delivery_id}",
+                "age": created_age or timedelta(0),
             },
         )
         await session.commit()
@@ -186,11 +188,16 @@ async def test_sent_delivery_records_status_and_sent_at(session_factory, clean_d
         ).one()
     assert row.status == "sent"
     assert row.sent_at is not None
-    assert row.attempts == 0  # attempts only counts failures
+    # The claim counts the send: attempts is 1 after the first (successful) send.
+    assert row.attempts == 1
 
 
 async def test_failure_schedules_backoff_then_fails(session_factory, clean_deliveries) -> None:
-    """30s → 2m → 10m → failed on a fixed clock (attempts 1..4)."""
+    """30s → 2m → 10m → 30m → failed on a fixed clock (attempts 1..5).
+
+    The claim increments ``attempts`` (4n-alerting.md:117), so each cycle's
+    failure record schedules from the claim-charged count.
+    """
     from backend.services.alerting.worker import NotificationDeliveryWorker
 
     seed = await _seed_delivery(session_factory)
@@ -222,11 +229,19 @@ async def test_failure_schedules_backoff_then_fails(session_factory, clean_deliv
     assert row.attempts == 3
     assert row.next_attempt_at - after_2m == timedelta(minutes=10)
 
-    # Attempt 4 -> failed
+    # Attempt 4 -> retrying, next in 30m
     after_10m = row.next_attempt_at
     await w.process_ready(now=after_10m)
     row = await _row(session_factory, seed["delivery_id"])
+    assert row.attempts == 4
+    assert row.next_attempt_at - after_10m == timedelta(minutes=30)
+
+    # Attempt 5 -> failed
+    after_30m = row.next_attempt_at
+    await w.process_ready(now=after_30m)
+    row = await _row(session_factory, seed["delivery_id"])
     assert row.status == "failed"
+    assert row.attempts == 5
     assert row.last_error == "boom"
 
 
@@ -236,6 +251,19 @@ async def _row(session_factory: Any, delivery_id: str) -> Any:
             await session.execute(
                 text(
                     "SELECT status, attempts, next_attempt_at, last_error"
+                    " FROM notification_deliveries WHERE id = :id"
+                ),
+                {"id": delivery_id},
+            )
+        ).one()
+
+
+async def _row_full(session_factory: Any, delivery_id: str) -> Any:
+    async with session_factory() as session:
+        return (
+            await session.execute(
+                text(
+                    "SELECT status, attempts, next_attempt_at, last_error, sent_at"
                     " FROM notification_deliveries WHERE id = :id"
                 ),
                 {"id": delivery_id},
@@ -310,3 +338,88 @@ async def test_pipeline_writes_delivery_rows_in_alert_transaction(
     assert rows[0].alert_id == alert_id
     assert rows[0].status == "pending"
     assert rows[0].idempotency_key  # unique key assigned
+
+
+# -- B4.2: the browser republish/expire ladder (4n-alerting.md:117, F3) -------
+
+
+async def test_fresh_browser_row_not_claimed(session_factory, clean_deliveries) -> None:
+    """A browser row younger than 15 s is the pipeline's publish window: the
+    worker leaves it alone this cycle."""
+    from backend.services.alerting.worker import NotificationDeliveryWorker
+
+    seed = await _seed_delivery(
+        session_factory,
+        kind="browser",
+        created_age=timedelta(seconds=0),
+    )
+    channel = _fake_channel()
+    w = NotificationDeliveryWorker(session_factory, {"browser": channel}, poll_interval=9999)
+    got = await w.process_ready()
+    assert got == 0
+    assert channel.calls == []
+    row = await _row(session_factory, seed["delivery_id"])
+    assert row.status == "pending"
+
+
+async def test_browser_row_republished_after_15s(session_factory, clean_deliveries) -> None:
+    """A browser row 15 s old is claimed and re-broadcast; success marks it
+    ``broadcast`` with sent_at."""
+    from backend.services.alerting.worker import NotificationDeliveryWorker
+
+    seed = await _seed_delivery(
+        session_factory,
+        kind="browser",
+        created_age=timedelta(seconds=16),
+    )
+    channel = _fake_channel()
+    w = NotificationDeliveryWorker(session_factory, {"browser": channel}, poll_interval=9999)
+    got = await w.process_ready()
+    assert got == 1
+    assert len(channel.calls) == 1
+    row = await _row_full(session_factory, seed["delivery_id"])
+    assert row.status == "broadcast"
+    assert row.sent_at is not None
+
+
+async def test_browser_row_expires_after_5_minutes(session_factory, clean_deliveries) -> None:
+    """A browser row still pending after 5 minutes is recorded ``expired``,
+    not sent."""
+    from backend.services.alerting.worker import NotificationDeliveryWorker
+
+    seed = await _seed_delivery(
+        session_factory,
+        kind="browser",
+        created_age=timedelta(minutes=5, seconds=1),
+    )
+    channel = _fake_channel()
+    w = NotificationDeliveryWorker(session_factory, {"browser": channel}, poll_interval=9999)
+    got = await w.process_ready()
+    assert got == 1
+    assert channel.calls == []  # expiry records, never sends
+    row = await _row(session_factory, seed["delivery_id"])
+    assert row.status == "expired"
+
+
+async def test_browser_republish_without_clients_stays_pending(
+    session_factory, clean_deliveries
+) -> None:
+    """A republish that finds nobody listening keeps the row ``pending`` due
+    again after 15 s — browser rows never consume the backoff ladder."""
+    from backend.services.alerting.worker import NotificationDeliveryWorker
+
+    seed = await _seed_delivery(
+        session_factory,
+        kind="browser",
+        created_age=timedelta(seconds=16),
+    )
+    channel = _fake_channel(result_success=False, error="no_connected_clients")
+    w = NotificationDeliveryWorker(session_factory, {"browser": channel}, poll_interval=9999)
+    got = await w.process_ready()
+    assert got == 1
+    row = await _row(session_factory, seed["delivery_id"])
+    assert row.status == "pending"
+    # Due again ~15 s from this cycle's clock, not the generic backoff.
+    now = datetime.now(UTC)
+    delta = row.next_attempt_at - now
+    assert timedelta(seconds=10) < delta <= timedelta(seconds=16)

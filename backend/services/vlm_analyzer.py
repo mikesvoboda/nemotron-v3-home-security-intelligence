@@ -809,7 +809,7 @@ class VlmAnalyzer:
                         specialists=None,
                     )
                     await session.commit()
-                    await pipeline._publish_alerts(res.created_alerts, res.updated_alerts)
+                    await pipeline.publish_and_mark(res)
                     if res.planned_deliveries:
                         from backend.services.delivery_worker_registry import (
                             wake_delivery_worker,
@@ -1060,7 +1060,7 @@ class VlmAnalyzer:
                         specialists=None,
                     )
                     await session.commit()
-                    await pipeline._publish_alerts(res.created_alerts, res.updated_alerts)
+                    await pipeline.publish_and_mark(res)
                     if res.planned_deliveries:
                         from backend.services.delivery_worker_registry import (
                             wake_delivery_worker,

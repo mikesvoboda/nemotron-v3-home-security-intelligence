@@ -1057,7 +1057,10 @@ async def lifespan(_app: FastAPI) -> AsyncGenerator[None]:
             from backend.services.alerting.channels.browser import BrowserChannel
             from backend.services.alerting.channels.email import EmailChannel
             from backend.services.alerting.channels.webhook import WebhookChannel
-            from backend.services.alerting.payload import build_delivery_task
+            from backend.services.alerting.payload import (
+                build_delivery_task,
+                known_names_loader,
+            )
             from backend.services.alerting.worker import NotificationDeliveryWorker
             from backend.services.delivery_worker_registry import set_delivery_worker
 
@@ -1076,6 +1079,7 @@ async def lifespan(_app: FastAPI) -> AsyncGenerator[None]:
                 get_session_factory(),
                 channels,
                 build_payload=build_delivery_task(get_session_factory()),
+                known_names_loader=known_names_loader(get_session_factory()),
             )
             set_delivery_worker(delivery_worker)
             delivery_worker._supervisor = worker_supervisor
