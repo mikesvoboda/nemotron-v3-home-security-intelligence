@@ -2317,11 +2317,14 @@ describe('EventCard', () => {
       expect(screen.queryByText(/Snoozed until/)).not.toBeInTheDocument();
     });
 
-    it('applies reduced opacity to snoozed events', () => {
+    it('renders the SnoozeBadge for snoozed events (NEM-3640: badge replaced the opacity treatment)', () => {
       const futureDate = new Date(BASE_TIME + 60 * 60 * 1000).toISOString();
       const { container } = render(<EventCard {...mockProps} snooze_until={futureDate} />);
       const card = container.firstChild as HTMLElement;
-      expect(card).toHaveClass('opacity-60');
+      // NEM-3640 removed the opacity-60 treatment in favor of SnoozeBadge;
+      // assert the badge renders and no opacity class is applied.
+      expect(screen.getByText(/Snoozed until/)).toBeInTheDocument();
+      expect(card).not.toHaveClass('opacity-60');
     });
 
     it('does not apply reduced opacity to non-snoozed events', () => {
@@ -2330,7 +2333,9 @@ describe('EventCard', () => {
       expect(card).not.toHaveClass('opacity-60');
     });
 
-    it('shows clear snooze option when event is snoozed and onSnooze is provided', async () => {
+    it('snooze menu offers the current duration set (15m/1h/4h/8h) with no clear option', async () => {
+      // NEM-3592/NEM-3640: the menu no longer offers "Clear snooze" — a snooze
+      // is managed by expiry and the badge, not by un-snoozing from the card.
       vi.useRealTimers();
       const user = userEvent.setup();
       const handleSnooze = vi.fn();
@@ -2341,31 +2346,32 @@ describe('EventCard', () => {
       const snoozeButton = screen.getByRole('button', { name: /snooze event/i });
       await user.click(snoozeButton);
 
-      expect(screen.getByText('Clear snooze')).toBeInTheDocument();
+      expect(screen.queryByText('Clear snooze')).not.toBeInTheDocument();
+      expect(screen.getByText('15 minutes')).toBeInTheDocument();
+      expect(screen.getByText('1 hour')).toBeInTheDocument();
 
       vi.useFakeTimers({ shouldAdvanceTime: true });
       vi.setSystemTime(BASE_TIME);
     });
 
-    it('calls onSnooze with 0 seconds when clear snooze is selected', async () => {
+    it('calls onSnooze with 15 minutes when that option is selected', async () => {
       vi.useRealTimers();
       const user = userEvent.setup();
       const handleSnooze = vi.fn();
-      // Use real time + 1 hour to ensure the snooze is in the future
-      const futureDate = new Date(Date.now() + 60 * 60 * 1000).toISOString();
-      render(<EventCard {...mockProps} onSnooze={handleSnooze} snooze_until={futureDate} />);
+      render(<EventCard {...mockProps} onSnooze={handleSnooze} />);
 
       const snoozeButton = screen.getByRole('button', { name: /snooze event/i });
       await user.click(snoozeButton);
-      await user.click(screen.getByText('Clear snooze'));
+      await user.click(screen.getByText('15 minutes'));
 
-      expect(handleSnooze).toHaveBeenCalledWith('event-123', 0);
+      expect(handleSnooze).toHaveBeenCalledWith('event-123', 900);
 
       vi.useFakeTimers({ shouldAdvanceTime: true });
       vi.setSystemTime(BASE_TIME);
     });
 
-    it('renders 24 hours snooze option', async () => {
+    it('snooze menu does not offer a 24 hours option', async () => {
+      // The menu is capped at 8 hours (28800s) — "24 hours" was removed.
       vi.useRealTimers();
       const user = userEvent.setup();
       const handleSnooze = vi.fn();
@@ -2374,13 +2380,13 @@ describe('EventCard', () => {
       const snoozeButton = screen.getByRole('button', { name: /snooze event/i });
       await user.click(snoozeButton);
 
-      expect(screen.getByText('24 hours')).toBeInTheDocument();
+      expect(screen.queryByText('24 hours')).not.toBeInTheDocument();
 
       vi.useFakeTimers({ shouldAdvanceTime: true });
       vi.setSystemTime(BASE_TIME);
     });
 
-    it('calls onSnooze with 24 hours (86400 seconds) when selected', async () => {
+    it('calls onSnooze with 8 hours (28800 seconds) when that option is selected', async () => {
       vi.useRealTimers();
       const user = userEvent.setup();
       const handleSnooze = vi.fn();
@@ -2388,9 +2394,9 @@ describe('EventCard', () => {
 
       const snoozeButton = screen.getByRole('button', { name: /snooze event/i });
       await user.click(snoozeButton);
-      await user.click(screen.getByText('24 hours'));
+      await user.click(screen.getByText('8 hours'));
 
-      expect(handleSnooze).toHaveBeenCalledWith('event-123', 86400);
+      expect(handleSnooze).toHaveBeenCalledWith('event-123', 28800);
 
       vi.useFakeTimers({ shouldAdvanceTime: true });
       vi.setSystemTime(BASE_TIME);

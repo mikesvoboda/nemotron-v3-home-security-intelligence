@@ -16,7 +16,7 @@ exports[`TrustClassificationControls > Snapshots > renders confirmation dialog c
     >
       <svg
         aria-hidden="true"
-        class="lucide lucide-shield-question-mark h-4 w-4"
+        class="lucide lucide-shield-question-mark lucide-shield-question h-4 w-4"
         fill="none"
         height="24"
         stroke="currentColor"
@@ -47,7 +47,7 @@ exports[`TrustClassificationControls > Snapshots > renders confirmation dialog c
     >
       <svg
         aria-hidden="true"
-        class="lucide lucide-circle-question-mark h-4 w-4"
+        class="lucide lucide-circle-question-mark lucide-help-circle lucide-circle-help h-4 w-4"
         fill="none"
         height="24"
         stroke="currentColor"
@@ -80,7 +80,7 @@ exports[`TrustClassificationControls > Snapshots > renders confirmation dialog c
       class="text-sm text-gray-300"
     >
       Change status to
-
+       
       <span
         class="font-semibold text-green-400"
       >
@@ -161,7 +161,7 @@ exports[`TrustClassificationControls > Snapshots > renders error state correctly
     >
       <svg
         aria-hidden="true"
-        class="lucide lucide-shield-question-mark h-4 w-4"
+        class="lucide lucide-shield-question-mark lucide-shield-question h-4 w-4"
         fill="none"
         height="24"
         stroke="currentColor"
@@ -192,7 +192,7 @@ exports[`TrustClassificationControls > Snapshots > renders error state correctly
     >
       <svg
         aria-hidden="true"
-        class="lucide lucide-circle-question-mark h-4 w-4"
+        class="lucide lucide-circle-question-mark lucide-help-circle lucide-circle-help h-4 w-4"
         fill="none"
         height="24"
         stroke="currentColor"
@@ -224,7 +224,7 @@ exports[`TrustClassificationControls > Snapshots > renders error state correctly
   >
     <svg
       aria-hidden="true"
-      class="lucide lucide-circle-alert h-4 w-4 flex-shrink-0"
+      class="lucide lucide-circle-alert lucide-alert-circle h-4 w-4 flex-shrink-0"
       fill="none"
       height="24"
       stroke="currentColor"
@@ -265,7 +265,7 @@ exports[`TrustClassificationControls > Snapshots > renders error state correctly
       class="text-sm text-gray-300"
     >
       Change status to
-
+       
       <span
         class="font-semibold text-green-400"
       >
@@ -346,7 +346,7 @@ exports[`TrustClassificationControls > Snapshots > renders lg size variant corre
     >
       <svg
         aria-hidden="true"
-        class="lucide lucide-shield-question-mark h-5 w-5"
+        class="lucide lucide-shield-question-mark lucide-shield-question h-5 w-5"
         fill="none"
         height="24"
         stroke="currentColor"
@@ -377,7 +377,7 @@ exports[`TrustClassificationControls > Snapshots > renders lg size variant corre
     >
       <svg
         aria-hidden="true"
-        class="lucide lucide-circle-question-mark h-5 w-5"
+        class="lucide lucide-circle-question-mark lucide-help-circle lucide-circle-help h-5 w-5"
         fill="none"
         height="24"
         stroke="currentColor"
@@ -477,7 +477,7 @@ exports[`TrustClassificationControls > Snapshots > renders lg size variant corre
     >
       <svg
         aria-hidden="true"
-        class="lucide lucide-shield-question-mark h-4 w-4"
+        class="lucide lucide-shield-question-mark lucide-shield-question h-4 w-4"
         fill="none"
         height="24"
         stroke="currentColor"
@@ -520,7 +520,7 @@ exports[`TrustClassificationControls > Snapshots > renders loading state correct
     >
       <svg
         aria-hidden="true"
-        class="lucide lucide-shield-question-mark h-4 w-4"
+        class="lucide lucide-shield-question-mark lucide-shield-question h-4 w-4"
         fill="none"
         height="24"
         stroke="currentColor"
@@ -551,7 +551,7 @@ exports[`TrustClassificationControls > Snapshots > renders loading state correct
     >
       <svg
         aria-hidden="true"
-        class="lucide lucide-circle-question-mark h-4 w-4"
+        class="lucide lucide-circle-question-mark lucide-help-circle lucide-circle-help h-4 w-4"
         fill="none"
         height="24"
         stroke="currentColor"
@@ -653,7 +653,7 @@ exports[`TrustClassificationControls > Snapshots > renders loading state correct
     >
       <svg
         aria-hidden="true"
-        class="lucide lucide-shield-question-mark h-3.5 w-3.5"
+        class="lucide lucide-shield-question-mark lucide-shield-question h-3.5 w-3.5"
         fill="none"
         height="24"
         stroke="currentColor"
@@ -707,7 +707,7 @@ exports[`TrustClassificationControls > Snapshots > renders md size variant corre
     >
       <svg
         aria-hidden="true"
-        class="lucide lucide-shield-question-mark h-4 w-4"
+        class="lucide lucide-shield-question-mark lucide-shield-question h-4 w-4"
         fill="none"
         height="24"
         stroke="currentColor"
@@ -738,7 +738,7 @@ exports[`TrustClassificationControls > Snapshots > renders md size variant corre
     >
       <svg
         aria-hidden="true"
-        class="lucide lucide-circle-question-mark h-4 w-4"
+        class="lucide lucide-circle-question-mark lucide-help-circle lucide-circle-help h-4 w-4"
         fill="none"
         height="24"
         stroke="currentColor"
@@ -838,7 +838,7 @@ exports[`TrustClassificationControls > Snapshots > renders md size variant corre
     >
       <svg
         aria-hidden="true"
-        class="lucide lucide-shield-question-mark h-3.5 w-3.5"
+        class="lucide lucide-shield-question-mark lucide-shield-question h-3.5 w-3.5"
         fill="none"
         height="24"
         stroke="currentColor"
@@ -921,7 +921,7 @@ exports[`TrustClassificationControls > Snapshots > renders sm size variant corre
     >
       <svg
         aria-hidden="true"
-        class="lucide lucide-shield-question-mark h-3 w-3"
+        class="lucide lucide-shield-question-mark lucide-shield-question h-3 w-3"
         fill="none"
         height="24"
         stroke="currentColor"
@@ -952,7 +952,7 @@ exports[`TrustClassificationControls > Snapshots > renders sm size variant corre
     >
       <svg
         aria-hidden="true"
-        class="lucide lucide-circle-question-mark h-3 w-3"
+        class="lucide lucide-circle-question-mark lucide-help-circle lucide-circle-help h-3 w-3"
         fill="none"
         height="24"
         stroke="currentColor"
@@ -1052,7 +1052,7 @@ exports[`TrustClassificationControls > Snapshots > renders sm size variant corre
     >
       <svg
         aria-hidden="true"
-        class="lucide lucide-shield-question-mark h-3 w-3"
+        class="lucide lucide-shield-question-mark lucide-shield-question h-3 w-3"
         fill="none"
         height="24"
         stroke="currentColor"
@@ -1123,7 +1123,7 @@ exports[`TrustClassificationControls > Snapshots > renders trusted status correc
     >
       <svg
         aria-hidden="true"
-        class="lucide lucide-circle-question-mark h-4 w-4"
+        class="lucide lucide-circle-question-mark lucide-help-circle lucide-circle-help h-4 w-4"
         fill="none"
         height="24"
         stroke="currentColor"
@@ -1223,7 +1223,7 @@ exports[`TrustClassificationControls > Snapshots > renders trusted status correc
     >
       <svg
         aria-hidden="true"
-        class="lucide lucide-shield-question-mark h-3.5 w-3.5"
+        class="lucide lucide-shield-question-mark lucide-shield-question h-3.5 w-3.5"
         fill="none"
         height="24"
         stroke="currentColor"
@@ -1266,7 +1266,7 @@ exports[`TrustClassificationControls > Snapshots > renders unclassified status c
     >
       <svg
         aria-hidden="true"
-        class="lucide lucide-shield-question-mark h-4 w-4"
+        class="lucide lucide-shield-question-mark lucide-shield-question h-4 w-4"
         fill="none"
         height="24"
         stroke="currentColor"
@@ -1297,7 +1297,7 @@ exports[`TrustClassificationControls > Snapshots > renders unclassified status c
     >
       <svg
         aria-hidden="true"
-        class="lucide lucide-circle-question-mark h-4 w-4"
+        class="lucide lucide-circle-question-mark lucide-help-circle lucide-circle-help h-4 w-4"
         fill="none"
         height="24"
         stroke="currentColor"
@@ -1397,7 +1397,7 @@ exports[`TrustClassificationControls > Snapshots > renders unclassified status c
     >
       <svg
         aria-hidden="true"
-        class="lucide lucide-shield-question-mark h-3.5 w-3.5"
+        class="lucide lucide-shield-question-mark lucide-shield-question h-3.5 w-3.5"
         fill="none"
         height="24"
         stroke="currentColor"
@@ -1471,7 +1471,7 @@ exports[`TrustClassificationControls > Snapshots > renders untrusted status corr
     >
       <svg
         aria-hidden="true"
-        class="lucide lucide-circle-question-mark h-4 w-4"
+        class="lucide lucide-circle-question-mark lucide-help-circle lucide-circle-help h-4 w-4"
         fill="none"
         height="24"
         stroke="currentColor"
@@ -1571,7 +1571,7 @@ exports[`TrustClassificationControls > Snapshots > renders untrusted status corr
     >
       <svg
         aria-hidden="true"
-        class="lucide lucide-shield-question-mark h-3.5 w-3.5"
+        class="lucide lucide-shield-question-mark lucide-shield-question h-3.5 w-3.5"
         fill="none"
         height="24"
         stroke="currentColor"

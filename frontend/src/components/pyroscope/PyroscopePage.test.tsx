@@ -276,7 +276,7 @@ describe('PyroscopePage', () => {
         batch_idle_timeout_seconds: 30,
         detection_confidence_threshold: 0.5,
         fast_path_confidence_threshold: 0.9,
-        grafana_url: 'http://grafana.example.com',
+        grafana_url: 'http://192.168.1.50:3000',
         debug: false,
       });
 
@@ -288,7 +288,7 @@ describe('PyroscopePage', () => {
       await waitFor(() => {
         const iframe = screen.getByTestId('pyroscope-iframe');
         const src = iframe.getAttribute('src');
-        expect(src).toContain('http://grafana.example.com/d/hsi-profiling/hsi-profiling');
+        expect(src).toContain('http://192.168.1.50:3000/d/hsi-profiling/hsi-profiling');
         expect(src).toContain('orgId=1');
         expect(src).toContain('kiosk=1');
         expect(src).toContain('theme=dark');
@@ -338,7 +338,7 @@ describe('PyroscopePage', () => {
         batch_idle_timeout_seconds: 30,
         detection_confidence_threshold: 0.5,
         fast_path_confidence_threshold: 0.9,
-        grafana_url: 'http://grafana.example.com',
+        grafana_url: 'http://192.168.1.50:3000',
         debug: false,
       });
 
@@ -351,7 +351,7 @@ describe('PyroscopePage', () => {
         const grafanaLink = screen.getByTestId('grafana-external-link');
         expect(grafanaLink).toHaveAttribute(
           'href',
-          'http://grafana.example.com/d/hsi-profiling/hsi-profiling?orgId=1&theme=dark'
+          'http://192.168.1.50:3000/d/hsi-profiling/hsi-profiling?orgId=1&theme=dark'
         );
       });
     });
@@ -392,7 +392,7 @@ describe('PyroscopePage', () => {
         batch_idle_timeout_seconds: 30,
         detection_confidence_threshold: 0.5,
         fast_path_confidence_threshold: 0.9,
-        grafana_url: 'http://grafana.example.com',
+        grafana_url: 'http://192.168.1.50:3000',
         debug: false,
       });
 
@@ -404,7 +404,7 @@ describe('PyroscopePage', () => {
       await waitFor(() => {
         const exploreLink = screen.getByTestId('explore-link');
         const href = exploreLink.getAttribute('href');
-        expect(href).toContain('http://grafana.example.com/explore');
+        expect(href).toContain('http://192.168.1.50:3000/explore');
         expect(href).toContain('orgId=1');
         expect(href).toContain('theme=dark');
         expect(href).toContain('"datasource":"Pyroscope"');
