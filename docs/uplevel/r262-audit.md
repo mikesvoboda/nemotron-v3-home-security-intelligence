@@ -5036,7 +5036,14 @@ reads, none by authorial preference.
   #7209 +136, #7235 +69, #7237 +6, #7255 −1). The mover identities are now those five; the
   mechanism (authored-true-then-moved, compounded by f2d032a5c's in-own-PR status flip after
   header author 628ed3153 wrote :199 on main) stands. The workflow then spawned 7225_c2/c3
-  verify agents on the corrected form. (5) 7214_c2's ellipsis-cite mover corrected from the
+  verify agents on the corrected form. verify:7225_c2 (holding=true, journal line 16) confirmed
+  7225_c2 whole at pin by blob reads (timeline/ holds 14 specs and no harness; the merge-tree
+  :560-563 measurement span is byte-identical to golden/harness.ts :1723-1726, md5-verified;
+  10d00a96e [r148a]'s blob diff has a single hunk — the import block './harness'→'../harness'
+  — with zero edits to :560, so the import was re-pointed and the prose cite was not) and
+  enriched the provenance: the cite was authored in 59ad5233e [r196a] (10-15) BEFORE #7225 — it
+  rode into the PR's file set pre-existing, the same born-stale family as 7225_c1. Only wording
+  defect: the fix_text's parenthetical duplicated its own target (degenerate, not factual). (5) 7214_c2's ellipsis-cite mover corrected from the
   workflow's c82f9a6f5 to dfe9b4d5a (commit-walk blob greps; c82f9a6f5 is the NEXT commit and
   doesn't touch the line), and the :881 def pre-existed on main (not PR-added — its pickaxe birth
   lands at the shallow boundary d6344e031, 10-16 04:45). Confirmed independently by the
