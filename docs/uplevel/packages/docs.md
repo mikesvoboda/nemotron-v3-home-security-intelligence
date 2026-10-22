@@ -597,3 +597,16 @@ feature's last build PR. **PR:** none yet. (ruling 308, record 6326364266)
       (UR-81).
 
 **Done when:** all four pages are merged, each sentence citing the line it rests on.
+
+### [r311b] The arming user guide
+
+**Flags:** none. **Assigned:** docs, after `[r308b]` (ruling 311). **Depends on:** `B4.7` and
+`F4.5` merged; its MQTT part on the MQTT section of Settings. **PR:** none yet. (ruling 311,
+record 6328311780)
+
+- [ ] One page in `docs/guides/` on arming: modes and their cameras, the schedule, critical alerts
+      while unarmed, the webhooks and `/alert`, and MQTT with what it needs from the broker. It is
+      written after `B4.7` and `F4.5` merge, its MQTT part after the MQTT section lands, and it
+      cites the code at those merges (UR-81).
+
+**Done when:** the page is merged, each sentence citing the line it rests on.
