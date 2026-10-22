@@ -251,8 +251,9 @@ class NotificationDeliveryWorker:
             sets.append("sent_at = timezone('utc', now())")
         async with self._session_factory() as session:
             await session.execute(
-                text(
-                    "UPDATE notification_deliveries SET "  # noqa: S608 nosemgrep — SET-list is internal; values are bound params
+                # The SET-list is internal; every value is a bound param (:id, :status, ...).
+                text(  # nosemgrep: python.sqlalchemy.security.audit.avoid-sqlalchemy-text.avoid-sqlalchemy-text
+                    "UPDATE notification_deliveries SET "  # noqa: S608
                     + ", ".join(sets)
                     + ", updated_at = timezone('utc', now()) WHERE id = :id"
                 ),
