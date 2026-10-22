@@ -442,11 +442,11 @@ the fast lanes.
 
 **Flags:** `heavy`. **Assigned:** heavy-a, after `B4.4` (ruling 311). **Depends on:** `B4.1`
 merged for the build PR; the test-only PR may open first.
-**PR:** none yet. (ruling 311, record 6328311780)
+**PR:** #7357. (ruling 311, record 6328311780)
 
 Design: [`../4n-arming.md`](../4n-arming.md), "Packages" row `B4.7`. Covers F-290.
 
-- [ ] The test-only PR (step 2): `inbound_webhooks.py` and the alerting `policy` and `pipeline`.
+- [x] The test-only PR (step 2): `inbound_webhooks.py` and the alerting `policy` and `pipeline`.
 - [ ] The build PR: `arming.py` (`mode_at`, `is_armed`, `set_mode`, `apply_schedule`,
       `next_scheduled`); the four arming tables, with `schedule_updated_at` and a change log that
       carries every mode's exclusions; the policy hook (raised while unarmed, the mode-scoped

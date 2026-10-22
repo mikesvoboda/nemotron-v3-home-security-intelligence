@@ -362,3 +362,192 @@ async def test_pipeline_sweep_processes_missing_decisions_and_marks_stale_events
     assert planner_calls == [(10, True), (11, False)]
     assert results[0].planned_deliveries == ({"status": "expired"},)
     assert results[1].planned_deliveries == ({"status": "pending"},)
+
+
+@pytest.mark.asyncio
+async def test_pipeline_sqlalchemy_session_path_process_and_sweep(tmp_path) -> None:
+    """Exercise AlertPipeline's SQLAlchemy session path (`_process_in_session`,
+    `_find_open_alert`, `_link_alert_event`, `_upsert_decision`, and `sweep_unprocessed`).
+    """
+    import contextlib
+    from typing import Any
+
+    from sqlalchemy import create_engine
+    from sqlalchemy.dialects.postgresql import ARRAY, JSONB, TSVECTOR, UUID
+    from sqlalchemy.ext.compiler import compiles
+    from sqlalchemy.orm import Session, sessionmaker
+
+    from backend.models.camera import Camera
+    from backend.models.enrichment import ThreatDetection
+    from backend.models.event_detection import EventDetection
+    from backend.models.face_identity import (
+        EnrollmentCandidate,
+        FaceDetectionEvent,
+        KnownPerson,
+    )
+    from backend.models.household_org import Household
+    from backend.models.notification_preferences import (
+        CameraNotificationSetting,
+        NotificationPreferences,
+    )
+    from backend.models.property import Property
+
+    @compiles(JSONB, "sqlite")
+    def _c_jsonb(_t: Any, _c: Any, **_kw: Any) -> str:
+        return "JSON"
+
+    @compiles(UUID, "sqlite")
+    def _c_uuid(_t: Any, _c: Any, **_kw: Any) -> str:
+        return "VARCHAR(36)"
+
+    @compiles(TSVECTOR, "sqlite")
+    def _c_tsv(_t: Any, _c: Any, **_kw: Any) -> str:
+        return "TEXT"
+
+    @compiles(ARRAY, "sqlite")
+    def _c_arr(_t: Any, _c: Any, **_kw: Any) -> str:
+        return "JSON"
+
+    class _SQLiteAsyncSession:
+        def __init__(self, s: Session) -> None:
+            self._s = s
+
+        def add(self, obj: Any) -> None:
+            self._s.add(obj)
+
+        def get_bind(self) -> Any:
+            return self._s.get_bind()
+
+        async def execute(self, stmt: Any, params: Any = None, **kw: Any) -> Any:
+            if hasattr(stmt, "text") and "pg_advisory_xact_lock" in str(stmt.text):
+                return None
+            return self._s.execute(stmt, params=params, **kw)
+
+        async def scalars(self, stmt: Any, params: Any = None, **kw: Any) -> Any:
+            return self._s.scalars(stmt, params=params, **kw)
+
+        async def get(self, entity: Any, ident: Any, **kw: Any) -> Any:
+            return self._s.get(entity, ident, **kw)
+
+        async def flush(self) -> None:
+            self._s.flush()
+
+        async def commit(self) -> None:
+            self._s.commit()
+
+    engine = create_engine(f"sqlite:///{tmp_path / 'pipeline_sa.db'}", future=True)
+    for tbl in (
+        Household.__table__,
+        Property.__table__,
+        Camera.__table__,
+        Event.__table__,
+        EventVerification.__table__,
+        EventNotifyDecision.__table__,
+        Detection.__table__,
+        ThreatDetection.__table__,
+        EventDetection.__table__,
+        KnownPerson.__table__,
+        FaceDetectionEvent.__table__,
+        EnrollmentCandidate.__table__,
+        NotificationPreferences.__table__,
+        CameraNotificationSetting.__table__,
+        AlertRule.__table__,
+        Alert.__table__,
+        AlertEvent.__table__,
+        ActivitySnooze.__table__,
+    ):
+        with engine.begin() as conn:
+            tbl.create(conn, checkfirst=True)
+
+    maker = sessionmaker(engine, expire_on_commit=False)
+
+    @contextlib.asynccontextmanager
+    async def session_factory():
+        with maker() as sync_s:
+            yield _SQLiteAsyncSession(sync_s)
+
+    t0 = datetime(2026, 10, 22, 2, 0, tzinfo=UTC)
+    t1 = t0 + timedelta(seconds=60)
+    with maker() as s:
+        s.add(
+            Camera(
+                id="front_door",
+                name="Front Door",
+                folder_path="/export/foscam/front_door",
+                status="online",
+            )
+        )
+        ev1 = Event(
+            id=1,
+            batch_id="b-sa-1",
+            camera_id="front_door",
+            started_at=t0,
+            risk_score=75,
+            risk_level="high",
+            summary="SA event 1",
+        )
+        ev2 = Event(
+            id=2,
+            batch_id="b-sa-2",
+            camera_id="front_door",
+            started_at=t1,
+            risk_score=80,
+            risk_level="high",
+            summary="SA event 2",
+        )
+        s.add_all([ev1, ev2])
+        s.flush()
+        det1 = Detection(
+            id=10,
+            camera_id="front_door",
+            file_path="/cameras/sa1.jpg",
+            detected_at=t0,
+            object_type="person",
+            confidence=0.92,
+            enrichment_data={
+                "threats": [{"type": "weapon", "severity": "high", "confidence": 0.9}]
+            },
+        )
+        det2 = Detection(
+            id=11,
+            camera_id="front_door",
+            file_path="/cameras/sa2.jpg",
+            detected_at=t1,
+            object_type="person",
+            confidence=0.93,
+        )
+        s.add_all([det1, det2])
+        s.flush()
+        s.add_all(
+            [
+                EventDetection(event_id=1, detection_id=10),
+                EventDetection(event_id=2, detection_id=11),
+                EventVerification(
+                    event_id=1,
+                    verdict="confirmed",
+                    engine="ai-vlm",
+                    model_id="qwen",
+                    created_at=t0,
+                ),
+                EventVerification(
+                    event_id=2,
+                    verdict="confirmed",
+                    engine="ai-vlm",
+                    model_id="qwen",
+                    created_at=t1,
+                ),
+            ]
+        )
+        s.commit()
+
+    broadcaster = AsyncMock()
+    pipeline = AlertPipeline(session_factory=session_factory, broadcaster=broadcaster)
+    r1 = await pipeline.process(1, now=t0)
+    assert r1.notify is True
+    assert len(r1.created_alerts) == 1
+
+    # Sweep processes undecided event 2 and folds it into the open alert from event 1
+    swept = await pipeline.sweep_unprocessed(now=t1, upgrade_applied_at=t0 - timedelta(hours=1))
+    assert [r.event_id for r in swept] == [2]
+    assert len(swept[0].updated_alerts) == 1
+    engine.dispose()

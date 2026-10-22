@@ -259,3 +259,56 @@ def test_default_rule_respects_camera_settings_and_excluded_cameras() -> None:
     # Excluded camera on a rule skips that camera
     rule_excl = _rule(excluded_camera_ids=["front_door"])
     assert evaluate(_ctx(camera_id="front_door", rules=(rule_excl,))) == []
+
+
+def test_threat_detection_filters_and_dedup_key_templates() -> None:
+    threat_rule = _rule(
+        id="rule-threat",
+        threat_detection_enabled=True,
+        threat_types=["weapon", "intrusion"],
+        threat_min_severity="high",
+        threat_confidence_threshold=0.85,
+        object_types=["person"],
+        min_confidence=0.80,
+        camera_ids=["front_door"],
+        dedup_key_template="{camera_id}:{object_type}:{rule_id}",
+    )
+
+    # No threats -> no match
+    assert evaluate(_ctx(rules=(threat_rule,), threats=())) == []
+
+    # Threat with wrong type, low severity, or low confidence -> no match
+    assert (
+        evaluate(
+            _ctx(
+                rules=(threat_rule,),
+                threats=(
+                    {"threat_type": "smoke", "severity": "critical", "confidence": 0.99},
+                    {"threat_type": "weapon", "severity": "medium", "confidence": 0.99},
+                    {"threat_type": "weapon", "severity": "high", "confidence": 0.70},
+                ),
+            )
+        )
+        == []
+    )
+
+    # Matching threat + matching camera_ids, object_types, and min_confidence -> matches
+    matches = evaluate(
+        _ctx(
+            rules=(threat_rule,),
+            detections=(SimpleNamespace(id=10, object_type="person", confidence=0.92),),
+            threats=(SimpleNamespace(threat_type="weapon", severity="critical", confidence=0.95),),
+        )
+    )
+    assert len(matches) == 1
+    assert matches[0].dedup_key == "front_door:person:rule-threat"
+    assert "camera_id in ['front_door']" in matches[0].matched_conditions
+    assert "object_type in ['person']" in matches[0].matched_conditions
+    assert "confidence >= 0.8" in matches[0].matched_conditions
+    assert "threat_detected" in matches[0].matched_conditions
+
+    # Invalid template placeholder falls back to "{camera_id}:{rule_id}"
+    bad_tpl_rule = _rule(id="r-bad", dedup_key_template="{camera_id}:{nonexistent_key}")
+    bad_matches = evaluate(_ctx(rules=(bad_tpl_rule,)))
+    assert len(bad_matches) == 1
+    assert bad_matches[0].dedup_key == "front_door:r-bad"
