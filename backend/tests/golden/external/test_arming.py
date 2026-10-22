@@ -160,6 +160,7 @@ def test_f290_b47_arming_core_golden_path(logged_in_api: httpx.Client) -> None:
         key_id = str(key_create.json()["id"])
         webhook_key = str(key_create.json()["key"])
         wh_headers = {"X-API-Key": webhook_key}
+        created_event_ids: list[int] = []
 
         try:
             # 1. Away by webhook, then a confirmed person on camera X gives an alert
@@ -181,6 +182,7 @@ def test_f290_b47_arming_core_golden_path(logged_in_api: httpx.Client) -> None:
                 risk_level="high",
                 tag=f"{tag}-away",
             )
+            created_event_ids.append(ev1_id)
             dec1 = logged_in_api.get(f"/api/arming/events/{ev1_id}/decision")
             assert dec1.status_code == 200, dec1.text[:500]
             assert dec1.json()["notify"] is True
@@ -190,6 +192,8 @@ def test_f290_b47_arming_core_golden_path(logged_in_api: httpx.Client) -> None:
             items_1 = alerts_1.json()["items"]
             assert len(items_1) >= 1
             assert items_1[0]["raised_while_unarmed"] is False
+            for a1 in items_1:
+                logged_in_api.post(f"/api/alert-service/alerts/{a1['id']}/dismiss", json={})
 
             # 2. Home leaving X out, then the same fixture gives no alert and the decision names arming
             r_home = logged_in_api.put("/api/arming/mode", json={"mode": "home"})
@@ -211,6 +215,7 @@ def test_f290_b47_arming_core_golden_path(logged_in_api: httpx.Client) -> None:
                 risk_level="high",
                 tag=f"{tag}-home-excl",
             )
+            created_event_ids.append(ev2_id)
             dec2 = logged_in_api.get(f"/api/arming/events/{ev2_id}/decision")
             assert dec2.status_code == 200, dec2.text[:500]
             assert dec2.json()["notify"] is False
@@ -240,6 +245,7 @@ def test_f290_b47_arming_core_golden_path(logged_in_api: httpx.Client) -> None:
                 risk_level="critical",
                 tag=f"{tag}-disarmed-crit",
             )
+            created_event_ids.append(ev3_id)
             alerts_3 = logged_in_api.get("/api/alert-service/alerts", params={"event_id": ev3_id})
             assert alerts_3.status_code == 200, alerts_3.text[:500]
             items_3 = alerts_3.json()["items"]
@@ -267,6 +273,7 @@ def test_f290_b47_arming_core_golden_path(logged_in_api: httpx.Client) -> None:
             )
             assert r_ext.status_code == 200, r_ext.text[:500]
             ext_body = r_ext.json()
+            created_event_ids.append(int(ext_body["event_id"]))
             assert ext_body["notify"] is True
             assert ext_body["severity"] == "medium"
             assert len(ext_body["alert_ids"]) == 1
@@ -279,6 +286,9 @@ def test_f290_b47_arming_core_golden_path(logged_in_api: httpx.Client) -> None:
             assert ext_alert["verdict_source"] == "external"
             assert ext_alert["rule_id"] == EXTERNAL_ALERTS_RULE_ID
         finally:
+            for eid in created_event_ids:
+                logged_in_api.delete(f"/api/events/{eid}")
+                logged_in_api.delete(f"/api/events/{eid}", params={"permanent": "true"})
             logged_in_api.put("/api/arming/modes/home/cameras", json={"excluded_camera_ids": []})
             logged_in_api.put("/api/arming/mode", json={"mode": "home"})
             logged_in_api.delete(f"/api/auth/api-keys/{key_id}")

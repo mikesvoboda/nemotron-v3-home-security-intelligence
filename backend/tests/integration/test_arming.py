@@ -197,6 +197,13 @@ async def test_f290_golden_four_step_sequence_on_real_postgres(
     dec1 = await client.get(f"/api/arming/events/{ev1_id}/decision")
     assert dec1.status_code == 200, dec1.text
     assert dec1.json()["notify"] is True
+    alerts_1 = await client.get("/api/alert-service/alerts", params={"event_id": ev1_id})
+    assert alerts_1.status_code == 200, alerts_1.text
+    items_1 = alerts_1.json()["items"]
+    assert len(items_1) >= 1
+    assert items_1[0]["raised_while_unarmed"] is False
+    for a1 in items_1:
+        await client.post(f"/api/alert-service/alerts/{a1['id']}/dismiss", json={})
 
     # 2. Home leaving X out -> same fixture gives no alert and decision names arming
     r_home = await client.put("/api/arming/mode", json={"mode": "home"})
@@ -234,3 +241,64 @@ async def test_f290_golden_four_step_sequence_on_real_postgres(
     assert dec2.json()["notify"] is False
     assert "arming" in dec2.json()["decided_by"].lower(), dec2.json()
     assert "Home leaves out" in dec2.json()["decided_by"]
+
+    # 3. Critical fixture while Disarmed gives an alert marked raised while unarmed
+    r_disarm = await client.post(
+        "/api/webhooks/inbound/disarm",
+        json={"reason": "int test disarm"},
+        headers=wh_headers,
+    )
+    assert r_disarm.status_code == 200, r_disarm.text
+
+    t3 = datetime.now(UTC) + timedelta(seconds=2)
+    ev3_res = await client.post(
+        "/api/events/bulk",
+        json={
+            "events": [
+                {
+                    "batch_id": f"b47-int-{tag}-crit",
+                    "camera_id": cam_id,
+                    "started_at": t3.isoformat(),
+                    "ended_at": (t3 + timedelta(seconds=10)).isoformat(),
+                    "risk_score": 95,
+                    "risk_level": "critical",
+                    "summary": "Critical fixture while disarmed",
+                    "reasoning": "Test",
+                    "detection_ids": [det_ids[2]],
+                    "verdict": "confirmed",
+                }
+            ]
+        },
+    )
+    assert ev3_res.status_code == 207, ev3_res.text
+    ev3_id = int(ev3_res.json()["results"][0]["id"])
+    alerts_3 = await client.get("/api/alert-service/alerts", params={"event_id": ev3_id})
+    assert alerts_3.status_code == 200, alerts_3.text
+    items_3 = alerts_3.json()["items"]
+    assert len(items_3) >= 1
+    assert items_3[0]["raised_while_unarmed"] is True
+
+    # 4. /alert with default severity on armed camera gives external event + alert from "External alerts"
+    r_rearm = await client.post(
+        "/api/webhooks/inbound/arm",
+        json={},
+        headers=wh_headers,
+    )
+    assert r_rearm.status_code == 200, r_rearm.text
+    r_ext = await client.post(
+        "/api/webhooks/inbound/alert",
+        json={
+            "camera_id": cam_id,
+            "source": "door_sensor",
+            "message": f"Door sensor opened ({tag})",
+        },
+        headers=wh_headers,
+    )
+    assert r_ext.status_code == 200, r_ext.text
+    ext_body = r_ext.json()
+    assert ext_body["notify"] is True
+    assert ext_body["severity"] == "medium"
+    assert len(ext_body["alert_ids"]) == 1
+    ext_alert = (await client.get(f"/api/alert-service/alerts/{ext_body['alert_ids'][0]}")).json()
+    assert ext_alert["verdict_source"] == "external"
+    assert ext_alert["rule_id"] == EXTERNAL_ALERTS_RULE_ID
