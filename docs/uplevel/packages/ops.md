@@ -1384,7 +1384,7 @@ Notes for the lane, from the plan PR's round-4 and round-5 reviews (#7316):
 
 **Flags:** `owner` (it changes what `CI Gate (Required Checks)` runs, UR-119, and a security check,
 UR-98). **Assigned:** `uplevel-ops-a`, after `[r291]` (ruling 294). **Depends on:** none.
-**PR:** none yet. (ruling 294, record 6307203645)
+**PR:** #7337. (ruling 294, record 6307203645)
 
 `main` went red at 01:36Z on 2026-10-21 on `Security - Trivy / Scan Backend Image`: `certifi`
 2026.6.17 with GHSA-6q48-6c7w-9gw2 (CRITICAL), in pip's own bundle in the base image (raise
