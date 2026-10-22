@@ -6,7 +6,7 @@ import { memo, useCallback, useMemo, useState } from 'react';
 import { usePrefetchEventDetections } from '../../hooks/useEventDetectionsQuery';
 import { resolveRiskLevel, type RiskLevel } from '../../utils/risk';
 import { EventCardSkeleton } from '../common';
-import EventCard, { type Detection } from './EventCard';
+import EventCard from './EventCard';
 
 import type { Event } from '../../services/api';
 
@@ -255,7 +255,6 @@ function TimeGroupSection({
           {group.events.map((event) => {
             const cameraName = cameraNameMap.get(event.camera_id) || 'Unknown Camera';
             const isSelected = selectedEventIds.has(event.id);
-            const detections: Detection[] = [];
 
             return (
               <div
@@ -295,7 +294,6 @@ function TimeGroupSection({
                   verdict={event.verification?.verdict}
                   summary={event.summary || 'No summary available'}
                   thumbnail_url={event.thumbnail_url || undefined}
-                  detections={detections}
                   started_at={event.started_at}
                   ended_at={event.ended_at}
                   onClick={onEventClick ? () => onEventClick(event.id) : undefined}
