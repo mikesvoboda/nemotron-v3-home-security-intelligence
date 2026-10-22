@@ -57,13 +57,18 @@ from pathlib import Path
 # Same threshold the two scans gate on today (severity: 'CRITICAL,HIGH').
 SEVERITIES = ("CRITICAL", "HIGH")
 
-# An entry line: a bare vulnerability id (CVE-… / GHSA-…) at column 0, as
-# .trivyignore carries them. The preceding comment block's REVIEW BY date
-# (scripts/check-trivyignore-expiry.sh's own regex) supplies the review date.
-ENTRY_RE = re.compile(r"^(CVE-[0-9]+-[0-9]+|GHSA-[0-9a-z]{4}-[0-9a-z]{4}-[0-9a-z]{4})\s*$")
+# An entry id: a vulnerability id (CVE-… / GHSA-… / AVD-…) as trivy's own
+# ignorefile parser reads it - the FIRST whitespace-separated field of a
+# non-comment, non-empty line is the id, whatever else follows (an `exp:`
+# date, a path qualifier, a trailing comment). Trivy honors every such
+# line as a suppression, so the checker must adjudicate every such line:
+# a shape this file's earlier bare-id regex skipped silently was a
+# suppression channel with zero governance (the committed file carries
+# bare ids only, but the parser must not depend on that).
+ID_RE = r"(?:CVE-[0-9]+-[0-9]+|GHSA-[0-9a-z]{4}-[0-9a-z]{4}-[0-9a-z]{4}|AVD-[A-Z]+-[0-9]{4})"
+ENTRY_RE = re.compile(rf"^({ID_RE})\b(.*)$")
 REVIEW_RE = re.compile(
-    r"^#\s*(CVE-[0-9]+-[0-9]+|GHSA-[0-9a-z]{4}-[0-9a-z]{4}-[0-9a-z]{4})\s*-.*"
-    r"\(REVIEW\ BY:\s*([0-9]{4}-[0-9]{2}-[0-9]{2})\)"
+    rf"^#\s*({ID_RE})\s*-.*\(REVIEW\ BY:\s*([0-9]{{4}}-[0-9]{{2}}-[0-9]{{2}})\)"
 )
 
 
@@ -110,10 +115,23 @@ def parse_ignore(path: Path, warn_days: int) -> IgnoreFile:
         if m:
             pending[m.group(1)] = m.group(2)
             continue
-        m = ENTRY_RE.match(line)
-        if not m:
+        if not line.strip() or line.lstrip().startswith("#"):
             continue
-        vid = m.group(1)
+        # Trivy's own model: the first whitespace field of every
+        # non-comment line is an entry id (whatever follows it - an exp:
+        # date, a path, a comment - is trivy's business, not a way out).
+        # A line whose first field is NOT a known id shape is still
+        # adjudicated: it can only be an id this checker does not
+        # recognize (a future trivy id family), and an unrecognized
+        # suppressor must red, not slip.
+        first = line.split()[0]
+        m = re.match(rf"^{ID_RE}$", first)
+        vid = m.group(0) if m else first
+        if m is None:
+            out.violations.add(
+                f"{vid}: unrecognized entry id shape (trivy would honor this "
+                "line as a suppression - the gate adjudicates every suppressor)"
+            )
         rb = pending.get(vid)
         out.entries.append((vid, rb))
         if rb is None:
@@ -136,6 +154,14 @@ def parse_ignore(path: Path, warn_days: int) -> IgnoreFile:
 def findings(report: Path) -> tuple[set[tuple[str, str]], bool]:
     """The report's CRITICAL/HIGH findings, keyed (vulnerability id, package).
 
+    Vulnerability findings key on (VulnerabilityID, PkgName). Secret findings
+    (Results[].Secrets - the gate legs scan `vuln,secret`) carry no package,
+    so they key on (RuleID, match location) where trivy reports it (Secrets
+    rows name `Match` as a start-line offset in the file; a row without a
+    location falls back to the target, so it still adjudicates). A CRITICAL
+    secret a change adds must red the gate exactly as a vulnerability would:
+    the scans run `vuln,secret`, so the checker adjudicates both families.
+
     The JSON is what trivy wrote AFTER applying that side's ignore file, so
     a finding present here is unexempted on this side by construction. A
     report that does not parse (a trivy crash yields no report at all; the
@@ -151,6 +177,7 @@ def findings(report: Path) -> tuple[set[tuple[str, str]], bool]:
     for r in doc["Results"]:
         if not isinstance(r, dict):
             return set(), True
+        target = r.get("Target", "")
         for v in r.get("Vulnerabilities") or []:
             if not isinstance(v, dict):
                 return set(), True
@@ -159,6 +186,15 @@ def findings(report: Path) -> tuple[set[tuple[str, str]], bool]:
                 return set(), True
             if sev in SEVERITIES:
                 out.add((vid, pkg))
+        for s in r.get("Secrets") or []:
+            if not isinstance(s, dict):
+                return set(), True
+            rid, sev = s.get("RuleID"), s.get("Severity")
+            if not rid or not sev:
+                return set(), True
+            if sev in SEVERITIES:
+                where = s.get("Match") or s.get("StartLine") or target
+                out.add((rid, f"secret@{where}"))
     return out, False
 
 

@@ -6,21 +6,34 @@ name: Trivy Security Scan
 # jobs there are direct ci-gate needs with check_job lines, and ci.yml's
 # security calls carry NO path filter - a CVE can no longer slip a gate by
 # diff-shape. The WP0.6 note below ("Trivy x2 sat red while CI Gate reported
-# SUCCESS") is what this closes. Heavy image scans keep their
-# push||workflow_dispatch condition INSIDE the jobs: a called workflow sees
-# the caller's event, so on PRs the image jobs skip (and check_job forgives
-# skipped), on main pushes and dispatches they run. Schedule + dispatch stay:
-# the weekly Monday scan keeps catching CVE drift on unchanged code.
+# SUCCESS") is what this closes.
+# [r294]: the gate-mode call is the gate leg; the image jobs run on PRs in
+# gate mode (ruling 294 item 1: the image scan never skips), and check_job
+# reads the called job's result. The FULL scans are this workflow's own run:
+# every push to main (this file's own trigger, per the [r291] pattern),
+# daily at 09:07 UTC (was Monday-only), and workflow_dispatch - NOT a job
+# in CI (UR-119: CI Gate does not read the full scans; a red job in CI
+# would read as red `main`; a red standalone run is raised and routed
+# like red `main`, UR-185, without freezing the queue).
 # Baseline at flip (measured 2026-09-20): fs/config/CVE-expiry green, zero
 # findings beyond .trivyignore's 66 dated entries; Scan Backend Image was red
 # MECHANICALLY - see the version pin at its scan step, fixed here.
 on:
-  # [r294]: the full scans are THIS workflow's own run, DAILY at 09:07 UTC
-  # (was Monday-only '0 9 * * 1'): the full scans on unchanged code still
-  # catch CVE drift - an advisory published Wednesday against last week's
-  # image reddens on Thursday's run, raised and routed like red `main`
-  # (UR-185) without freezing the queue. NOT a job in CI (UR-119: CI Gate
-  # does not read the full scans; a red job in CI would read as red `main`).
+  # [r294]: the full scans are THIS workflow's own run on every push to
+  # main, DAILY at 09:07 UTC (was Monday-only '0 9 * * 1'), and on
+  # workflow_dispatch - the [r291] pattern (dependency-audit.yml carries
+  # the same push leg): the full scans on unchanged code still catch CVE
+  # drift - an advisory published Wednesday against last week's image
+  # reddens on Thursday's run, raised and routed like red `main` (UR-185)
+  # without freezing the queue. NOT a job in CI (UR-119: CI Gate does not
+  # read the full scans; a red job in CI would read as red `main`).
+  push:
+    branches: [main]
+    # [r291]: the full-scan run on main is THIS workflow's own push leg
+    # (a red job in CI would fail the whole CI run, which queue_update.py
+    # reads as red main - the queue freeze UR-185 rules out). It is NOT a
+    # ci-gate need and NOT read by CI Gate (UR-119); a red is raised and
+    # routed, not queued against.
   schedule:
     - cron: '7 9 * * *'
   # Allow manual trigger
@@ -81,8 +94,10 @@ jobs:
   scan-filesystem:
     name: Filesystem Vulnerability Scan
     runs-on: ubuntu-latest
-    outputs:
-      scan-ran: ${{ steps.mode.outputs.skip_scan != 'true' }}
+    # [r294 review round]: the job-level scan-ran output this file used to
+    # emit had no consumer anywhere (ci.yml reads the job's RESULT through
+    # ci-gate, not this output), and pre-polarity-fix it read false exactly
+    # when the blocking scan ran. Dropped.
     steps:
       - name: Checkout
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
@@ -96,15 +111,17 @@ jobs:
         id: mode
         run: |
           # r291 security pass, LOW (CWE-184/345): expression-interpolating
-          # the input into the script makes it bash-source text. A case
-          # allowlist keeps the mode a selector, not an injection surface -
-          # anything but the two known names fails closed to full.
-          case "${{ inputs.trivy-mode || 'full' }}" in
-            gate|full) ;;
-            *) echo "trivy-mode '${{ inputs.trivy-mode }}' is not gate|full - running full" >&2 ;;
+          # the input into the script makes it bash-source text. The raw
+          # input reaches the script ONLY through one env indirection; a
+          # case allowlist then keeps the mode a selector - anything but
+          # the two known names fails closed to full.
+          RAW_MODE="${{ inputs.trivy-mode || 'full' }}"
+          case "$RAW_MODE" in
+            gate|full) MODE="$RAW_MODE" ;;
+            *) echo "trivy-mode '$RAW_MODE' is not gate|full - running full" >&2; MODE="full" ;;
           esac
-          echo "mode=${{ inputs.trivy-mode || 'full' }}" >> "$GITHUB_OUTPUT"
-          if [ "${{ inputs.trivy-mode || 'full' }}" = "gate" ]; then
+          echo "mode=$MODE" >> "$GITHUB_OUTPUT"
+          if [ "$MODE" = "gate" ]; then
             # The tested merge tree's first parent IS the PR's base commit
             # as CI tests it; pull_request.base.sha can lag (a branch pushed
             # after main moved).
@@ -122,15 +139,29 @@ jobs:
             # --no-renames: a RENAMED manifest must read as touched -
             # rename detection prints only the destination path, which no
             # pathspec here matches.
+            # UR-95 pass: ai/gateway/requirements.txt is a live manifest the
+            # fs scan reads (trivy's pip analyzer matches requirements.txt
+            # by basename) and dependabot's uv ecosystem rewrites the
+            # ai/*/requirements.txt floors - leaving it out of the pathspec
+            # let a gateway dependency change skip the fs gate entirely.
+            # trivy.yaml/.trivyignore.yaml: trivy loads a config file from
+            # the scan CWD by default (TRIVY_CONFIG unset - trivy-action
+            # leaves it unset when its input is empty), and a config the
+            # change commits can blind both legs (scan.skip-files, severity
+            # sources, ignore-status) outside the ignorefile's governance.
+            # A machinery edit runs the scan AND the adjudicator below fails
+            # closed if the head tree carries a trivy config file.
             deps_touched="$(git diff --no-renames --name-only "$base_sha"..HEAD -- \
               pyproject.toml uv.lock requirements-base.txt \
               package.json frontend/package.json frontend/package-lock.json \
               frontend/bunfig.toml \
+              ai/gateway/requirements.txt \
               .trivyignore)"
             machinery_touched="$(git diff --no-renames --name-only "$base_sha"..HEAD -- \
               .github/workflows/trivy.yml .github/workflows/ci.yml \
               scripts/check-trivy-delta.py scripts/check-trivyignore-expiry.sh \
-              scripts/test_check_trivy_delta.py)"
+              scripts/test_check_trivy_delta.py \
+              trivy.yaml .trivyignore.yaml)"
             if [ -z "$deps_touched" ] && [ -z "$machinery_touched" ]; then
               echo "skip_scan=true" >> "$GITHUB_OUTPUT"
               echo "no dependency manifest, allowlist or scan-machinery file changed - filesystem scan skips (gate mode)" >&2
@@ -177,6 +208,17 @@ jobs:
       - name: Adjudicate the filesystem delta (gate mode)
         if: steps.mode.outputs.mode == 'gate' && steps.mode.outputs.skip_scan != 'true'
         run: |
+          # [r294 review round] fail closed on a config file the change
+          # commits: trivy loads ./trivy.yaml from the scan CWD when
+          # TRIVY_CONFIG is unset (trivy-action leaves it unset with an
+          # empty input), and a committed config can blind both sides'
+          # scans (scan.skip-files, severity sources, ignore-status) the
+          # same way an ungoverned .trivyignore line would. A machinery
+          # edit already forces the scan; this closes the channel itself.
+          if [ -f trivy.yaml ] || [ -f .trivyignore.yaml ]; then
+            echo "the change carries a trivy config file (trivy.yaml / .trivyignore.yaml) - scans are governed by trivy.yml + .trivyignore only" >&2
+            exit 1
+          fi
           # Both sides' ignore snapshots ride out of the worktrees with
           # their scans; the checker fails closed on either side's error.
           python3 scripts/check-trivy-delta.py \
@@ -187,7 +229,13 @@ jobs:
             --warn-days 14
 
       - name: Run Trivy filesystem scan
-        if: steps.mode.outputs.mode != 'gate' || steps.mode.outputs.skip_scan == 'true'
+        # [r294 review round] the polarity is NOT skip_scan == 'true': in
+        # gate mode a met skip condition must SKIP the blocking scan (the
+        # resolver's own log line and the [r291] sibling's De Morgan
+        # complement). The inverted form ran the full blocking scan on
+        # every docs-only PR - re-opening the queue-freeze failure mode
+        # the skip exists to prevent, and contradicting the skip's premise.
+        if: steps.mode.outputs.mode != 'gate' || steps.mode.outputs.skip_scan != 'true'
         uses: aquasecurity/trivy-action@master
         with:
           scan-type: 'fs'
@@ -216,9 +264,11 @@ jobs:
 
       - name: Upload Trivy filesystem results to GitHub Security
         uses: github/codeql-action/upload-sarif@6f2ac81f5cd81fe351a197ba0b00d91d03cd2aee # v4.39.0
-        # [r294]: on a skipped fs scan the SARIF report was never generated,
-        # and upload-sarif with a missing file fails the job - the gate
-        # would red on a docs-only PR. Skip with it.
+        # [r294]: the SARIF generation step above runs `if: always()`, so
+        # the report EXISTS even on a skipped fs scan - what a skip drops
+        # is the security tab's feed for a tree whose deps did not move.
+        # Skipping the upload on skip is deliberate (no feed churn from a
+        # stale report), not a file-availability workaround.
         if: steps.mode.outputs.skip_scan != 'true'
         with:
           sarif_file: 'trivy-fs.sarif'
@@ -394,11 +444,15 @@ jobs:
         id: mode
         if: inputs.trivy-mode == 'gate'
         run: |
-          case "${{ inputs.trivy-mode || 'full' }}" in
-            gate|full) ;;
-            *) echo "trivy-mode '${{ inputs.trivy-mode }}' is not gate|full - running full" >&2 ;;
+          # Same env indirection as the fs resolver: the raw input reaches
+          # the script through one variable, then the case allowlist
+          # selects (r291 security pass, LOW, CWE-184/345).
+          RAW_MODE="${{ inputs.trivy-mode || 'full' }}"
+          case "$RAW_MODE" in
+            gate|full) MODE="$RAW_MODE" ;;
+            *) echo "trivy-mode '$RAW_MODE' is not gate|full - running full" >&2; MODE="full" ;;
           esac
-          echo "mode=${{ inputs.trivy-mode || 'full' }}" >> "$GITHUB_OUTPUT"
+          echo "mode=$MODE" >> "$GITHUB_OUTPUT"
           # The tested merge tree's first parent IS the PR's base commit as
           # CI tests it (dependency-audit.yml's [r291] resolution).
           base_sha="$(git rev-parse HEAD^1)"
@@ -472,6 +526,13 @@ jobs:
       - name: Adjudicate the image delta (gate mode)
         if: inputs.trivy-mode == 'gate' && steps.build.outcome == 'success'
         run: |
+          # [r294 review round] fail closed on a committed trivy config
+          # file, same as the fs adjudicator: the image scans run from the
+          # repo root, so a trivy.yaml the change commits loads there too.
+          if [ -f trivy.yaml ] || [ -f .trivyignore.yaml ]; then
+            echo "the change carries a trivy config file (trivy.yaml / .trivyignore.yaml) - scans are governed by trivy.yml + .trivyignore only" >&2
+            exit 1
+          fi
           # Both sides' ignore snapshots ride out of the checkouts; the
           # checker fails closed on either side's error. The image scan
           # never skips, so this is the gate's always-on Trivy leg.

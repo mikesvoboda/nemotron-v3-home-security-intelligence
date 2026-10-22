@@ -380,3 +380,163 @@ def test_workflow_gate_legs_route_through_the_checker() -> None:
     assert "trivy-mode: gate" in wf or "trivy-mode: gate" in CI_WORKFLOW.read_text()
     ci = CI_WORKFLOW.read_text()
     assert "trivy-mode: gate" in ci
+
+# --- the review round (UR-89 + UR-95 findings, red-first) ---------------------
+
+
+def secret_doc(rule: str = "aws-access-key-id", target: str = "backend/config.py") -> str:
+    """A CRITICAL secret finding in trivy's --format json shape (the gate
+    legs scan `vuln,secret`, so Secrets rows land in the same reports)."""
+    return json.dumps(
+        {
+            "SchemaVersion": 2,
+            "Results": [
+                {
+                    "Target": target,
+                    "Class": "secret",
+                    "Secrets": [
+                        {
+                            "RuleID": rule,
+                            "Category": "AWS",
+                            "Severity": "CRITICAL",
+                            "Match": "AKIA…:21",
+                            "StartLine": 3,
+                        }
+                    ],
+                }
+            ],
+        }
+    )
+
+
+def test_a_critical_secret_the_change_adds_fails_the_gate(tmp_path: Path) -> None:
+    """UR-89 blocking-3: the gate legs scan `vuln,secret`, so the checker
+    adjudicates secrets too - a CRITICAL secret unexempted at the head only
+    reds the delta (keyed RuleID + match location, secrets carry no
+    package)."""
+    h = Harness(tmp_path)
+    r = h.run(
+        secret_doc(),
+        CERTIFI_IGNORE,
+        base_report=trivy_doc(CERTIFI_FINDING),
+        base_ignore=CERTIFI_IGNORE,
+    )
+    assert r.returncode == 1, r.stdout + r.stderr
+    assert "aws-access-key-id" in r.stderr
+    assert "UNEXEMPTED" in r.stderr
+
+
+def test_a_secret_on_both_sides_passes_the_gate(tmp_path: Path) -> None:
+    h = Harness(tmp_path)
+    r = h.run(
+        secret_doc(),
+        CERTIFI_IGNORE,
+        base_report=secret_doc(),
+        base_ignore=CERTIFI_IGNORE,
+    )
+    assert r.returncode == 0, r.stdout + r.stderr
+    assert "none added by the change" in r.stdout
+
+
+def test_full_mode_reds_on_an_unexempted_secret(tmp_path: Path) -> None:
+    h = Harness(tmp_path)
+    r = h.run(secret_doc(), "")
+    assert r.returncode == 1, r.stdout + r.stderr
+    assert "aws-access-key-id" in r.stderr
+
+
+def test_added_entry_with_an_exp_field_fails(tmp_path: Path) -> None:
+    """UR-95 HIGH: trivy's own ignorefile parser honors a first-field id with
+    an `exp:` suffix field as a suppression with a far-future expiry. The
+    earlier bare-id regex skipped such lines entirely, leaving the
+    suppression ungoverned. Every non-comment line's first field is now an
+    entry id and must pass today's rules."""
+    h = Harness(tmp_path)
+    r = h.run(
+        trivy_doc(CERTIFI_FINDING),
+        CERTIFI_IGNORE + f"{FIXTURE_ID} exp:{FUTURE}\n",
+        base_report=trivy_doc(CERTIFI_FINDING),
+        base_ignore=CERTIFI_IGNORE,
+    )
+    assert r.returncode == 1, r.stdout + r.stderr
+    assert FIXTURE_ID in r.stderr
+    assert "missing reviewBy" in r.stderr
+
+
+def test_added_indented_entry_fails(tmp_path: Path) -> None:
+    """Leading whitespace does not hide an entry: trivy trims, so the gate
+    adjudicates the trimmed line."""
+    h = Harness(tmp_path)
+    r = h.run(
+        trivy_doc(CERTIFI_FINDING),
+        CERTIFI_IGNORE + f"  {FIXTURE_ID}\n",
+        base_report=trivy_doc(CERTIFI_FINDING),
+        base_ignore=CERTIFI_IGNORE,
+    )
+    assert r.returncode == 1, r.stdout + r.stderr
+    assert "missing reviewBy" in r.stderr
+
+
+def test_added_entry_with_a_trailing_comment_fails(tmp_path: Path) -> None:
+    h = Harness(tmp_path)
+    r = h.run(
+        trivy_doc(CERTIFI_FINDING),
+        CERTIFI_IGNORE + f"{FIXTURE_ID} # accepted by hand\n",
+        base_report=trivy_doc(CERTIFI_FINDING),
+        base_ignore=CERTIFI_IGNORE,
+    )
+    assert r.returncode == 1, r.stdout + r.stderr
+    assert "missing reviewBy" in r.stderr
+
+
+def test_added_unrecognized_id_shape_fails(tmp_path: Path) -> None:
+    """An id this checker does not recognize (a future trivy id family) is
+    still a suppressor trivy would honor - an unknown-shape suppressor reds
+    rather than slips."""
+    h = Harness(tmp_path)
+    r = h.run(
+        trivy_doc(CERTIFI_FINDING),
+        CERTIFI_IGNORE + "NOTAREALID-9999\n",
+        base_report=trivy_doc(CERTIFI_FINDING),
+        base_ignore=CERTIFI_IGNORE,
+    )
+    assert r.returncode == 1, r.stdout + r.stderr
+    assert "unrecognized entry id shape" in r.stderr
+
+
+def test_avd_misconfig_entries_parse_and_preexisting_shape_passes(tmp_path: Path) -> None:
+    """The committed allowlist carries one AVD-DS misconfig id; the parser
+    must count it an entry (and its REVIEW BY a date) so an edit to it
+    adjudicates entry-level, and a pre-existing AVD entry on both sides
+    stays green."""
+    h = Harness(tmp_path)
+    block = "# AVD-DS-0002 - accepted misconfig (REVIEW BY: 2099-01-01)\nAVD-DS-0002\n"
+    r = h.run(
+        trivy_doc(CERTIFI_FINDING),
+        CERTIFI_IGNORE + block,
+        base_report=trivy_doc(CERTIFI_FINDING),
+        base_ignore=CERTIFI_IGNORE,
+    )
+    assert r.returncode == 0, r.stdout + r.stderr
+    assert "1 finding(s) shared" in r.stdout
+
+
+def test_workflow_pins_the_review_round_fixes() -> None:
+    """UR-89 + UR-95 review-round pins: the skip polarity reds no blocking
+    scan in gate mode; the push trigger carries the full scans to main;
+    both adjudicators fail closed on a committed trivy config file; the
+    fs skip pathspec covers the gateway's live manifest."""
+    wf = TRIVY_WORKFLOW.read_text()
+    # Blocking-scan step polarity: in gate+skip the blocking scan must NOT run.
+    assert "steps.mode.outputs.mode != 'gate' || steps.mode.outputs.skip_scan != 'true'" in wf
+    # The full scans ride a push trigger (box 2: "on every push to main").
+    on_block = wf.split("workflow_call:")[0]
+    assert "push:" in on_block and "branches: [main]" in on_block
+    # Both adjudicators fail closed on a trivy config file the change commits.
+    assert wf.count("if [ -f trivy.yaml ] || [ -f .trivyignore.yaml ]; then") == 2
+    # The gateway's live manifest is in the fs skip pathspec (its deps move
+    # must scan).
+    assert "ai/gateway/requirements.txt" in wf
+    # The checker counts secret findings (the gate legs scan vuln,secret).
+    checker = CHECKER.read_text()
+    assert 'r.get("Secrets")' in checker
