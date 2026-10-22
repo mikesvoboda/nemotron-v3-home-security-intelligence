@@ -149,11 +149,13 @@ describe('Auth Flow Integration', () => {
         expect(screen.getByLabelText(/email/i)).toBeInTheDocument();
       });
 
-      // Fill out registration form
+      // Fill out registration form (SetupPage fields: email, username,
+      // password, confirm — the old "full name" field was removed when the
+      // form moved to username-based identity)
       await user.type(screen.getByLabelText(/email/i), 'admin@example.com');
-      await user.type(screen.getByLabelText(/full name/i), 'Admin User');
-      await user.type(screen.getByLabelText(/^password$/i), 'password123');
-      await user.type(screen.getByLabelText(/confirm password/i), 'password123');
+      await user.type(screen.getByLabelText(/username/i), 'admin');
+      await user.type(screen.getByLabelText(/^password$/i), 'Password123');
+      await user.type(screen.getByLabelText(/confirm password/i), 'Password123');
 
       // Update server responses for post-registration state
       server.use(
@@ -217,12 +219,12 @@ describe('Auth Flow Integration', () => {
       render(<TestApp />, { wrapper: Wrapper });
 
       await waitFor(() => {
-        expect(screen.getByLabelText(/email/i)).toBeInTheDocument();
+        expect(screen.getByLabelText(/username/i)).toBeInTheDocument();
       });
 
       // Fill out login form
-      await user.type(screen.getByLabelText(/email/i), 'test@example.com');
-      await user.type(screen.getByLabelText(/password/i), 'password123');
+      await user.type(screen.getByLabelText(/username/i), 'testuser');
+      await user.type(screen.getByLabelText(/password/i), 'Password123');
 
       // Update server to return authenticated user
       server.use(
@@ -261,10 +263,10 @@ describe('Auth Flow Integration', () => {
       render(<TestApp />, { wrapper: Wrapper });
 
       await waitFor(() => {
-        expect(screen.getByLabelText(/email/i)).toBeInTheDocument();
+        expect(screen.getByLabelText(/username/i)).toBeInTheDocument();
       });
 
-      await user.type(screen.getByLabelText(/email/i), 'test@example.com');
+      await user.type(screen.getByLabelText(/username/i), 'testuser');
       await user.type(screen.getByLabelText(/password/i), 'wrongpassword');
 
       const submitButton = screen.getByRole('button', { name: /sign in/i });
@@ -409,12 +411,12 @@ describe('Auth Flow Integration', () => {
       render(<TestApp />, { wrapper: Wrapper });
 
       await waitFor(() => {
-        expect(screen.getByLabelText(/email/i)).toBeInTheDocument();
+        expect(screen.getByLabelText(/username/i)).toBeInTheDocument();
       });
 
       // Login should redirect back to dashboard
-      await user.type(screen.getByLabelText(/email/i), 'test@example.com');
-      await user.type(screen.getByLabelText(/password/i), 'password123');
+      await user.type(screen.getByLabelText(/username/i), 'testuser');
+      await user.type(screen.getByLabelText(/password/i), 'Password123');
 
       server.use(
         http.get('/api/auth/me', () => {
