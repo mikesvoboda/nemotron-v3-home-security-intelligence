@@ -61,6 +61,7 @@ import signal
 import socket
 import subprocess
 import sys
+import threading
 import time
 import urllib.error
 import urllib.parse
@@ -69,10 +70,25 @@ import uuid
 from collections.abc import Callable, Iterable, Mapping, Sequence
 from dataclasses import dataclass
 from datetime import UTC, datetime
+from importlib.util import module_from_spec, spec_from_file_location
 from pathlib import Path, PurePosixPath
 from typing import Any
 
 REPO_ROOT = Path(__file__).resolve().parents[1]
+# [O2.5 venue fixes, ruling 287] The stdlib relay both halves of the two-hop
+# VLM relay run: the sidecar runs it from the vendored copy in the run dir,
+# the host half reuses its pipe() and constants in-process. feature-check.sh
+# execs this file under bare python3 with the repo root on no path, so the
+# module is loaded by file path (importlib), the same containment the yaml
+# import uses -- no sys.path edit, nothing else becomes importable.
+_vlm_relay_spec = spec_from_file_location(
+    "vlm_relay", REPO_ROOT / "scripts" / "uplevel" / "vlm_relay.py"
+)
+if _vlm_relay_spec is None or _vlm_relay_spec.loader is None:  # pragma: no cover - the file ships
+    raise ImportError("scripts/uplevel/vlm_relay.py is missing from the checkout")
+vlm_relay = module_from_spec(_vlm_relay_spec)
+_vlm_relay_spec.loader.exec_module(vlm_relay)
+
 CI_STACK = REPO_ROOT / "docker-compose.ci.yml"
 FAKE_OVERLAY = REPO_ROOT / "docker-compose.fake-ai.yml"
 # [r308a] The notification-sink overlay: the mail sink, the webhook sink and
@@ -855,6 +871,7 @@ def as_prod_shape_deployment(
     vlm_url: str | None,
     fake_gateway: Mapping[str, Any] | None = None,
     fake_vlm: Mapping[str, Any] | None = None,
+    run_dir: Path | None = None,
 ) -> dict[str, Any]:
     """The run-time transforms the authored override cannot carry.
 
@@ -1128,6 +1145,91 @@ def as_prod_shape_deployment(
                 f"ai-vlm: removed (served by agent-gpu outside this render); "
                 f"removed devices {removed or 'none'}"
             )
+    # [O2.5 venue fixes, ruling 287] The two-hop VLM relay's in-stack half.
+    # On a rootless engine a container cannot dial the loopback port the
+    # agent-gpu lease published, so the backend dials this sidecar instead of
+    # the lease URL, and the sidecar hands each connection over a run-dir Unix
+    # socket to the host half (run.up()'s armed thread). Render-time refusal
+    # beside the TRITON_IMAGE gate above: the knob belongs to the real-gateway
+    # venue only, and a knob with nothing to apply to would silently witness
+    # the wrong deployment.
+    if os.environ.get("PROD_SHAPE_VLM_RELAY") == "1":
+        if vlm_url is None or run_dir is None:
+            raise HarnessError(
+                "PROD_SHAPE_VLM_RELAY requires the real-gateway venue (--real --prod-shape "
+                "with the agent-gpu VLM): the maui run has no agent-gpu lease to relay to, "
+                "and the sidecar's bind source is the run dir"
+            )
+        # The backend's own image, from the same derivation `build_images`
+        # records and the prebuild and `up --no-build` use: `compose config`
+        # bakes no image for a build-only service, and an `up` against a
+        # nameless service pulls first -- the pull-denied shape the prebuild
+        # exists to prevent. The run dir's NAME IS the run's project
+        # (Run.__init__: dir = root / project), so the project reaches the
+        # transform through the parameter it already carries. A render whose
+        # backend boots a declared image instead (drift, not the prod stack's
+        # shape) is refused by name: a sidecar booting something else than the
+        # backend would silently witness the wrong deployment.
+        derived = build_images(rendered, project=run_dir.name)
+        backend_image = derived.get("backend")
+        if backend_image is None:
+            raise HarnessError(
+                "PROD_SHAPE_VLM_RELAY needs the backend's derived image name, and the "
+                "prod-shape render's backend declares no build: it boots "
+                f"{backend.get('image')!r} -- drift from the prod stack, not a shape to "
+                "relay against"
+            )
+        services[VlmRelay.SERVICE] = {
+            # The backend's own image (the derived name `build_images` and the
+            # prebuild already use): `compose config` bakes no image for a
+            # build-only service, and an `up` against a nameless service pulls
+            # first -- the pull-denied shape the prebuild exists to prevent.
+            "image": backend_image,
+            "entrypoint": [
+                "python3",
+                "/relay/vlm_relay.py",
+                "tcp2unix",
+                f"0.0.0.0:{VlmRelay.PORT}",
+                "/relay/relay.sock",
+            ],
+            "networks": {"security-net": None},
+            "volumes": [
+                {
+                    "type": "bind",
+                    "source": str(run_dir / "relay"),
+                    "target": "/relay",
+                    "read_only": True,
+                }
+            ],
+            # Lesson 4 applied literally: the backend image's ENTRYPOINT
+            # (entrypoint.sh) would eat the relay argv.
+            # The healthcheck dials the mounted socket only -- it proves the
+            # mount and the permission path; the tcp2unix process does the
+            # per-connection dialing. Connect-only: no HTTP is spoken through
+            # the socket, so the check cannot hang on a half-open VLM.
+            "healthcheck": {
+                "test": [
+                    "CMD",
+                    "python3",
+                    "-c",
+                    "import socket; s=socket.socket(socket.AF_UNIX); "
+                    "s.connect('/relay/relay.sock'); s.close()",
+                ],
+                "interval": "10s",
+                "timeout": "5s",
+                "retries": 3,
+                "start_period": "10s",
+            },
+            "depends_on": {},
+        }
+        device_changes.append(
+            f"{VlmRelay.SERVICE}: added (the relay sidecar; no published ports, security-net only)"
+        )
+        depends = backend.setdefault("depends_on", {})
+        depends[VlmRelay.SERVICE] = {"condition": "service_healthy"}
+        device_changes.append(f"backend: depends_on {VlmRelay.SERVICE} (service_healthy) added")
+        environment["AI_VLM_URL"] = VlmRelay.RELAY_URL
+        device_changes.append(f"backend: AI_VLM_URL set to {VlmRelay.RELAY_URL} (the relay form)")
     for name in list(services):
         service = services[name]
         deploy = service.get("deploy")
@@ -2152,6 +2254,131 @@ def _log(message: str) -> None:
     print(f"feature-check {stamp} {message}", flush=True)
 
 
+class VlmRelay:
+    """The host-namespace half of the two-hop VLM relay (O2.5 item 1, ruling 287).
+
+    On a rootless engine, a container on the stack network cannot dial the
+    loopback port the agent-gpu lease published (the relay's leg 1: the netns
+    boundary), so the run relays in two hops of one stdlib script
+    (:mod:`scripts.uplevel.vlm_relay`):
+
+    * ``tcp2unix`` runs as the ``agent-gpu-relay`` compose service the prod-shape
+      transform adds (inside the stack's own network): accepts TCP on the relay
+      port, hands each connection over a run-dir Unix socket.
+    * ``unix2tcp`` — this class, a thread in the harness's own process — accepts
+      on that socket and dials ``127.0.0.1:<pool port>``. The VLM keeps
+      publishing loopback only; the socket never touches a network.
+
+    The vendored script is copied into the run dir at arm time, so the sidecar's
+    bind source and the teardown marker are the same path, and the socket dies
+    with the run dir. Nothing here survives the run: the caller joins and
+    unlinks in its teardown ``finally``.
+    """
+
+    PORT = 8098  # the relay port inside the stack network (ai-vlm's own port)
+    SERVICE = "agent-gpu-relay"
+    RELAY_URL = f"http://{SERVICE}:{PORT}"
+    SOCKET_NAME = "relay.sock"
+
+    def __init__(self, run: Run) -> None:
+        self.run = run
+        self.socket = run.dir / "relay" / self.SOCKET_NAME
+        self.started = False
+        self._stop = threading.Event()
+        self._thread: threading.Thread | None = None
+        self._listener: socket.socket | None = None
+        # Dial accounting for the boot-failure chain: "the backend cannot reach
+        # the VLM" must be able to name the broken hop (transform-recorded
+        # fields are the render's; this is the arm's own state).
+        self.dials = 0
+        self.last_error: str | None = None
+
+    def arm(self) -> None:
+        """Vendor the script, bind the socket, and start serving in a thread.
+
+        Raises HarnessError naming itself when anything fails: a failed arm is a
+        named failure, never a silent one -- the sidecar's healthcheck would
+        otherwise turn an unexplainable `up --wait` timeout into the cause.
+        """
+        self.run.summary["vlm_container_url"] = self.RELAY_URL
+        try:
+            relay_dir = self.run.dir / "relay"
+            relay_dir.mkdir(parents=True, exist_ok=True)
+            script = relay_dir / "vlm_relay.py"
+            script.write_text(
+                (REPO_ROOT / "scripts" / "uplevel" / "vlm_relay.py").read_text(encoding="utf-8"),
+                encoding="utf-8",
+            )
+            self.socket.parent.chmod(0o755)
+            if self.socket.exists():
+                self.socket.unlink()
+            listener = socket.socket(socket.AF_UNIX)
+            listener.bind(str(self.socket))
+            self.socket.chmod(0o666)
+            # A container dialing across a uid map needs write permission on
+            # the socket inode itself (measured: the default 0755 answers
+            # EACCES to another uid).
+            listener.listen(vlm_relay.BACKLOG)
+        except OSError as error:
+            raise HarnessError(f"the VLM relay host half could not arm: {error}") from error
+        self._listener = listener
+        self.started = True
+        self._thread = threading.Thread(target=self._serve, args=(listener,), daemon=True)
+        self._thread.start()
+        self.run.summary["results"]["vlm_relay"] = "ok"
+        _log(
+            f"vlm relay: host half armed at {self.socket}, "
+            f"dialing {self.run.vlm_dial_host}:{self.run.vlm_dial_port}"
+        )
+
+    def _serve(self, listener: socket.socket) -> None:
+        """Accept until stopped; each connection is handed to the VLM."""
+        listener.settimeout(0.5)
+        while not self._stop.is_set():
+            try:
+                conn, _ = listener.accept()
+            except TimeoutError:
+                continue
+            except OSError as error:
+                self.last_error = f"accept: {error}"
+                break
+            try:
+                up = socket.create_connection(
+                    (self.run.vlm_dial_host, self.run.vlm_dial_port), timeout=10
+                )
+            except OSError as error:
+                self.dials += 1
+                self.last_error = f"dial 127.0.0.1:{self.run.vlm_dial_port}: {error}"
+                conn.close()
+                continue
+            self.dials += 1
+            threading.Thread(target=vlm_relay.pipe, args=(conn, up), daemon=True).start()
+            threading.Thread(target=vlm_relay.pipe, args=(up, conn), daemon=True).start()
+        try:
+            listener.close()
+        except OSError:
+            pass
+
+    def join(self) -> None:
+        """Stop the half, join its thread, and unlink the socket. Idempotent,
+        never raises: it runs in the teardown finally, after every other
+        cleanup already ran."""
+        self._stop.set()
+        thread = self._thread
+        if thread is not None and thread is not threading.current_thread():
+            thread.join(timeout=30)
+        self._thread = None
+        self._listener = None
+        try:
+            self.socket.unlink(missing_ok=True)
+        except OSError as error:
+            _log(f"FAIL the VLM relay socket could not be unlinked: {error}")
+        if self.started:
+            self.run.summary["results"]["vlm_relay"] = (
+                "stopped" if self.last_error is None else f"stopped; last error: {self.last_error}"
+            )
+
+
 class Run:
     """One test deployment: its project, directory, engine and artifacts."""
 
@@ -2188,6 +2415,15 @@ class Run:
         # None is the unlimited run -- absent from summary when unset.
         self.pytest_k = pytest_k
         self.playwright_grep = playwright_grep
+        # [O2.5 venue fixes, ruling 287] The two-hop VLM relay's host half, set
+        # only on the venue that needs it: run.up() arms it when the relay knob
+        # is on and a real VLM serves. None leaves every render and record
+        # byte-identical to today's.
+        self.relay: VlmRelay | None = None
+        # The lease's loopback form the relay's host half dials, recorded at arm
+        # time (up() has both halves' facts then: the pool port from vlm.start()).
+        self.vlm_dial_host = "127.0.0.1"
+        self.vlm_dial_port: int | None = None
         # A run record that does not say WHICH compose shape was rendered cannot
         # witness ruling 127's 12 real-tier rows, which is the whole point of the
         # O2.5 run. The tier strings for --fake/--real are unchanged -- only the
@@ -2467,6 +2703,7 @@ class Run:
             vlm_url=vlm.url if vlm else None,
             fake_gateway=fake_gateway,
             fake_vlm=fake_vlm,
+            run_dir=self.dir,
         )
         device_changes = rendered.pop("_device_changes", [])
         if device_changes:
@@ -2723,6 +2960,20 @@ python3 /app/gateway/export/export_reid.py --model-path /models/zoo/osnet-ain-x1
 
     def up(self, vlm: AgentGpu | None = None) -> None:
         self.started = True
+        # [O2.5 venue fixes, ruling 287] The relay's host half arms HERE, the
+        # first arm point the teardown gate already covers: `started` just
+        # flipped, and every later failure path is `_finish`'s. Earlier
+        # placement would leak -- a render refusal, a wait_ready failure or a
+        # prebuild failure leaves an armed half the `started` gate never joins
+        # (the pre-start leak shape `_cleanup_images` sits outside that gate
+        # for). Inside up() the pool port is already known (`vlm.start()` parsed
+        # it; `wait_ready` confirmed it) and the socket is armed before the
+        # sidecar's healthcheck can first run inside `up --wait`.
+        if os.environ.get("PROD_SHAPE_VLM_RELAY") == "1" and vlm is not None and vlm.host_port:
+            self.vlm_dial_port = vlm.host_port
+            relay = VlmRelay(self)
+            relay.arm()
+            self.relay = relay
         # --no-build (ruling 274 as amended, record IC_kwDOQs9zJM8AAAABdusUHA): the
         # flag rides along exactly when `prebuild_images()` ran in this run — the
         # prod-shape modes. A `build:` service whose manifest sets
@@ -2751,11 +3002,20 @@ python3 /app/gateway/export/export_reid.py --model-path /models/zoo/osnet-ain-x1
             if vlm is None:
                 raise
             tail = " ".join(str(boot).split())[-400:]
+            # The reach probe dials the path the BACKEND itself uses -- the
+            # relay form when the knob is on, the alias form as today
+            # otherwise -- so a failure is reported on the wire that failed,
+            # and the relay host half's own dial accounting names the broken
+            # hop when the sidecar pair is implicated.
+            if self.relay is not None:
+                hop = f" (the relay host half dialed {self.vlm_dial_host}:{self.vlm_dial_port} {self.relay.dials}x, last error: {self.relay.last_error})"
+            else:
+                hop = ""
             try:
-                self.check_vlm_reach(str(vlm.url))
+                self.check_vlm_reach(str(self.vlm_container_url(vlm)))
             except HarnessError as reach:
                 raise HarnessError(
-                    f"{reach}; and `up` itself failed, so the stack may simply never "
+                    f"{reach}{hop}; and `up` itself failed, so the stack may simply never "
                     f"have come up — compose said: {tail}"
                 ) from boot
             raise HarnessError(
@@ -2766,7 +3026,7 @@ python3 /app/gateway/export/export_reid.py --model-path /models/zoo/osnet-ain-x1
         _log(f"up: api {self.api}, ui {self.ui}")
         self.summary["urls"] = {"api": self.api, "ui": self.ui}
         if vlm is not None:
-            self.check_vlm_reach(str(vlm.url))
+            self.check_vlm_reach(str(self.vlm_container_url(vlm)))
             return
         props = _http("GET", self._address("ai-vlm", 8098) + "/props")
         if props[0] == 200 and isinstance(props[1], Mapping):
@@ -2793,6 +3053,15 @@ python3 /app/gateway/export/export_reid.py --model-path /models/zoo/osnet-ain-x1
                 f"{(probe.stderr or probe.stdout).strip()[-1000:]}"
             )
         _log(f"the backend reaches the VLM at {url}")
+
+    def vlm_container_url(self, vlm: AgentGpu) -> str:
+        """The VLM URL the run's containers dial: the relay form when the relay
+        is armed (what the backend actually got as AI_VLM_URL), the alias form
+        otherwise. One source for both the transform and the reach probe, so
+        they cannot disagree."""
+        if self.relay is not None:
+            return VlmRelay.RELAY_URL
+        return str(vlm.url)
 
     def _address(self, service: str, port: int) -> str:
         out = self.deployment("port", service, str(port), echo=False).stdout.strip()
@@ -4082,14 +4351,23 @@ def _finish(run: Run, before: Snapshot) -> int:
         changed, left = run.teardown(before)
     except Exception as error:
         _log(f"URGENT teardown or postflight did not complete ({type(error).__name__}: {error})")
-        return EXIT_CHANGED
-    for problem in changed:
-        _log(f"URGENT {problem}")
-    for problem in left:
-        _log(f"FAIL {problem}")
-    if changed:
-        return EXIT_CHANGED
-    return EXIT_FAILED if left else EXIT_OK
+        changed, left = [], []
+        status = EXIT_CHANGED
+    else:
+        for problem in changed:
+            _log(f"URGENT {problem}")
+        for problem in left:
+            _log(f"FAIL {problem}")
+        status = EXIT_CHANGED if changed else (EXIT_FAILED if left else EXIT_OK)
+    # [O2.5 venue fixes, ruling 287] The relay host half is joined AFTER the
+    # deployment is down -- its thread is only needed while the sidecar
+    # accepts -- and it runs on every path that reached `up()` (`started`), so
+    # no armed half survives the run. `join` never raises: it is the last
+    # cleanup and it reports its own problem into the summary.
+    if run.relay is not None:
+        run.relay.join()
+        run.relay = None
+    return status
 
 
 def _cleanup_images(run: Run) -> int:
@@ -4315,6 +4593,19 @@ def main(argv: Sequence[str] | None = None) -> int:
         if not args.pytest_k.strip():
             parser.error("--pytest-k takes a non-empty pytest -k expression")
         args.pytest_k = args.pytest_k.strip()
+    # [O2.5 venue fixes, ruling 287] The relay knob is the real-gateway venue's
+    # opt-in, so it refuses at parse time on every other shape -- --fake, and
+    # plain --real without --prod-shape (the CI-tier real run, whose stack
+    # reaches agent-gpu's alias directly). On --prod-shape without --real (the
+    # maui run) the render-time gate in the transform names the same venue:
+    # render() dispatches away before the transform on those other shapes, so a
+    # knob that is dormant there would silently witness the wrong deployment --
+    # the same shape mismatch the shard and golden-spec gates refuse above.
+    if os.environ.get("PROD_SHAPE_VLM_RELAY") == "1" and not (args.real and args.prod_shape):
+        parser.error(
+            "PROD_SHAPE_VLM_RELAY requires --real --prod-shape (the real-gateway venue): "
+            "the two-hop relay needs the agent-gpu lease to relay to"
+        )
     if args.playwright_grep is not None:
         if not args.real or args.prod_shape:
             parser.error(
