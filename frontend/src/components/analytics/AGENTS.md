@@ -395,6 +395,6 @@ npm test -- analytics
 
 ## Navigation
 
-- **Parent:** `/frontend/src/components/AGENTS.md` - Component directory overview
+- **Parent:** `/frontend/src/AGENTS.md` - Frontend source directory overview
 - **Related:** `/frontend/src/services/api.ts` - API client functions
 - **Related:** `/backend/api/routes/analytics.py` - Analytics API endpoints
