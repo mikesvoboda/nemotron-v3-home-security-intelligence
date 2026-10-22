@@ -67,9 +67,7 @@ SEVERITIES = ("CRITICAL", "HIGH")
 # bare ids only, but the parser must not depend on that).
 ID_RE = r"(?:CVE-[0-9]+-[0-9]+|GHSA-[0-9a-z]{4}-[0-9a-z]{4}-[0-9a-z]{4}|AVD-[A-Z]+-[0-9]{4})"
 ENTRY_RE = re.compile(rf"^({ID_RE})\b(.*)$")
-REVIEW_RE = re.compile(
-    rf"^#\s*({ID_RE})\s*-.*\(REVIEW\ BY:\s*([0-9]{{4}}-[0-9]{{2}}-[0-9]{{2}})\)"
-)
+REVIEW_RE = re.compile(rf"^#\s*({ID_RE})\s*-.*\(REVIEW\ BY:\s*([0-9]{{4}}-[0-9]{{2}}-[0-9]{{2}})\)")
 
 
 @dataclass
@@ -214,8 +212,7 @@ def adjudicate(report: Path, ignore: Path, warn_days: int, full_report: bool) ->
     ig = parse_ignore(ignore, warn_days)
     if ig.unadjudicable:
         print(
-            f"MISSING/unreadable {ignore}: the gate fails closed without the "
-            "allowlist snapshot.",
+            f"MISSING/unreadable {ignore}: the gate fails closed without the allowlist snapshot.",
             file=sys.stderr,
         )
         return Verdict(set(), set(), True, 1, 0)
