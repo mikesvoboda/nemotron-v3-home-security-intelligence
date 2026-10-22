@@ -217,6 +217,16 @@ cleanup() {
   local rc=$?
   trap - EXIT
   set +e
+  # The ORT probe container is reaped alongside the gateway. Its own launch is
+  # `--rm`-guarded (podman removes it at container exit), but that only fires
+  # when the CONTAINER exits -- a run killed between launch and teardown would
+  # otherwise leak it and fail the run with a confusing diff about a container
+  # the run itself launched. Reaping it here first makes the diff honest.
+  # Guarded on OWN_CTR: the probe's name is derived from $CTR, and the same
+  # external-container case that spares the gateway spares the probe.
+  if (( OWN_CTR )); then
+    podman rm -f "${CTR}-ortprobe" >/dev/null 2>&1 || true
+  fi
   if (( OWN_CTR )); then
     podman logs "$CTR" > "$RUN/gateway.log" 2>&1
     podman rm -f "$CTR"
@@ -498,8 +508,6 @@ from pathlib import Path
 
 import numpy as np
 
-import os
-
 RUN = Path(sys.argv[1])
 STAGES = sys.argv[2].split(",")
 SUFFIX = {".jpg", ".jpeg", ".png", ".bmp", ".webp"}
@@ -661,64 +669,14 @@ BUILDERS = {
     "2": stage_onnx_cpu,
     "3": lambda: stage_plan("fp32"),
     "4": lambda: stage_plan("fp16"),
-    "6": stage_ort_probe,
 }
-
-
-def stage_ort_probe() -> np.ndarray:
-    """Stage 6 ([r312a] box 2): embeddings from the ORT-probe Triton container.
-
-    The probe's HTTP port is NOT published to the host, so this fetches from
-    INSIDE the probe container (podman exec -i): the probe container mounts
-    ONLY its model repository, so the exec'd program is deliberately PURE --
-    it reads the preprocessed rows from STDIN, POSTs each to the probe's own
-    loopback, and writes the embeddings to STDOUT. Reading batch.npy and
-    writing stage6-fetch.json stay on the stage-probe side, the side whose
-    container carries the -v "$RUN":/work mount."""
-    import json
-    import subprocess
-
-    inner = (
-        "import json,sys,urllib.request;"
-        "rows=json.load(sys.stdin);"
-        "out=[];"
-        "\nfor r in rows:\n"
-        '  req=urllib.request.Request("http://localhost:8000/v2/models/reid-ort/infer",'
-        'data=json.dumps({"inputs":[{"name":"input","shape":[1,3,256,128],"datatype":"FP32","data":r}],'
-        '"outputs":[{"name":"embedding"}]}).encode(),'
-        'headers={"Content-Type":"application/json"});'
-        "emb=json.loads(urllib.request.urlopen(req,timeout=120).read())['outputs'][0]['data'];"
-        "out.append(emb)\n"
-        "json.dump(out,sys.stdout)"
-    )
-    # The rows: the SAME batch.npy the decomposer's faithfulness gate ate and
-    # the measure half builds from, read on the mount-carrying side.
-    reader = (
-        "import json,sys;"
-        "import numpy as np;"
-        "b=np.load('/work/layercompare/batch.npy');"
-        "sys.stdout.write(json.dumps([r.reshape(-1).tolist() for r in b]))"
-    )
-    rows = subprocess.run(
-        [sys.executable, "-c", reader],
-        capture_output=True, text=True, check=True, timeout=60,
-    ).stdout
-    proc = subprocess.run(
-        ["podman", "exec", "-i",
-         f"{os.environ.get('CTR_NAME', 'b22-reid-gw')}-ortprobe",
-         "python3", "-c", inner],
-        input=rows, capture_output=True, text=True, check=False, timeout=600,
-    )
-    if proc.returncode != 0 or not proc.stdout.strip():
-        raise SystemExit(
-            f"the ORT probe fetch failed (rc={proc.returncode}): "
-            f"{proc.stderr.strip()[:400]}"
-        )
-    got = RUN / "stage6-fetch.json"
-    got.write_text(proc.stdout)
-    vectors = json.loads(got.read_text())
-    return np.asarray(vectors, dtype=np.float32)
-
+# Stage 6 is NOT in BUILDERS: the probe container's port is not published and
+# the stage-probe container runs --network none with no podman inside it, so
+# stage 6 cannot be fetched from here. The fetch lives on the HOST
+# (write_stage6_host below): the runner process owns podman and the probe's
+# container name, so only the host can `podman exec` into the probe. STAGES
+# 1..4 loop here; stage 6's stage-6.json is written host-side and the cosine
+# table reads it the same way as every other stage.
 
 for stage in STAGES:
     vectors = BUILDERS[stage]()
@@ -732,6 +690,8 @@ PROBE
 # Stage 5 runs on the host: base64 the crop, POST, read the embedding. Stdlib only,
 # so it runs on the GPU host's plain python3 with the SAME crop ordering the in-image
 # probe used (identical sort + suffix set), which keeps the per-crop cosine honest.
+# Stage 6 (below) shares that host-side shape for the same reason: the runner
+# process is the only thing that can exec into the probe container.
 write_stage5_host() {
   cat > "$RUN/stage5_host.py" <<'PY5'
 """Stage 5: embeddings from the served gateway, one per crop, on the host."""
@@ -757,6 +717,78 @@ for path in CROPS:
 (RUN / "stage-5.json").write_text(json.dumps({"names": names, "vectors": vectors}))
 print(f"stage 5: {len(vectors)} x {len(vectors[0]) if vectors else 0}")
 PY5
+}
+
+# Stage 6 runs on the host too: the probe container's port is NOT published (the
+# same topology as the served Triton's 8000), so the only way to reach it is
+# `podman exec` -- and podman lives on the host, not inside the stage-probe
+# container (--network none). One exec'd PURE program does the whole leg: the
+# runner feeds it the SAME batch the decomposer's faithfulness gate ate and the
+# measure half rebuilds (identical crops, order and transform -- batch.json is
+# written by the SAME in-image batch build that writes batch.npy), it POSTs
+# each row to the probe's own loopback, and writes stage-6.json in the SAME
+# {names, vectors} shape every other stage file uses, so the cosine table reads
+# it with no special-casing. Stdlib only, so it runs on the GPU host's plain
+# python3 -I, like stage 5 and the table. The probe's container name arrives as
+# argv (the runner owns it); no env coupling.
+write_stage6_host() {
+  cat > "$RUN/stage6_host.py" <<'PY6'
+"""Stage 6: embeddings from the ORT-probe Triton container, fetched host-side."""
+import json
+import subprocess
+import sys
+
+RUN = sys.argv[1]
+PROBE = sys.argv[2]
+
+# The infer program the probe container exec's. It is deliberately PURE: the
+# probe container mounts ONLY its model repository, so rows arrive on stdin
+# (fed by the host runner) and embeddings leave on stdout. The infer body is a
+# FLAT row-major data list (Triton's HTTP infer protocol: row-major values; a
+# (3,256,128) row through .tolist() nests and float() over the nested lists
+# raises TypeError).
+inner = (
+    "import json,sys,urllib.request;"
+    "rows=json.load(sys.stdin);"
+    "out=[];"
+    "\nfor r in rows:\n"
+    '  req=urllib.request.Request("http://localhost:8000/v2/models/reid-ort/infer",'
+    'data=json.dumps({"inputs":[{"name":"input","shape":[1,3,256,128],"datatype":"FP32","data":r}],'
+    '"outputs":[{"name":"embedding"}]}).encode(),'
+    'headers={"Content-Type":"application/json"});'
+    "emb=json.loads(urllib.request.urlopen(req,timeout=120).read())['outputs'][0]['data'];"
+    "out.append(emb)\n"
+    "json.dump(out,sys.stdout)"
+)
+# The rows: the SAME batch.npy the decomposer's faithfulness gate ate and the
+# measure half rebuilds -- batch.json is written by the batch build itself (the
+# in-image program that also writes batch.npy), so crops, order and transform
+# cannot drift from it. Read with stdlib json: the host has no numpy guarantee.
+with open(f"{RUN}/layercompare/batch.json") as fh:
+    batch = json.load(fh)
+names, rows = batch["names"], batch["rows"]
+if len(names) != len(rows) or not rows:
+    raise SystemExit(f"batch.json is malformed: {len(names)} names, {len(rows)} rows")
+proc = subprocess.run(
+    ["podman", "exec", "-i", PROBE, "python3", "-c", inner],
+    input=json.dumps(rows), capture_output=True, text=True, check=False, timeout=600,
+)
+if proc.returncode != 0 or not proc.stdout.strip():
+    raise SystemExit(
+        f"the ORT probe fetch failed (rc={proc.returncode}): "
+        f"{proc.stderr.strip()[:400]}"
+    )
+vectors = json.loads(proc.stdout)
+if len(vectors) != len(names):
+    raise SystemExit(
+        f"the probe returned {len(vectors)} embeddings for {len(names)} crops "
+        "-- the fetch wrote stage-6.json for NO stage (a partial table would "
+        "read as a measured leg)"
+    )
+with open(f"{RUN}/stage-6.json", "w") as fh:
+    json.dump({"names": names, "vectors": vectors}, fh)
+print(f"stage 6: {len(vectors)} x {len(vectors[0]) if vectors else 0}")
+PY6
 }
 
 # The cosine table is pure stdlib so it runs on the host with no numpy, reading the
@@ -854,14 +886,18 @@ run_stages() {
   # because isolated mode would drop the image's ENV PYTHONPATH=/app.
   # Each stage is fault-tolerant: a stage that raises just leaves its JSON absent
   # and the cosine table reports `unknown`, never a false green.
+  # Stage 6 is fetched host-side (write_stage6_host) when the layercompare arm
+  # armed the probe: stages 1,2 always run here, stage 6's leg rides in the arm
+  # below -- stages mode never arms it, so the same run_stages serves both modes.
   podman run --rm --network none --security-opt label=disable --entrypoint python3 \
     -v "$RUN":/work -v "$RUN/zoo":/work/zoo:ro -v "$RUN/cache":/work/cache:ro \
-    -e CTR_NAME="$CTR" \
-    # Stage 6 ([r312a]'s ORT probe) rides this first CPU-leg invocation when
-    # the layercompare arm armed it: the fetch needs only the probe container
-    # up, and the stage file it writes is read by the table below. Stages
-    # mode never arms it, so the same run_stages serves both modes.
-    "$IMAGE" /work/stage_probe.py /work 1,2$( [[ -f "$RUN/stage6-armed" ]] && echo ,6 ) || true
+    "$IMAGE" /work/stage_probe.py /work 1,2 || true
+  if [[ -f "$RUN/stage6-armed" ]]; then
+    # The stage-6 fetch: host-side (the runner process owns podman), its rc is
+    # contained -- a failed fetch leaves stage-6.json absent and the table reads
+    # unknown, it does not abort the arm under set -e before the layer report.
+    python3 -I "$RUN/stage6_host.py" "$RUN" "${CTR}-ortprobe" || true
+  fi
 
   # STEP S3, the ruling-180 shape: build and probe EACH precision before
   # touching the other. The owner's maui run showed why the old order was wrong:
@@ -890,14 +926,14 @@ run_stages() {
   echo 'STEP S3a: compile the plan in FP32 and probe stage 3 (before FP16 can fail)'
   compile_plan fp32 && cp "$RUN/cache/reid/1/model.plan" "$RUN/model-fp32.plan" || true
   podman run --rm --network none --security-opt label=disable --device nvidia.com/gpu=all \
-    -e CUDA_VISIBLE_DEVICES="$GPU" -e CTR_NAME="$CTR" --entrypoint python3 \
+    -e CUDA_VISIBLE_DEVICES="$GPU" --entrypoint python3 \
     -v "$RUN":/work -v "$RUN/zoo":/zoo:ro \
     "$IMAGE" /work/stage_probe.py /work 3 || true
 
   echo 'STEP S3b: compile the plan in FP16 and probe stage 4 (leaves the cache on FP16)'
   compile_plan fp16 && cp "$RUN/cache/reid/1/model.plan" "$RUN/model-fp16.plan" || true
   podman run --rm --network none --security-opt label=disable --device nvidia.com/gpu=all \
-    -e CUDA_VISIBLE_DEVICES="$GPU" -e CTR_NAME="$CTR" --entrypoint python3 \
+    -e CUDA_VISIBLE_DEVICES="$GPU" --entrypoint python3 \
     -v "$RUN":/work -v "$RUN/zoo":/zoo:ro \
     "$IMAGE" /work/stage_probe.py /work 4 || true
 
@@ -978,6 +1014,7 @@ run_stages() {
 run_layercompare() {
   write_stage_probe
   write_stage5_host
+  write_stage6_host
   write_cosine_table
   write_layer_compare
   # The compare operates on its own COPY of the export: the decomposer
@@ -1146,6 +1183,10 @@ def _pre(path):
     return np.ascontiguousarray(arr.transpose(2, 0, 1))
 batch = np.stack([_pre(p) for p in crops]).astype(np.float32)
 np.save("/work/layercompare/batch.npy", batch)
+import json as _json
+with open("/work/layercompare/batch.json", "w") as fh:
+    _json.dump({"names": [p.name for p in crops],
+                "rows": [r.reshape(-1).tolist() for r in batch]}, fh)
 print(f"layercompare batch: {batch.shape} from {len(crops)} crops")'
 
 # The layer compare: ONE program, two halves. The measure half (in-image,
@@ -1258,11 +1299,41 @@ def measure() -> None:
                 meta.append((out, node.op_type))
     marked = onnx.ModelProto()
     marked.CopyFrom(model)
+    # The type each marked output carries: ONNX requires graph outputs to be
+    # FULLY typed ValueInfoProtos -- an output with a name and no type is
+    # rejected by onnx.checker AND by the ORT/TensorRT loaders ("Field 'type'
+    # of 'value_info' is required but missing"). The exporter already recorded
+    # every intermediate tensor in graph.value_info (that is what the graph
+    # viewer reads), so types are copied from there by NAME; a tensor the
+    # exporter left out falls back to onnx.shape_inference on the decomposed
+    # graph. A tensor neither source types is a real bug in the marking and
+    # must fail loudly here, not silently ship a nameless-typed output.
     del marked.graph.output[:]
+    type_by_name = {vi.name: vi for vi in graph.value_info}
+    # The ORIGINAL outputs stay marked too (the final embedding must remain a
+    # graph output): their types live in graph.output, which the marking walk
+    # is about to clear -- harvest them FIRST. infer_shapes does not help
+    # here: its inferred OUTPUTS land in the inferred graph.output, never in
+    # value_info, so a final output absent from value_info is untyped unless
+    # its original declaration is carried over.
+    for vi in graph.output:
+        type_by_name.setdefault(vi.name, vi)
+    if len(type_by_name) < len(marked_names + final):
+        inferred = onnx.shape_inference.infer_shapes(model)
+        for vi in inferred.graph.value_info:
+            type_by_name.setdefault(vi.name, vi)
+    untyped = [
+        name for name in marked_names + final
+        if name not in type_by_name
+    ]
+    if untyped:
+        raise SystemExit(
+            f"{len(untyped)} marked outputs have no type in graph.value_info "
+            f"nor from shape inference (first: {untyped[0]}) -- the marked "
+            "graph would be rejected by onnx.checker/ORT/TRT"
+        )
     for name in marked_names + final:
-        vo = onnx.ValueInfoProto()
-        vo.name = name
-        marked.graph.output.append(vo)
+        marked.graph.output.add().CopyFrom(type_by_name[name])
     marked_path = LC / "marked.onnx"
     onnx.save(marked, str(marked_path))
 

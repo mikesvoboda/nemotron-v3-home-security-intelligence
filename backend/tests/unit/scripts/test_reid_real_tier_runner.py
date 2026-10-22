@@ -24,6 +24,7 @@ import subprocess
 import sys
 from pathlib import Path
 
+import numpy as np
 import pytest
 
 PROJECT_ROOT = Path(__file__).resolve().parents[4]
@@ -941,6 +942,150 @@ def test_the_layer_compare_runs_only_after_the_fp32_plan_is_measured(script_text
     assert fp32 < lc, "the layer compare runs before the FP32 plan it measures exists"
 
 
+def _marking_half_src(probe: str) -> str:
+    """The shipped measure()'s MARKING half, verbatim: from ``graph =
+    model.graph`` (the clear-output + re-add walk) through the full
+    ``onnx.save(marked, ...)`` (the end anchor is the measure half's ORT load,
+    the line after the save). A closed fragment: its only free names are
+    ``model``, ``LC`` and ``onnx``, the locals the executor binds. The slice
+    keeps the function's own indentation and is dedented before compile so
+    `compile` sees statements, not an IndentationError."""
+    from textwrap import dedent
+
+    return dedent(
+        probe[
+            probe.index("    graph = model.graph") : probe.index("    sess = ort.InferenceSession")
+        ]
+    )
+
+
+def _exec_marking_half(probe: str, tmp_path: Path, model: object) -> Path:
+    """Execute the marking half against a caller-built ONNX model -- the
+    shipped code runs, not a reimplementation. Returns the path of the
+    ``marked.onnx`` the fragment itself saves into ``LC``."""
+    src = _marking_half_src(probe)
+    ns: dict[str, object] = {
+        "model": model,
+        "LC": tmp_path,
+        "onnx": pytest.importorskip("onnx"),
+    }
+    exec(compile(src, "<marking-half>", "exec"), ns)  # noqa: S102 nosemgrep: dangerous-eval - the shipped code IS the test
+    marked_path = tmp_path / "marked.onnx"
+    assert marked_path.is_file(), "the marking half never wrote marked.onnx"
+    return marked_path
+
+
+def _TINY_MODEL() -> object:
+    """A small real ONNX graph: x -> Conv(x, W1) -> Conv(c1, W2) -> y. Its
+    exporter populates value_info for the intermediate tensor c1, the shape the
+    marking walk needs typed."""
+    onnx = pytest.importorskip("onnx")
+    from onnx import TensorProto, helper, numpy_helper
+
+    def _conv(name: str, x: str, w: str, y: str):
+        return helper.make_node("Conv", [x, w], [y], name=name)
+
+    graph = helper.make_graph(
+        [_conv("conv1", "x", "W1", "c1"), _conv("conv2", "c1", "W2", "y")],
+        "tiny-reid",
+        [helper.make_tensor_value_info("x", TensorProto.FLOAT, [1, 3, 8, 8])],
+        [helper.make_tensor_value_info("y", TensorProto.FLOAT, [1, 2, 8, 8])],
+        [
+            numpy_helper.from_array(np.ones((2, 3, 3, 3), dtype=np.float32), "W1"),
+            numpy_helper.from_array(np.ones((2, 2, 3, 3), dtype=np.float32), "W2"),
+        ],
+        value_info=[
+            helper.make_tensor_value_info("c1", TensorProto.FLOAT, [1, 2, 8, 8]),
+        ],
+    )
+    model = helper.make_model(graph, opset_imports=[helper.make_opsetid("", 17)])
+    model.ir_version = 9
+    onnx.checker.check_model(model)
+    return model
+
+
+def test_the_marking_half_types_every_output_and_ort_loads_it(
+    script_text: str, tmp_path: Path
+) -> None:
+    """The pre-fix bug: the marking walk appended ValueInfoProtos carrying a
+    NAME and NO TYPE -- onnx.checker rejects the graph ("Field 'type' of
+    'value_info' is required but missing"), so the marked measure would die in
+    the image at operator time, inside a '|| true'-contained leg (the layer
+    report would print INCONCLUSIVE forever, no one knows why). The pin
+    EXECUTES the shipped marking half against a small real graph: every marked
+    output must come out FULLY typed (copied from the exporter's own
+    value_info, shape inference as the fallback), and the saved marked graph
+    must load in ORT CPU with all its outputs -- the load the measure half
+    immediately performs."""
+    onnx = pytest.importorskip("onnx")
+    ort = pytest.importorskip("onnxruntime")
+    probe = _heredoc(script_text, "layer_compare.py", "LAYERCMP")
+    marked_path = _exec_marking_half(probe, tmp_path, _TINY_MODEL())
+    marked = onnx.load(str(marked_path))
+    onnx.checker.check_model(marked)  # the pre-fix graph fails exactly here
+    marked_names = [o.name for o in marked.graph.output if o.name != "y"]
+    assert marked_names, "nothing was marked"
+    for o in marked.graph.output:
+        assert o.HasField("type") and o.type.tensor_type.elem_type != 0, (
+            f"output {o.name!r} carries no type -- the graph onnx.checker "
+            "rejects (the pre-fix bug, unfixed)"
+        )
+    sess = ort.InferenceSession(str(marked_path), providers=["CPUExecutionProvider"])
+    got = {o.name for o in sess.get_outputs()}
+    assert {"y", *marked_names} <= got, (
+        f"the marked graph must load with ALL its outputs; ORT offered {got}"
+    )
+
+
+def test_the_marking_half_refuses_an_untypeable_tensor(script_text: str, tmp_path: Path) -> None:
+    """The negative arm: a tensor neither value_info nor shape inference can
+    type must fail the measure LOUDLY (SystemExit naming the tensor), not ship
+    a nameless-typed output that dies later in ORT with an unattributable
+    error. A custom-domain op gives it honestly: the exporter of a graph with
+    an op outside the standard domain records no value_info for its output and
+    onnx's own infer_shapes cannot type what it does not know -- exactly the
+    untypeable tensor a future exporter change could leave behind."""
+    onnx = pytest.importorskip("onnx")
+    probe = _heredoc(script_text, "layer_compare.py", "LAYERCMP")
+    try:
+        _exec_marking_half(probe, tmp_path, _TINY_MODEL_CUSTOM_OP())
+    except SystemExit as exc:
+        assert "no type" in str(exc), f"refused for the wrong reason: {exc}"
+        assert "c2" in str(exc), f"the refusal must name the untypeable tensor: {exc}"
+    else:
+        raise AssertionError(
+            "the marking half typed an untypeable tensor -- the loud failure "
+            "(finding 5's refusal) is unfixed"
+        )
+
+
+def _TINY_MODEL_CUSTOM_OP() -> object:
+    """A graph with an op outside the standard domain: its output carries no
+    value_info (the exporter cannot know the shape of an op it does not
+    define) and onnx.shape_inference types nothing for an unknown domain --
+    the marking walk's two type sources both come up empty."""
+    onnx = pytest.importorskip("onnx")
+    from onnx import TensorProto, helper
+
+    graph = helper.make_graph(
+        [
+            helper.make_node("MyOp", ["x2"], ["c2"], domain="com.test"),
+            helper.make_node("Identity", ["c2"], ["y2"]),
+        ],
+        "tiny-custom-op",
+        [helper.make_tensor_value_info("x2", TensorProto.FLOAT, [1, 3])],
+        [helper.make_tensor_value_info("y2", TensorProto.FLOAT, [1, 3])],
+        [],
+        value_info=[],
+    )
+    model = helper.make_model(
+        graph,
+        opset_imports=[helper.make_opsetid("", 17), helper.make_opsetid("com.test", 1)],
+    )
+    model.ir_version = 9
+    return model
+
+
 def test_the_ort_probe_is_a_dedicated_container_on_its_own_repo(script_text: str) -> None:
     """[r312a] box 2: "it adds a stage serving the ONNX through Triton's
     onnxruntime backend on the GPU (CUDA execution provider), as a probe
@@ -999,14 +1144,24 @@ def test_the_ort_probe_fetches_embeddings_and_the_stage_table_reads_them(script_
     """A stage that serves and is never read is decoration; the box says "adds
     a STAGE" — a measured leg. The probe runs its own container whose HTTP
     port is NOT published to the host (the same topology as the served
-    Triton's 8000), so the embeddings are fetched from inside the container
-    (podman exec) over the same crop set, and the cosine table's stage list
-    gains that leg."""
-    body = _lc_body(_code(script_text))
-    probe_fetch = body[body.index("reid-ort") :]
-    assert "podman exec" in probe_fetch, (
+    Triton's 8000), so the embeddings are fetched from the HOST (podman exec,
+    where podman lives) over the same crop set, and the cosine table's stage
+    list gains that leg. The fetch is dispatched by run_stages when the
+    layercompare arm armed the probe (stage6-armed), so the pin reads the
+    dispatch, not just the arm."""
+    fetch = _heredoc(script_text, "stage6_host.py", "PY6")
+    # The fetch's argv is a list of separate literals -- ["podman", "exec", ...]
+    # -- so the joined phrase never appears; anchor on the argv elements as
+    # code (the morphology a prose mention cannot fake).
+    assert '"podman"' in fetch and '"exec"' in fetch and "-i" in fetch, (
         "the probe's port is not published to the host; the embeddings must be "
-        "fetched from inside the container"
+        "fetched from inside the container (podman exec) -- host-side, where "
+        "podman lives"
+    )
+    body = _fn_body(_code(script_text), "run_stages")
+    assert "stage6_host.py" in body, (
+        "run_stages never dispatches the stage-6 fetch: the probe would serve "
+        "embeddings nothing measures"
     )
     table = _heredoc(script_text, "cosine_table.py", "TABLE")
     assert '"6"' in table or "'6'" in table, (
@@ -1016,44 +1171,51 @@ def test_the_ort_probe_fetches_embeddings_and_the_stage_table_reads_them(script_
 
 
 def test_the_ort_probe_fetch_program_parses_and_serves_what_it_reads(script_text: str) -> None:
-    """The stage-6 fetch's inner program is a STRING literal in stage_probe.py
-    (python -c), so the outer AST check that proves the probe file parses sees
-    it only as an opaque constant -- a fetch whose inner text has a syntax
-    error, a missing import or a non-JSON-shaped request body would be
-    invisible to every committed check and die only at operator time, inside
-    the '|| true'-contained leg (stage 6 then reads unknown forever, no one
-    knows why). So the pin extracts the `inner` string and:
+    """The stage-6 fetch runs HOST-side (write_stage6_host -> stage6_host.py):
+    the stage-probe container has no podman inside it (--network none) and the
+    probe's port is not published, so only the runner process can `podman exec`
+    into the probe. The fetch's inner infer program is a STRING literal in that
+    host file (python -c), so a fetch whose inner text has a syntax error, a
+    missing import or a non-JSON-shaped request body would be invisible to every
+    committed check and die only at operator time, inside the '|| true'-contained
+    leg (stage 6 then reads unknown forever, no one knows why). So the pin:
 
-    - parses it (a compound statement cannot follow a semicolon; the shipped
-      program had exactly that shape: ``out=[];for p in crops:``),
-    - the numpy import sits in whichever program uses np.load (the row-reader),
-    - the infer body is a FLAT row-major data list (Triton's HTTP infer
-      protocol: row-major values; a (3,256,128) row through .tolist() nests,
-      and float() over the nested lists raises TypeError),
-    - and the exec'd program is PURE: the probe container mounts ONLY the
-      model repo, so its rows arrive on stdin and its embeddings leave on
-      stdout -- no /work path reference (that file simply is not in there)."""
+    - parses the HOST program (it must be real python, not prose),
+    - parses the `inner` string, and keeps it PURE: the probe container mounts
+      ONLY the model repo, so its rows arrive on stdin and its embeddings leave
+      on stdout -- no /work path reference (that file simply is not in there),
+    - keeps the HOST program stdlib-only (it runs `python3 -I` on the GPU host,
+      like stage 5 and the table: no numpy guarantee there),
+    - and pins the rows' PROVENANCE: batch.json (names + FLAT row-major rows) is
+      written by the SAME in-image batch build that writes batch.npy, so the
+      fetch's crops/order/transform cannot drift from what the decomposer's
+      faithfulness gate ate."""
     probe = _heredoc(script_text, "stage_probe.py", "PROBE")
-    tree = ast.parse(probe)
-    fn = next(
-        n for n in ast.walk(tree) if isinstance(n, ast.FunctionDef) and n.name == "stage_ort_probe"
+    ast.parse(probe)  # the probe itself is real python
+    assert "stage_ort_probe" not in probe, (
+        "the in-container fetch is gone: the stage-probe container cannot exec "
+        "into the probe (no podman, --network none) -- the fetch is host-side"
+    )
+    fetch = _heredoc(script_text, "stage6_host.py", "PY6")
+    ast.parse(fetch)  # the host fetch program is real python
+    imports = {
+        n.names[0].name.split(".")[0] if isinstance(n, ast.Import) else n.module.split(".")[0]
+        for n in ast.walk(ast.parse(fetch))
+        if isinstance(n, ast.Import | ast.ImportFrom)
+    }
+    assert imports <= {"json", "subprocess", "sys"}, (
+        f"stage6_host.py must be stdlib-only (it runs python3 -I on the GPU "
+        f"host), found imports: {sorted(imports)}"
     )
     strings = {
         t.id: n.value.value
-        for n in ast.walk(fn)
+        for n in ast.walk(ast.parse(fetch))
         if isinstance(n, ast.Assign) and isinstance(n.value, ast.Constant)
         for t in n.targets
         if isinstance(t, ast.Name)
     }
     inner = strings["inner"]
     ast.parse(inner)  # the fetch program itself is real python
-    reader = strings["reader"]  # the row-builder: np.load lives THERE
-    ast.parse(reader)  # and it is real python too
-    assert "import numpy" in reader, "the reader uses np.load without importing numpy"
-    assert ".reshape(-1).tolist()" in reader or ".flatten().tolist()" in reader, (
-        "the rows must be FLAT row-major lists: a (3,256,128) row through "
-        ".tolist() nests, and float()/Triton's JSON infer reject that shape"
-    )
     assert "/work" not in inner, (
         "the exec'd program reads/writes /work paths, but the probe container "
         "mounts only the model repository -- the files are not inside it"
@@ -1063,6 +1225,28 @@ def test_the_ort_probe_fetch_program_parses_and_serves_what_it_reads(script_text
         "embeddings to stdout: the container has no run-dir mount to read "
         "or write files through"
     )
+    # The rows' provenance and shape: batch.json carries FLAT row-major rows
+    # (Triton's HTTP infer protocol), written by the SAME batch build that
+    # writes batch.npy.
+    assert "batch.json" in fetch, (
+        "the fetch must read the batch the in-image build wrote (batch.json), "
+        "not re-derive it host-side (the host has no numpy)"
+    )
+    batch_prog = re.search(r"BATCH_PROG='(.*?)'", script_text, re.S)
+    assert batch_prog, "the layercompare batch program is missing"
+    assert ".reshape(-1).tolist()" in batch_prog.group(
+        1
+    ) or ".flatten().tolist()" in batch_prog.group(1), (
+        "batch.json's rows must be FLAT row-major lists: a (3,256,128) row "
+        "through .tolist() nests, and float()/Triton's JSON infer reject that shape"
+    )
+    assert "batch.json" in batch_prog.group(1) and "batch.npy" in batch_prog.group(1), (
+        "batch.json must be written by the SAME program that writes batch.npy, "
+        "or the fetch's crops/order can drift from the measured batch"
+    )
+    assert "podman" in fetch and "exec" in fetch, (
+        "the host fetch reaches the probe with podman exec -- that is WHY it must run host-side"
+    )
 
 
 def test_the_ort_probe_stays_contained_and_never_blocks_the_table(script_text: str) -> None:
@@ -1071,14 +1255,19 @@ def test_the_ort_probe_stays_contained_and_never_blocks_the_table(script_text: s
     ruling-180 shape applies one frame up: a probe container that fails to
     come up must leave its stage unknown (the table exits 2 — an incomplete
     diagnostic cannot post clean) rather than abort the layercompare arm under
-    set -e before the layer report prints. The stage-probe leg that reads the
-    probe is '|| true'-contained and the layer report sits after it."""
+    set -e before the layer report prints. The stage-6 leg that reads the
+    probe is the HOST fetch dispatch (|| true-contained) and the layer report
+    sits after it. And the probe container is REAPED at teardown like every
+    other container the run owns (its own --rm only fires when the CONTAINER
+    exits; a run killed between launch and teardown would otherwise leak it
+    and fail the run with a confusing diff)."""
     body = _lc_body(_code(script_text))
     # The probe's own container lines (its name is on every podman line that
     # touches it) and the stage-6 readiness/teardown lines: each must carry
     # its own containment. The container LAUNCH is -d || true; the readiness
     # poll and the rm are inside the (not ready) branch, which returns 0; the
-    # stage-6 leg itself is run_stages' probe call, already '|| true'-shaped.
+    # stage-6 leg itself is the host fetch call in run_stages, already
+    # '|| true'-shaped (pinned below).
     lines = [ln for ln in body.splitlines() if "ortprobe" in ln and "podman" in ln]
     probe_lines = [ln for ln in body.splitlines() if "stage6-armed" in ln]
     # Containment is per STATEMENT, not per line: a multi-line podman
@@ -1098,6 +1287,24 @@ def test_the_ort_probe_stays_contained_and_never_blocks_the_table(script_text: s
         f"every podman statement naming the probe must be contained; bare: {bare}"
     )
     assert probe_lines, "the stage-6 leg was never armed"
+    # The host-side fetch dispatch carries its own containment too: a failed
+    # fetch must leave stage-6.json absent (the table reads unknown) rather
+    # than abort the arm before the layer report.
+    fetch_lines = [
+        ln
+        for ln in _fn_body(_code(script_text), "run_stages").splitlines()
+        if "stage6_host.py" in ln
+    ]
+    assert fetch_lines and fetch_lines[-1].rstrip().endswith("|| true"), (
+        f"the stage-6 fetch dispatch is not contained: {fetch_lines}"
+    )
+    # The probe container is reaped at teardown alongside the gateway, not
+    # only on the never-ready branch (finding 4).
+    cleanup = _fn_body(script_text, "cleanup")
+    assert "${CTR}-ortprobe" in cleanup and "rm -f" in cleanup, (
+        "cleanup() never reaps the ORT-probe container: a run killed after the "
+        "probe launches would leak it (its --rm only fires at container exit)"
+    )
     report = body.index("layer_compare.py")
     for ln in lines + probe_lines:
         assert body.index(ln.strip()) < report, (
