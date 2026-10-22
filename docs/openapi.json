@@ -4445,7 +4445,7 @@
         "type": "object"
       },
       "BackupContentInfo": {
-        "description": "Information about a single backup content type.\n\nStored inside the backup manifest to track what data is included\nand verify integrity via checksum.",
+        "description": "Information about a single backup content type.",
         "properties": {
           "checksum": {
             "description": "SHA256 checksum of the JSON file",
@@ -4466,14 +4466,14 @@
         "type": "object"
       },
       "BackupJobCreate": {
-        "description": "Schema for creating a backup job (no parameters needed for full backup).\n\nFull system backups export all data without filters. Simply POST\nto the endpoint to create a new backup job.",
+        "description": "Schema for creating a backup job (no parameters needed for full backup).",
         "example": {},
         "properties": {},
         "title": "BackupJobCreate",
         "type": "object"
       },
       "BackupJobProgress": {
-        "description": "Progress information for a backup job.\n\nTracks how many tables have been exported and the overall\nprogress percentage.",
+        "description": "Progress information for a backup job.",
         "properties": {
           "completed_tables": {
             "default": 0,
@@ -4502,7 +4502,7 @@
             "type": "integer"
           },
           "total_tables": {
-            "default": 8,
+            "default": 12,
             "description": "Total tables to export",
             "title": "Total Tables",
             "type": "integer"
@@ -4512,7 +4512,7 @@
         "type": "object"
       },
       "BackupJobResponse": {
-        "description": "Full status response for a backup job.\n\nComplete status information for a backup job, including progress,\ntiming, result, and any error information.",
+        "description": "Full status response for a backup job.",
         "properties": {
           "completed_at": {
             "anyOf": [
@@ -4615,7 +4615,7 @@
         "type": "object"
       },
       "BackupJobStartResponse": {
-        "description": "Response when creating a backup job.\n\nReturns the job ID that can be used to track progress via\nGET /api/backup/{job_id}.",
+        "description": "Response when creating a backup job.",
         "example": {
           "job_id": "019478a1-b2c3-7def-8901-234567890abc",
           "message": "Backup job created. Use GET /api/backup/{job_id} to track progress.",
@@ -4657,7 +4657,7 @@
         "type": "string"
       },
       "BackupListItem": {
-        "description": "Summary item for backup list.\n\nLightweight representation of a backup for list views.",
+        "description": "Summary item for backup list.",
         "properties": {
           "created_at": {
             "description": "Creation timestamp",
@@ -4686,6 +4686,18 @@
             "description": "Backup ID",
             "title": "Id",
             "type": "string"
+          },
+          "label": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Optional label (e.g. safety backup note)",
+            "title": "Label"
           },
           "status": {
             "$ref": "#/components/schemas/BackupJobStatus",
@@ -4722,7 +4734,7 @@
         "type": "object"
       },
       "BackupManifest": {
-        "description": "Manifest file stored inside backup ZIP.\n\nThe manifest is written as manifest.json at the root of the backup\narchive. It contains metadata about the backup and checksums for\nall included data files.",
+        "description": "Manifest file stored inside backup ZIP.",
         "properties": {
           "app_version": {
             "anyOf": [
@@ -4745,7 +4757,7 @@
             "additionalProperties": {
               "$ref": "#/components/schemas/BackupContentInfo"
             },
-            "description": "Map of content type to info (events, alerts, cameras, etc.)",
+            "description": "Map of content type to info",
             "title": "Contents",
             "type": "object"
           },
@@ -4755,8 +4767,32 @@
             "title": "Created At",
             "type": "string"
           },
+          "installation_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Identifier of the installation that created the backup",
+            "title": "Installation Id"
+          },
+          "label": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Optional label (e.g. 'before restore of <backup> at <time>')",
+            "title": "Label"
+          },
           "version": {
-            "description": "Backup format version (e.g., '1.0')",
+            "description": "Backup format version (e.g., '1.1')",
             "title": "Version",
             "type": "string"
           }
@@ -32125,7 +32161,7 @@
         "type": "object"
       },
       "RestoreJobProgress": {
-        "description": "Progress information for a restore job.\n\nTracks how many tables have been restored and the overall\nprogress percentage.",
+        "description": "Progress information for a restore job.",
         "properties": {
           "completed_tables": {
             "default": 0,
@@ -32154,7 +32190,7 @@
             "type": "integer"
           },
           "total_tables": {
-            "default": 8,
+            "default": 12,
             "description": "Total tables to restore",
             "title": "Total Tables",
             "type": "integer"
@@ -32164,8 +32200,26 @@
         "type": "object"
       },
       "RestoreJobResponse": {
-        "description": "Full status response for a restore job.\n\nComplete status information for a restore job, including progress,\nsource backup info, timing, result, and any error information.",
+        "description": "Full status response for a restore job.",
         "properties": {
+          "added_rows": {
+            "anyOf": [
+              {
+                "additionalProperties": {
+                  "items": {
+                    "type": "string"
+                  },
+                  "type": "array"
+                },
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Added rows by name per table",
+            "title": "Added Rows"
+          },
           "backup_created_at": {
             "anyOf": [
               {
@@ -32190,6 +32244,21 @@
             ],
             "description": "Source backup ID from manifest",
             "title": "Backup Id"
+          },
+          "cleared_known_person_links": {
+            "anyOf": [
+              {
+                "items": {
+                  "type": "string"
+                },
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Household member names whose known-person links were cleared",
+            "title": "Cleared Known Person Links"
           },
           "completed_at": {
             "anyOf": [
@@ -32245,6 +32314,45 @@
           "progress": {
             "$ref": "#/components/schemas/RestoreJobProgress"
           },
+          "safety_backup_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Automatic safety backup job ID created before restore",
+            "title": "Safety Backup Id"
+          },
+          "same_installation": {
+            "anyOf": [
+              {
+                "type": "boolean"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Whether the restored archive came from this installation",
+            "title": "Same Installation"
+          },
+          "skipped_tables": {
+            "anyOf": [
+              {
+                "items": {
+                  "type": "string"
+                },
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Tables skipped by version adapter (e.g. events, alerts on 1.0 archives)",
+            "title": "Skipped Tables"
+          },
           "started_at": {
             "anyOf": [
               {
@@ -32261,6 +32369,21 @@
           "status": {
             "$ref": "#/components/schemas/RestoreJobStatus",
             "description": "Current job status"
+          },
+          "tables": {
+            "anyOf": [
+              {
+                "additionalProperties": {
+                  "$ref": "#/components/schemas/TableRestoreSummary"
+                },
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Per-table restore breakdown (updated, inserted, replaced, kept)",
+            "title": "Tables"
           }
         },
         "required": [
@@ -32272,7 +32395,7 @@
         "type": "object"
       },
       "RestoreJobStartResponse": {
-        "description": "Response when starting a restore job.\n\nReturns the job ID that can be used to track progress via\nGET /api/backup/restore/{job_id}.",
+        "description": "Response when starting a restore job.",
         "properties": {
           "job_id": {
             "description": "Unique restore job identifier",
@@ -35460,6 +35583,37 @@
           "uptime_seconds"
         ],
         "title": "SystemStatsResponse",
+        "type": "object"
+      },
+      "TableRestoreSummary": {
+        "description": "Per-table restore statistics.",
+        "properties": {
+          "inserted": {
+            "default": 0,
+            "description": "Rows added",
+            "title": "Inserted",
+            "type": "integer"
+          },
+          "kept": {
+            "default": 0,
+            "description": "Existing rows not in the backup and kept",
+            "title": "Kept",
+            "type": "integer"
+          },
+          "replaced": {
+            "default": 0,
+            "description": "Rows replaced (e.g. baselines)",
+            "title": "Replaced",
+            "type": "integer"
+          },
+          "updated": {
+            "default": 0,
+            "description": "Rows updated in place",
+            "title": "Updated",
+            "type": "integer"
+          }
+        },
+        "title": "TableRestoreSummary",
         "type": "object"
       },
       "TargetHealth": {

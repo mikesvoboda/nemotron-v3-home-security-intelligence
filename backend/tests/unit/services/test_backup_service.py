@@ -149,12 +149,36 @@ class TestServiceConstruction:
         svc = _service(tmp_path)
         assert svc._backup_dir.is_dir()
 
-    def test_tables_events_first(self, tmp_path) -> None:
+    def test_default_backup_dir_is_on_data_volume(self) -> None:
+        assert Path("/app/data/backups") == BackupService.BACKUP_DIR
+
+    def test_shared_configuration_tables_order(self, tmp_path) -> None:
+        from backend.services.restore_service import RESTORE_TABLE_ORDER, RestoreService
+
         tables = _service(tmp_path)._get_backup_tables()
         names = [n for n, _ in tables]
-        assert names[0] == "events"
-        assert names[-1] == "settings"
-        assert len(names) == 9
+        assert names == [
+            "households",
+            "properties",
+            "areas",
+            "cameras",
+            "camera_areas",
+            "zones",
+            "activity_baselines",
+            "class_baselines",
+            "household_members",
+            "prompt_versions",
+            "settings",
+            "alert_rules",
+        ]
+        assert "events" not in names
+        assert "alerts" not in names
+        assert "prompts" not in names
+        # Every table the backup writes has a restore mapping in the same order
+        assert names == RESTORE_TABLE_ORDER
+        restore_svc = RestoreService()
+        for name in names:
+            assert restore_svc._get_model_class(name) is not None
 
 
 # -------------------------------------------------------------- _export_table
@@ -296,19 +320,38 @@ class TestCreateBackup:
         with zipfile.ZipFile(result.file_path) as zf:
             names = set(zf.namelist())
             assert "manifest.json" in names
-            assert "events.json" in names and "settings.json" in names
-            assert len(names) == 10  # manifest + 9 tables
+            assert "households.json" in names and "alert_rules.json" in names
+            assert "events.json" not in names and "alerts.json" not in names
+            assert len(names) == 13  # manifest + 12 configuration tables
             body = json.loads(zf.read("manifest.json"))
         assert body["backup_id"] == "abcdef12345"
-        assert body["version"] == BackupService.BACKUP_FORMAT_VERSION
+        assert body["version"] == "1.1"
+        assert body["installation_id"]
         # every table exported empty: count 0 and checksum of "[]"
-        assert body["contents"]["events"]["count"] == 0
-        assert body["contents"]["events"]["checksum"] == hashlib.sha256(b"[]").hexdigest()
+        assert body["contents"]["cameras"]["count"] == 0
+        assert body["contents"]["cameras"]["checksum"] == hashlib.sha256(b"[]").hexdigest()
 
-        # progress: 9 export steps at int(idx/9*80), then 85/90/95/100
-        assert [p for p, _ in steps] == [0, 8, 17, 26, 35, 44, 53, 62, 71, 85, 90, 95, 100]
+        # progress: 12 export steps at int(idx/12*80), then 85/90/95/100
+        assert [p for p, _ in steps] == [
+            0,
+            6,
+            13,
+            20,
+            26,
+            33,
+            40,
+            46,
+            53,
+            60,
+            66,
+            73,
+            85,
+            90,
+            95,
+            100,
+        ]
         assert steps[-1][1] == "Backup complete"
-        assert steps[9][1] == "Creating manifest"
+        assert steps[12][1] == "Creating manifest"
 
     @pytest.mark.asyncio
     async def test_without_callback_still_succeeds(self, tmp_path) -> None:

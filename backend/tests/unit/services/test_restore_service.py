@@ -274,13 +274,15 @@ class TestVerifyChecksums:
         with pytest.raises(BackupCorruptedError, match="Checksum mismatch for cameras"):
             service._verify_checksums(tmp_path, sample_manifest)
 
-    def test_verify_checksums_missing_file_logs_warning(self, tmp_path, sample_manifest):
-        """Test missing file logs warning but doesn't raise."""
-        # Don't create cameras.json file
+    def test_verify_checksums_missing_file_raises_error(self, tmp_path, sample_manifest):
+        """Test missing file for a manifest-listed table raises BackupValidationError."""
         service = RestoreService()
 
-        # Should not raise, just log warning
-        service._verify_checksums(tmp_path, sample_manifest)
+        with pytest.raises(
+            BackupValidationError,
+            match="Backup file for table 'cameras' listed in manifest is missing",
+        ):
+            service._verify_checksums(tmp_path, sample_manifest)
 
     def test_verify_checksums_empty_contents(self, tmp_path, sample_manifest):
         """Test empty contents doesn't raise error."""
@@ -415,10 +417,17 @@ class TestGetModelClass:
     @pytest.mark.parametrize(
         ("table_name", "expected_class_name"),
         [
+            ("households", "Household"),
+            ("properties", "Property"),
+            ("areas", "Area"),
             ("cameras", "Camera"),
-            ("events", "Event"),
-            ("alerts", "Alert"),
             ("zones", "CameraZone"),
+            ("activity_baselines", "ActivityBaseline"),
+            ("class_baselines", "ClassBaseline"),
+            ("household_members", "HouseholdMember"),
+            ("prompt_versions", "PromptVersion"),
+            ("settings", "SystemSetting"),
+            ("alert_rules", "AlertRule"),
         ],
     )
     def test_get_model_class_returns_expected_model(self, table_name, expected_class_name):
@@ -467,8 +476,8 @@ class TestRestoreTable:
 
             assert count == 2
             assert mock_db_session.add.call_count == 2
-            # Flush is called after delete and after inserts
-            assert mock_db_session.flush.call_count == 2
+            assert mock_db_session.flush.call_count == 1
+            mock_db_session.commit.assert_not_called()
 
     async def test_restore_table_empty_list(self, mock_db_session, tmp_path):
         """Test restoring table with empty list."""
@@ -510,52 +519,48 @@ class TestRestoreTable:
         with pytest.raises(RestoreError, match="Expected list of records"):
             await service._restore_table(mock_db_session, "cameras", cameras_file)
 
-    async def test_restore_table_no_model_mapping_returns_zero(
+    async def test_restore_table_no_model_mapping_raises_error(
         self, mock_db_session, tmp_path, sample_camera_data
     ):
-        """Test table without model mapping returns 0."""
+        """Test table without model mapping raises RestoreError."""
         cameras_file = tmp_path / "cameras.json"
         cameras_file.write_text(json.dumps(sample_camera_data))
 
         service = RestoreService()
 
         with patch.object(service, "_get_model_class", return_value=None, autospec=True):
-            count = await service._restore_table(mock_db_session, "cameras", cameras_file)
+            with pytest.raises(RestoreError, match="No model mapping for table cameras"):
+                await service._restore_table(mock_db_session, "cameras", cameras_file)
 
-            assert count == 0
             mock_db_session.add.assert_not_called()
 
-    async def test_restore_table_clears_existing_data(
+    async def test_restore_table_does_not_delete_cameras(
         self, mock_db_session, tmp_path, sample_camera_data
     ):
-        """Test table data is cleared before restore."""
+        """Test cameras table is merged without DELETE so event cascades never fire."""
         cameras_file = tmp_path / "cameras.json"
         cameras_file.write_text(json.dumps(sample_camera_data))
 
         service = RestoreService()
 
-        # Use real Camera model instead of mock
         from backend.models.camera import Camera
 
         with patch.object(service, "_get_model_class", return_value=Camera, autospec=True):
             await service._restore_table(mock_db_session, "cameras", cameras_file)
 
-            # Verify delete was executed
-            mock_db_session.execute.assert_called_once()
+            mock_db_session.execute.assert_not_called()
 
-    async def test_restore_table_continues_on_record_error(
+    async def test_restore_table_raises_on_record_error(
         self, mock_db_session, tmp_path, sample_camera_data
     ):
-        """Test restore continues when individual record fails."""
+        """Test restore raises RestoreError naming table and record index when a record fails."""
         cameras_file = tmp_path / "cameras.json"
         cameras_file.write_text(json.dumps(sample_camera_data))
 
         service = RestoreService()
 
-        # Use real Camera model and mock the model instantiation by making it fail
         from backend.models.camera import Camera
 
-        # Track calls to model constructor
         call_count = 0
         original_init = Camera.__init__
 
@@ -564,16 +569,18 @@ class TestRestoreTable:
             call_count += 1
             if call_count == 2:
                 raise ValueError("Invalid data")
-            # Call original for first record
             original_init(self, **kwargs)
 
         with patch.object(service, "_get_model_class", return_value=Camera, autospec=True):
             with patch.object(Camera, "__init__", mock_init):
-                count = await service._restore_table(mock_db_session, "cameras", cameras_file)
+                with pytest.raises(
+                    RestoreError,
+                    match="Invalid record in table 'cameras' at index 1",
+                ) as exc_info:
+                    await service._restore_table(mock_db_session, "cameras", cameras_file)
 
-                # Only first record should be added (second failed)
-                assert count == 1
-                assert mock_db_session.add.call_count == 1
+                assert exc_info.value.table == "cameras"
+                assert exc_info.value.record_index == 1
 
 
 @pytest.mark.asyncio
@@ -669,7 +676,9 @@ class TestRestoreFromBackup:
             assert result.backup_id == "backup-123"
             assert result.total_items == 2
             assert "cameras" in result.items_restored
-            mock_db_session.commit.assert_called_once()
+            # RestoreService never commits; it flushes and leaves commit to Session B caller
+            mock_db_session.commit.assert_not_called()
+            assert mock_db_session.flush.call_count >= 1
 
     async def test_restore_from_backup_calls_progress_callback(
         self, mock_db_session, tmp_path, sample_manifest
@@ -734,26 +743,68 @@ class TestRestoreFromBackup:
             mock_db_session.rollback.assert_called_once()
             mock_db_session.commit.assert_not_called()
 
-    async def test_restore_from_backup_skips_missing_table_files(
+    async def test_restore_from_backup_missing_table_file_raises_error(
         self, mock_db_session, tmp_path, sample_manifest
     ):
-        """Test restore skips tables without backup files."""
+        """Test restore fails when a manifest-listed non-skipped table file is missing."""
         backup_file = tmp_path / "backup.zip"
 
         with zipfile.ZipFile(backup_file, "w") as zf:
             zf.writestr("manifest.json", json.dumps(sample_manifest))
-            # Don't write cameras.json or events.json
+            # Don't write cameras.json
 
         service = RestoreService()
 
-        result = await service.restore_from_backup(
-            backup_file=backup_file,
-            db=mock_db_session,
-            job_id="job-123",
-        )
+        with pytest.raises(
+            BackupValidationError,
+            match="Backup file for table 'cameras' listed in manifest is missing",
+        ):
+            await service.restore_from_backup(
+                backup_file=backup_file,
+                db=mock_db_session,
+                job_id="job-123",
+            )
 
-        assert result.total_items == 0
-        assert len(result.items_restored) == 0
+    async def test_restore_from_1_0_archive_skips_events_and_alerts(
+        self, mock_db_session, tmp_path, sample_camera_data
+    ):
+        """Test a 1.0 archive with events and alerts restores cameras and lists both as skipped."""
+        import hashlib
+
+        cameras_json = json.dumps(sample_camera_data)
+        events_json = json.dumps([{"id": 1, "camera_id": "camera-1"}])
+        alerts_json = json.dumps([{"id": "alert-1", "event_id": 1}])
+        manifest = {
+            "backup_id": "legacy-1.0-backup",
+            "version": "1.0",
+            "created_at": "2026-01-15T10:30:00Z",
+            "contents": {
+                "events": {
+                    "count": 1,
+                    "checksum": hashlib.sha256(events_json.encode()).hexdigest(),
+                },
+                "alerts": {
+                    "count": 1,
+                    "checksum": hashlib.sha256(alerts_json.encode()).hexdigest(),
+                },
+                "cameras": {
+                    "count": 2,
+                    "checksum": hashlib.sha256(cameras_json.encode()).hexdigest(),
+                },
+            },
+        }
+        backup_file = tmp_path / "legacy_1_0.zip"
+        with zipfile.ZipFile(backup_file, "w") as zf:
+            zf.writestr("manifest.json", json.dumps(manifest))
+            zf.writestr("events.json", events_json)
+            zf.writestr("alerts.json", alerts_json)
+            zf.writestr("cameras.json", cameras_json)
+
+        service = RestoreService()
+        result = await service.restore_from_backup(backup_file, mock_db_session)
+
+        assert result.items_restored == {"cameras": 2}
+        assert result.skipped_tables == ["events", "alerts"]
 
     async def test_restore_from_backup_processes_tables_in_order(
         self, mock_db_session, tmp_path, sample_manifest
@@ -874,23 +925,37 @@ class TestRestoreTableOrder:
     """Test RESTORE_TABLE_ORDER constant."""
 
     def test_restore_table_order_has_required_tables(self):
-        """Test table order includes required tables."""
+        """Test table order includes all 12 configuration tables and excludes history."""
+        assert "households" in RESTORE_TABLE_ORDER
+        assert "properties" in RESTORE_TABLE_ORDER
+        assert "areas" in RESTORE_TABLE_ORDER
         assert "cameras" in RESTORE_TABLE_ORDER
+        assert "camera_areas" in RESTORE_TABLE_ORDER
         assert "zones" in RESTORE_TABLE_ORDER
-        assert "events" in RESTORE_TABLE_ORDER
-        assert "alerts" in RESTORE_TABLE_ORDER
+        assert "activity_baselines" in RESTORE_TABLE_ORDER
+        assert "class_baselines" in RESTORE_TABLE_ORDER
+        assert "household_members" in RESTORE_TABLE_ORDER
+        assert "prompt_versions" in RESTORE_TABLE_ORDER
+        assert "settings" in RESTORE_TABLE_ORDER
+        assert "alert_rules" in RESTORE_TABLE_ORDER
+        assert "events" not in RESTORE_TABLE_ORDER
+        assert "alerts" not in RESTORE_TABLE_ORDER
 
-    def test_restore_table_order_cameras_before_zones(self):
-        """Test cameras come before zones (FK dependency)."""
-        cameras_idx = RESTORE_TABLE_ORDER.index("cameras")
-        zones_idx = RESTORE_TABLE_ORDER.index("zones")
-        assert cameras_idx < zones_idx
-
-    def test_restore_table_order_cameras_before_events(self):
-        """Test cameras come before events (FK dependency)."""
-        cameras_idx = RESTORE_TABLE_ORDER.index("cameras")
-        events_idx = RESTORE_TABLE_ORDER.index("events")
-        assert cameras_idx < events_idx
+    def test_restore_table_order_parents_before_children(self):
+        """Test parent tables come before child tables (FK dependency)."""
+        assert RESTORE_TABLE_ORDER.index("households") < RESTORE_TABLE_ORDER.index("properties")
+        assert RESTORE_TABLE_ORDER.index("properties") < RESTORE_TABLE_ORDER.index("areas")
+        assert RESTORE_TABLE_ORDER.index("properties") < RESTORE_TABLE_ORDER.index("cameras")
+        assert RESTORE_TABLE_ORDER.index("cameras") < RESTORE_TABLE_ORDER.index("camera_areas")
+        assert RESTORE_TABLE_ORDER.index("areas") < RESTORE_TABLE_ORDER.index("camera_areas")
+        assert RESTORE_TABLE_ORDER.index("cameras") < RESTORE_TABLE_ORDER.index("zones")
+        assert RESTORE_TABLE_ORDER.index("cameras") < RESTORE_TABLE_ORDER.index(
+            "activity_baselines"
+        )
+        assert RESTORE_TABLE_ORDER.index("cameras") < RESTORE_TABLE_ORDER.index("class_baselines")
+        assert RESTORE_TABLE_ORDER.index("households") < RESTORE_TABLE_ORDER.index(
+            "household_members"
+        )
 
 
 class TestRestoreServiceExceptions:

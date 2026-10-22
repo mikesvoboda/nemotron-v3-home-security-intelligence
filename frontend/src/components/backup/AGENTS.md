@@ -155,14 +155,11 @@ BackupSection
 
 ## Test Coverage
 
-No test files currently exist in this directory. Tests should cover:
+`RestoreModal.test.tsx` covers:
 
-- BackupList loading, empty, and error states
-- BackupList delete confirmation flow
-- BackupProgress visual states (pending, running, complete, failed)
-- RestoreModal multi-step flow
-- RestoreModal file validation
-- BackupSection integration with hooks
+- RestoreModal upload state, warning banner, and file dropzone
+- RestoreModal completion state with automatic safety-backup download/restore links, per-table merge summary (`restored N ..., added M, kept K not in this backup`), added rows by name, cleared known-person links by name, and skipped legacy tables
+- RestoreModal failure detail display and retry reset flow
 
 ## Related Files
 

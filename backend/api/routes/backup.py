@@ -1,24 +1,14 @@
-"""API routes for backup and restore operations.
-
-Provides endpoints for creating system backups, listing backups, downloading
-backup files, and restoring from backup files.
-
-Endpoints:
-    POST /api/backup              - Create a new backup job
-    GET  /api/backup              - List available backups
-    GET  /api/backup/{job_id}     - Get backup job status
-    GET  /api/backup/{job_id}/download - Download backup file
-    DELETE /api/backup/{job_id}   - Delete a backup
-    POST /api/backup/restore      - Start restore from uploaded file
-    GET  /api/backup/restore/{job_id} - Get restore job status
-
-NEM-3566: Backup/Restore implementation.
-"""
+"""API routes for backup and restore operations (B4.6 / 4n-restore.md)."""
 
 from __future__ import annotations
 
+import json
 import tempfile
+import zipfile
+from collections.abc import AsyncGenerator
+from contextlib import asynccontextmanager
 from pathlib import Path
+from typing import Any
 from uuid import uuid4
 
 from fastapi import APIRouter, BackgroundTasks, Depends, File, HTTPException, UploadFile, status
@@ -39,14 +29,20 @@ from backend.api.schemas.backup import (
     RestoreJobResponse,
     RestoreJobStartResponse,
     RestoreJobStatus,
+    TableRestoreSummary,
 )
-from backend.core.database import get_db
+from backend.core.database import get_db, get_session_factory
 from backend.core.logging import get_logger
 from backend.core.time_utils import utc_now
 from backend.models.backup_job import BackupJob, RestoreJob
 from backend.models.backup_job import BackupJobStatus as BackupJobStatusModel
 from backend.models.backup_job import RestoreJobStatus as RestoreJobStatusModel
-from backend.services.backup_service import BACKUP_DIR, BackupService
+from backend.services.backup_service import (
+    BACKUP_DIR,
+    SHARED_BACKUP_TABLES,
+    BackupService,
+    resolve_backup_dir,
+)
 from backend.services.restore_service import (
     BackupCorruptedError,
     BackupValidationError,
@@ -59,15 +55,36 @@ logger = get_logger(__name__)
 router = APIRouter(prefix="/api/backup", tags=["backup"])
 
 
+@asynccontextmanager
+async def _open_independent_session(
+    fallback_db: AsyncSession,
+) -> AsyncGenerator[AsyncSession]:
+    """Open an independent AsyncSession, falling back to fallback_db only in mock-only tests."""
+    try:
+        factory = get_session_factory()
+    except RuntimeError:
+        yield fallback_db
+        return
+
+    async with factory() as session:
+        yield session
+
+
+def _extract_archive_label(backup_file_path: Path) -> str:
+    """Read backup_id from the archive's manifest.json if possible, else file stem."""
+    try:
+        with zipfile.ZipFile(backup_file_path, "r") as zf:
+            manifest_raw = json.loads(zf.read("manifest.json").decode("utf-8"))
+            backup_id = manifest_raw.get("backup_id")
+            if isinstance(backup_id, str) and backup_id:
+                return backup_id
+    except Exception:
+        logger.debug("Could not read backup_id from archive manifest")
+    return backup_file_path.stem
+
+
 def _backup_model_to_response(job: BackupJob) -> BackupJobResponse:
-    """Convert BackupJob model to BackupJobResponse schema.
-
-    Args:
-        job: BackupJob database model instance.
-
-    Returns:
-        BackupJobResponse schema instance.
-    """
+    """Convert BackupJob model to BackupJobResponse schema."""
     progress = BackupJobProgress(
         total_tables=job.total_tables,
         completed_tables=job.completed_tables,
@@ -80,7 +97,6 @@ def _backup_model_to_response(job: BackupJob) -> BackupJobResponse:
         try:
             manifest = BackupManifest.model_validate(job.manifest_json)
         except Exception:
-            # Invalid manifest JSON, leave as None
             logger.debug("Failed to parse backup manifest JSON", extra={"job_id": job.id})
 
     return BackupJobResponse(
@@ -98,20 +114,47 @@ def _backup_model_to_response(job: BackupJob) -> BackupJobResponse:
 
 
 def _restore_model_to_response(job: RestoreJob) -> RestoreJobResponse:
-    """Convert RestoreJob model to RestoreJobResponse schema.
-
-    Args:
-        job: RestoreJob database model instance.
-
-    Returns:
-        RestoreJobResponse schema instance.
-    """
+    """Convert RestoreJob model to RestoreJobResponse schema, unpacking JSONB _details."""
     progress = RestoreJobProgress(
         total_tables=job.total_tables,
         completed_tables=job.completed_tables,
         progress_percent=job.progress_percent,
         current_step=job.current_step,
     )
+
+    items_restored: dict[str, int] | None = None
+    safety_backup_id: str | None = None
+    tables: dict[str, TableRestoreSummary] | None = None
+    added_rows: dict[str, list[str]] | None = None
+    cleared_links: list[str] | None = None
+    skipped_tables: list[str] | None = None
+    same_installation: bool | None = None
+
+    if isinstance(job.items_restored, dict):
+        raw = dict(job.items_restored)
+        details = raw.pop("_details", None)
+        items_restored = {k: int(v) for k, v in raw.items() if isinstance(v, int | float)}
+        if isinstance(details, dict):
+            if isinstance(details.get("safety_backup_id"), str):
+                safety_backup_id = details["safety_backup_id"]
+            if isinstance(details.get("tables"), dict):
+                tables = {
+                    k: TableRestoreSummary.model_validate(v)
+                    for k, v in details["tables"].items()
+                    if isinstance(v, dict)
+                }
+            if isinstance(details.get("added_rows"), dict):
+                added_rows = {
+                    str(k): [str(item) for item in v]
+                    for k, v in details["added_rows"].items()
+                    if isinstance(v, list)
+                }
+            if isinstance(details.get("cleared_known_person_links"), list):
+                cleared_links = [str(item) for item in details["cleared_known_person_links"]]
+            if isinstance(details.get("skipped_tables"), list):
+                skipped_tables = [str(item) for item in details["skipped_tables"]]
+            if isinstance(details.get("same_installation"), bool):
+                same_installation = details["same_installation"]
 
     return RestoreJobResponse(
         id=job.id,
@@ -122,24 +165,19 @@ def _restore_model_to_response(job: RestoreJob) -> RestoreJobResponse:
         created_at=job.created_at,
         started_at=job.started_at,
         completed_at=job.completed_at,
-        items_restored=job.items_restored,
+        items_restored=items_restored,
+        safety_backup_id=safety_backup_id,
+        tables=tables,
+        added_rows=added_rows,
+        cleared_known_person_links=cleared_links,
+        skipped_tables=skipped_tables,
+        same_installation=same_installation,
         error_message=job.error_message,
     )
 
 
 async def _get_backup_job(job_id: str, db: AsyncSession) -> BackupJob:
-    """Get backup job by ID or raise 404.
-
-    Args:
-        job_id: Backup job UUID.
-        db: Database session.
-
-    Returns:
-        BackupJob instance.
-
-    Raises:
-        HTTPException: 404 if job not found.
-    """
+    """Get backup job by ID or raise 404."""
     result = await db.execute(select(BackupJob).where(BackupJob.id == job_id))
     job = result.scalar_one_or_none()
 
@@ -153,18 +191,7 @@ async def _get_backup_job(job_id: str, db: AsyncSession) -> BackupJob:
 
 
 async def _get_restore_job(job_id: str, db: AsyncSession) -> RestoreJob:
-    """Get restore job by ID or raise 404.
-
-    Args:
-        job_id: Restore job UUID.
-        db: Database session.
-
-    Returns:
-        RestoreJob instance.
-
-    Raises:
-        HTTPException: 404 if job not found.
-    """
+    """Get restore job by ID or raise 404."""
     result = await db.execute(select(RestoreJob).where(RestoreJob.id == job_id))
     job = result.scalar_one_or_none()
 
@@ -182,17 +209,8 @@ async def run_backup_job(
     backup_service: BackupService,
     db: AsyncSession,
 ) -> None:
-    """Run a backup job in the background.
-
-    Updates the database with progress and results.
-
-    Args:
-        job_id: Backup job UUID.
-        backup_service: BackupService instance.
-        db: Database session.
-    """
+    """Run a backup job in the background."""
     try:
-        # Update job to running
         result = await db.execute(select(BackupJob).where(BackupJob.id == job_id))
         job = result.scalar_one_or_none()
 
@@ -202,14 +220,12 @@ async def run_backup_job(
 
         job.status = BackupJobStatusModel.RUNNING
         job.started_at = utc_now()
+        job.total_tables = len(SHARED_BACKUP_TABLES)
         job.current_step = "Starting backup..."
         await db.commit()
 
-        # Create a reference to job for the closure
-        # job is guaranteed to be non-None at this point
         job_ref = job
 
-        # Progress callback to update database
         async def progress_callback(percent: int, step: str) -> None:
             await db.refresh(job_ref)
             job_ref.progress_percent = percent
@@ -217,18 +233,17 @@ async def run_backup_job(
             job_ref.completed_tables = int((percent / 100) * job_ref.total_tables)
             await db.commit()
 
-        # Run the backup
         backup_result = await backup_service.create_backup(
             db=db,
             job_id=job_id,
             progress_callback=progress_callback,
         )
 
-        # Update database with result
         await db.refresh(job)
         job.status = BackupJobStatusModel.COMPLETED
         job.completed_at = utc_now()
         job.progress_percent = 100
+        job.completed_tables = job.total_tables
         job.current_step = "Complete"
         job.file_path = str(backup_result.file_path)
         job.file_size_bytes = backup_result.file_size
@@ -247,7 +262,6 @@ async def run_backup_job(
     except Exception as e:
         logger.exception("Backup job failed", extra={"job_id": job_id})
 
-        # Update database with failure
         try:
             result = await db.execute(select(BackupJob).where(BackupJob.id == job_id))
             job = result.scalar_one_or_none()
@@ -265,110 +279,179 @@ async def run_restore_job(
     backup_file_path: Path,
     restore_service: RestoreService,
     db: AsyncSession,
+    *,
+    backup_service: BackupService | None = None,
 ) -> None:
-    """Run a restore job in the background.
+    """Run a restore job using three independent sessions (4n-restore.md §Shape):
 
-    Updates the database with progress and results.
-
-    Args:
-        job_id: Restore job UUID.
-        backup_file_path: Path to the uploaded backup file.
-        restore_service: RestoreService instance.
-        db: Database session.
+    - Session A: creates and commits the automatic 'before restore' safety backup job.
+    - Session B: runs RestoreService.restore_from_backup in one transaction with one commit.
+    - Session C: writes RestoreJob progress and terminal status.
     """
-    try:
-        # Update job to validating
-        result = await db.execute(select(RestoreJob).where(RestoreJob.id == job_id))
-        job = result.scalar_one_or_none()
 
-        if job is None:
+    async def _update_restore_job(**fields: Any) -> bool:
+        async with _open_independent_session(db) as progress_db:
+            res = await progress_db.execute(select(RestoreJob).where(RestoreJob.id == job_id))
+            job_row = res.scalar_one_or_none()
+            if job_row is None:
+                return False
+            for k, v in fields.items():
+                setattr(job_row, k, v)
+            await progress_db.commit()
+            return True
+
+    try:
+        found = await _update_restore_job(
+            status=RestoreJobStatusModel.VALIDATING,
+            started_at=utc_now(),
+            total_tables=len(SHARED_BACKUP_TABLES),
+            current_step="Creating safety backup before restore...",
+        )
+        if not found:
             logger.error("Restore job not found in database", extra={"job_id": job_id})
             return
 
-        job.status = RestoreJobStatusModel.VALIDATING
-        job.started_at = utc_now()
-        job.current_step = "Validating backup..."
-        await db.commit()
-
-        # Create a reference to job for the closure
-        # job is guaranteed to be non-None at this point
-        job_ref = job
-
-        # Progress callback to update database
-        async def progress_callback(percent: int, step: str) -> None:
-            await db.refresh(job_ref)
-
-            # Determine status based on progress
-            if percent < 20:
-                job_ref.status = RestoreJobStatusModel.VALIDATING
-            else:
-                job_ref.status = RestoreJobStatusModel.RESTORING
-
-            job_ref.progress_percent = percent
-            job_ref.current_step = step
-            job_ref.completed_tables = int((percent / 100) * job_ref.total_tables)
-            await db.commit()
-
-        # Run the restore
-        restore_result = await restore_service.restore_from_backup(
-            backup_file=backup_file_path,
-            db=db,
-            job_id=job_id,
-            progress_callback=progress_callback,
+        # Session A: take and commit the automatic safety backup before any row changes.
+        safety_job_id = str(uuid4())
+        source_label = _extract_archive_label(backup_file_path)
+        safety_timestamp = utc_now().strftime("%Y-%m-%dT%H:%M:%SZ")
+        safety_label = f"before restore of {source_label} at {safety_timestamp}"
+        active_backup_service = backup_service or BackupService(
+            backup_dir=resolve_backup_dir(BACKUP_DIR)
         )
 
-        # Update database with result
-        await db.refresh(job)
-        job.status = RestoreJobStatusModel.COMPLETED
-        job.completed_at = utc_now()
-        job.progress_percent = 100
-        job.current_step = "Complete"
-        job.backup_id = restore_result.backup_id
-        job.backup_created_at = restore_result.backup_created_at
-        job.items_restored = restore_result.items_restored
-        await db.commit()
+        try:
+            async with _open_independent_session(db) as safety_db:
+                safety_job = BackupJob(
+                    id=safety_job_id,
+                    status=BackupJobStatusModel.RUNNING,
+                    started_at=utc_now(),
+                    total_tables=len(SHARED_BACKUP_TABLES),
+                    current_step=safety_label,
+                )
+                safety_db.add(safety_job)
+                await safety_db.flush()
+
+                safety_result = await active_backup_service.create_backup(
+                    db=safety_db,
+                    job_id=safety_job_id,
+                    label=safety_label,
+                )
+
+                safety_job.status = BackupJobStatusModel.COMPLETED
+                safety_job.completed_at = utc_now()
+                safety_job.progress_percent = 100
+                safety_job.completed_tables = len(SHARED_BACKUP_TABLES)
+                safety_job.current_step = safety_label
+                safety_job.file_path = str(safety_result.file_path)
+                safety_job.file_size_bytes = safety_result.file_size
+                safety_job.manifest_json = (
+                    safety_result.manifest.to_dict() if safety_result.manifest else None
+                )
+                await safety_db.commit()
+        except Exception as e:
+            logger.error(
+                "Safety backup failed; aborting restore before any row changes",
+                extra={"job_id": job_id, "error": str(e)},
+            )
+            await _update_restore_job(
+                status=RestoreJobStatusModel.FAILED,
+                completed_at=utc_now(),
+                error_message=f"Safety backup failed before restore: {e}",
+            )
+            return
+
+        # Session C callback for progress updates during Session B's restore transaction.
+        async def progress_callback(percent: int, step: str) -> None:
+            next_status = (
+                RestoreJobStatusModel.VALIDATING
+                if percent < 20
+                else RestoreJobStatusModel.RESTORING
+            )
+            await _update_restore_job(
+                status=next_status,
+                progress_percent=percent,
+                current_step=step,
+                completed_tables=int((percent / 100) * len(SHARED_BACKUP_TABLES)),
+            )
+
+        # Session B: run the restore in one transaction with one commit.
+        async with _open_independent_session(db) as restore_db:
+            try:
+                restore_result = await restore_service.restore_from_backup(
+                    backup_file=backup_file_path,
+                    db=restore_db,
+                    job_id=job_id,
+                    progress_callback=progress_callback,
+                )
+                restore_result.safety_backup_id = safety_job_id
+                await restore_db.commit()
+            except Exception:
+                await restore_db.rollback()
+                raise
+
+        tables_dict = {
+            k: v.to_dict() if hasattr(v, "to_dict") else dict(v)
+            for k, v in getattr(restore_result, "tables", {}).items()
+        }
+        stored_items: dict[str, Any] = {
+            **restore_result.items_restored,
+            "_details": {
+                "safety_backup_id": restore_result.safety_backup_id,
+                "tables": tables_dict,
+                "added_rows": getattr(restore_result, "added_rows", {}),
+                "cleared_known_person_links": getattr(
+                    restore_result, "cleared_known_person_links", []
+                ),
+                "skipped_tables": getattr(restore_result, "skipped_tables", []),
+                "same_installation": getattr(restore_result, "same_installation", False),
+            },
+        }
+
+        await _update_restore_job(
+            status=RestoreJobStatusModel.COMPLETED,
+            completed_at=utc_now(),
+            progress_percent=100,
+            completed_tables=len(SHARED_BACKUP_TABLES),
+            current_step="Complete",
+            backup_id=restore_result.backup_id,
+            backup_created_at=restore_result.backup_created_at,
+            items_restored=stored_items,
+        )
 
         logger.info(
             "Restore job completed",
             extra={
                 "job_id": job_id,
                 "backup_id": restore_result.backup_id,
+                "safety_backup_id": safety_job_id,
                 "total_items": restore_result.total_items,
             },
         )
 
     except (BackupValidationError, BackupCorruptedError, RestoreError) as e:
         logger.error("Restore job failed", extra={"job_id": job_id, "error": str(e)})
-
-        # Update database with failure
         try:
-            result = await db.execute(select(RestoreJob).where(RestoreJob.id == job_id))
-            job = result.scalar_one_or_none()
-            if job is not None:
-                job.status = RestoreJobStatusModel.FAILED
-                job.completed_at = utc_now()
-                job.error_message = str(e)
-                await db.commit()
+            await _update_restore_job(
+                status=RestoreJobStatusModel.FAILED,
+                completed_at=utc_now(),
+                error_message=str(e),
+            )
         except Exception:
             logger.exception("Failed to update job failure status")
 
     except Exception as e:
         logger.exception("Restore job failed", extra={"job_id": job_id})
-
-        # Update database with failure
         try:
-            result = await db.execute(select(RestoreJob).where(RestoreJob.id == job_id))
-            job = result.scalar_one_or_none()
-            if job is not None:
-                job.status = RestoreJobStatusModel.FAILED
-                job.completed_at = utc_now()
-                job.error_message = str(e)
-                await db.commit()
+            await _update_restore_job(
+                status=RestoreJobStatusModel.FAILED,
+                completed_at=utc_now(),
+                error_message=str(e),
+            )
         except Exception:
             logger.exception("Failed to update job failure status")
 
     finally:
-        # Clean up the temporary backup file
         try:
             if backup_file_path.exists():
                 backup_file_path.unlink()
@@ -394,35 +477,20 @@ async def create_backup(
     background_tasks: BackgroundTasks,
     db: AsyncSession = Depends(get_db),
 ) -> BackupJobStartResponse:
-    """Create a new backup job.
-
-    Creates a backup job record in the database and schedules background
-    processing. Progress can be tracked via the status endpoint.
-
-    Args:
-        request: Backup job parameters (empty for full backup).
-        background_tasks: FastAPI background tasks.
-        db: Database session.
-
-    Returns:
-        Job start response with job ID for tracking.
-    """
-    # Generate job ID
+    """Create a new backup job."""
     job_id = str(uuid4())
 
-    # Create database record
     backup_job = BackupJob(
         id=job_id,
         status=BackupJobStatusModel.PENDING,
+        total_tables=len(SHARED_BACKUP_TABLES),
     )
 
     db.add(backup_job)
     await db.commit()
 
-    # Create service instance
-    backup_service = BackupService()
+    backup_service = BackupService(backup_dir=resolve_backup_dir(BACKUP_DIR))
 
-    # Schedule background task
     background_tasks.add_task(
         run_backup_job,
         job_id=job_id,
@@ -448,20 +516,11 @@ async def create_backup(
 async def list_backups(
     db: AsyncSession = Depends(get_db),
 ) -> BackupListResponse:
-    """List available backups.
-
-    Returns completed backup jobs that have files available for download.
-
-    Args:
-        db: Database session.
-
-    Returns:
-        List of available backups.
-    """
-    Path(BACKUP_DIR).mkdir(parents=True, exist_ok=True)
+    """List available backups."""
+    active_dir = resolve_backup_dir(BACKUP_DIR)
+    active_dir.mkdir(parents=True, exist_ok=True)
 
     try:
-        # Query completed backup jobs
         result = await db.execute(
             select(BackupJob)
             .where(BackupJob.status == BackupJobStatusModel.COMPLETED)
@@ -477,6 +536,9 @@ async def list_backups(
         download_url = None
         if job.file_path:
             download_url = f"/api/backup/{job.id}/download"
+        label = None
+        if isinstance(job.manifest_json, dict) and isinstance(job.manifest_json.get("label"), str):
+            label = job.manifest_json["label"]
 
         backups.append(
             BackupListItem(
@@ -485,6 +547,7 @@ async def list_backups(
                 file_size_bytes=job.file_size_bytes or 0,
                 status=BackupJobStatus(job.status.value),
                 download_url=download_url,
+                label=label,
             )
         )
 
@@ -507,15 +570,7 @@ async def get_backup_status(
     job_id: str,
     db: AsyncSession = Depends(get_db),
 ) -> BackupJobResponse:
-    """Get backup job status.
-
-    Args:
-        job_id: Backup job UUID.
-        db: Database session.
-
-    Returns:
-        Backup job status and progress information.
-    """
+    """Get backup job status."""
     job = await _get_backup_job(job_id, db)
     return _backup_model_to_response(job)
 
@@ -533,18 +588,9 @@ async def download_backup(
     job_id: str,
     db: AsyncSession = Depends(get_db),
 ) -> FileResponse:
-    """Download completed backup file.
-
-    Args:
-        job_id: Backup job UUID.
-        db: Database session.
-
-    Returns:
-        File download response.
-    """
+    """Download completed backup file."""
     job = await _get_backup_job(job_id, db)
 
-    # Check if complete
     if job.status != BackupJobStatusModel.COMPLETED:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
@@ -557,9 +603,11 @@ async def download_backup(
             detail="Backup file path not found",
         )
 
-    # Extract filename from stored path
     filename = Path(job.file_path).name
-    file_path = BACKUP_DIR / filename
+    active_dir = resolve_backup_dir(BACKUP_DIR)
+    file_path = active_dir / filename
+    if not file_path.exists() and Path(job.file_path).exists():
+        file_path = Path(job.file_path)
 
     if not file_path.exists():
         raise HTTPException(
@@ -587,27 +635,18 @@ async def delete_backup(
     job_id: str,
     db: AsyncSession = Depends(get_db),
 ) -> dict[str, bool]:
-    """Delete a backup.
-
-    Deletes the backup file from disk and removes the job record.
-
-    Args:
-        job_id: Backup job UUID.
-        db: Database session.
-
-    Returns:
-        Deletion confirmation.
-    """
+    """Delete a backup."""
     job = await _get_backup_job(job_id, db)
 
-    # Delete file if exists
     if job.file_path:
         filename = Path(job.file_path).name
-        file_path = BACKUP_DIR / filename
+        active_dir = resolve_backup_dir(BACKUP_DIR)
+        file_path = active_dir / filename
         if file_path.exists():
             file_path.unlink()
+        elif Path(job.file_path).exists():
+            Path(job.file_path).unlink()
 
-    # Delete database record
     await db.delete(job)
     await db.commit()
 
@@ -634,31 +673,15 @@ async def start_restore(
     file: UploadFile = File(..., description="Backup ZIP file"),
     db: AsyncSession = Depends(get_db),
 ) -> RestoreJobStartResponse:
-    """Start a restore job from uploaded backup file.
-
-    Creates a restore job record in the database, saves the uploaded file,
-    and schedules background processing. Progress can be tracked via the
-    status endpoint.
-
-    Args:
-        background_tasks: FastAPI background tasks.
-        file: Uploaded backup ZIP file.
-        db: Database session.
-
-    Returns:
-        Job start response with job ID for tracking.
-    """
-    # Validate file type
+    """Start a restore job from uploaded backup file."""
     if not file.filename or not file.filename.endswith(".zip"):
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail="Invalid file type. Expected a .zip backup file.",
         )
 
-    # Generate job ID
     job_id = str(uuid4())
 
-    # Save uploaded file to temp location
     temp_dir = Path(tempfile.gettempdir()) / "backup_restore"
     temp_dir.mkdir(parents=True, exist_ok=True)
     backup_file_path = temp_dir / f"{job_id}.zip"
@@ -672,19 +695,17 @@ async def start_restore(
             detail=f"Failed to save uploaded file: {e}",
         ) from e
 
-    # Create database record
     restore_job = RestoreJob(
         id=job_id,
         status=RestoreJobStatusModel.PENDING,
+        total_tables=len(SHARED_BACKUP_TABLES),
     )
 
     db.add(restore_job)
     await db.commit()
 
-    # Create service instance
     restore_service = RestoreService()
 
-    # Schedule background task
     background_tasks.add_task(
         run_restore_job,
         job_id=job_id,
@@ -718,14 +739,6 @@ async def get_restore_status(
     job_id: str,
     db: AsyncSession = Depends(get_db),
 ) -> RestoreJobResponse:
-    """Get restore job status.
-
-    Args:
-        job_id: Restore job UUID.
-        db: Database session.
-
-    Returns:
-        Restore job status and progress information.
-    """
+    """Get restore job status."""
     job = await _get_restore_job(job_id, db)
     return _restore_model_to_response(job)
