@@ -463,7 +463,7 @@ export default function RestoreModal({ isOpen, onClose, onRestoreComplete }: Res
       setUploadError(null);
       setModalState('uploading');
       try {
-        const response = await fetch(getBackupDownloadUrl(safetyBackupId));
+        const response = await fetch(`/api/backup/${encodeURIComponent(safetyBackupId)}/download`);
         if (!response.ok) {
           throw new Error(`Failed to download safety backup (${response.status})`);
         }

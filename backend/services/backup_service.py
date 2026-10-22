@@ -11,6 +11,7 @@ import base64
 import enum
 import hashlib
 import json
+import os
 import tempfile
 import zipfile
 from collections.abc import Awaitable, Callable, Mapping, Sequence
@@ -65,11 +66,22 @@ SHARED_BACKUP_TABLES: tuple[tuple[str, Any], ...] = (
 
 
 def resolve_backup_dir(configured_dir: Path | None = None) -> Path:
-    """Resolve the active backup directory, falling back to repo data/backups on host runs."""
+    """Resolve the active backup directory, falling back when /app/data is not writable."""
     target = configured_dir or BACKUP_DIR
-    if target == Path("/app/data/backups") and not Path("/app/data").exists():
-        return _FALLBACK_BACKUP_DIR
-    return target
+    if target != Path("/app/data/backups"):
+        return target
+    for candidate in (
+        Path("/app/data/backups"),
+        _FALLBACK_BACKUP_DIR,
+        Path(tempfile.gettempdir()) / "backups",
+    ):
+        try:
+            candidate.mkdir(parents=True, exist_ok=True)
+            if os.access(candidate, os.W_OK):
+                return candidate
+        except OSError:
+            continue
+    return Path(tempfile.gettempdir()) / "backups"
 
 
 async def get_or_create_installation_id(db: AsyncSession) -> str:

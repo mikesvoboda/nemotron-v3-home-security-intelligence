@@ -243,13 +243,14 @@ test.describe('golden path: trash page restore flows @critical', () => {
     const h = harness;
     const session = await loginAsAdmin(page, h);
 
-    // 1. Create a real backup via the backend API and download its ZIP bytes
-    const created = await authPost<{ job_id: string; status: string }>(
-      h,
-      session,
-      '/api/backup',
-      {}
-    );
+    // 1. Create a real backup via the backend API (202 Accepted) and download its ZIP bytes
+    const createRes = await fetch(`${h.api}/api/backup`, {
+      method: 'POST',
+      headers: { ...apiCookie(session), 'Content-Type': 'application/json' },
+      body: JSON.stringify({}),
+    });
+    expect(createRes.status).toBe(202);
+    const created = (await createRes.json()) as { job_id: string; status: string };
     expect(created.job_id).toBeTruthy();
 
     let backupStatus = '';
