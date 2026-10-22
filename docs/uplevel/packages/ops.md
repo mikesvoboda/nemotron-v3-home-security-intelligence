@@ -1501,7 +1501,7 @@ production switches yet.
 ### [r308a] CI sinks for the alerting golden paths
 
 **Flags:** none. **Assigned:** ops-b, after `[r290]` (ruling 308). **Depends on:** none.
-**PR:** none yet. (ruling 308, record 6326364266)
+**PR:** #7340. (ruling 308, record 6326364266)
 
 The alerting packages' golden paths deliver to a mail server, a webhook receiver and a push
 service; the CI harness admits only `FAKE_SERVICES` today (`scripts/feature_check.py:96`, `:463`).

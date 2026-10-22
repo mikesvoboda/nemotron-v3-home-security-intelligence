@@ -84,6 +84,9 @@ jobs:
               - 'uv.lock'
               - 'docker-compose.ci.yml'
               - 'docker-compose.fake-ai.yml'
+              # [r308a] The notification-sink overlay defines the fake stack's
+              # composition, so a change to it must run the feature job.
+              - 'docker-compose.sinks.yml'
               - '.github/workflows/ci.yml'
               # Ruling 218: the inventory witness step reads it, so a status edit is judged.
               - 'docs/reference/feature-inventory.md'
