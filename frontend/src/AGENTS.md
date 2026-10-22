@@ -64,7 +64,6 @@ Components are organized by feature area. Each component directory contains:
 | `components/events/`          | Event list and detail components       |
 | `components/exports/`         | Export modal and progress components   |
 | `components/feedback/`        | User feedback collection components    |
-| `components/forms/`           | Reusable form field components         |
 | `components/jobs/`            | Background jobs management page        |
 | `components/layout/`          | Layout, header, and sidebar            |
 | `components/logs/`            | Application logs viewer                |
@@ -783,7 +782,6 @@ Import test utilities from `../test-utils` in test files.
 - `lighthouserc.test.ts` - Lighthouse CI configuration tests
 - `matchers.ts` - Custom test matchers
 - `matchers.test.ts` - Tests for custom matchers
-- `AGENTS.md` - Test directory documentation
 
 ## Application Routes
 

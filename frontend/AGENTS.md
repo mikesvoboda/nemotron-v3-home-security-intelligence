@@ -17,7 +17,7 @@ frontend/
     types/                # TypeScript types (generated from OpenAPI)
     utils/                # Utility functions
     __tests__/            # Additional test files
-  public/                 # Static assets (see public/AGENTS.md)
+  public/                 # Static assets
   tests/                  # Test organization
     e2e/                  # Playwright E2E tests
   node_modules/           # Installed dependencies (git-ignored)
