@@ -1410,3 +1410,401 @@ class TestDismissAlert:
 
             assert result.id == "alert-id"
             assert mock_alert.status == AlertStatusEnum.DISMISSED
+
+
+# =============================================================================
+# Consolidated from backend/tests/unit/routes/test_alerts_routes.py (B4.1 step 2)
+# =============================================================================
+
+
+@pytest.fixture
+def mock_db_session() -> AsyncMock:
+    """Create a mock database session."""
+    session = AsyncMock()
+    session.add = MagicMock()
+    session.commit = AsyncMock()
+    session.refresh = AsyncMock()
+    session.delete = AsyncMock()
+    session.execute = AsyncMock()
+    return session
+
+
+@pytest.fixture
+def mock_cache_service() -> AsyncMock:
+    """Create a mock cache service for unit tests."""
+    cache = AsyncMock()
+    cache.invalidate_alerts = AsyncMock(return_value=1)
+    return cache
+
+
+@pytest.fixture
+def sample_rule() -> AlertRule:
+    """Create a sample alert rule for testing."""
+    import uuid
+
+    return AlertRule(
+        id=str(uuid.uuid4()),
+        name="High Risk Detection",
+        description="Alerts when risk score exceeds threshold",
+        enabled=True,
+        severity=ModelAlertSeverity.HIGH,
+        risk_threshold=70,
+        object_types=["person"],
+        camera_ids=["cam-1"],
+        zone_ids=[],
+        min_confidence=0.8,
+        schedule=None,
+        conditions=None,
+        dedup_key_template="default:{camera_id}",
+        cooldown_seconds=300,
+        channels=["email"],
+        dwell_time_enabled=False,
+        created_at=datetime(2025, 12, 23, 10, 0, 0),
+        updated_at=datetime(2025, 12, 23, 10, 0, 0),
+    )
+
+
+class TestAlertRuleResponseValidation:
+    """Tests for AlertRuleResponse.model_validate with from_attributes."""
+
+    def test_model_validate_with_enum_severity(self, sample_rule: AlertRule) -> None:
+        """Test conversion with enum severity using model_validate."""
+        from backend.api.schemas.alerts import AlertRuleResponse
+
+        result = AlertRuleResponse.model_validate(sample_rule)
+
+        assert result.id == sample_rule.id
+        assert result.name == sample_rule.name
+        assert result.severity == AlertSeverity.HIGH
+
+    def test_model_validate_with_string_severity(self) -> None:
+        """Test conversion with string severity using model_validate."""
+        import uuid
+
+        from backend.api.schemas.alerts import AlertRuleResponse
+
+        rule = AlertRule(
+            id=str(uuid.uuid4()),
+            name="Test Rule",
+            severity="low",
+            enabled=True,
+            dedup_key_template="default",
+            cooldown_seconds=300,
+            channels=["email"],
+            dwell_time_enabled=False,
+            created_at=datetime(2025, 12, 23, 10, 0, 0),
+            updated_at=datetime(2025, 12, 23, 10, 0, 0),
+        )
+
+        result = AlertRuleResponse.model_validate(rule)
+
+        assert result.severity == AlertSeverity.LOW
+
+    def test_model_validate_includes_all_fields(self, sample_rule: AlertRule) -> None:
+        """Test that all required fields are included via model_validate."""
+        from backend.api.schemas.alerts import AlertRuleResponse
+
+        result = AlertRuleResponse.model_validate(sample_rule)
+
+        assert result.id is not None
+        assert result.name is not None
+        assert result.enabled is not None
+        assert result.severity is not None
+        assert result.dedup_key_template is not None
+        assert result.cooldown_seconds is not None
+        assert result.channels is not None
+        assert result.dwell_time_enabled is not None
+        assert result.created_at is not None
+        assert result.updated_at is not None
+
+
+class TestApplyRuleUpdates:
+    """Tests for _apply_rule_updates helper function."""
+
+    def test_apply_simple_fields(self, sample_rule: AlertRule) -> None:
+        """Test updating simple fields."""
+        from backend.api.routes.alerts import _apply_rule_updates
+        from backend.api.schemas.alerts import AlertRuleUpdate
+
+        update_data = AlertRuleUpdate(name="New Name", enabled=False)
+        update_dict = update_data.model_dump(exclude_unset=True)
+
+        _apply_rule_updates(sample_rule, update_data, update_dict)
+
+        assert sample_rule.name == "New Name"
+        assert sample_rule.enabled is False
+
+    def test_apply_severity_update(self, sample_rule: AlertRule) -> None:
+        """Test updating severity field."""
+        from backend.api.routes.alerts import _apply_rule_updates
+        from backend.api.schemas.alerts import AlertRuleUpdate
+
+        update_data = AlertRuleUpdate(severity=AlertSeverity.CRITICAL)
+        update_dict = update_data.model_dump(exclude_unset=True)
+
+        _apply_rule_updates(sample_rule, update_data, update_dict)
+
+        assert sample_rule.severity == ModelAlertSeverity.CRITICAL
+
+    def test_apply_schedule_update(self, sample_rule: AlertRule) -> None:
+        """Test updating schedule field."""
+        from backend.api.routes.alerts import _apply_rule_updates
+        from backend.api.schemas.alerts import AlertRuleSchedule, AlertRuleUpdate
+
+        schedule = AlertRuleSchedule(days_of_week=[1, 2, 3], start_hour=9, end_hour=17)
+        update_data = AlertRuleUpdate(schedule=schedule)
+        update_dict = update_data.model_dump(exclude_unset=True)
+
+        _apply_rule_updates(sample_rule, update_data, update_dict)
+
+        assert sample_rule.schedule is not None
+
+    def test_apply_null_schedule_update(self, sample_rule: AlertRule) -> None:
+        """Test clearing schedule field."""
+        from backend.api.routes.alerts import _apply_rule_updates
+        from backend.api.schemas.alerts import AlertRuleUpdate
+
+        sample_rule.schedule = {"days_of_week": [0, 6]}
+        update_data = AlertRuleUpdate(schedule=None)
+        update_dict = {"schedule": None}
+
+        _apply_rule_updates(sample_rule, update_data, update_dict)
+
+        assert sample_rule.schedule is None
+
+    def test_apply_conditions_update(self, sample_rule: AlertRule) -> None:
+        """Test updating conditions field."""
+        from backend.api.routes.alerts import _apply_rule_updates
+        from backend.api.schemas.alerts import AlertRuleConditions, AlertRuleUpdate
+
+        conditions = AlertRuleConditions(
+            logic="and",
+            conditions=[{"field": "risk_score", "operator": ">=", "value": 80}],
+        )
+        update_data = AlertRuleUpdate(conditions=conditions)
+        update_dict = update_data.model_dump(exclude_unset=True)
+
+        _apply_rule_updates(sample_rule, update_data, update_dict)
+
+        assert sample_rule.conditions is not None
+
+
+class TestCacheInvalidation:
+    """Tests for cache invalidation on alert rule mutation endpoints."""
+
+    @pytest.fixture
+    def client_with_cache(
+        self, mock_db_session: AsyncMock, mock_cache_service: AsyncMock
+    ) -> object:
+        """Create a test client with mocked dependencies including cache."""
+        from fastapi import FastAPI
+        from fastapi.testclient import TestClient
+
+        from backend.api.dependencies import get_cache_service_dep
+        from backend.api.routes.alerts import router
+        from backend.core.database import get_db
+
+        app = FastAPI()
+        app.include_router(router)
+
+        async def override_get_db():
+            yield mock_db_session
+
+        async def override_get_cache():
+            yield mock_cache_service
+
+        app.dependency_overrides[get_db] = override_get_db
+        app.dependency_overrides[get_cache_service_dep] = override_get_cache
+
+        with TestClient(app) as test_client:
+            yield test_client
+
+    def test_create_rule_invalidates_cache(
+        self,
+        client_with_cache: object,
+        mock_db_session: AsyncMock,
+        mock_cache_service: AsyncMock,
+    ) -> None:
+        """Test that creating a rule invalidates alert caches."""
+        import uuid
+
+        from backend.core.constants import CacheInvalidationReason
+
+        async def mock_refresh(rule):
+            rule.id = str(uuid.uuid4())
+            rule.created_at = datetime(2025, 12, 23, 10, 0, 0)
+            rule.updated_at = datetime(2025, 12, 23, 10, 0, 0)
+            rule.dedup_key_template = rule.dedup_key_template or "default"
+
+        mock_db_session.refresh = mock_refresh
+
+        rule_data = {
+            "name": "Test Rule",
+            "severity": "high",
+            "risk_threshold": 70,
+            "enabled": True,
+        }
+
+        response = client_with_cache.post("/api/alerts/rules", json=rule_data)  # type: ignore[attr-defined]
+
+        assert response.status_code == 201
+        mock_cache_service.invalidate_alerts.assert_called_once_with(
+            reason=CacheInvalidationReason.ALERT_RULE_CREATED
+        )
+
+    def test_update_rule_invalidates_cache(
+        self,
+        client_with_cache: object,
+        mock_db_session: AsyncMock,
+        mock_cache_service: AsyncMock,
+        sample_rule: AlertRule,
+    ) -> None:
+        """Test that updating a rule invalidates alert caches."""
+        from backend.core.constants import CacheInvalidationReason
+
+        mock_result = MagicMock()
+        mock_result.scalar_one_or_none.return_value = sample_rule
+        mock_db_session.execute.return_value = mock_result
+
+        response = client_with_cache.put(  # type: ignore[attr-defined]
+            f"/api/alerts/rules/{sample_rule.id}",
+            json={"name": "Updated Name"},
+        )
+
+        assert response.status_code == 200
+        mock_cache_service.invalidate_alerts.assert_called_once_with(
+            reason=CacheInvalidationReason.ALERT_RULE_UPDATED
+        )
+
+    def test_delete_rule_invalidates_cache(
+        self,
+        client_with_cache: object,
+        mock_db_session: AsyncMock,
+        mock_cache_service: AsyncMock,
+        sample_rule: AlertRule,
+    ) -> None:
+        """Test that deleting a rule invalidates alert caches."""
+        from backend.core.constants import CacheInvalidationReason
+
+        mock_result = MagicMock()
+        mock_result.scalar_one_or_none.return_value = sample_rule
+        mock_db_session.execute.return_value = mock_result
+
+        response = client_with_cache.delete(f"/api/alerts/rules/{sample_rule.id}")  # type: ignore[attr-defined]
+
+        assert response.status_code == 204
+        mock_cache_service.invalidate_alerts.assert_called_once_with(
+            reason=CacheInvalidationReason.ALERT_RULE_DELETED
+        )
+
+    def test_cache_invalidation_failure_does_not_fail_request(
+        self,
+        client_with_cache: object,
+        mock_db_session: AsyncMock,
+        mock_cache_service: AsyncMock,
+    ) -> None:
+        """Test that cache invalidation failure does not cause the request to fail."""
+        import uuid
+
+        async def mock_refresh(rule):
+            rule.id = str(uuid.uuid4())
+            rule.created_at = datetime(2025, 12, 23, 10, 0, 0)
+            rule.updated_at = datetime(2025, 12, 23, 10, 0, 0)
+            rule.dedup_key_template = rule.dedup_key_template or "default"
+
+        mock_db_session.refresh = mock_refresh
+        mock_cache_service.invalidate_alerts.side_effect = Exception("Redis connection error")
+
+        rule_data = {
+            "name": "Test Rule",
+            "severity": "high",
+            "risk_threshold": 70,
+            "enabled": True,
+        }
+
+        response = client_with_cache.post("/api/alerts/rules", json=rule_data)  # type: ignore[attr-defined]
+
+        assert response.status_code == 201
+
+
+class TestOptimisticLocking:
+    """Tests for optimistic locking on alert state changes."""
+
+    @pytest.fixture
+    def alert_client(self, mock_db_session: AsyncMock) -> object:
+        """Create a test client with mocked dependencies for alert instance endpoints."""
+        from fastapi import FastAPI
+        from fastapi.testclient import TestClient
+
+        from backend.api.routes.alerts import alerts_instance_router
+        from backend.core.database import get_db
+
+        app = FastAPI()
+        app.include_router(alerts_instance_router)
+
+        async def override_get_db():
+            yield mock_db_session
+
+        app.dependency_overrides[get_db] = override_get_db
+
+        with TestClient(app) as test_client:
+            yield test_client
+
+    @pytest.fixture
+    def sample_alert(self) -> Alert:
+        """Create a sample alert for testing."""
+        import uuid
+
+        return Alert(
+            id=str(uuid.uuid4()),
+            event_id=1,
+            rule_id=str(uuid.uuid4()),
+            severity=ModelAlertSeverity.HIGH,
+            status=AlertStatusEnum.PENDING,
+            dedup_key="test:dedup:key",
+            channels=["push"],
+            alert_metadata={"test": "data"},
+            created_at=datetime(2025, 12, 23, 10, 0, 0),
+            updated_at=datetime(2025, 12, 23, 10, 0, 0),
+            version_id=1,
+        )
+
+    def test_acknowledge_concurrent_modification_returns_409(
+        self, alert_client: object, mock_db_session: AsyncMock, sample_alert: Alert
+    ) -> None:
+        """Test concurrent modification during acknowledge returns 409 Conflict."""
+        from sqlalchemy.orm.exc import StaleDataError
+
+        mock_result = MagicMock()
+        mock_result.scalar_one_or_none.return_value = sample_alert
+        mock_db_session.execute.return_value = mock_result
+        mock_db_session.commit.side_effect = StaleDataError(
+            "UPDATE statement on table 'alerts' expected to update 1 row(s); 0 were matched."
+        )
+
+        response = alert_client.post(f"/api/alerts/{sample_alert.id}/acknowledge")  # type: ignore[attr-defined]
+
+        assert response.status_code == 409
+        data = response.json()
+        assert "modified by another request" in data["detail"].lower()
+        mock_db_session.rollback.assert_called_once()
+
+    def test_dismiss_concurrent_modification_returns_409(
+        self, alert_client: object, mock_db_session: AsyncMock, sample_alert: Alert
+    ) -> None:
+        """Test concurrent modification during dismiss returns 409 Conflict."""
+        from sqlalchemy.orm.exc import StaleDataError
+
+        mock_result = MagicMock()
+        mock_result.scalar_one_or_none.return_value = sample_alert
+        mock_db_session.execute.return_value = mock_result
+        mock_db_session.commit.side_effect = StaleDataError(
+            "UPDATE statement on table 'alerts' expected to update 1 row(s); 0 were matched."
+        )
+
+        response = alert_client.post(f"/api/alerts/{sample_alert.id}/dismiss")  # type: ignore[attr-defined]
+
+        assert response.status_code == 409
+        data = response.json()
+        assert "modified by another request" in data["detail"].lower()
+        mock_db_session.rollback.assert_called_once()

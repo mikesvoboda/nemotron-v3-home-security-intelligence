@@ -264,9 +264,10 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
 # copy shrinks the runtime image and cuts scan surface. `cp -L` because the
 # removal must not strand a symlink, and `py-spy --version` runs AFTER the rm so
 # a cleanup that broke the profiler fails the BUILD instead of shipping.
-# (This does NOT address the Trivy msgpack/setuptools findings — those are pip's
-#  VENDORED copies, see .trivyignore. Verified by listing the built image: the
-#  only dist-info present are msgpack-1.2.2 and setuptools-84.0.0, both clean.)
+# (This does NOT address pip's vendored findings — pip itself is removed further
+#  down this stage (r295), which retires that whole class and the five
+#  .trivyignore entries. Verified by listing the built image: the only dist-info
+#  present are msgpack-1.2.2 and setuptools-84.0.0, both clean.)
 COPY --from=ghcr.io/astral-sh/uv:latest /uv /usr/local/bin/uv
 RUN uv tool install py-spy && \
     cp -L /root/.local/bin/py-spy /usr/local/bin/py-spy && \
@@ -277,6 +278,27 @@ RUN uv tool install py-spy && \
 
 # Copy profiler script
 COPY --chmod=755 scripts/pyroscope-profiler.sh /usr/local/bin/pyroscope-profiler.sh
+
+# Drop pip from the image (r295). pip 26.2.1 ships IN the python:3.14-slim-
+# bookworm base image — its package tree (with the _vendor bundle Trivy reports
+# under the bare "Python (python-pkg)" target), its dist-info, and its
+# pip/pip3/pip3.14 entry scripts (all measured in the base image, 2026-10-21).
+# Nothing in this stage needs it: uv does every install, the app's venv comes
+# in via COPY from the builder, and the app names pip only in "Install with: …"
+# error strings. Every vendored finding this class produced (msgpack
+# GHSA-6v7p-g79w-8964, setuptools CVE-2025-47273, urllib3 CVE-2026-97687/97689,
+# certifi GHSA-6q48-6c7w-9gw2) leaves the image with it, and the five
+# .trivyignore entries leave the register in the same PR (ruling 295). The
+# image's own pip wheels under ensurepip's _bundled/ are stdlib data, not an
+# installed package — no scan target reads them, so they stay. Runs while the
+# stage is still root (before USER appuser) because pip's files are root-owned.
+# Guard: TestPipLeavesTheProdImage / TestPipBundleEntriesLeaveTheRegister.
+# hadolint ignore=DL3008 — see the apt RUN above for the pin-shape precedent.
+RUN rm -rf /usr/local/lib/python3.14/site-packages/pip \
+         /usr/local/lib/python3.14/site-packages/pip-26.2.1.dist-info \
+         /usr/local/bin/pip /usr/local/bin/pip3 /usr/local/bin/pip3.14 \
+    && test ! -e /usr/local/lib/python3.14/site-packages/pip \
+    && test ! -e /usr/local/bin/pip
 
 # Create non-root user for security (no login shell for additional security)
 RUN useradd -m -u 1000 -s /usr/sbin/nologin appuser

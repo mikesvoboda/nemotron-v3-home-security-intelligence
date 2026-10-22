@@ -53,6 +53,18 @@ the two builds, the same MOVED-TODAY class as pcre2. ``TestProdStageUpgradesPerl
 pins the prod-stage upgrade (RED until the Dockerfile carries it) and
 ``TestPerlBaseCvesStayOutOfIgnore`` pins that a fix-available finding never
 slides into the ignore register instead.
+
+2026-10-21 extension (r295: pip leaves the production image). Measured in the
+base image itself (``docker run python:3.14-slim-bookworm``): pip 26.2.1 ships
+IN the base image at ``/usr/local/lib/python3.14/site-packages/pip`` (plus its
+dist-info and pip/pip3/pip3.14 entry scripts), which is where every pip-vendored
+finding lives — certifi GHSA-6q48-6c7w-9gw2 (CRITICAL) reddened ``Scan Backend
+Image`` at run 39528289094 and drove the package. The ``TestVendoredUrllib3Documented``
+pin that the urllib3 pair must STAY in ``.trivyignore`` is inverted here:
+``TestPipBundleEntriesLeaveTheRegister`` pins all five pip-bundle entries OUT
+once pip is gone, and ``TestPipLeavesTheProdImage`` pins the prod-stage removal
+(RED until the Dockerfile carries it, UR-69). The app's urllib3 forward guard
+below is unchanged — a lock downgrade is a real finding, not pip's copy.
 """
 
 from __future__ import annotations
@@ -79,6 +91,18 @@ LIBEXPAT_CVES = (
 
 # pip 26.2.1's vendored urllib3 findings (python-pkg, bare "Python" target)
 VENDORED_URLLIB3_CVES = ("CVE-2026-97687", "CVE-2026-97689")
+
+# The five pip-vendored findings .trivyignore carried for pip 26.2.1's _vendor
+# bundle in the python:3.14-slim-bookworm base image. r295 removes pip from the
+# prod image, so all five leave the register in the same PR (ruling 295) — the
+# constant now lives to pin them OUT (see TestPipBundleEntriesLeaveTheRegister).
+VENDORED_PIP_BUNDLE_ENTRIES = (
+    "GHSA-6v7p-g79w-8964",  # msgpack 1.1.2 vendored in pip/_vendor
+    "CVE-2025-47273",  # setuptools 70.3.0 vendored in pip/_vendor
+    "CVE-2026-97687",  # urllib3 2.7.0 vendored in pip/_vendor
+    "CVE-2026-97689",  # urllib3 2.7.0 vendored in pip/_vendor
+    "GHSA-6q48-6c7w-9gw2",  # certifi 2026.6.17 vendored in pip/_vendor
+)
 
 # pcre2 CVE-2026-103111 (HIGH, out-of-bounds write) is the ONE finding both
 # image scans carried RED at tip 6b33a2af — the fix exists on both distros, so
@@ -366,22 +390,124 @@ class TestProdStagePatchesLibexpat:
         )
 
 
-class TestVendoredUrllib3Documented:
-    def test_trivyignore_carries_vendored_urllib3_ids(self) -> None:
-        """.trivyignore must carry the two vendored urllib3 CVEs, dated.
+class TestPipLeavesTheProdImage:
+    """r295: pip and its _vendor bundle are removed from the prod image.
 
-        These are pip's private copy (pip/_vendor/vendor.txt: urllib3==2.7.0
-        for pip 26.2.1 — verified from the wheel, not inferred). There is no
-        repo-side fix short of stripping pip from the image; the file's own
-        msgpack/setuptools section already records that class. Silent ignores
-        are forbidden: every entry needs the mechanism comment and a
-        REVIEW BY date the expiry checker can police.
+    The whole pip-vendored finding class (msgpack GHSA-6v7p-g79w-8964,
+    setuptools CVE-2025-47273, urllib3 CVE-2026-97687/97689, certifi
+    GHSA-6q48-6c7w-9gw2) lives in pip's own site-packages tree in the
+    python:3.14-slim-bookworm base image — measured 2026-10-21 with
+    ``docker run python:3.14-slim-bookworm python -c "import pip; print(pip.__file__)"``
+    → ``/usr/local/lib/python3.14/site-packages/pip/__init__.py`` (pip 26.2.1,
+    plus pip3/pip3.14 entry scripts and a pip-26.2.1.dist-info). Nothing in the
+    prod stage calls pip (uv does every install; the venv arrives via COPY from
+    the builder), and the app only names pip in "Install with: pip install …"
+    error strings. So the lever is removal, and the five entries leave
+    .trivyignore in the same PR. Removing the venv or uv would be a regression —
+    the removal is scoped to pip's own files.
+    """
+
+    def test_prod_stage_carries_the_pip_removal(self) -> None:
+        """The prod stage must carry a RUN that removes pip, red first (UR-69).
+
+        The removal must come after the last step that needs pip and must name
+        pip's three real surfaces in the base image: the site-packages package
+        (where the _vendor bundle Trivy reports lives), the dist-info, and the
+        /usr/local/bin entry scripts. Measured in the base image: pip 26.2.1
+        occupies exactly ``/usr/local/lib/python3.14/site-packages/pip``,
+        ``pip-26.2.1.dist-info``, and the pip/pip3/pip3.14 scripts.
+        """
+        stage = _prod_stage()
+        # One logical line per RUN instruction — the rm's own line only, so
+        # paths later in the stage (COPY /app/.venv, …) cannot leak into it.
+        rm_lines = [
+            ln for ln in _logical_lines(stage) if re.search(r"rm\s+-rf\s", ln) and "pip" in ln
+        ]
+        assert rm_lines, (
+            "backend/Dockerfile prod stage has no pip removal — the pip-vendored "
+            f"finding class ({', '.join(VENDORED_PIP_BUNDLE_ENTRIES)}) sits in "
+            "pip 26.2.1's own site-packages tree in the python:3.14-slim-bookworm "
+            "base image; dropping pip removes the class for good (ruling 295)"
+        )
+        frag = "\n".join(rm_lines)
+        # the removed tree must be pip's OWN file set: the site-packages copy
+        # (with _vendor) and the entry scripts. The venv and uv stay.
+        assert "/usr/local/lib/python3.14/site-packages/pip" in frag, (
+            "the prod stage pip removal does not name pip's site-packages tree "
+            "(/usr/local/lib/python3.14/site-packages/pip) — that is where the "
+            "_vendor bundle Trivy reports under the bare Python (python-pkg) "
+            "target lives"
+        )
+        assert "/usr/local/bin/pip" in frag, (
+            "the prod stage pip removal does not remove the pip/pip3/pip3.14 "
+            "entry scripts in /usr/local/bin — a pip left on PATH invites "
+            "accidental installs into the system interpreter at runtime"
+        )
+        assert "/app/.venv" not in frag, (
+            "the pip removal must not touch /app/.venv — the venv stays (ruling 295)"
+        )
+        # uv must NOT be removed anywhere in the stage while pip is: check
+        # every rm in the stage for a target that is the uv BINARY itself
+        # (path or command word), not merely a line that invokes uv.
+        uv_rm = [
+            ln
+            for ln in _logical_lines(stage)
+            if re.search(r"rm\s+-rf\s", ln) and re.search(r"bin/uv\b|/uv\b|uv\s*$", ln)
+        ]
+        assert not uv_rm, f"the prod stage removes uv ({'; '.join(uv_rm)}) — uv stays (ruling 295)"
+
+    def test_prod_stage_removal_runs_before_user_switch(self) -> None:
+        """The removal happens while the stage is still root, before USER.
+
+        pip's files are owned by root in the base image, so a removal after
+        ``USER appuser`` would fail (or need a chown). The RUN must sit in the
+        root-owned prefix of the stage — ordering pinned so a later edit cannot
+        move the rm below the user switch and break the build.
+        """
+        stage = _prod_stage()
+        lines = [ln for ln in _logical_lines(stage) if not ln.lstrip().startswith("#")]
+        rm_at = next(
+            (i for i, ln in enumerate(lines) if re.search(r"rm\s+-rf\s+[^\n]*pip", ln)),
+            None,
+        )
+        user_at = next(
+            (i for i, ln in enumerate(lines) if re.match(r"^USER\s+\S", ln.strip())),
+            None,
+        )
+        assert rm_at is not None, "no pip-removal RUN in the prod stage (pinned above)"
+        assert user_at is not None, "prod stage has no USER directive (base contract)"
+        assert rm_at < user_at, (
+            "the pip-removal RUN sits after the USER switch — pip's files are "
+            "root-owned in the base image, so the rm would fail the build"
+        )
+
+
+class TestPipBundleEntriesLeaveTheRegister:
+    def test_trivyignore_does_not_carry_pip_bundle_ids(self) -> None:
+        """The five pip-bundle entries leave .trivyignore with pip itself.
+
+        With pip removed from the image there is no vendored copy for these to
+        match, so the entries become dead register — and a dead entry hides a
+        REAL finding: if pip ever re-enters the image (or the scanner reports
+        the same IDs for a different target), an ignore would mute it. The
+        five were measured 2026-10-21 in pip 26.2.1's _vendor bundle
+        (python:3.14-slim-bookworm); re-adding one needs that same quality of
+        evidence: pip present in the image again, and a rebuild that still
+        reports it.
         """
         text = TRIVYIGNORE.read_text()
-        for cve in VENDORED_URLLIB3_CVES:
-            assert re.search(rf"{cve}.*REVIEW BY: (\d{{4}}-\d{{2}}-\d{{2}})", text), (
-                f"{cve} missing from .trivyignore (or undated) — it is a pip-vendored finding and must be an explicitly-reviewed entry"
-            )
+        alive = re.findall(
+            r"^(CVE-[0-9]{4}-[0-9]+|GHSA-[a-z0-9]{4}-[a-z0-9]{4}-[a-z0-9]{4})$",
+            text,
+            re.MULTILINE,
+        )
+        back = sorted(set(VENDORED_PIP_BUNDLE_ENTRIES) & set(alive))
+        assert not back, (
+            f".trivyignore re-grew pip-bundle entries: {', '.join(back)} — "
+            "the prod image no longer carries pip (ruling 295), so these "
+            "suppress nothing; re-adding requires pip back in the image "
+            "and a scan that still reports it"
+        )
 
 
 class TestProdStageUpgradesPcre2:
