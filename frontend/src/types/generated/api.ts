@@ -15216,9 +15216,6 @@ export interface components {
         /**
          * BackupContentInfo
          * @description Information about a single backup content type.
-         *
-         *     Stored inside the backup manifest to track what data is included
-         *     and verify integrity via checksum.
          */
         BackupContentInfo: {
             /**
@@ -15235,18 +15232,12 @@ export interface components {
         /**
          * BackupJobCreate
          * @description Schema for creating a backup job (no parameters needed for full backup).
-         *
-         *     Full system backups export all data without filters. Simply POST
-         *     to the endpoint to create a new backup job.
          * @example {}
          */
         BackupJobCreate: Record<string, never>;
         /**
          * BackupJobProgress
          * @description Progress information for a backup job.
-         *
-         *     Tracks how many tables have been exported and the overall
-         *     progress percentage.
          */
         BackupJobProgress: {
             /**
@@ -15269,16 +15260,13 @@ export interface components {
             /**
              * Total Tables
              * @description Total tables to export
-             * @default 8
+             * @default 12
              */
             total_tables: number;
         };
         /**
          * BackupJobResponse
          * @description Full status response for a backup job.
-         *
-         *     Complete status information for a backup job, including progress,
-         *     timing, result, and any error information.
          */
         BackupJobResponse: {
             /**
@@ -15326,9 +15314,6 @@ export interface components {
         /**
          * BackupJobStartResponse
          * @description Response when creating a backup job.
-         *
-         *     Returns the job ID that can be used to track progress via
-         *     GET /api/backup/{job_id}.
          * @example {
          *       "job_id": "019478a1-b2c3-7def-8901-234567890abc",
          *       "message": "Backup job created. Use GET /api/backup/{job_id} to track progress.",
@@ -15361,8 +15346,6 @@ export interface components {
         /**
          * BackupListItem
          * @description Summary item for backup list.
-         *
-         *     Lightweight representation of a backup for list views.
          */
         BackupListItem: {
             /**
@@ -15386,6 +15369,11 @@ export interface components {
              * @description Backup ID
              */
             id: string;
+            /**
+             * Label
+             * @description Optional label (e.g. safety backup note)
+             */
+            label?: string | null;
             /** @description Job status */
             status: components["schemas"]["BackupJobStatus"];
         };
@@ -15406,10 +15394,6 @@ export interface components {
         /**
          * BackupManifest
          * @description Manifest file stored inside backup ZIP.
-         *
-         *     The manifest is written as manifest.json at the root of the backup
-         *     archive. It contains metadata about the backup and checksums for
-         *     all included data files.
          */
         BackupManifest: {
             /**
@@ -15424,7 +15408,7 @@ export interface components {
             backup_id: string;
             /**
              * Contents
-             * @description Map of content type to info (events, alerts, cameras, etc.)
+             * @description Map of content type to info
              */
             contents?: {
                 [key: string]: components["schemas"]["BackupContentInfo"];
@@ -15436,8 +15420,18 @@ export interface components {
              */
             created_at: string;
             /**
+             * Installation Id
+             * @description Identifier of the installation that created the backup
+             */
+            installation_id?: string | null;
+            /**
+             * Label
+             * @description Optional label (e.g. 'before restore of <backup> at <time>')
+             */
+            label?: string | null;
+            /**
              * Version
-             * @description Backup format version (e.g., '1.0')
+             * @description Backup format version (e.g., '1.1')
              */
             version: string;
         };
@@ -34833,9 +34827,6 @@ export interface components {
         /**
          * RestoreJobProgress
          * @description Progress information for a restore job.
-         *
-         *     Tracks how many tables have been restored and the overall
-         *     progress percentage.
          */
         RestoreJobProgress: {
             /**
@@ -34858,18 +34849,22 @@ export interface components {
             /**
              * Total Tables
              * @description Total tables to restore
-             * @default 8
+             * @default 12
              */
             total_tables: number;
         };
         /**
          * RestoreJobResponse
          * @description Full status response for a restore job.
-         *
-         *     Complete status information for a restore job, including progress,
-         *     source backup info, timing, result, and any error information.
          */
         RestoreJobResponse: {
+            /**
+             * Added Rows
+             * @description Added rows by name per table
+             */
+            added_rows?: {
+                [key: string]: string[];
+            } | null;
             /**
              * Backup Created At
              * @description When source backup was created
@@ -34880,6 +34875,11 @@ export interface components {
              * @description Source backup ID from manifest
              */
             backup_id?: string | null;
+            /**
+             * Cleared Known Person Links
+             * @description Household member names whose known-person links were cleared
+             */
+            cleared_known_person_links?: string[] | null;
             /**
              * Completed At
              * @description Job completion timestamp
@@ -34910,19 +34910,38 @@ export interface components {
             } | null;
             progress?: components["schemas"]["RestoreJobProgress"];
             /**
+             * Safety Backup Id
+             * @description Automatic safety backup job ID created before restore
+             */
+            safety_backup_id?: string | null;
+            /**
+             * Same Installation
+             * @description Whether the restored archive came from this installation
+             */
+            same_installation?: boolean | null;
+            /**
+             * Skipped Tables
+             * @description Tables skipped by version adapter (e.g. events, alerts on 1.0 archives)
+             */
+            skipped_tables?: string[] | null;
+            /**
              * Started At
              * @description Job start timestamp
              */
             started_at?: string | null;
             /** @description Current job status */
             status: components["schemas"]["RestoreJobStatus"];
+            /**
+             * Tables
+             * @description Per-table restore breakdown (updated, inserted, replaced, kept)
+             */
+            tables?: {
+                [key: string]: components["schemas"]["TableRestoreSummary"];
+            } | null;
         };
         /**
          * RestoreJobStartResponse
          * @description Response when starting a restore job.
-         *
-         *     Returns the job ID that can be used to track progress via
-         *     GET /api/backup/restore/{job_id}.
          */
         RestoreJobStartResponse: {
             /**
@@ -37287,6 +37306,36 @@ export interface components {
              * @description Application uptime in seconds
              */
             uptime_seconds: number;
+        };
+        /**
+         * TableRestoreSummary
+         * @description Per-table restore statistics.
+         */
+        TableRestoreSummary: {
+            /**
+             * Inserted
+             * @description Rows added
+             * @default 0
+             */
+            inserted: number;
+            /**
+             * Kept
+             * @description Existing rows not in the backup and kept
+             * @default 0
+             */
+            kept: number;
+            /**
+             * Replaced
+             * @description Rows replaced (e.g. baselines)
+             * @default 0
+             */
+            replaced: number;
+            /**
+             * Updated
+             * @description Rows updated in place
+             * @default 0
+             */
+            updated: number;
         };
         /**
          * TargetHealth
