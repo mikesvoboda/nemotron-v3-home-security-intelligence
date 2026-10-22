@@ -453,14 +453,25 @@ async def test_list_backups_excludes_pending_and_failed(
 
 
 @pytest.mark.asyncio
-async def test_get_backup_status_not_found(client: AsyncClient, mock_redis, integration_db):
-    """Test get backup status returns 404 for non-existent job.
-
-    Uses a valid-format UUID: the id column is UUID-typed, so a malformed id
-    fails driver-side parameter encoding (503) before the lookup. 404 is about
-    the job not existing, which a well-formed unknown UUID exercises.
-    """
-    response = await client.get(f"/api/backup/{uuid4()}")
+@pytest.mark.parametrize(
+    ("method", "path_template"),
+    [
+        ("get", "/api/backup/{job_id}"),
+        ("get", "/api/backup/{job_id}/download"),
+        ("delete", "/api/backup/{job_id}"),
+        ("get", "/api/backup/restore/{job_id}"),
+    ],
+)
+async def test_backup_endpoint_not_found(
+    client: AsyncClient,
+    mock_redis,
+    integration_db,
+    method: str,
+    path_template: str,
+):
+    """Test backup/restore endpoints return 404 for a non-existent well-formed UUID."""
+    request_fn = getattr(client, method)
+    response = await request_fn(path_template.format(job_id=uuid4()))
 
     assert response.status_code == 404
     data = response.json()
@@ -539,17 +550,6 @@ async def test_get_backup_status_with_manifest(
 # =============================================================================
 # Backup Download Tests
 # =============================================================================
-
-
-@pytest.mark.asyncio
-async def test_download_backup_not_found(client: AsyncClient, mock_redis, integration_db):
-    """Test downloading non-existent backup returns 404 (valid-format unknown id; see
-    test_get_backup_status_not_found for why a malformed id cannot reach the lookup)."""
-    response = await client.get(f"/api/backup/{uuid4()}/download")
-
-    assert response.status_code == 404
-    data = response.json()
-    assert "detail" in data
 
 
 @pytest.mark.asyncio
@@ -641,16 +641,6 @@ async def test_download_completed_backup_returns_zip(
 # =============================================================================
 # Backup Deletion Tests
 # =============================================================================
-
-
-@pytest.mark.asyncio
-async def test_delete_backup_not_found(client: AsyncClient, mock_redis, integration_db):
-    """Test deleting non-existent backup returns 404."""
-    response = await client.delete(f"/api/backup/{uuid4()}")
-
-    assert response.status_code == 404
-    data = response.json()
-    assert "detail" in data
 
 
 @pytest.mark.asyncio
@@ -844,16 +834,6 @@ async def test_restore_job_progress_tracking(client: AsyncClient, mock_redis, in
 # =============================================================================
 # Restore Status Tests
 # =============================================================================
-
-
-@pytest.mark.asyncio
-async def test_get_restore_status_not_found(client: AsyncClient, mock_redis, integration_db):
-    """Test get restore status returns 404 for non-existent job."""
-    response = await client.get(f"/api/backup/restore/{uuid4()}")
-
-    assert response.status_code == 404
-    data = response.json()
-    assert "detail" in data
 
 
 @pytest.mark.asyncio
