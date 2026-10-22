@@ -209,6 +209,7 @@ UR-147.
 | B4.4    | backend                 | 4          | Trash purger                                   | heavy         | awaiting real tier | #7347, #7354 |
 | B4.6    | backend                 | 4          | Restore from backup                            | heavy         | awaiting real tier | #7345, #7350, #7358 |
 | B4.7    | backend                 | 4          | Arming core                                    | heavy         | awaiting real tier | #7357, #7361 |
+| B4.11   | backend                 | 4          | System status (expand)                         | heavy · owner | in progress | #7366 |
 | BB.\*   | backend                 | 4          | Background track                               |               | not started |     |
 | F4.\*   | frontend                | 4          | Feature track, frontend parts                  | design: heavy | not started |     |
 | F4.4    | frontend                | 4          | Timeline filters and detections                |               | awaiting real tier | #7352, #7362 |
