@@ -376,7 +376,7 @@ Design: [`../4n-alerting.md`](../4n-alerting.md), "Packages" row 2. Covers F-236
 ### B4.3 The Web Push channel
 
 **Flags:** none. **Assigned:** backend, after `B4.2` (ruling 308). **Depends on:** `B4.2`.
-**PR:** #7371. (ruling 308, record 6326364266)
+**PR:** #7371, #7372. (ruling 308, record 6326364266)
 
 Design: [`../4n-alerting.md`](../4n-alerting.md), "Packages" row 3.
 
