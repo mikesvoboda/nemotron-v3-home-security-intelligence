@@ -778,10 +778,37 @@ class VlmAnalyzer:
             return None
         try:
             raw = await self._redis.get(f"batch_event:{batch_id}")
-            return int(raw) if raw is not None else None
+            if raw is None:
+                return None
+            event_id = int(raw)
         except Exception as exc:  # pragma: no cover - defensive
             logger.warning("vlm idempotency check failed", extra={"error": str(exc)})
             return None
+        if not getattr(self, "_replay", False):
+            await self._ensure_alert_pipeline(event_id)
+        return event_id
+
+    async def _ensure_alert_pipeline(self, event_id: int) -> None:
+        """Run AlertPipeline.process on an idempotency-hit event when backed by AsyncSession (F4)."""
+        try:
+            async with get_session() as session:
+                if isinstance(session, AsyncSession):
+                    from backend.services.alerting.pipeline import AlertPipeline
+
+                    pipeline = AlertPipeline(redis_client=self._redis)
+                    res = await pipeline._process_in_session(
+                        session,
+                        event_id,
+                        now=utc_now(),
+                        specialists=None,
+                    )
+                    await session.commit()
+                    await pipeline._publish_alerts(res.created_alerts, res.updated_alerts)
+        except Exception as exc:  # pragma: no cover - defensive
+            logger.warning(
+                "alert pipeline on idempotency hit failed",
+                extra={"event_id": event_id, "error": str(exc)},
+            )
 
     async def _set_idempotency(self, batch_id: str, event_id: int) -> None:
         if not self._redis:
@@ -1004,6 +1031,19 @@ class VlmAnalyzer:
         notify: bool | None = None
         try:
             async with get_session() as session:
+                if isinstance(session, AsyncSession):
+                    from backend.services.alerting.pipeline import AlertPipeline, _ensure_utc
+
+                    pipeline = AlertPipeline(redis_client=self._redis)
+                    res = await pipeline._process_in_session(
+                        session,
+                        event_id,
+                        now=_ensure_utc(timestamp, utc_now()),
+                        specialists=None,
+                    )
+                    await session.commit()
+                    await pipeline._publish_alerts(res.created_alerts, res.updated_alerts)
+                    return res.notify
                 notify = await decide_notification(session, **kwargs)
                 await self._persist_notify_decision(session, event_id, notify)
         except Exception as exc:

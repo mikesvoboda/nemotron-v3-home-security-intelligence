@@ -195,7 +195,7 @@ class TestAlertStatusEnum:
 
     def test_alert_status_count(self):
         """Test AlertStatus has expected number of values."""
-        assert len(AlertStatus) == 4
+        assert len(AlertStatus) == 5
 
 
 # =============================================================================

@@ -1207,6 +1207,7 @@ class WebSocketAlertStatus(StrEnum):
     Mirrors backend.models.alert.AlertStatusEnum for WebSocket message validation.
     """
 
+    OPEN = auto()
     PENDING = auto()
     DELIVERED = auto()
     ACKNOWLEDGED = auto()

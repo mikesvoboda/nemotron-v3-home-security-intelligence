@@ -205,7 +205,7 @@ UR-147.
 | O3.6    | ops                     | 3          | PR mutation evidence tool (`01` M4)            | heavy         | done        | #7251 |
 | O3.7    | ops                     | 3          | `scripts/` truth                               |               | done        | #7329 |
 | B4.\*   | backend                 | 4          | Feature track (arming among them, UR-12)       | design: heavy | not started |     |
-| B4.1    | backend                 | 4          | Alert pipeline core                            | heavy         | in progress | #7335 |
+| B4.1    | backend                 | 4          | Alert pipeline core                            | heavy         | awaiting real tier | #7335, #7342 |
 | B4.4    | backend                 | 4          | Trash purger                                   | heavy         | in progress | #7347 |
 | BB.\*   | backend                 | 4          | Background track                               |               | not started |     |
 | F4.\*   | frontend                | 4          | Feature track, frontend parts                  | design: heavy | not started |     |
