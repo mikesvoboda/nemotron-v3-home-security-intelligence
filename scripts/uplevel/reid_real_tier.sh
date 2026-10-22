@@ -1023,6 +1023,15 @@ run_layercompare() {
   # share, so the in-place rewrite must never land on it.
   mkdir -p "$RUN/layercompare"
   cp "$RUN/cache/reid/1/model.onnx" "$RUN/layercompare/model.onnx"
+  # The export may externalize initializers to a relative model.onnx.data
+  # beside the proto (export_reid.py does: 217 of 251 inits on the measured
+  # export). The decomposer's first read onnx.load(str(model)) resolves that
+  # relative location against the TARGET's directory, so the target copy
+  # needs the sidecar too -- its absence is a crash (rc 1, the module's
+  # unmapped code), the failure Run 1 died on before any surgery.
+  if [[ -f "$RUN/cache/reid/1/model.onnx.data" ]]; then
+    cp "$RUN/cache/reid/1/model.onnx.data" "$RUN/layercompare/model.onnx.data"
+  fi
   # The decomposer's pre-surgery snapshot is a DIRECTORY holding model.onnx
   # (+ sidecar), staged separately from the target -- the module refuses a
   # pre-dir that aliases the target (same inode), so a distinct directory is

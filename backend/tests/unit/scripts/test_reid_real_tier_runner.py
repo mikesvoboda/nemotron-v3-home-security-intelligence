@@ -802,6 +802,45 @@ def test_layercompare_never_rewrites_the_cache_onnx(script_text: str) -> None:
         )
 
 
+def test_the_compare_target_copy_carries_its_sidecar(script_text: str) -> None:
+    """The export may externalize initializers to a relative model.onnx.data
+    beside the proto (export_reid.py did on the measured export: 217 of 251
+    inits). onnx.load resolves that relative location against the TARGET's own
+    directory, so the decomposer's first read of layercompare/model.onnx
+    crashes rc=1 (the module's unmapped code) when the sidecar is staged only
+    beside the pre-snapshot -- Run 1's failure branch, before any surgery.
+    The copy block must stage the sidecar beside the TARGET too, and only when
+    it exists (a self-contained export has none, as the pre/ branch already
+    treats it). The pre-dir/target non-aliasing invariant stays: pre/ remains
+    its own directory with its own copies."""
+    body = _lc_body(_code(script_text))
+    tgt_idx = body.index('cp "$RUN/cache/reid/1/model.onnx" "$RUN/layercompare/model.onnx"')
+    pre_idx = body.index('mkdir -p "$RUN/layercompare/pre"')
+    target_block = body[tgt_idx:pre_idx]
+    assert "model.onnx.data" in target_block and "cp " in target_block, (
+        "the target copy stages model.onnx without its external-data sidecar: "
+        "onnx.load(str(model)) resolves the relative location against the "
+        "target's directory and crashes unmapped (rc 1) -- stage the sidecar "
+        "beside the target when it exists"
+    )
+    sidecar_lines = [
+        ln.strip() for ln in target_block.splitlines() if "model.onnx.data" in ln and "cp " in ln
+    ]
+    assert sidecar_lines, "no sidecar cp in the target block"
+    # gated on existence, like the pre/ branch: a self-contained export has
+    # no sidecar file and the copy must not fail on it
+    assert any("[[ -f " in ln for ln in target_block.splitlines() if "model.onnx.data" in ln) or (
+        "-f " in target_block and "model.onnx.data" in target_block
+    ), "the sidecar copy is not gated on the sidecar existing"
+    # the sidecar beside the TARGET is a distinct file from the pre/ one: the
+    # copies land in different directories (pre/ keeps its own), so the
+    # module's inode/path alias refusal between pre and target never fires
+    tgt_dest = sidecar_lines[0].split()[-1]
+    assert tgt_dest.startswith('"$RUN/layercompare/model.onnx.data"'), (
+        f"the target sidecar copy does not land beside the target (got {tgt_dest})"
+    )
+
+
 def test_layercompare_uses_the_repo_decomposer_not_a_reimplementation(script_text: str) -> None:
     """The decompose rewrite's exit codes (0/30/31/32), its aliasing guards and
     its faithfulness gate live in scripts/decompose_instance_norm.py and are
