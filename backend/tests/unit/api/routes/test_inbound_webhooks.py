@@ -38,7 +38,11 @@ from backend.api.routes.inbound_webhooks import (
     InboundDisarmPayload,
     InboundModePayload,
     _reject_unimplemented,
+    arm_zones,
+    create_alert,
+    disarm_zones,
     router,
+    set_system_mode,
     verify_hmac_signature,
 )
 from backend.core.logging import mask_ip
@@ -196,12 +200,36 @@ class TestRejectUnimplemented:
 
         records = [r for r in caplog.records if r.name == LOGGER_NAME]
         assert len(records) == 1, "one record per rejected call"
+        assert records[0].getMessage() == "Inbound webhook rejected as unimplemented (UR-12)"
         assert records[0].endpoint == "disarm"
         # mask_ip keeps the first octet for debugging and masks the rest —
         # the same shape auth.py's own rejection records use.
         assert records[0].client_ip == mask_ip("198.51.100.9")
         assert records[0].client_ip == "198.xxx.xxx.xxx"
         assert "198.51.100.9" not in records[0].client_ip
+
+    @pytest.mark.asyncio
+    async def test_all_four_handlers_reject_with_their_endpoint_name(
+        self, caplog: pytest.LogCaptureFixture
+    ):
+        caplog.set_level("INFO", logger=LOGGER_NAME)
+        req = _request("198.51.100.9")
+        calls = [
+            ("alert", create_alert(InboundAlertPayload(source="ifttt", message="m"), req, "k")),
+            ("arm", arm_zones(InboundArmPayload(), req, "k")),
+            ("disarm", disarm_zones(InboundDisarmPayload(), req, "k")),
+            ("mode", set_system_mode(InboundModePayload(mode="home"), req, "k")),
+        ]
+        for expected_endpoint, coro in calls:
+            caplog.clear()
+            with pytest.raises(HTTPException) as excinfo:
+                await coro
+            assert excinfo.value.status_code == status.HTTP_501_NOT_IMPLEMENTED
+            assert excinfo.value.detail == NOT_IMPLEMENTED_DETAIL
+            records = [r for r in caplog.records if r.name == LOGGER_NAME]
+            assert len(records) == 1
+            assert records[0].endpoint == expected_endpoint
+            assert records[0].getMessage() == "Inbound webhook rejected as unimplemented (UR-12)"
 
     def test_logs_unknown_when_the_client_is_unavailable(self, caplog: pytest.LogCaptureFixture):
         """A request with no peer info is still recorded, not skipped."""
@@ -259,6 +287,41 @@ class TestRouterDeclarations:
         documented = set(route.responses) | {route.status_code}
 
         assert {501, 401} <= documented, f"{path} documents {documented}"
+
+    def test_router_declares_no_success_status(self):
+        """Consolidated from test_inbound_webhooks_api.py (B4.7 step 2)."""
+        from fastapi.routing import APIRoute
+
+        routes = [r for r in router.routes if isinstance(r, APIRoute)]
+        assert len(routes) == 4, "the four inbound endpoints"
+
+        for route in routes:
+            assert route.methods == {"POST"}, route.path
+            assert route.status_code == 501, f"{route.path} declares {route.status_code}"
+            documented = set(route.responses) | {route.status_code}
+            successes = sorted(c for c in documented if 200 <= c < 300)
+            assert not successes, f"{route.path} documents success status(s): {successes}"
+
+    def test_no_length_based_key_check_survives_in_the_module(self):
+        """Consolidated from test_inbound_webhooks_api.py (B4.7 step 2)."""
+        import ast
+        import inspect
+
+        from backend.api.routes import inbound_webhooks
+
+        assert not hasattr(inbound_webhooks, "verify_api_key")
+        assert inbound_webhooks.require_api_key is require_api_key
+        fn_ast = ast.parse(inspect.getsource(require_api_key)).body[0]
+        fn_ast.body = [
+            stmt
+            for stmt in fn_ast.body
+            if not (
+                isinstance(stmt, ast.Expr)
+                and isinstance(stmt.value, ast.Constant)
+                and isinstance(stmt.value.value, str)
+            )
+        ]
+        assert "api_key_enabled" not in ast.dump(ast.fix_missing_locations(fn_ast))
 
 
 # =============================================================================
