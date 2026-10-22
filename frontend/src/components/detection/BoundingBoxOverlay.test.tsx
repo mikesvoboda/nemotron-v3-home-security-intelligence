@@ -357,7 +357,14 @@ describe('BoundingBoxOverlay', () => {
   // box geometry stays glued to the object in either letterbox direction,
   // at any display size.
   describe('letterboxed container alignment', () => {
-    const box: BoundingBox = { x: 100, y: 100, width: 200, height: 300, label: 'person', confidence: 0.95 };
+    const box: BoundingBox = {
+      x: 100,
+      y: 100,
+      width: 200,
+      height: 300,
+      label: 'person',
+      confidence: 0.95,
+    };
 
     it('keeps the contain-fit config in a wide container at one display size', () => {
       const { container } = render(
