@@ -1,9 +1,8 @@
 /**
- * SettingsPage Tests
+ * SettingsPage Tests (F4.9 — docs/uplevel/4n-modes.md).
  *
- * Tests for the Settings page with nested route-based navigation.
- *
- * @see NEM-4938 - Convert Settings page to nested sub-routes
+ * Tests for the SettingsPage routing shell: its heading comes from `hubForPath`,
+ * its tab bar is `HubTabBar`, and its panel is labelled by `HubTabBar`'s active tab.
  */
 
 import { screen, waitFor } from '@testing-library/react';
@@ -11,10 +10,9 @@ import { Routes, Route, Navigate } from 'react-router-dom';
 import { describe, it, expect, vi } from 'vitest';
 
 import SettingsPage from './SettingsPage';
-import { settingsTabs } from './settingsTabsConfig';
+import { HUBS } from '../../config/surfaces';
 import { renderWithNavigation } from '../../test-utils';
 
-// Mock the settings components
 vi.mock('./CamerasSettings', () => ({
   default: () => <div data-testid="cameras-settings">Cameras Settings</div>,
 }));
@@ -55,7 +53,8 @@ vi.mock('./AdminSettings', () => ({
   default: () => <div data-testid="admin-settings">Admin Settings</div>,
 }));
 
-// Helper to render with shared navigation fixture and nested settings routes
+const settingsHub = HUBS.find((h) => h.id === 'settings')!;
+
 interface RenderOptions {
   route?: string;
 }
@@ -101,351 +100,184 @@ function renderWithProviders(ui: React.ReactElement, options: RenderOptions = {}
         />
         <Route path="ai-models" element={<div data-testid="ai-models-tab">AI Models Tab</div>} />
         <Route path="admin" element={<div data-testid="admin-settings">Admin Settings</div>} />
+        <Route path="gpu" element={<div data-testid="gpu-settings">GPU Settings</div>} />
       </Route>
+      <Route path="/data" element={<div data-testid="data-page">Data Page</div>} />
+      <Route path="/webhooks" element={<div data-testid="webhooks-page">Webhooks Page</div>} />
+      <Route path="/audit" element={<div data-testid="audit-page">Audit Page</div>} />
+      <Route
+        path="/notifications"
+        element={<div data-testid="notifications-page">Notification History Page</div>}
+      />
     </Routes>,
     { route }
   );
 }
 
 describe('SettingsPage', () => {
-  describe('settingsTabs configuration', () => {
-    it('should export all 10 settings tabs (calibration retired in F-131)', () => {
-      expect(settingsTabs).toHaveLength(10);
-    });
-
-    it('should have correct tab IDs', () => {
-      const tabIds = settingsTabs.map((tab) => tab.id);
-      expect(tabIds).toEqual([
+  describe('Settings hub configuration in surfaces.ts', () => {
+    it('defines the 10 Settings hub tabs (Rules, Prompts, AI Models, and Admin moved to their own hubs)', () => {
+      expect(settingsHub.tabs).toHaveLength(10);
+      expect(settingsHub.tabs.map((t) => t.id)).toEqual([
         'cameras',
-        'rules',
         'processing',
         'notifications',
         'ambient',
         'access',
-        'prompts',
         'storage',
-        'ai-models',
-        'admin',
+        'data',
+        'webhooks',
+        'audit',
+        'notification-history',
       ]);
-    });
-
-    it('should have correct paths for each tab', () => {
-      const paths = settingsTabs.map((tab) => tab.path);
-      expect(paths).toEqual([
-        '/settings/cameras',
-        '/settings/rules',
-        '/settings/processing',
-        '/settings/notifications',
-        '/settings/ambient',
-        '/settings/access',
-        '/settings/prompts',
-        '/settings/storage',
-        '/settings/ai-models',
-        '/settings/admin',
-      ]);
-    });
-
-    it('should have descriptions for all tabs', () => {
-      settingsTabs.forEach((tab) => {
-        expect(tab.description).toBeDefined();
-        expect(tab.description.length).toBeGreaterThan(0);
-      });
     });
   });
 
   describe('rendering', () => {
-    it('should render the page title and description', () => {
+    it('renders the hub heading and description', () => {
       renderWithProviders(<SettingsPage />);
 
-      expect(screen.getByText('Settings')).toBeInTheDocument();
+      expect(screen.getByRole('heading', { name: 'Settings', level: 1 })).toBeInTheDocument();
       expect(screen.getByText('Configure your security monitoring system')).toBeInTheDocument();
     });
 
-    it('should render all navigation tabs', () => {
+    it('renders all Settings hub tabs on /settings/cameras', () => {
       renderWithProviders(<SettingsPage />);
 
       expect(screen.getByTestId('settings-tab-cameras')).toBeInTheDocument();
-      expect(screen.getByTestId('settings-tab-rules')).toBeInTheDocument();
       expect(screen.getByTestId('settings-tab-processing')).toBeInTheDocument();
       expect(screen.getByTestId('settings-tab-notifications')).toBeInTheDocument();
       expect(screen.getByTestId('settings-tab-ambient')).toBeInTheDocument();
-      expect(screen.queryByTestId('settings-tab-calibration')).not.toBeInTheDocument();
       expect(screen.getByTestId('settings-tab-access')).toBeInTheDocument();
-      expect(screen.getByTestId('settings-tab-prompts')).toBeInTheDocument();
       expect(screen.getByTestId('settings-tab-storage')).toBeInTheDocument();
-      expect(screen.getByTestId('settings-tab-ai-models')).toBeInTheDocument();
-      expect(screen.getByTestId('settings-tab-admin')).toBeInTheDocument();
+      expect(screen.getByTestId('settings-tab-data')).toBeInTheDocument();
+      expect(screen.getByTestId('settings-tab-webhooks')).toBeInTheDocument();
+      expect(screen.getByTestId('settings-tab-audit')).toBeInTheDocument();
+      expect(screen.getByTestId('settings-tab-notification-history')).toBeInTheDocument();
     });
 
-    it('should render content panel', () => {
+    it('renders content panel with Cameras settings by default', () => {
       renderWithProviders(<SettingsPage />);
 
       expect(screen.getByTestId('settings-content-panel')).toBeInTheDocument();
-    });
-
-    it('should show cameras settings content by default', () => {
-      renderWithProviders(<SettingsPage />);
-
       expect(screen.getByTestId('cameras-settings')).toBeInTheDocument();
     });
   });
 
-  describe('navigation', () => {
-    it('should navigate to rules settings when rules tab is clicked', async () => {
+  describe('navigation within Settings hub', () => {
+    it('navigates to processing settings when processing tab is clicked', async () => {
       const { user } = renderWithProviders(<SettingsPage />);
 
-      const rulesTab = screen.getByTestId('settings-tab-rules');
-      await user.click(rulesTab);
-
-      await waitFor(() => {
-        expect(screen.getByTestId('alert-rules-settings')).toBeInTheDocument();
-      });
-    });
-
-    it('should navigate to processing settings when processing tab is clicked', async () => {
-      const { user } = renderWithProviders(<SettingsPage />);
-
-      const processingTab = screen.getByTestId('settings-tab-processing');
-      await user.click(processingTab);
+      await user.click(screen.getByTestId('settings-tab-processing'));
 
       await waitFor(() => {
         expect(screen.getByTestId('processing-settings')).toBeInTheDocument();
       });
     });
 
-    it('should navigate to notification settings when notifications tab is clicked', async () => {
+    it('navigates to notification settings when notifications tab is clicked', async () => {
       const { user } = renderWithProviders(<SettingsPage />);
 
-      const notificationsTab = screen.getByTestId('settings-tab-notifications');
-      await user.click(notificationsTab);
+      await user.click(screen.getByTestId('settings-tab-notifications'));
 
       await waitFor(() => {
         expect(screen.getByTestId('notification-settings')).toBeInTheDocument();
       });
     });
 
-    it('should navigate to ambient settings when ambient tab is clicked', async () => {
+    it('navigates to ambient settings when ambient tab is clicked', async () => {
       const { user } = renderWithProviders(<SettingsPage />);
 
-      const ambientTab = screen.getByTestId('settings-tab-ambient');
-      await user.click(ambientTab);
+      await user.click(screen.getByTestId('settings-tab-ambient'));
 
       await waitFor(() => {
         expect(screen.getByTestId('ambient-settings')).toBeInTheDocument();
       });
     });
 
-    it('should navigate to storage settings when storage tab is clicked', async () => {
+    it('navigates to access settings when access tab is clicked', async () => {
       const { user } = renderWithProviders(<SettingsPage />);
 
-      const storageTab = screen.getByTestId('settings-tab-storage');
-      await user.click(storageTab);
-
-      await waitFor(() => {
-        expect(screen.getByTestId('file-operations-panel')).toBeInTheDocument();
-      });
-    });
-
-    it('should navigate to AI models tab when AI models tab is clicked', async () => {
-      const { user } = renderWithProviders(<SettingsPage />);
-
-      const aiModelsTab = screen.getByTestId('settings-tab-ai-models');
-      await user.click(aiModelsTab);
-
-      await waitFor(() => {
-        expect(screen.getByTestId('ai-models-tab')).toBeInTheDocument();
-      });
-    });
-
-    it('should navigate to admin settings when admin tab is clicked', async () => {
-      const { user } = renderWithProviders(<SettingsPage />);
-
-      const adminTab = screen.getByTestId('settings-tab-admin');
-      await user.click(adminTab);
-
-      await waitFor(() => {
-        expect(screen.getByTestId('admin-settings')).toBeInTheDocument();
-      });
-    });
-
-    it('should navigate to access settings when access tab is clicked', async () => {
-      const { user } = renderWithProviders(<SettingsPage />);
-
-      const accessTab = screen.getByTestId('settings-tab-access');
-      await user.click(accessTab);
+      await user.click(screen.getByTestId('settings-tab-access'));
 
       await waitFor(() => {
         expect(screen.getByTestId('access-control-settings')).toBeInTheDocument();
       });
     });
 
-    it('should navigate to prompts settings when prompts tab is clicked', async () => {
+    it('navigates to storage settings when storage tab is clicked', async () => {
       const { user } = renderWithProviders(<SettingsPage />);
 
-      const promptsTab = screen.getByTestId('settings-tab-prompts');
-      await user.click(promptsTab);
+      await user.click(screen.getByTestId('settings-tab-storage'));
 
       await waitFor(() => {
-        expect(screen.getByTestId('prompt-management')).toBeInTheDocument();
+        expect(screen.getByTestId('file-operations-panel')).toBeInTheDocument();
       });
     });
   });
 
-  describe('active state styling', () => {
-    it('should highlight the cameras tab when on cameras route', () => {
+  describe('hub headings and active state across hubs (MO9)', () => {
+    it('highlights cameras tab on /settings/cameras with Settings heading', () => {
       renderWithProviders(<SettingsPage />, { route: '/settings/cameras' });
 
+      expect(screen.getByRole('heading', { name: 'Settings', level: 1 })).toBeInTheDocument();
       const camerasTab = screen.getByTestId('settings-tab-cameras');
       expect(camerasTab).toHaveAttribute('aria-selected', 'true');
       expect(camerasTab).toHaveClass('bg-[#76B900]');
     });
 
-    it('should highlight the rules tab when on rules route', () => {
+    it('renders Alerts & Rules heading and highlights rules tab on /settings/rules', () => {
       renderWithProviders(<SettingsPage />, { route: '/settings/rules' });
 
+      expect(screen.getByRole('heading', { name: 'Alerts & Rules', level: 1 })).toBeInTheDocument();
       const rulesTab = screen.getByTestId('settings-tab-rules');
       expect(rulesTab).toHaveAttribute('aria-selected', 'true');
-      expect(rulesTab).toHaveClass('bg-[#76B900]');
+      expect(screen.getByTestId('alert-rules-settings')).toBeInTheDocument();
     });
 
-    it('should highlight the admin tab when on admin route', () => {
+    it('renders AI Workbench heading and highlights prompts tab on /settings/prompts', () => {
+      renderWithProviders(<SettingsPage />, { route: '/settings/prompts' });
+
+      expect(screen.getByRole('heading', { name: 'AI Workbench', level: 1 })).toBeInTheDocument();
+      const promptsTab = screen.getByTestId('settings-tab-prompts');
+      expect(promptsTab).toHaveAttribute('aria-selected', 'true');
+      expect(screen.getByTestId('prompt-management')).toBeInTheDocument();
+    });
+
+    it('renders GPU & Models heading and highlights ai-models tab on /settings/ai-models', () => {
+      renderWithProviders(<SettingsPage />, { route: '/settings/ai-models' });
+
+      expect(screen.getByRole('heading', { name: 'GPU & Models', level: 1 })).toBeInTheDocument();
+      const aiModelsTab = screen.getByTestId('settings-tab-ai-models');
+      expect(aiModelsTab).toHaveAttribute('aria-selected', 'true');
+      expect(screen.getByTestId('ai-models-tab')).toBeInTheDocument();
+    });
+
+    it('renders Operations & Monitoring heading and highlights admin tab on /settings/admin', () => {
       renderWithProviders(<SettingsPage />, { route: '/settings/admin' });
 
+      expect(
+        screen.getByRole('heading', { name: 'Operations & Monitoring', level: 1 })
+      ).toBeInTheDocument();
       const adminTab = screen.getByTestId('settings-tab-admin');
       expect(adminTab).toHaveAttribute('aria-selected', 'true');
-      expect(adminTab).toHaveClass('bg-[#76B900]');
-    });
-
-    it('should not highlight inactive tabs', () => {
-      renderWithProviders(<SettingsPage />, { route: '/settings/cameras' });
-
-      const rulesTab = screen.getByTestId('settings-tab-rules');
-      expect(rulesTab).toHaveAttribute('aria-selected', 'false');
-      expect(rulesTab).not.toHaveClass('bg-[#76B900]');
-    });
-  });
-
-  describe('tab descriptions', () => {
-    it('should have title attribute with description on cameras tab', () => {
-      renderWithProviders(<SettingsPage />);
-
-      const camerasTab = screen.getByTestId('settings-tab-cameras');
-      expect(camerasTab).toHaveAttribute('title', 'Add, remove, and configure security cameras');
-    });
-
-    it('should have title attribute with description on rules tab', () => {
-      renderWithProviders(<SettingsPage />);
-
-      const rulesTab = screen.getByTestId('settings-tab-rules');
-      expect(rulesTab).toHaveAttribute('title', 'Set up automated alert rules and triggers');
-    });
-
-    it('should have title attribute with description on processing tab', () => {
-      renderWithProviders(<SettingsPage />);
-
-      const processingTab = screen.getByTestId('settings-tab-processing');
-      expect(processingTab).toHaveAttribute(
-        'title',
-        'Configure detection sensitivity and AI models'
-      );
-    });
-
-    it('should have title attribute with description on notifications tab', () => {
-      renderWithProviders(<SettingsPage />);
-
-      const notificationsTab = screen.getByTestId('settings-tab-notifications');
-      expect(notificationsTab).toHaveAttribute(
-        'title',
-        'Email, push, and webhook notification settings'
-      );
-    });
-
-    it('should have title attribute with description on ambient tab', () => {
-      renderWithProviders(<SettingsPage />);
-
-      const ambientTab = screen.getByTestId('settings-tab-ambient');
-      expect(ambientTab).toHaveAttribute('title', 'Background noise and environmental settings');
-    });
-
-    it('should have title attribute with description on storage tab', () => {
-      renderWithProviders(<SettingsPage />);
-
-      const storageTab = screen.getByTestId('settings-tab-storage');
-      expect(storageTab).toHaveAttribute('title', 'Media retention and storage management');
-    });
-
-    it('should have title attribute with description on ai-models tab', () => {
-      renderWithProviders(<SettingsPage />);
-
-      const aiModelsTab = screen.getByTestId('settings-tab-ai-models');
-      expect(aiModelsTab).toHaveAttribute('title', 'View status and performance of all AI models');
-    });
-
-    it('should have title attribute with description on admin tab', () => {
-      renderWithProviders(<SettingsPage />);
-
-      const adminTab = screen.getByTestId('settings-tab-admin');
-      expect(adminTab).toHaveAttribute(
-        'title',
-        'Feature toggles, system config, and maintenance actions'
-      );
+      expect(screen.getByTestId('admin-settings')).toBeInTheDocument();
     });
   });
 
   describe('accessibility', () => {
-    it('should have role="tablist" on navigation', () => {
-      renderWithProviders(<SettingsPage />);
+    it('wires role="tablist", role="tab", role="tabpanel", and aria-labelledby/aria-controls', () => {
+      renderWithProviders(<SettingsPage />, { route: '/settings/cameras' });
 
       const tablist = screen.getByRole('tablist');
-      expect(tablist).toBeInTheDocument();
       expect(tablist).toHaveAttribute('aria-label', 'Settings sections');
-    });
-
-    it('should have role="tab" on all navigation items', () => {
-      renderWithProviders(<SettingsPage />);
-
-      const tabs = screen.getAllByRole('tab');
-      expect(tabs).toHaveLength(10);
-    });
-
-    it('should have role="tabpanel" on content panel', () => {
-      renderWithProviders(<SettingsPage />);
-
-      const panel = screen.getByRole('tabpanel');
-      expect(panel).toBeInTheDocument();
-    });
-
-    it('should have aria-controls linking tab to panel', () => {
-      renderWithProviders(<SettingsPage />, { route: '/settings/cameras' });
 
       const camerasTab = screen.getByTestId('settings-tab-cameras');
       expect(camerasTab).toHaveAttribute('aria-controls', 'settings-panel-cameras');
-    });
-  });
 
-  describe('direct URL navigation', () => {
-    it('should show rules settings when navigating directly to /settings/rules', () => {
-      renderWithProviders(<SettingsPage />, { route: '/settings/rules' });
-
-      expect(screen.getByTestId('alert-rules-settings')).toBeInTheDocument();
-    });
-
-    it('should show admin settings when navigating directly to /settings/admin', () => {
-      renderWithProviders(<SettingsPage />, { route: '/settings/admin' });
-
-      expect(screen.getByTestId('admin-settings')).toBeInTheDocument();
-    });
-
-    it('should show ai-models settings when navigating directly to /settings/ai-models', () => {
-      renderWithProviders(<SettingsPage />, { route: '/settings/ai-models' });
-
-      expect(screen.getByTestId('ai-models-tab')).toBeInTheDocument();
-    });
-
-    it('should show prompts settings when navigating directly to /settings/prompts', () => {
-      renderWithProviders(<SettingsPage />, { route: '/settings/prompts' });
-
-      expect(screen.getByTestId('prompt-management')).toBeInTheDocument();
+      const panel = screen.getByRole('tabpanel');
+      expect(panel).toHaveAttribute('id', 'settings-panel-cameras');
+      expect(panel).toHaveAttribute('aria-labelledby', 'settings-tab-cameras');
     });
   });
 });

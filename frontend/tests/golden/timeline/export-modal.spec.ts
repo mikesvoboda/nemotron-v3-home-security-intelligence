@@ -1161,18 +1161,10 @@ test.describe('F-052 export modal: downloads the file', () => {
     // second wave into the shared nginx bucket — the file's boot rule,
     // satisfied by navigation instead of by a re-drain.
     await bootTimeline(page, fx.probeCameraId);
-    // At 1280 wide (run 3's own screenshot) the ADMIN group renders COLLAPSED
-    // — sidebarNav.ts:131 defaultExpanded:false, and the auto-expand effect
-    // only opens the group that owns the ACTIVE route (Sidebar.tsx's location
-    // effect), so on /timeline the link is inside a max-h-0 region. Drive the
-    // shipped group header (Sidebar.tsx:106-111, aria-expanded the toggle
-    // maintains) rather than force a hidden click.
-    const adminGroup = page.getByTestId('nav-group-header-admin');
-    if ((await adminGroup.getAttribute('aria-expanded')) === 'false') {
-      await adminGroup.click();
-    }
-    await expect(adminGroup).toHaveAttribute('aria-expanded', 'true');
-    await page.getByRole('link', { name: 'Data Management', exact: true }).click(); // sidebarNav.ts:135
+    // Navigate via the Settings hub in the sidebar -> Data tab in HubTabBar (F4.9).
+    await page.getByTestId('sidebar-hub-settings').click();
+    await expect(page).toHaveURL(/\/settings\/cameras$/);
+    await page.getByTestId('settings-tab-data').click();
     await expect(page).toHaveURL(/\/data$/);
     await expect(page.getByTestId('data-management-page')).toBeVisible({ timeout: 30_000 });
     const card = page.getByTestId(`export-job-${started.job_id}`);

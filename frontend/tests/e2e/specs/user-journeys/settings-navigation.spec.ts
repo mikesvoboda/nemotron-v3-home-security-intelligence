@@ -47,11 +47,11 @@ test.describe('Settings Navigation and Configuration Journey (NEM-2049)', () => 
     // When/Then: Navigate through each tab
     // Note: Actual tabs are CAMERAS, RULES, PROCESSING, NOTIFICATIONS, PROMPTS
     const tabs = [
-      { name: 'CAMERAS', selector: page.getByRole('tab', { name: /CAMERAS/i }) },
-      { name: 'RULES', selector: page.getByRole('tab', { name: /RULES/i }) },
-      { name: 'PROCESSING', selector: page.getByRole('tab', { name: /PROCESSING/i }) },
-      { name: 'NOTIFICATIONS', selector: page.getByRole('tab', { name: /NOTIFICATIONS/i }) },
-      { name: 'PROMPTS', selector: page.getByRole('tab', { name: /PROMPTS/i }) },
+      { name: 'Cameras', selector: page.getByRole('tab', { name: /Cameras/i }) },
+      { name: 'Processing', selector: page.getByRole('tab', { name: /Processing/i }) },
+      { name: 'Notifications', selector: page.getByRole('tab', { name: /Notifications/i }) },
+      { name: 'Ambient', selector: page.getByRole('tab', { name: /Ambient/i }) },
+      { name: 'Storage', selector: page.getByRole('tab', { name: /Storage/i }) },
     ];
 
     for (const tab of tabs) {

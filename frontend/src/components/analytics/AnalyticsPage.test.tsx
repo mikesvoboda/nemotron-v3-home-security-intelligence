@@ -128,8 +128,8 @@ vi.mock('./WeekOverWeekCard', () => ({
   default: () => <div data-testid="week-over-week-card">Week Over Week Mock</div>,
 }));
 
-const renderWithRouter = () => {
-  return renderWithNavigation(<AnalyticsPage />);
+const renderWithRouter = (mode: 'easy' | 'advanced' = 'advanced') => {
+  return renderWithNavigation(<AnalyticsPage />, { mode });
 };
 
 describe('AnalyticsPage', () => {
@@ -144,6 +144,18 @@ describe('AnalyticsPage', () => {
   });
 
   describe('basic rendering', () => {
+    it('defaults to native view in Easy mode and hides the Grafana view toggle (F4.9 MO6)', async () => {
+      renderWithRouter('easy');
+      await act(async () => {
+        await vi.runAllTimersAsync();
+      });
+      await waitFor(() => {
+        expect(screen.getByTestId('native-analytics-view')).toBeInTheDocument();
+      });
+      expect(screen.queryByTestId('view-mode-toggle')).not.toBeInTheDocument();
+      expect(screen.queryByTestId('grafana-iframe')).not.toBeInTheDocument();
+    });
+
     it('renders the page title', async () => {
       renderWithRouter();
       await act(async () => {

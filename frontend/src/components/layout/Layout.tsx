@@ -1,6 +1,8 @@
 import { ReactNode, useCallback, useMemo, useState } from 'react';
 
+import AdvancedBanner from './AdvancedBanner';
 import Header from './Header';
+import HubTabBar, { LayoutHubTabBarContext } from './HubTabBar';
 import MobileBottomNav from './MobileBottomNav';
 import Sidebar from './Sidebar';
 import {
@@ -166,7 +168,11 @@ export default function Layout({ children }: LayoutProps) {
                   reason={verdictEngine.reason}
                 />
               )}
-              {children}
+              <AdvancedBanner />
+              <HubTabBar />
+              <LayoutHubTabBarContext.Provider value={true}>
+                {children}
+              </LayoutHubTabBarContext.Provider>
             </main>
           </div>
 
