@@ -386,12 +386,12 @@ F-099 with `B4.10`.
 
 **Flags:** `heavy`. **Assigned:** heavy-a, now (ruling 321; `[r320]` closed moot, ruling 320's
 correction); it follows this block (UR-59). **Depends on:** none.
-**PR:** none yet. (ruling 321, record 6355356496)
+**PR:** #7376. (ruling 321, record 6355356496)
 
 Design: [`../4n-modes.md`](../4n-modes.md), "Packages" row `F4.9`. Covers F-299 (new) and the rows
 the design re-cites.
 
-- [ ] The test-only PR (step 2): one navigation fixture and one event-modal fixture for the tests of
+- [x] The test-only PR (step 2): one navigation fixture and one event-modal fixture for the tests of
       every file the build edits (the design's "Consolidation scope").
 - [ ] The build PR: `config/surfaces.ts` and `ViewModeContext`; `ModeSwitch`, `AdvancedOnly`,
       `HubTabBar` and `AdvancedBanner`; the sidebar, phone bar, palette, chords and help modal read

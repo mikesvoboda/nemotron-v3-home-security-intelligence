@@ -3705,3 +3705,50 @@ export async function openAdminSection(
   }
   await expect(child).toBeVisible({ timeout: 5_000 });
 }
+
+// ══ F4.9 modes consolidation (navigation & event-modal fixtures) ══ ══════════
+/**
+ * Shared golden navigation fixture for shell/header/navigation specs (F4.9):
+ * dismisses the product tour, logs in as admin, drains the boot wave via
+ * `quietBootShell`, and waits for the header branding to paint.
+ */
+export async function openShell(page: Page, h: ShellHarness, path = '/'): Promise<void> {
+  await seedTourDismissed(page);
+  await loginAsAdminShell(page, h);
+  await quietBootShell(page, h, path);
+  await expect(page.getByTestId('header-branding')).toBeVisible({ timeout: 20_000 });
+}
+
+/**
+ * Shared golden event-modal fixture for timeline event-modal specs (F4.9):
+ * logs in as admin, seeds tour dismissed + default view mode, boots `/timeline`
+ * (optionally filtered by `cameraId` and deep-linked to `?event=<eventId>`),
+ * and waits for `timeline-page` (plus `event-detail-modal` when `eventId` is set).
+ */
+export async function openTimelineEventModal(
+  page: Page,
+  h: TimelineHarness,
+  options: { cameraId?: string; eventId?: number; waitForCards?: boolean } = {}
+): Promise<Session> {
+  const { cameraId, eventId, waitForCards = true } = options;
+  const session = await adminSession(h);
+  await seedTourDismissed(page);
+  await seedDefaultViewMode(page);
+  await loginAsAdminShell(page, h);
+  const params: string[] = [];
+  if (cameraId !== undefined) params.push(`camera=${encodeURIComponent(cameraId)}`);
+  if (eventId !== undefined) params.push(`event=${eventId}`);
+  const query = params.length > 0 ? `?${params.join('&')}` : '';
+  await quietBoot(page, h, `/timeline${query}`);
+  await expect(page.getByTestId('timeline-page')).toBeVisible();
+  if (waitForCards) {
+    await waitForEventCards(page);
+  }
+  if (eventId !== undefined) {
+    await expect(
+      page.getByTestId('event-detail-modal'),
+      'the `?event=` deep link opens the detail modal'
+    ).toBeVisible();
+  }
+  return session;
+}

@@ -9,6 +9,7 @@ import { describe, expect, it, vi } from 'vitest';
 import {
   // Render utilities
   renderWithProviders,
+  renderWithNavigation,
   screen,
   // Factories
   createDetection,
@@ -26,6 +27,11 @@ import {
   createWsEventMessage,
   createWsServiceStatusMessage,
   createWsGpuStatsMessage,
+  createNavigationFixture,
+  createEventModalDetections,
+  createEventModalDetectionsResponse,
+  createEventModalEvent,
+  createEventModalFixture,
 } from './index';
 
 // Simple test component for render utilities
@@ -277,6 +283,40 @@ describe('Test Utilities', () => {
       const message = createWsGpuStatsMessage({ gpu_utilization: 80 });
       expect(message.type).toBe('gpu_stats');
       expect(message.data.gpu_utilization).toBe(80);
+    });
+  });
+
+  describe('F4.9 Navigation and Event-Modal Fixtures', () => {
+    it('renderWithNavigation wraps component with router, theme, and announcement providers', () => {
+      renderWithNavigation(<TestComponent message="Nav Test" />, {
+        initialEntries: ['/timeline'],
+      });
+      expect(screen.getByText('Nav Test')).toBeInTheDocument();
+    });
+
+    it('createNavigationFixture returns desktop/mobile/tablet viewports and connection summary', () => {
+      const nav = createNavigationFixture();
+      expect(nav.desktopViewport.breakpoint).toBe('lg');
+      expect(nav.mobileViewport.isMobile).toBe(true);
+      expect(nav.tabletViewport.isTablet).toBe(true);
+      expect(nav.connectionSummary.overallState).toBe('connected');
+    });
+
+    it('createEventModalFixture bundles event, props, and wire detections with overrides', () => {
+      const base = createEventModalFixture({
+        event: { risk_score: 90, risk_label: 'Critical' },
+      });
+      expect(base.event.id).toBe('123');
+      expect(base.event.risk_score).toBe(90);
+      expect(base.props.isOpen).toBe(true);
+      expect(base.detections).toHaveLength(2);
+      expect(base.detectionsResponse.pagination.total).toBe(2);
+
+      const customDets = createEventModalDetections([{ object_type: 'car', confidence: 0.91 }]);
+      const customResp = createEventModalDetectionsResponse(customDets);
+      expect(customResp.items).toHaveLength(1);
+      expect(customResp.items[0].object_type).toBe('car');
+      expect(createEventModalEvent({ camera_name: 'Backyard' }).camera_name).toBe('Backyard');
     });
   });
 });
