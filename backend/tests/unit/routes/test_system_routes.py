@@ -2915,17 +2915,25 @@ async def test_check_yolo26_health_unexpected_error() -> None:
 # branch that only llama-server has.
 @pytest.mark.asyncio
 async def test_check_ai_vlm_health_success() -> None:
-    """Test ai-vlm health check returns healthy when service responds."""
-    with patch("httpx.AsyncClient.get", autospec=True) as mock_get:
-        mock_response = MagicMock(spec=httpx.Response(status_code=200))
-        mock_response.status_code = 200
-        mock_response.raise_for_status = MagicMock()
-        mock_get.return_value = mock_response
+    """Test ai-vlm health check reports healthy from a fresh ready VLM call.
 
+    The check is passive (B4.11): it reads ``ai_health.state("ai_vlm")`` and
+    never sends the HTTP request the patch once intercepted, so this test
+    records its own fresh ready call — otherwise a stale ``ready`` record from
+    a sibling on the same worker ages past ``vlm_sleep_idle_seconds`` and the
+    check reports ``idle`` (unhealthy) instead (red main 2026-10-23, run
+    39996808038). Reset in ``finally`` like the sibling tests below.
+    """
+    from backend.services import ai_health
+
+    ai_health.record_vlm_call("ready", "ai-vlm service ready")
+    try:
         is_healthy, error = await system_routes._check_ai_vlm_health("http://localhost:8091", 3.0)
 
         assert is_healthy is True
         assert error is None
+    finally:
+        ai_health.reset_ai_health_state()
 
 
 @pytest.mark.asyncio
