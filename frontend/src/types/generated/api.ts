@@ -610,7 +610,7 @@ export interface paths {
          * @description List all alerts with optional filtering and pagination.
          *
          *     Args:
-         *         status_filter: Filter by alert status (pending, delivered, acknowledged, dismissed)
+         *         status_filter: Filter by alert status (open, pending, delivered, acknowledged, dismissed)
          *         severity_filter: Filter by severity level (low, medium, high, critical)
          *         event_id: Filter by associated event ID
          *         rule_id: Filter by alert rule ID
@@ -9947,6 +9947,26 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/system/infrastructure-alerts": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Get Active Firing Infrastructure Alerts
+         * @description Proxy Alertmanager's /api/v2/alerts and return active firing alerts in the same shape as the /ws/events infrastructure_alert message.
+         */
+        get: operations["system_get_infrastructure_alerts"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/system/model-zoo/latency/history": {
         parameters: {
             query?: never;
@@ -10568,19 +10588,7 @@ export interface paths {
         put?: never;
         /**
          * Disable Service
-         * @description Manually disable a service.
-         *
-         *     Prevents self-healing restarts.
-         *
-         *     Args:
-         *         name: Service name to disable
-         *         orchestrator: Container orchestrator instance (injected)
-         *
-         *     Returns:
-         *         Action result with updated service information
-         *
-         *     Raises:
-         *         HTTPException: 404 if service not found
+         * @description Manually disable a service (guarded by `get_current_admin_user` until F4.8 retires it).
          */
         post: operations["services_disable_service"];
         delete?: never;
@@ -10600,19 +10608,7 @@ export interface paths {
         put?: never;
         /**
          * Enable Service
-         * @description Re-enable a disabled service.
-         *
-         *     Resets failure count and allows self-healing to resume.
-         *
-         *     Args:
-         *         name: Service name to enable
-         *         orchestrator: Container orchestrator instance (injected)
-         *
-         *     Returns:
-         *         Action result with updated service information
-         *
-         *     Raises:
-         *         HTTPException: 404 if service not found
+         * @description Re-enable a disabled service (guarded by `get_current_admin_user` until F4.8 retires it).
          */
         post: operations["services_enable_service"];
         delete?: never;
@@ -10632,19 +10628,11 @@ export interface paths {
         put?: never;
         /**
          * Restart Service
-         * @description Manually restart a service.
+         * @description Manually restart an allowed service (`ai-gateway`, `ai-vlm`, `redis`, `postgres`).
          *
-         *     Resets failure count (manual restart is intentional).
-         *
-         *     Args:
-         *         name: Service name to restart
-         *         orchestrator: Container orchestrator instance (injected)
-         *
-         *     Returns:
-         *         Action result with updated service information
-         *
-         *     Raises:
-         *         HTTPException: 404 if service not found, 400 if service is disabled
+         *     Requires an admin session (`get_current_admin_user`); API keys are refused with 403.
+         *     Commits a 'restart requested' audit row before calling the engine, and records the
+         *     outcome in a fresh session afterward (B4.11 / 4n-status.md).
          */
         post: operations["services_restart_service"];
         delete?: never;
@@ -10664,18 +10652,7 @@ export interface paths {
         put?: never;
         /**
          * Start Service
-         * @description Start a stopped service container.
-         *
-         *     Args:
-         *         name: Service name to start
-         *         orchestrator: Container orchestrator instance (injected)
-         *
-         *     Returns:
-         *         Action result with updated service information
-         *
-         *     Raises:
-         *         HTTPException: 404 if service not found,
-         *                        400 if service is already running or disabled
+         * @description Start a stopped service container (guarded by `get_current_admin_user` until F4.8 retires it).
          */
         post: operations["services_start_service"];
         delete?: never;
@@ -11184,42 +11161,6 @@ export interface paths {
         get: operations["tracks_get_track_history"];
         put?: never;
         post?: never;
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/api/v1/alertmanager/webhook": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get?: never;
-        put?: never;
-        /**
-         * Receive Alertmanager Webhook
-         * @description Receive webhook notifications from Alertmanager.
-         *
-         *     This endpoint receives alerts from Prometheus Alertmanager and:
-         *     1. Stores each alert in the database for history tracking
-         *     2. Broadcasts each alert via WebSocket for real-time frontend updates
-         *     3. Returns acknowledgment to Alertmanager
-         *
-         *     The alerts are infrastructure alerts (GPU memory, pipeline health, etc.)
-         *     which are stored for history and displayed alongside security alerts.
-         *
-         *     Args:
-         *         payload: Alertmanager webhook payload containing alert details
-         *         db: Database session (injected)
-         *         redis_client: Redis client for WebSocket broadcasting (optional)
-         *
-         *     Returns:
-         *         AlertmanagerWebhookResponse with processing status
-         */
-        post: operations["alertmanager_receive_alertmanager_webhook"];
         delete?: never;
         options?: never;
         head?: never;
@@ -12308,6 +12249,11 @@ export interface components {
              * @description 99th percentile latency in milliseconds
              */
             latency_p99_ms?: number | null;
+            /**
+             * State
+             * @description Granular AI service state (ready, loading, idle, failing, unknown)
+             */
+            state?: string | null;
             /** @description Current health status of the service */
             status: components["schemas"]["AIServiceStatus"];
             /**
@@ -13956,6 +13902,7 @@ export interface components {
          * AlertServiceResponse
          * @description Schema for alert response from Alert Service operations.
          * @example {
+         *       "camera_id": "front_door",
          *       "channels": [
          *         "pushover"
          *       ],
@@ -13972,6 +13919,11 @@ export interface components {
          *     }
          */
         AlertServiceResponse: {
+            /**
+             * Camera Id
+             * @description Camera that produced the triggering event, read through the event (F4.1: the Alerts page's camera column; None when the event is gone)
+             */
+            camera_id?: string | null;
             /**
              * Channels
              * @description Notification channels
@@ -14095,170 +14047,11 @@ export interface components {
          */
         AlertStatus: "open" | "pending" | "delivered" | "acknowledged" | "dismissed";
         /**
-         * AlertmanagerAlert
-         * @description Schema for a single alert in Alertmanager webhook payload.
-         *
-         *     Represents one alert instance with its labels, annotations, and timing.
-         *     This schema matches the Alertmanager webhook format.
-         * @example {
-         *       "annotations": {
-         *         "description": "CPU usage is above 80% for 5 minutes",
-         *         "summary": "CPU usage is high"
-         *       },
-         *       "endsAt": "0001-01-01T00:00:00Z",
-         *       "fingerprint": "abc123def456",
-         *       "generatorURL": "http://prometheus:9090/graph?...",
-         *       "labels": {
-         *         "alertname": "HighCPU",
-         *         "instance": "localhost:9090",
-         *         "severity": "warning"
-         *       },
-         *       "startsAt": "2026-01-20T12:00:00Z",
-         *       "status": "firing"
-         *     }
-         */
-        AlertmanagerAlert: {
-            /**
-             * Annotations
-             * @description Alert annotations (summary, description)
-             */
-            annotations?: {
-                [key: string]: string;
-            };
-            /**
-             * Endsat
-             * @description When the alert was resolved
-             */
-            endsAt?: string | null;
-            /**
-             * Fingerprint
-             * @description Unique identifier for alert deduplication
-             */
-            fingerprint: string;
-            /**
-             * Generatorurl
-             * @description URL to the Prometheus graph
-             */
-            generatorURL?: string | null;
-            /**
-             * Labels
-             * @description Alert labels (alertname, severity, etc.)
-             */
-            labels?: {
-                [key: string]: string;
-            };
-            /**
-             * Startsat
-             * Format: date-time
-             * @description When the alert started firing
-             */
-            startsAt: string;
-            /** @description Alert status (firing or resolved) */
-            status: components["schemas"]["PrometheusAlertStatus"];
-        };
-        /**
          * AlertmanagerStatus
          * @description Alertmanager alert status values.
          * @enum {string}
          */
         AlertmanagerStatus: "firing" | "resolved";
-        /**
-         * AlertmanagerWebhook
-         * @description Schema for Alertmanager webhook payload.
-         *
-         *     This is the format Alertmanager sends when configured with a webhook receiver.
-         *     See: https://prometheus.io/docs/alerting/latest/configuration/#webhook_config
-         * @example {
-         *       "alerts": [
-         *         {
-         *           "annotations": {
-         *             "description": "CPU at 85%"
-         *           },
-         *           "endsAt": "0001-01-01T00:00:00Z",
-         *           "fingerprint": "abc123",
-         *           "labels": {
-         *             "alertname": "HighCPU",
-         *             "severity": "warning"
-         *           },
-         *           "startsAt": "2026-01-20T12:00:00Z",
-         *           "status": "firing"
-         *         }
-         *       ],
-         *       "commonAnnotations": {
-         *         "summary": "CPU usage is high"
-         *       },
-         *       "commonLabels": {
-         *         "alertname": "HighCPU",
-         *         "severity": "warning"
-         *       },
-         *       "externalURL": "http://alertmanager:9093",
-         *       "groupKey": "{}:{alertname=\"HighCPU\"}",
-         *       "groupLabels": {
-         *         "alertname": "HighCPU"
-         *       },
-         *       "receiver": "webhook-receiver",
-         *       "status": "firing",
-         *       "truncatedAlerts": 0,
-         *       "version": "4"
-         *     }
-         */
-        AlertmanagerWebhook: {
-            /**
-             * Alerts
-             * @description List of alerts in this group
-             */
-            alerts: components["schemas"]["AlertmanagerAlert"][];
-            /**
-             * Commonannotations
-             * @description Annotations common to all alerts
-             */
-            commonAnnotations?: {
-                [key: string]: string;
-            };
-            /**
-             * Commonlabels
-             * @description Labels common to all alerts
-             */
-            commonLabels?: {
-                [key: string]: string;
-            };
-            /**
-             * Externalurl
-             * @description Alertmanager external URL
-             */
-            externalURL?: string | null;
-            /**
-             * Groupkey
-             * @description Key identifying the alert group
-             */
-            groupKey: string;
-            /**
-             * Grouplabels
-             * @description Labels used for grouping
-             */
-            groupLabels?: {
-                [key: string]: string;
-            };
-            /**
-             * Receiver
-             * @description Name of the receiver that matched
-             */
-            receiver: string;
-            /** @description Overall group status */
-            status: components["schemas"]["PrometheusAlertStatus"];
-            /**
-             * Truncatedalerts
-             * @description Number of truncated alerts
-             * @default 0
-             */
-            truncatedAlerts: number;
-            /**
-             * Version
-             * @description Alertmanager webhook version
-             * @default 4
-             */
-            version: string;
-        };
         /**
          * AlertmanagerWebhookPayload
          * @description Schema for Alertmanager webhook payload.
@@ -14355,44 +14148,6 @@ export interface components {
              * @default 4
              */
             version: string;
-        };
-        /**
-         * AlertmanagerWebhookResponse
-         * @description Response schema for the alertmanager webhook endpoint.
-         * @example {
-         *       "broadcast": 2,
-         *       "message": "Processed 2 alert(s)",
-         *       "received": 2,
-         *       "status": "ok",
-         *       "stored": 2
-         *     }
-         */
-        AlertmanagerWebhookResponse: {
-            /**
-             * Broadcast
-             * @description Number of alerts broadcast via WebSocket
-             */
-            broadcast: number;
-            /**
-             * Message
-             * @description Human-readable status message
-             */
-            message: string;
-            /**
-             * Received
-             * @description Number of alerts received
-             */
-            received: number;
-            /**
-             * Status
-             * @description Processing status (ok or error)
-             */
-            status: string;
-            /**
-             * Stored
-             * @description Number of alerts stored in database
-             */
-            stored: number;
         };
         /**
          * AllPromptsResponse
@@ -26985,6 +26740,11 @@ export interface components {
          * InferenceMetrics
          * @description AI inference latency and throughput metrics.
          * @example {
+         *       "ai_vlm_latency_ms": {
+         *         "avg": 2100,
+         *         "p95": 4800,
+         *         "p99": 8200
+         *       },
          *       "nemotron_latency_ms": {
          *         "avg": 2100,
          *         "p95": 4800,
@@ -26998,6 +26758,11 @@ export interface components {
          *         "analysis": 0,
          *         "detection": 0
          *       },
+         *       "rtdetr_latency_ms": {
+         *         "avg": 45,
+         *         "p95": 82,
+         *         "p99": 120
+         *       },
          *       "throughput": {
          *         "events_per_min": 2.1,
          *         "images_per_min": 12.4
@@ -27010,6 +26775,13 @@ export interface components {
          *     }
          */
         InferenceMetrics: {
+            /**
+             * Ai Vlm Latency Ms
+             * @description AI VLM latency stats (avg, p95, p99)
+             */
+            ai_vlm_latency_ms?: {
+                [key: string]: number;
+            } | null;
             /**
              * Nemotron Latency Ms
              * @description Nemotron latency stats (avg, p95, p99)
@@ -27032,6 +26804,13 @@ export interface components {
                 [key: string]: number;
             };
             /**
+             * Rtdetr Latency Ms
+             * @description Legacy detector latency stats alias (avg, p95, p99)
+             */
+            rtdetr_latency_ms?: {
+                [key: string]: number;
+            } | null;
+            /**
              * Throughput
              * @description Throughput metrics (images_per_min, events_per_min)
              */
@@ -27045,6 +26824,80 @@ export interface components {
             yolo26_latency_ms: {
                 [key: string]: number;
             };
+        };
+        /**
+         * InfrastructureAlertItem
+         * @description Active firing infrastructure alert item (matches /ws/events infrastructure_alert.data).
+         */
+        InfrastructureAlertItem: {
+            /**
+             * Alertname
+             * @description Alert name
+             */
+            alertname: string;
+            /**
+             * Component
+             * @description Target component
+             * @default unknown
+             */
+            component: string;
+            /**
+             * Description
+             * @description Detailed description
+             * @default
+             */
+            description: string;
+            /**
+             * Fingerprint
+             * @description Alert fingerprint
+             */
+            fingerprint: string;
+            /**
+             * Receiver
+             * @description Alert receiver name
+             * @default alertmanager
+             */
+            receiver: string;
+            /**
+             * Severity
+             * @description Alert severity
+             * @default info
+             */
+            severity: string;
+            /**
+             * Started At
+             * @description Alert start timestamp (ISO 8601)
+             */
+            started_at?: string | null;
+            /**
+             * Status
+             * @description Alert status (firing)
+             * @default firing
+             */
+            status: string;
+            /**
+             * Summary
+             * @description Short summary
+             * @default
+             */
+            summary: string;
+        };
+        /**
+         * InfrastructureAlertsResponse
+         * @description Response schema for GET /api/system/infrastructure-alerts.
+         */
+        InfrastructureAlertsResponse: {
+            /**
+             * Alerts
+             * @description Active firing infrastructure alerts
+             */
+            alerts?: components["schemas"]["InfrastructureAlertItem"][];
+            /**
+             * Total
+             * @description Number of active firing alerts
+             * @default 0
+             */
+            total: number;
         };
         /**
          * InfrastructureHealthStatus
@@ -31715,6 +31568,8 @@ export interface components {
             ai_models?: {
                 [key: string]: components["schemas"]["AiModelMetrics"] | components["schemas"]["NemotronMetrics"];
             };
+            /** @description AI VLM metrics */
+            ai_vlm?: components["schemas"]["NemotronMetrics"] | null;
             /**
              * Alerts
              * @description Active performance alerts
@@ -31740,12 +31595,16 @@ export interface components {
             inference?: components["schemas"]["InferenceMetrics"] | null;
             /** @description Nemotron-specific metrics */
             nemotron?: components["schemas"]["NemotronMetrics"] | null;
+            /** @description Legacy detector metrics alias */
+            rtdetr?: components["schemas"]["AiModelMetrics"] | null;
             /**
              * Timestamp
              * Format: date-time
              * @description When this update was generated (UTC)
              */
             timestamp?: string;
+            /** @description YOLO26 detector metrics */
+            yolo26?: components["schemas"]["AiModelMetrics"] | null;
         };
         /**
          * PersonAppearance
@@ -33275,12 +33134,6 @@ export interface components {
              */
             stopped_at: string;
         };
-        /**
-         * PrometheusAlertStatus
-         * @description Prometheus alert status values.
-         * @enum {string}
-         */
-        PrometheusAlertStatus: "firing" | "resolved";
         /**
          * PromptDiffEntry
          * @description Diff entry for a single model's configuration.
@@ -55138,6 +54991,26 @@ export interface operations {
             };
         };
     };
+    system_get_infrastructure_alerts: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["InfrastructureAlertsResponse"];
+                };
+            };
+        };
+    };
     system_get_model_zoo_latency_history: {
         parameters: {
             query: {
@@ -55721,7 +55594,9 @@ export interface operations {
             path: {
                 name: string;
             };
-            cookie?: never;
+            cookie?: {
+                session_id?: string | null;
+            };
         };
         requestBody?: never;
         responses: {
@@ -55733,6 +55608,20 @@ export interface operations {
                 content: {
                     "application/json": components["schemas"]["ServiceActionResponse"];
                 };
+            };
+            /** @description Not authenticated */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Admin session required */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
             };
             /** @description Service not found */
             404: {
@@ -55773,7 +55662,9 @@ export interface operations {
             path: {
                 name: string;
             };
-            cookie?: never;
+            cookie?: {
+                session_id?: string | null;
+            };
         };
         requestBody?: never;
         responses: {
@@ -55785,6 +55676,20 @@ export interface operations {
                 content: {
                     "application/json": components["schemas"]["ServiceActionResponse"];
                 };
+            };
+            /** @description Not authenticated */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Admin session required */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
             };
             /** @description Service not found */
             404: {
@@ -55825,7 +55730,9 @@ export interface operations {
             path: {
                 name: string;
             };
-            cookie?: never;
+            cookie?: {
+                session_id?: string | null;
+            };
         };
         requestBody?: never;
         responses: {
@@ -55838,8 +55745,15 @@ export interface operations {
                     "application/json": components["schemas"]["ServiceActionResponse"];
                 };
             };
-            /** @description Bad request - Service is disabled */
-            400: {
+            /** @description Not authenticated */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Admin session required */
+            403: {
                 headers: {
                     [name: string]: unknown;
                 };
@@ -55884,7 +55798,9 @@ export interface operations {
             path: {
                 name: string;
             };
-            cookie?: never;
+            cookie?: {
+                session_id?: string | null;
+            };
         };
         requestBody?: never;
         responses: {
@@ -55899,6 +55815,20 @@ export interface operations {
             };
             /** @description Bad request - Service already running or disabled */
             400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Not authenticated */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Admin session required */
+            403: {
                 headers: {
                     [name: string]: unknown;
                 };
@@ -56147,7 +56077,9 @@ export interface operations {
             path: {
                 worker_name: string;
             };
-            cookie?: never;
+            cookie?: {
+                session_id?: string | null;
+            };
         };
         requestBody?: never;
         responses: {
@@ -56178,7 +56110,9 @@ export interface operations {
             path: {
                 worker_name: string;
             };
-            cookie?: never;
+            cookie?: {
+                session_id?: string | null;
+            };
         };
         requestBody?: never;
         responses: {
@@ -56209,7 +56143,9 @@ export interface operations {
             path: {
                 worker_name: string;
             };
-            cookie?: never;
+            cookie?: {
+                session_id?: string | null;
+            };
         };
         requestBody?: never;
         responses: {
@@ -56374,44 +56310,6 @@ export interface operations {
             };
             /** @description Validation error */
             422: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content?: never;
-            };
-        };
-    };
-    alertmanager_receive_alertmanager_webhook: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        requestBody: {
-            content: {
-                "application/json": components["schemas"]["AlertmanagerWebhook"];
-            };
-        };
-        responses: {
-            /** @description Webhook received and processed */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["AlertmanagerWebhookResponse"];
-                };
-            };
-            /** @description Invalid payload format */
-            422: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content?: never;
-            };
-            /** @description Internal server error */
-            500: {
                 headers: {
                     [name: string]: unknown;
                 };

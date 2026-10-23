@@ -18,6 +18,7 @@ import pytest
 from fastapi import FastAPI
 from httpx import ASGITransport, AsyncClient
 
+from backend.api.routes.auth import get_current_admin_user, get_current_user
 from backend.api.routes.system import register_workers, router
 from backend.core.redis import get_redis
 
@@ -30,6 +31,16 @@ pytestmark = pytest.mark.unit
 
 
 @pytest.fixture
+def mock_admin_user() -> MagicMock:
+    """Create mock admin user."""
+    user = MagicMock()
+    user.id = "admin-user-1"
+    user.username = "admin"
+    user.is_admin = True
+    return user
+
+
+@pytest.fixture
 def mock_redis() -> AsyncMock:
     """Create mock Redis client."""
     redis = AsyncMock()
@@ -38,7 +49,7 @@ def mock_redis() -> AsyncMock:
 
 
 @pytest.fixture
-def test_app(mock_redis: AsyncMock) -> FastAPI:
+def test_app(mock_redis: AsyncMock, mock_admin_user: MagicMock) -> FastAPI:
     """Create test FastAPI app with system router."""
     app = FastAPI()
     app.include_router(router)
@@ -47,6 +58,8 @@ def test_app(mock_redis: AsyncMock) -> FastAPI:
         yield mock_redis
 
     app.dependency_overrides[get_redis] = mock_get_redis
+    app.dependency_overrides[get_current_user] = lambda: mock_admin_user
+    app.dependency_overrides[get_current_admin_user] = lambda: mock_admin_user
     return app
 
 
@@ -500,3 +513,100 @@ class TestWorkerNameValidation:
 
 # Note: The readiness endpoint test that requires database has been moved
 # to integration tests. See backend/tests/integration/test_system_api.py
+
+
+class TestWorkerAuthAndInfrastructureAlerts:
+    """Tests for B4.11 worker auth guards, audit logging, and infrastructure alerts proxy."""
+
+    async def test_worker_control_requires_admin_session_rejects_anon_and_api_key(
+        self,
+        mock_redis: AsyncMock,
+        register_mock_supervisor: MagicMock,
+    ) -> None:
+        """Unauthenticated calls get 401 and API-key calls get 403 on worker control routes."""
+        app = FastAPI()
+        app.include_router(router)
+
+        async def mock_get_redis():
+            yield mock_redis
+
+        app.dependency_overrides[get_redis] = mock_get_redis
+
+        transport = ASGITransport(app=app)  # type: ignore[arg-type]
+        async with AsyncClient(transport=transport, base_url="http://test") as client:
+            for verb in ("restart", "stop", "start"):
+                resp_anon = await client.post(f"/api/system/supervisor/workers/file_watcher/{verb}")
+                assert resp_anon.status_code == 401
+
+                resp_key = await client.post(
+                    f"/api/system/supervisor/workers/file_watcher/{verb}",
+                    headers={"X-API-Key": "test-api-key"},
+                )
+                assert resp_key.status_code == 403
+                assert "API keys are not permitted" in resp_key.json()["detail"]
+
+    async def test_get_infrastructure_alerts_merges_webhook_and_alertmanager(
+        self,
+        async_client: AsyncClient,
+    ) -> None:
+        """GET /api/system/infrastructure-alerts returns active webhook and Alertmanager alerts."""
+        from unittest.mock import patch
+
+        from backend.api.routes.webhooks import (
+            _active_webhook_alerts,
+            clear_active_webhook_alerts,
+        )
+
+        clear_active_webhook_alerts()
+        _active_webhook_alerts["fp-webhook"] = {
+            "alertname": "WebhookFiring",
+            "status": "firing",
+            "severity": "warning",
+            "component": "redis",
+            "summary": "Redis high memory",
+            "description": "Redis memory > 80%",
+            "started_at": "2026-10-22T12:00:00+00:00",
+            "fingerprint": "fp-webhook",
+            "receiver": "webhook-receiver",
+        }
+        try:
+            mock_resp = MagicMock()
+            mock_resp.status_code = 200
+            mock_resp.json.return_value = [
+                {
+                    "fingerprint": "fp-am",
+                    "status": {"state": "active"},
+                    "labels": {
+                        "alertname": "GPUOverheat",
+                        "severity": "critical",
+                        "component": "gpu",
+                    },
+                    "annotations": {
+                        "summary": "GPU hot",
+                        "description": "GPU > 85C",
+                    },
+                    "startsAt": "2026-10-22T12:05:00Z",
+                    "receivers": [{"name": "critical-receiver"}],
+                },
+                {
+                    "fingerprint": "fp-suppressed",
+                    "status": {"state": "suppressed"},
+                    "labels": {"alertname": "SuppressedAlert"},
+                },
+            ]
+            with patch("backend.api.routes.system.httpx.AsyncClient", autospec=True) as mock_cls:
+                mock_cls.return_value.__aenter__.return_value.get = AsyncMock(
+                    return_value=mock_resp
+                )
+                resp = await async_client.get("/api/system/infrastructure-alerts")
+
+            assert resp.status_code == 200
+            body = resp.json()
+            assert body["total"] == 2
+            by_fp = {item["fingerprint"]: item for item in body["alerts"]}
+            assert set(by_fp) == {"fp-webhook", "fp-am"}
+            assert by_fp["fp-am"]["alertname"] == "GPUOverheat"
+            assert by_fp["fp-am"]["severity"] == "critical"
+            assert by_fp["fp-am"]["receiver"] == "critical-receiver"
+        finally:
+            clear_active_webhook_alerts()

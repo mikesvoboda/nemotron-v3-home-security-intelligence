@@ -188,8 +188,9 @@ describe('endpoint contract (D2)', () => {
       `${audit.scan.unresolved.length} request URL(s) the scan cannot pin to this backend`
     ).toMatchInlineSnapshot(`
       "src/hooks/useAudioNotifications.ts:220  prefix \${soundsPath} is not statically resolvable
-      src/services/alertsApi.ts:120  prefix \${baseUrl} is not statically resolvable
-      src/services/alertsApi.ts:165  prefix \${baseUrl} is not statically resolvable
+      src/services/alertsApi.ts:126  prefix \${baseUrl} is not statically resolvable
+      src/services/alertsApi.ts:171  prefix \${baseUrl} is not statically resolvable
+      src/services/alertsApi.ts:234  prefix \${baseUrl} is not statically resolvable
       src/services/authApi.ts:156  prefix \${baseUrl} is not statically resolvable
       src/services/authApi.ts:186  prefix \${baseUrl} is not statically resolvable
       src/services/authApi.ts:217  prefix \${baseUrl} is not statically resolvable

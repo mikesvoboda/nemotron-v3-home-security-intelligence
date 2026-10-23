@@ -201,6 +201,16 @@ class ShellServiceManager(ServiceManager):
             async with httpx.AsyncClient(timeout=config.health_timeout) as client:
                 response = await client.get(config.health_url)
                 response.raise_for_status()
+                try:
+                    body = response.json()
+                except Exception:
+                    body = None
+                if isinstance(body, dict) and body.get("model_loaded") is False:
+                    logger.warning(
+                        f"Health check failed for {config.name}: model_loaded is false",
+                        extra={"service": config.name, "url": config.health_url},
+                    )
+                    return False
                 logger.debug(
                     f"Health check passed for {config.name}",
                     extra={"service": config.name, "url": config.health_url},
