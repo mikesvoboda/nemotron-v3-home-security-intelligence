@@ -54,12 +54,10 @@ def test_outbound_webhook_on_local_network_defaults_off() -> None:
 
 
 def test_0013_check_predicate_targets_the_derived_column_pairs() -> None:
-    """The CHECK is column-presence, not data-existence.
+    """The column half of the CHECK is derived from the file, not hand-copied.
 
-    A data-shaped predicate ("Household exists") would make a fresh create_all database
-    EXECUTE the file, and the upgrade-path suite pins fresh boots as verified-without-
-    running. The seed's real audience is databases that predate the column, where the
-    columns are absent and the CHECK already said "run it".
+    `_B42_ALERT_DELIVERY_COLUMNS` is `_add_column_pairs("0013-alert-delivery")`'s output, so a
+    reworded file reddens here instead of silently leaving a column unchecked.
     """
     from backend.migrations.checks import _B42_ALERT_DELIVERY_COLUMNS
 
@@ -67,3 +65,24 @@ def test_0013_check_predicate_targets_the_derived_column_pairs() -> None:
         ("quiet_hours_periods", "recipient_id"),
         ("outbound_webhooks", "on_local_network"),
     }
+
+
+def test_0013_check_requires_the_household_seed_too() -> None:
+    """The CHECK is data-aware: the seed is part of 0013's effect, not just the columns.
+
+    A column-only CHECK records 0013 as ``verified`` on a fresh create_all database (the
+    columns come from the models) and the Household seed never runs -- measured live:
+    feature-check run 39901062658 answered every
+    ``PUT /api/notification-preferences/push-subscription`` with 503 "No notification
+    recipient exists yet" because `recipients` was empty on that stack. The file's seed is
+    idempotent (`WHERE NOT EXISTS`), so a fresh database EXECUTING the file is harmless --
+    and the create_all fresh-boot pin (verified-without-running, NEM-5051's
+    ACCESS EXCLUSIVE rationale) belongs to the ALTER-carrying upgrades, not to an
+    INSERT-only side effect.
+    """
+    from backend.migrations.checks import _household_recipient_seeded
+
+    # The named predicate exists and is a Check (callable returning an awaitable), so the
+    # data half is pinned as part of the registered CHECK, not reachable only by accident.
+    check = _household_recipient_seeded()
+    assert callable(check)

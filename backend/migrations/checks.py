@@ -223,6 +223,40 @@ _RETIRED_ALERT_RULE_COLUMNS: tuple[str, ...] = _drop_columns_for_table(
 )
 
 
+def _household_recipient_seeded() -> Check:
+    """True when the `Household` recipient row exists.
+
+    0013's effect is not only the two columns: its file also seeds the `Household` recipient
+    (the row the push-subscription and quiet-hours surfaces attach to), and `create_all` builds
+    the table but seeds nothing. A column-only CHECK therefore records 0013 as ``verified`` on
+    a fresh database and the seed never runs -- which is exactly the deterministic 503
+    ("No notification recipient exists yet") feature-check run 39901062658 hit on every
+    ``PUT /api/notification-preferences/push-subscription``. Data half follows 0011's shape:
+    the schema half alone is not the upgrade's effect. The file's seed is idempotent
+    (`WHERE NOT EXISTS`), so re-running it on a database that already has the row is a no-op.
+    """
+
+    async def check(conn: AsyncConnection) -> bool:
+        if await _count(conn, _ANY_TABLE_QUERY, table="recipients") == 0:
+            # The shape-detect convention (`column_present`): an absent table means nothing
+            # left to do, because the delivery tables are owned by create_all (0013's file
+            # header says so) and init_db runs create_all BEFORE apply_all -- so the
+            # absent-recipients state exists only on databases that have never seen
+            # create_all (test fixtures planting partial schemas). Returning False here
+            # would schedule the seed against a database where the file's own ALTERs fail
+            # first (`relation "quiet_hours_periods" does not exist`, seen live in the 0011
+            # fixture run); returning True defers the seed to the boot where create_all has
+            # made the table -- and there the empty-table branch below runs it.
+            return True
+        rows = await _count(
+            conn,
+            "SELECT count(*) FROM recipients WHERE name = 'Household'",
+        )
+        return rows > 0
+
+    return check
+
+
 def _prompt_versions_model_migrated() -> Check:
     """True when `prompt_versions.model` is no longer the native `aimodel` enum AND the four
     retired models' rows are gone.
@@ -295,6 +329,7 @@ CHECKS: dict[str, Check] = {
     ),
     "0013-alert-delivery": all_present(
         [column_present(table, column) for table, column in _B42_ALERT_DELIVERY_COLUMNS]
+        + [_household_recipient_seeded()]
     ),
     "0014-arming-core": all_present(
         [column_present(table, column) for table, column in _B47_ARMING_CORE_COLUMNS]

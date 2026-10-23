@@ -24,7 +24,7 @@ from datetime import datetime, timedelta
 from pathlib import Path
 from typing import Any, Literal
 
-from sqlalchemy import delete, or_, select, text, update
+from sqlalchemy import delete, or_, select, update
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
@@ -526,11 +526,19 @@ class EventPurger:
         alert_ids: list[str],
     ) -> int:
         """Delete notification_deliveries rows if the table exists (B4.2 compatibility)."""
+        from backend.models.alert_delivery import NotificationDelivery
+
         try:
             async with session.begin_nested():
+                # `delete()` + `in_()`, NOT `text("... IN :param")` with a tuple: text()
+                # binds one scalar per name, so Postgres received `IN $1` (a bare parameter
+                # in a list position) and answered `syntax error at or near "$1"` on every
+                # purge -- feature-check run 39901062658, compose.log 04:42:02, three times.
+                # The try/except below then swallowed it and purge "succeeded" while every
+                # delivery row survived. `in_()` is the expanding binding the query needs;
+                # the exception path keeps guarding only the table-may-not-exist case.
                 res = await session.execute(
-                    text("DELETE FROM notification_deliveries WHERE alert_id IN :alert_ids"),
-                    {"alert_ids": tuple(alert_ids)},
+                    delete(NotificationDelivery).where(NotificationDelivery.alert_id.in_(alert_ids))
                 )
                 return int(res.rowcount or 0)  # type: ignore[attr-defined]
         except Exception:
