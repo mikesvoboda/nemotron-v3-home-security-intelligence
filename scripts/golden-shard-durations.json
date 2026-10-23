@@ -276,6 +276,10 @@
       "median": 19.362,
       "n": 5
     },
+    "tests/golden/shell/modes.spec.ts": {
+      "median": 22.0,
+      "n": 0
+    },
     "tests/golden/shell/nav.spec.ts": {
       "median": 15.66,
       "n": 5
@@ -400,9 +404,15 @@
   "provenance": {
     "keying": "paths are frontend-relative (tests/golden/...); each junit artifact is keyed to its shard by its own artifacts/summary.json (results.golden.backend ok = shard 1, else 'skipped on shard i/N')",
     "measured": "2026-10-22",
-    "note": "an earlier cut of this corpus held 69 of the 99 files: its extraction regex did not match every junit classname (classnames are the full spec path ../golden/<dir>/<file>.spec.ts, 99 unique per run) and rows without a time attribute crashed it. The correction is why the manifest re-packed here differs from any earlier draft. 2026-10-22: confidence-filter.spec.ts added by F4.4 with an ESTIMATED median (n=0; first draft 55.0 — midpoint of event-detail-modal.spec.ts's 64.3s and dashboard-drop.spec.ts's 37.9s — revised to 70.0 the same day after run 39799565059: the 55.0 pack split analytics.spec.ts onto a different shard from alerts.spec.ts, and analytics.spec.ts:108's cross-file-order assertion (items.length === 1, valid only because workers=1 runs alerts.spec.ts first on the same shard) failed on a stack where alerts.spec.ts never ran. 70.0 keeps the pair co-sharded in the sweep over 40/55/70/150. It has never run: n=0 is deliberate, the n>=5 pin was extended to n==0 rows only. Replace the estimate at the next n=5 re-measure.",
+    "note": "an earlier cut of this corpus held 69 of the 99 files: its extraction regex did not match every junit classname (classnames are the full spec path ../golden/<dir>/<file>.spec.ts, 99 unique per run) and rows without a time attribute crashed it. The correction is why the manifest re-packed here differs from any earlier draft. 2026-10-22: confidence-filter.spec.ts added by F4.4 with an ESTIMATED median (n=0; first draft 55.0 \u2014 midpoint of event-detail-modal.spec.ts's 64.3s and dashboard-drop.spec.ts's 37.9s \u2014 revised to 70.0 the same day after run 39799565059: the 55.0 pack split analytics.spec.ts onto a different shard from alerts.spec.ts, and analytics.spec.ts:108's cross-file-order assertion (items.length === 1, valid only because workers=1 runs alerts.spec.ts first on the same shard) failed on a stack where alerts.spec.ts never ran. 70.0 keeps the pair co-sharded in the sweep over 40/55/70/150. It has never run: n=0 is deliberate, the n>=5 pin was extended to n==0 rows only. Replace the estimate at the next n=5 re-measure.",
     "package": "r282 (+ F4.4 estimate 2026-10-22)",
-    "runs": ["39438896950", "39440429144", "39441319838", "39445382087", "39445965194"],
+    "runs": [
+      "39438896950",
+      "39440429144",
+      "39441319838",
+      "39445382087",
+      "39445965194"
+    ],
     "unit": "per spec FILE: the sum of that file's test-case times on the one shard leg that ran it, median across the five green runs"
   }
 }

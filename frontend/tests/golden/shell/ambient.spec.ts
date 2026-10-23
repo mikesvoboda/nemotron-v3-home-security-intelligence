@@ -206,7 +206,7 @@ async function expectHealthyAmbientOn(page: import('@playwright/test').Page) {
 async function gotoAmbientTab(page: import('@playwright/test').Page, h: ShellHarness) {
   await page.keyboard.press('g');
   await page.keyboard.press('s');
-  await expect(page).toHaveURL(`${h.ui}/settings`);
+  await expect(page).toHaveURL(new RegExp(`^${h.ui}/settings(/cameras)?$`));
   await ambientTab(page).click();
   await expect(page).toHaveURL(`${h.ui}/settings/ambient`);
   await expect(page.getByTestId('not-found-page')).toHaveCount(0);

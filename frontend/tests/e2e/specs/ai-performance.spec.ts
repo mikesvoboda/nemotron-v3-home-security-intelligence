@@ -119,6 +119,7 @@ test.describe('AI Performance Navigation', () => {
   });
 
   test('sidebar link is visible', async ({ page }) => {
+    await page.addInitScript(() => localStorage.setItem('ui-mode', JSON.stringify('advanced')));
     await page.goto('/');
     await page.waitForLoadState('domcontentloaded');
 
@@ -126,12 +127,13 @@ test.describe('AI Performance Navigation', () => {
     await expect(aiLink).toBeVisible();
   });
 
-  test('sidebar link text says AI Performance', async ({ page }) => {
+  test('sidebar link text says GPU & Models', async ({ page }) => {
+    await page.addInitScript(() => localStorage.setItem('ui-mode', JSON.stringify('advanced')));
     await page.goto('/');
     await page.waitForLoadState('domcontentloaded');
 
     const aiLink = page.locator('aside a[href="/ai"]');
-    await expect(aiLink).toHaveText(/AI Performance/i);
+    await expect(aiLink).toHaveText(/GPU & Models/i);
   });
 });
 

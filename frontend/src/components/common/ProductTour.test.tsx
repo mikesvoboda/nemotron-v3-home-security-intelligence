@@ -2,6 +2,7 @@ import { screen, fireEvent, waitFor } from '@testing-library/react';
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 
 import ProductTour from './ProductTour';
+import { EASY_HUBS } from '../../config/surfaces';
 import {
   TOUR_COMPLETED_KEY,
   TOUR_SKIPPED_KEY,
@@ -500,6 +501,13 @@ describe('tourSteps configuration', () => {
     const settingsStep = tourSteps.find((step) => step.target === '[data-tour="settings-link"]');
     expect(settingsStep).toBeDefined();
     expect(settingsStep?.title).toBe('Settings');
+  });
+
+  it('sidebar tour targets in tourSteps match Easy hubs in surfaces.ts (F4.9)', () => {
+    const easyTourTargets = new Set(
+      EASY_HUBS.map((h) => h.dataTour).filter((t): t is string => Boolean(t))
+    );
+    expect(easyTourTargets).toEqual(new Set(['timeline-link', 'settings-link']));
   });
 
   it('all steps have required properties', () => {

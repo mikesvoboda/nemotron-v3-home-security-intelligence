@@ -13,7 +13,7 @@
  * defect and demoted the row to `half-built`. Three of the seven steps targeted
  * selectors nothing rendered: [data-tour="risk-gauge"] had no writer at all, and
  * camera-grid/activity-feed had none either (the only data-tour writer was
- * Sidebar.tsx:74/:140, and sidebarNav.ts supplies just 'timeline-link' and
+ * Sidebar.tsx:53/:73, and surfaces.ts supplies 'timeline-link' and
  * 'settings-link'). [r130f] fixes that; per ruling 130 the golden is FLIPPED
  * from pinning the break to asserting the fix, so the dead-target leg is gone
  * and what replaces it measures the fixed behaviour.
@@ -342,6 +342,8 @@ test.describe('golden path: first-visit product tour @critical', () => {
     await expect(tour.locator('[data-tour="risk-card"]')).toHaveCount(1);
     await expect(tour.locator('[data-tour="camera-grid"]')).toHaveCount(1);
     await expect(tour.locator('[data-tour="activity-feed"]')).toHaveCount(1);
+    await expect(tour.locator('[data-tour="timeline-link"]')).toHaveCount(1);
+    await expect(tour.locator('[data-tour="settings-link"]')).toHaveCount(1);
     // And the dead selector FE-1 measured is not merely unreached, it is gone.
     await expect(tour.locator('[data-tour="risk-gauge"]')).toHaveCount(0);
 

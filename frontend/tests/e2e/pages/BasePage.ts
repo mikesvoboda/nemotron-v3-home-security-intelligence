@@ -70,7 +70,7 @@ export class BasePage {
     this.navLogs = page.locator('aside a[href="/logs"]');
     this.navAudit = page.locator('aside a[href="/audit"]');
     this.navSystem = page.locator('aside a[href="/operations"]');
-    this.navSettings = page.locator('aside a[href="/settings"]');
+    this.navSettings = page.locator('aside a[href^="/settings"]');
   }
 
   /**

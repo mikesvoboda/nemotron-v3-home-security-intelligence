@@ -42,7 +42,7 @@
  *   backend state involved.
  */
 import { GUARD_MESSAGE, expect, test } from '../guard';
-import { BOOT_QUIET_MS, closedByGuard, openShell, readShellHarness } from '../harness';
+import { BOOT_QUIET_MS, closedByGuard, openShell, readShellHarness, setMode } from '../harness';
 
 const harness = readShellHarness();
 test.skip(
@@ -112,6 +112,7 @@ test.describe('golden path: header chrome @critical', () => {
     test.info().skip(!harness.ready, harness.ready ? '' : harness.why);
     if (!harness.ready) return;
     const h = harness;
+    await setMode(page, 'advanced');
     await openShell(page, h);
 
     // The block has no data-testid (Header.tsx:417-421 renders two plain
