@@ -21,16 +21,37 @@ pytestmark = [pytest.mark.network, pytest.mark.timeout(300)]
 
 
 def _pick_camera_id(logged_in_api: httpx.Client) -> str:
-    events_res = logged_in_api.get("/api/events", params={"limit": 10})
-    assert events_res.status_code == 200, events_res.text[:500]
-    items = events_res.json().get("items") or []
-    if items:
-        return str(items[0]["camera_id"])
+    """The leg's own camera, or the newest event's camera when creation refuses.
+
+    The leg posts disposable 2020-dated events to whatever camera it picks, so
+    it must NOT reuse a camera another golden leg asserts on: an event purged
+    mid-run under another leg's id is exactly the cross-test collision class
+    the 2020 timestamps were added to prevent — and they only protect
+    newest-first `limit=1` picks, not oldest-candidate picks. `POST /api/cameras`
+    validates no files exist, so creating the leg's own camera costs nothing;
+    the event-camera fallback survives only for stacks that refuse the POST
+    (there the disposable rows stay 2020-dated, and newest-first picks never
+    see them).
+    """
+    cam_create = logged_in_api.post(
+        "/api/cameras",
+        json={
+            "name": "Trash purge (B4.4 golden)",
+            "folder_path": "/cameras/b44_golden_trash_purge",
+            "status": "online",
+        },
+    )
+    if cam_create.status_code == 201:
+        return str(cam_create.json()["id"])
 
     cams_res = logged_in_api.get("/api/cameras")
     assert cams_res.status_code == 200, cams_res.text[:500]
     cams = cams_res.json()
     cam_items = cams.get("items") if isinstance(cams, dict) else cams
+    # Another worker may have created it concurrently — re-fetch by name.
+    for cam in cam_items or []:
+        if isinstance(cam, dict) and cam.get("name") == "Trash purge (B4.4 golden)":
+            return str(cam["id"])
     assert cam_items, "expected at least one camera on the stack"
     return str(cam_items[0]["id"])
 

@@ -117,10 +117,18 @@ def test_f050_f079_event_snooze_round_trip_and_six_pipeline_scenarios(
     assert events_res.status_code == 200, events_res.text[:500]
     items = events_res.json()["items"]
     assert items, "expected at least one event on the live stack"
-    # Pick the oldest (harness smoke) event so snoozing its camera never collides
-    # with concurrent golden tests creating fresh events at the head of the list.
-    smoke_candidates = [e for e in items if "smoke" in str(e.get("camera_id", "")).lower()]
-    target_ev = smoke_candidates[-1] if smoke_candidates else items[-1]
+    # Pick by the property smoke() guarantees — a verification verdict — not by
+    # position: the list holds every camera's events newest-first, and other
+    # golden legs create AND PURGE disposable rows mid-run (trash_purge posts
+    # 2020-dated events onto the smoke camera, then Empty-Trashes them). An
+    # oldest-candidate position pick can therefore name a row that a sibling
+    # test's Empty Trash deletes between this GET and the finally-block clear
+    # — the 404 that reds this leg (run 39888773743, `Event with id 3 not
+    # found`). The verified smoke event is never purged (the harness asserts
+    # it exists before golden runs), and snoozing its camera collides with
+    # nothing: it is the stack's oldest persistent event.
+    verified = [e for e in items if (e.get("verification") or {}).get("verdict")]
+    target_ev = verified[-1] if verified else items[-1]
     event_id = target_ev["id"]
 
     snooze_iso = (datetime.now(UTC) + timedelta(hours=1)).isoformat()
