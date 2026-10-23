@@ -52,6 +52,9 @@ from backend.services.orchestrator import (
     ServiceRegistry,
 )
 
+# B4.11 (4n-status.md, T4): ai-vlm is never probed by the orchestrator's health loop.
+NEVER_PROBED_SERVICES: frozenset[str] = frozenset({"ai-vlm"})
+
 if TYPE_CHECKING:
     from backend.core.config import OrchestratorSettings
     from backend.core.docker_client import DockerClient
@@ -293,6 +296,13 @@ class HealthMonitor:
         Returns:
             True if service is healthy, False otherwise
         """
+        # Never send an HTTP or command health probe to services in NEVER_PROBED_SERVICES (T4)
+        if service.name in NEVER_PROBED_SERVICES:
+            if service.container_id:
+                status = await self._docker_client.get_container_status(service.container_id)
+                return status == "running"
+            return True
+
         # HTTP health check
         if service.health_endpoint:
             return await check_http_health(
@@ -326,6 +336,8 @@ class HealthMonitor:
         """
         results: dict[str, bool] = {}
         for service in self._registry.get_enabled():
+            if service.name in NEVER_PROBED_SERVICES:
+                continue
             try:
                 healthy = await self.check_service_health(service)
                 results[service.name] = healthy
@@ -347,6 +359,8 @@ class HealthMonitor:
         7. Invokes callback on health changes
         """
         for service in self._registry.get_enabled():
+            if service.name in NEVER_PROBED_SERVICES:
+                continue
             try:
                 # Skip services in grace period
                 if self._in_grace_period(service):

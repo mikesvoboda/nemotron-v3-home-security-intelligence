@@ -1351,43 +1351,115 @@ async def flush_queues(
         DETECTION_QUEUE,
         DLQ_ANALYSIS_QUEUE,
         DLQ_DETECTION_QUEUE,
-        get_prefixed_queue_name,
+        get_dlq_overflow_name,
+    )
+    from backend.services.redis_streams import (
+        ANALYSIS_CONSUMER_GROUP,
+        ANALYSIS_DLQ_STREAM_KEY,
+        ANALYSIS_STREAM_KEY,
+        DETECTION_CONSUMER_GROUP,
+        DETECTION_DLQ_STREAM_KEY,
+        DETECTION_STREAM_KEY,
     )
 
     start_time = time.time()
+    settings = get_settings()
 
-    # Define queues to flush (using prefixed names)
-    queue_definitions = [
-        ("detection_queue", get_prefixed_queue_name(DETECTION_QUEUE)),
-        ("analysis_queue", get_prefixed_queue_name(ANALYSIS_QUEUE)),
-        ("dlq_detection_queue", get_prefixed_queue_name(DLQ_DETECTION_QUEUE)),
-        ("dlq_analysis_queue", get_prefixed_queue_name(DLQ_ANALYSIS_QUEUE)),
-    ]
-
-    queues_flushed = []
+    queues_flushed: list[str] = []
     items_cleared: dict[str, int] = {}
 
-    for queue_name, prefixed_name in queue_definitions:
-        try:
-            # Get queue length before clearing
-            queue_len = await redis.get_queue_length(prefixed_name)
-            items_cleared[queue_name] = queue_len
+    raw_client = getattr(redis, "_client", None)
+    use_streams = bool(
+        settings.use_redis_streams
+        and raw_client is not None
+        and callable(getattr(raw_client, "xtrim", None))
+    )
 
-            # Clear the queue
-            if queue_len > 0:
-                cleared = await redis.clear_queue(prefixed_name)
-                if cleared:
-                    queues_flushed.append(queue_name)
-                    logger.info(
-                        f"Flushed {queue_len} items from {queue_name}",
-                        extra={"queue_name": queue_name, "items_cleared": queue_len},
+    if use_streams and raw_client is not None:
+        work_streams = [
+            (DETECTION_STREAM_KEY, DETECTION_CONSUMER_GROUP),
+            (ANALYSIS_STREAM_KEY, ANALYSIS_CONSUMER_GROUP),
+        ]
+        for stream_key, group_name in work_streams:
+            try:
+                stream_len = int(await raw_client.xlen(stream_key))
+                pending_ids: list[str] = []
+                try:
+                    pending_entries = await raw_client.xpending_range(
+                        stream_key, group_name, min="-", max="+", count=10000
                     )
-        except Exception as e:
-            logger.warning(
-                f"Failed to flush {queue_name}: {e}",
-                extra={"queue_name": queue_name, "error": str(e)},
-            )
-            items_cleared[queue_name] = 0
+                    for entry in pending_entries or []:
+                        msg_id = entry.get("message_id") if isinstance(entry, dict) else None
+                        if msg_id is not None:
+                            pending_ids.append(
+                                msg_id.decode() if isinstance(msg_id, bytes) else str(msg_id)
+                            )
+                except Exception:
+                    pending_ids = []
+
+                if pending_ids:
+                    await raw_client.xack(stream_key, group_name, *pending_ids)
+                await raw_client.xtrim(stream_key, maxlen=0, approximate=False)
+
+                cleared_count = max(stream_len, len(pending_ids))
+                items_cleared[stream_key] = cleared_count
+                if cleared_count > 0:
+                    queues_flushed.append(stream_key)
+                    logger.info(
+                        f"Flushed {cleared_count} items from {stream_key}",
+                        extra={"queue_name": stream_key, "items_cleared": cleared_count},
+                    )
+            except Exception as e:
+                logger.warning(
+                    f"Failed to flush stream {stream_key}: {e}",
+                    extra={"queue_name": stream_key, "error": str(e)},
+                )
+                items_cleared[stream_key] = 0
+
+        for dlq_stream_key in (DETECTION_DLQ_STREAM_KEY, ANALYSIS_DLQ_STREAM_KEY):
+            try:
+                dlq_len = int(await raw_client.xlen(dlq_stream_key))
+                items_cleared[dlq_stream_key] = dlq_len
+                if dlq_len > 0:
+                    await raw_client.delete(dlq_stream_key)
+                    queues_flushed.append(dlq_stream_key)
+                    logger.info(
+                        f"Flushed {dlq_len} items from {dlq_stream_key}",
+                        extra={"queue_name": dlq_stream_key, "items_cleared": dlq_len},
+                    )
+            except Exception as e:
+                logger.warning(
+                    f"Failed to flush DLQ stream {dlq_stream_key}: {e}",
+                    extra={"queue_name": dlq_stream_key, "error": str(e)},
+                )
+                items_cleared[dlq_stream_key] = 0
+    else:
+        list_keys = [
+            DETECTION_QUEUE,
+            ANALYSIS_QUEUE,
+            DLQ_DETECTION_QUEUE,
+            DLQ_ANALYSIS_QUEUE,
+            get_dlq_overflow_name(DETECTION_QUEUE),
+            get_dlq_overflow_name(ANALYSIS_QUEUE),
+        ]
+        for list_key in list_keys:
+            try:
+                queue_len = await redis.get_queue_length(list_key)
+                items_cleared[list_key] = queue_len
+                if queue_len > 0:
+                    cleared = await redis.clear_queue(list_key)
+                    if cleared:
+                        queues_flushed.append(list_key)
+                        logger.info(
+                            f"Flushed {queue_len} items from {list_key}",
+                            extra={"queue_name": list_key, "items_cleared": queue_len},
+                        )
+            except Exception as e:
+                logger.warning(
+                    f"Failed to flush {list_key}: {e}",
+                    extra={"queue_name": list_key, "error": str(e)},
+                )
+                items_cleared[list_key] = 0
 
     duration = time.time() - start_time
     total_items = sum(items_cleared.values())

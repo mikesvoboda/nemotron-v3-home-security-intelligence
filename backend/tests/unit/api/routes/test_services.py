@@ -51,19 +51,31 @@ class MockManagedService:
         self.last_restart_at = last_restart_at
 
 
-def create_test_app(orchestrator: MagicMock | None = None) -> FastAPI:
+def create_test_app(
+    orchestrator: MagicMock | None = None,
+    *,
+    admin_override: bool = True,
+) -> FastAPI:
     """Create a test FastAPI app with the services router.
 
     Args:
         orchestrator: Optional mock orchestrator to attach to app state
+        admin_override: If True, override `get_current_admin_user` with a mock admin user
 
     Returns:
         FastAPI app configured for testing
     """
+    from backend.api.routes.auth import get_current_admin_user
+
     app = FastAPI()
     app.include_router(router)
     if orchestrator is not None:
         app.state.orchestrator = orchestrator
+    if admin_override:
+        admin_user = MagicMock()
+        admin_user.username = "admin"
+        admin_user.is_admin = True
+        app.dependency_overrides[get_current_admin_user] = lambda: admin_user
     return app
 
 
@@ -305,9 +317,9 @@ class TestRestartServiceEndpoint:
 
     @pytest.mark.asyncio
     async def test_restart_success(self) -> None:
-        """Test successful service restart."""
+        """Test successful service restart for an allowed service (`ai-gateway`)."""
         service = MockManagedService(
-            name="ai-yolo26",
+            name="ai-gateway",
             status=ContainerServiceStatus.RUNNING,
         )
 
@@ -320,19 +332,18 @@ class TestRestartServiceEndpoint:
         async with AsyncClient(
             transport=ASGITransport(app=app),
             base_url="http://test",
-            headers=get_auth_headers(),
         ) as client:
-            response = await client.post("/api/system/services/ai-yolo26/restart")
+            response = await client.post("/api/system/services/ai-gateway/restart")
 
         assert response.status_code == 200
         data = response.json()
         assert data["success"] is True
         assert "restart initiated" in data["message"]
-        mock_orchestrator.restart_service.assert_called_once_with("ai-yolo26", reset_failures=True)
+        mock_orchestrator.restart_service.assert_called_once_with("ai-gateway", reset_failures=True)
 
     @pytest.mark.asyncio
     async def test_restart_service_not_found(self) -> None:
-        """Test restart returns 404 for unknown service."""
+        """Test restart returns 404 for unknown or non-allowed service."""
         mock_orchestrator = MagicMock()
         mock_orchestrator.get_service = MagicMock(return_value=None)
 
@@ -341,7 +352,6 @@ class TestRestartServiceEndpoint:
         async with AsyncClient(
             transport=ASGITransport(app=app),
             base_url="http://test",
-            headers=get_auth_headers(),
         ) as client:
             response = await client.post("/api/system/services/unknown/restart")
 
@@ -349,41 +359,108 @@ class TestRestartServiceEndpoint:
         assert "not found" in response.json()["detail"].lower()
 
     @pytest.mark.asyncio
-    async def test_restart_disabled_service_returns_400(self) -> None:
-        """Test restart returns 400 for disabled service."""
+    async def test_restart_disabled_service_succeeds(self) -> None:
+        """Test a once-disabled allowed service restarts (B4.11 T7)."""
         service = MockManagedService(
-            name="ai-yolo26",
+            name="ai-gateway",
             status=ContainerServiceStatus.DISABLED,
+            enabled=False,
         )
 
         mock_orchestrator = MagicMock()
         mock_orchestrator.get_service = MagicMock(return_value=service)
+        mock_orchestrator.restart_service = AsyncMock(return_value=True)
 
         app = create_test_app(mock_orchestrator)
 
         async with AsyncClient(
             transport=ASGITransport(app=app),
             base_url="http://test",
-            headers=get_auth_headers(),
         ) as client:
-            response = await client.post("/api/system/services/ai-yolo26/restart")
+            response = await client.post("/api/system/services/ai-gateway/restart")
 
-        assert response.status_code == 400
-        assert "disabled" in response.json()["detail"].lower()
+        assert response.status_code == 200
+        mock_orchestrator.restart_service.assert_called_once_with("ai-gateway", reset_failures=True)
 
     @pytest.mark.asyncio
     async def test_restart_returns_503_when_orchestrator_unavailable(self) -> None:
-        """Test restart returns 503 when orchestrator is not available."""
+        """Test restart returns 503 ('engine not available') when orchestrator is not available."""
         app = create_test_app(orchestrator=None)
 
         async with AsyncClient(
             transport=ASGITransport(app=app),
             base_url="http://test",
-            headers=get_auth_headers(),
         ) as client:
-            response = await client.post("/api/system/services/ai-yolo26/restart")
+            response = await client.post("/api/system/services/ai-gateway/restart")
 
         assert response.status_code == 503
+        assert "engine not available" in response.json()["detail"].lower()
+
+    @pytest.mark.asyncio
+    async def test_restart_auth_refusals_and_two_step_audit(
+        self, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        """Restart answers 401 without session, 403 for API key or non-admin, and writes two-step audit."""
+        from backend.api.routes import services as services_mod
+        from backend.api.routes.auth import get_current_user
+
+        # 1. Without a session or API key -> 401 before orchestrator check (orchestrator=None)
+        app_unauth = create_test_app(orchestrator=None, admin_override=False)
+        async with AsyncClient(
+            transport=ASGITransport(app=app_unauth),
+            base_url="http://test",
+        ) as client:
+            r_401 = await client.post("/api/system/services/ai-gateway/restart")
+            assert r_401.status_code == 401
+
+            # 2. With an API key and no session -> 403 before orchestrator check
+            r_403_key = await client.post(
+                "/api/system/services/ai-gateway/restart",
+                headers=get_auth_headers(),
+            )
+            assert r_403_key.status_code == 403
+
+        # 3. With a non-admin session -> 403 before orchestrator check
+        app_non_admin = create_test_app(orchestrator=None, admin_override=False)
+        non_admin = MagicMock()
+        non_admin.username = "viewer"
+        non_admin.is_admin = False
+        app_non_admin.dependency_overrides[get_current_user] = lambda: non_admin
+        async with AsyncClient(
+            transport=ASGITransport(app=app_non_admin),
+            base_url="http://test",
+        ) as client:
+            r_403_user = await client.post("/api/system/services/ai-gateway/restart")
+            assert r_403_user.status_code == 403
+
+        # 4. Two-step audit: "restart requested" committed BEFORE engine call, then outcome
+        events: list[str] = []
+        service = MockManagedService(name="postgres", status=ContainerServiceStatus.RUNNING)
+        mock_orch = MagicMock()
+        mock_orch.get_service = MagicMock(return_value=service)
+
+        async def _fake_restart(name: str, reset_failures: bool = False) -> bool:
+            events.append(f"engine:{name}:{reset_failures}")
+            return True
+
+        mock_orch.restart_service = _fake_restart
+
+        async def _fake_audit(**kwargs: object) -> None:
+            events.append(f"audit:{kwargs['actor']}:{kwargs['service_name']}:{kwargs['step']}")
+
+        monkeypatch.setattr(services_mod, "_record_service_audit", _fake_audit)
+        app_audit = create_test_app(mock_orch)
+        async with AsyncClient(
+            transport=ASGITransport(app=app_audit),
+            base_url="http://test",
+        ) as client:
+            r_ok = await client.post("/api/system/services/postgres/restart")
+            assert r_ok.status_code == 200
+        assert events == [
+            "audit:admin:postgres:restart requested",
+            "engine:postgres:True",
+            "audit:admin:postgres:restart completed",
+        ]
 
 
 class TestEnableServiceEndpoint:
