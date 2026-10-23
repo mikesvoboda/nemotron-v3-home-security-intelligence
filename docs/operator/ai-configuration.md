@@ -104,7 +104,7 @@ a full batch is fitted, not truncated mid-token.
 | `AI_VLM_WAKE_TIMEOUT_SECONDS`   | `90.0`                                                  | Budget for a wake-from-sleep ping. A failed wake is swallowed, not retried                                        |
 | `VLM_MAX_IMAGE_BYTES`           | `8388608`                                               | Largest single key frame to embed. An oversized capture is a slot overflow that reads as an outage                |
 | `VLM_ENFORCEMENT_PROBE_ENABLED` | `true`                                                  | One JSON-schema probe per endpoint+build before the first verdict is trusted                                      |
-| `VLM_REQUIRED_BUILD`            | `b7972`                                                 | `build_info` substring the probe asserts against `/props`. Empty skips the assertion                              |
+| `VLM_REQUIRED_BUILD`            | `b11819`                                                | `build_info` substring the probe asserts against `/props`. Empty skips the assertion                              |
 
 ---
 
