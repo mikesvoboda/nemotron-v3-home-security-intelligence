@@ -92,9 +92,9 @@ stopped and started on a running stack.
   docs tests the grant with `channel: 'chromium'` set in `permission.spec.ts` alone, leaving the
   golden project's config unchanged (ruling 194).
 
-**Done when:** no row says **unverified** except the rows `O2.5` witnesses (ruling 127's 12,
-F-295 and F-296; UR-10, ruling 237); every **works** row cites a green golden path and a real-tier
-date; the `R2` sheet is final.
+**Done when:** no row says **unverified** except ruling 127's 12, F-295 and F-296, whose witnesses
+ruling 323 routes to `O2.5`'s item 2, the Monitoring package and `[r323b]` (UR-10, rulings 237,
+323); every **works** row cites a green golden path and a real-tier date; the `R2` sheet is final.
 
 ### R2b Phase 2 RULING session, part 2 (after `F2.3`)
 

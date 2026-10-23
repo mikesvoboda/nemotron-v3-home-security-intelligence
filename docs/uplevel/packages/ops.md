@@ -152,8 +152,9 @@ until then. It does not flip `REID_BACKEND`; production stays `local`.
 ### O2.5 Production-shape real tier
 
 **Flags:** none: not heavy. **Depends on:** none named; it builds on `O2.2`'s
-`feature_check.py --real` and ruling 143's Playwright container. It is on ops-a's roster queue
-(UR-52); the owner runs item 2 from the maui login (rulings 256, 280, 323).
+`feature_check.py --real` and ruling 143's Playwright container. It was on ops-a's roster queue
+(UR-52) until ruling 323 gave its slot to `[r323a]`; the owner runs item 2 from the maui login
+(rulings 256, 280, 323).
 It gates only the rows it witnesses (F-176, F-178, F-182 and F-164–F-167, F-169, F-174; ruling
 323), not Phase 2's exit (UR-10, contract rule 5).
 
@@ -163,13 +164,13 @@ and no test runs that file. Its own surface goes unchecked: Grafana and the moni
 `userns_mode: keep-id`, the `:U` mounts, CDI devices, `PODMAN_SOCKET` for `backend` and `alloy`,
 nginx with TLS, and the real `runtime.env` mounts (ruling 144).
 
-- [ ] **Step 1, a spike, time-boxed to one session.** Does rootless Podman run inside an uplevel
+- [x] **Step 1, a spike, time-boxed to one session.** Does rootless Podman run inside an uplevel
       sandbox (`sudo` is available, UR-176)? Can `docker-compose.prod.yml` come up as a
       disposable project, with its own project name, ports, volumes, env file and camera directory
       (the README's **test deployment**), and with GPU services pointed at `agent-gpu`'s `ai-vlm`
       instead of CDI? The spike posts yes or no, the minimal override file it needed, and every
       blocker. **If no, the spike stops, and the owner rules on the blocker before anything is
-      built.**
+      built.** It answered yes, and ruling 162 ruled its blockers.
 - [x] **Step 2, if yes: item 2's run (rulings 256, 323).** `feature_check.py --prod-shape` brings
       up that stack and runs the golden suite against it, using the Playwright container from
       ruling 143, on a test deployment (UR-133). The owner runs it from the maui login, from the
@@ -217,7 +218,7 @@ nginx with TLS, and the real `runtime.env` mounts (ruling 144).
       listed.
 - [ ] **Unchanged:** the fake tier, the CI compose and the per-batch real tier (ruling 103) stay as
       they are.
-- [ ] **The venue fixes (ruling 287 item 3), ops-a's, ahead of `[r282]`.** From the owner's maui
+- [x] **The venue fixes (ruling 287 item 3), ops-a's, ahead of `[r282]`.** From the owner's maui
       handoff (`scratch-patch.diff`, its text `code-review.diff`, cut against `91bf685eb`), only
       what item 2's pass needs: the harness and venue settings, opt-in under `--prod-shape` (the
       handoff's items 1-7, 11, 12, 15, and whichever of 8 or 14 smoke needs); the GPU spec (item
@@ -228,15 +229,16 @@ nginx with TLS, and the real `runtime.env` mounts (ruling 144).
       venue's allow-list). If item 8 changes CI's fake-tier inputs, the PR says how the
       **Unchanged** box above still holds, or keeps the photographs to prod-shape only. Not in
       it: items 9 and 13 and item 19 and the null `risk_score` (`[r285]`, backend), and items
-      16-18 (`[r287b]`). Two or three PRs if the diff calls for it, one at a time (UR-52).
+      16-18 (`[r287b]`). Two or three PRs if the diff calls for it, one at a time (UR-52). They
+      merged in #7320.
 - [x] **Where ruling 127's 12 real-tier rows, F-295 and F-296 get their witness (ruling 323).**
-      F-176, F-178, F-182 and F-164–F-167, F-169, F-174 come from item 2's run, and the operator
-      records them. F-102, F-115 and F-117 come from the Monitoring package's golden path
-      (`packages/frontend.md`). F-295 and F-296 come from `[r323b]`.
+      F-176, F-178, F-182 and F-164–F-167, F-169, F-174 come from item 2's run. F-102, F-115 and
+      F-117 come from the Monitoring package's golden path (`packages/frontend.md`). F-295 and
+      F-296 come from `[r323b]`.
 
 **Done when:** the spike's answer (yes or no, the minimal override file, every blocker) is posted;
 on yes, item 2's pass and the Grafana check have posted, witnessing F-176, F-178, F-182 and the CDI
-wiring and F-164–F-167, F-169, F-174 (rulings 185, 188, 219, 222, 256, 280, 287, 323); on no, the
+wiring and F-164–F-167, F-169, F-174 (rulings 185, 188, 256, 280, 287, 323); on no, the
 owner has ruled on the blocker (ruling 144; the spike's blockers are ruled by ruling 162). When it
 merges, the owning lanes rewrite the real-tier commands of `F1.2` (#6909, frontend; the owner runs
 it) and `O1.11` (#6930, ops-a; the operator runs it) onto the sandbox run's deployment, in a comment
@@ -1597,8 +1599,8 @@ done. Run 1's half, naming the `26.01-py3` divergence, is waived: that image is 
 measure was INCONCLUSIVE on both images ("40 marked outputs have no type in graph.value_info"), a
 defect in the marking walk that `[r325a]` fixes.
 
-**Done when:** Run 2 is posted reading every plan stage at or above 0.999 (ruling 325), and the
-UR-89 review approves.
+**Done when:** Run 2 is posted reading every plan stage at or above 0.999 (ruling 325), CI is
+green, and the UR-89 review approves.
 
 ### [r312b] The AI stack on its latest supported releases, the Triton image first
 
@@ -1704,10 +1706,10 @@ UR-187's second follow-up, named in #7343's inventory. It is lane tier: synthben
 **Depends on:** none.
 **PR:** #7382. (ruling 323, record 6356971214)
 
-Ruling 323 dropped `O2.5`'s item 1, the only user of the two-hop VLM relay (#7364). Item 1 never
-started: Podman 4.9 split the relay sidecar's healthcheck at every space, so `python3 -c` ran
-`import` alone. `grafana-embeds.spec.ts` reads a dashboard only when Grafana's health answers 200,
-so on a stack without Grafana it still passes.
+Ruling 323 dropped `O2.5`'s item 1, the only user of the two-hop VLM relay (#7364). Item 1's stack
+never came up: Podman 4.9 split the relay sidecar's healthcheck at every space, so `python3 -c` ran
+`import` alone, and `backend` never started. `grafana-embeds.spec.ts` reads a dashboard only when
+Grafana's health answers 200, so on a stack without Grafana it still passes.
 
 - [ ] Retire the VLM relay: `VlmRelay`, `vlm_relay.py`, `PROD_SHAPE_VLM_RELAY` and their tests.
       `--real` with `--prod-shape` refuses, naming ruling 323. Removing the rest of that
@@ -1726,8 +1728,9 @@ author's (UR-32).
 **PR:** none yet. (ruling 325, record 6364638047)
 
 `[r312a]`'s layer measure was INCONCLUSIVE on both Triton images with the same error: "40 marked
-outputs have no type in graph.value_info nor from shape inference (first: mean1_in1_5)". The marked
-graph fails `onnx.checker`, ONNX Runtime and TensorRT, so `layers.json` is never written.
+outputs have no type in graph.value_info nor from shape inference (first: mean1_in1_5)". The
+measure's own check refuses the marked graph, which `onnx.checker`, ONNX Runtime and TensorRT would
+reject, so `layers.json` is never written.
 
 - [ ] The marking walk gives every marked output a type in `graph.value_info`, so that
       `onnx.checker` and ONNX Runtime accept the marked graph.
