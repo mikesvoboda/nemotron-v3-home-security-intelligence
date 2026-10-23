@@ -10,20 +10,27 @@ The central configuration hub for your home security monitoring system.
 
 ## What You're Looking At
 
-The Settings page provides comprehensive control over all aspects of your security system. It uses a tabbed interface with ten distinct sections, each focused on a specific configuration area:
+The Settings hub provides comprehensive control over your security system. It uses the shared `HubTabBar` (`frontend/src/config/surfaces.ts`) with ten tabs:
 
-- **CAMERAS** - Manage security camera configurations and detection zones
-- **RULES** - Configure alert rules that trigger notifications
-- **PROCESSING** - Adjust event processing parameters and data retention
-- **NOTIFICATIONS** - Set up email, webhook, and quiet hours for alerts
-- **AMBIENT** - Configure visual and audio status awareness features
-- **ACCESS** - Manage household members, vehicles, and zone-based access control
-- **PROMPTS** - Manage AI model prompt configurations with version history
-- **STORAGE** - Monitor disk usage and perform cleanup operations
-- **AI MODELS** - View status and performance of core AI models and Model Zoo
-- **ADMIN** - Feature toggles, system configuration, and maintenance actions
+- **Cameras** (`/settings/cameras`) - Manage security camera configurations and detection zones
+- **Processing** (`/settings/processing`) - Adjust event processing parameters and data retention
+- **Notifications** (`/settings/notifications`) - Set up email, webhook, and quiet hours for alerts
+- **Ambient** (`/settings/ambient`) - Configure visual and audio status awareness features
+- **Access** (`/settings/access`) - Manage household members, vehicles, and zone-based access control
+- **Storage** (`/settings/storage`) - Monitor disk usage and perform cleanup operations
+- **Data** (`/data`) - Backups, exports, and synthetic data tools
+- **Webhooks** (`/webhooks`) - Outbound webhook integrations
+- **Audit log** (`/audit`) - System audit log
+- **Notification history** (`/notifications`) - Delivered notification history
 
-Open Settings from the **Settings** item in the sidebar's Admin group (or go to `/settings`, which redirects to `/settings/cameras`). The tab bar lists these eleven sections; a twelfth sub-route, `/settings/gpu`, exists for the sidebar's "GPU Settings" link but is not itself a tab. Debug-only **Developer Tools** live inside the Admin tab (visible when the backend runs with `DEBUG=true`), not as a separate header link.
+Four `/settings/*` sub-routes belong to other hubs in `surfaces.ts` and render under those hubs' headings and tab bars:
+
+- **Rules** (`/settings/rules`) lives under **Alerts & Rules**
+- **Prompts** (`/settings/prompts`) lives under **AI Workbench** (Advanced mode)
+- **AI Models** (`/settings/ai-models`) and **GPU** (`/settings/gpu`) live under **GPU & Models** (Advanced mode)
+- **Admin** (`/settings/admin`) lives under **Operations & Monitoring** (Advanced mode)
+
+Open Settings from the **Settings** hub in the sidebar (or go to `/settings`, which redirects to `/settings/cameras`). Debug-only **Developer Tools** live inside the Admin tab (visible when the backend runs with `DEBUG=true`).
 
 If the application is accessed without HTTPS, a **Secure Context Warning** banner appears at the top of the page, alerting that certain browser features (like desktop notifications and clipboard access) may not work properly without a secure connection.
 
@@ -690,20 +697,20 @@ For developers wanting to understand the underlying systems.
 
 ### Related Code
 
-| Component             | Path                                                                                                                         |
-| --------------------- | ---------------------------------------------------------------------------------------------------------------------------- |
-| Settings Page         | `frontend/src/components/settings/SettingsPage.tsx` (routes via `frontend/src/App.tsx`; tab list in `settingsTabsConfig.ts`) |
-| Camera Settings       | `frontend/src/components/settings/CamerasSettings.tsx`                                                                       |
-| Alert Rules Settings  | `frontend/src/components/settings/AlertRulesSettings.tsx`                                                                    |
-| Processing Settings   | `frontend/src/components/settings/ProcessingSettings.tsx`                                                                    |
-| Notification Settings | `frontend/src/components/settings/NotificationSettings.tsx`                                                                  |
-| Ambient Settings      | `frontend/src/components/settings/AmbientStatusSettings.tsx`                                                                 |
-| Access Control        | `frontend/src/components/settings/AccessControlSettings.tsx`                                                                 |
-| Prompt Management     | `frontend/src/components/settings/prompts/PromptManagementPage.tsx`                                                          |
-| Storage Panel         | `frontend/src/components/system/FileOperationsPanel.tsx`                                                                     |
-| AI Models Tab         | `frontend/src/components/settings/AIModelsTab.tsx`                                                                           |
-| Admin Settings        | `frontend/src/components/settings/AdminSettings.tsx`                                                                         |
-| Zone Editor           | `frontend/src/components/zones/ZoneEditor.tsx`                                                                               |
+| Component             | Path                                                                                                                                               |
+| --------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Settings Page         | `frontend/src/components/settings/SettingsPage.tsx` (routes via `frontend/src/App.tsx`; hub and tab registry in `frontend/src/config/surfaces.ts`) |
+| Camera Settings       | `frontend/src/components/settings/CamerasSettings.tsx`                                                                                             |
+| Alert Rules Settings  | `frontend/src/components/settings/AlertRulesSettings.tsx`                                                                                          |
+| Processing Settings   | `frontend/src/components/settings/ProcessingSettings.tsx`                                                                                          |
+| Notification Settings | `frontend/src/components/settings/NotificationSettings.tsx`                                                                                        |
+| Ambient Settings      | `frontend/src/components/settings/AmbientStatusSettings.tsx`                                                                                       |
+| Access Control        | `frontend/src/components/settings/AccessControlSettings.tsx`                                                                                       |
+| Prompt Management     | `frontend/src/components/settings/prompts/PromptManagementPage.tsx`                                                                                |
+| Storage Panel         | `frontend/src/components/system/FileOperationsPanel.tsx`                                                                                           |
+| AI Models Tab         | `frontend/src/components/settings/AIModelsTab.tsx`                                                                                                 |
+| Admin Settings        | `frontend/src/components/settings/AdminSettings.tsx`                                                                                               |
+| Zone Editor           | `frontend/src/components/zones/ZoneEditor.tsx`                                                                                                     |
 
 ### Backend APIs
 

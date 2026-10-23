@@ -178,7 +178,7 @@ An API endpoint that verifies system component status. Used by container orchest
 
 ### Hub
 
-A documentation entry point organized around a specific user persona or goal. The main hubs are Getting Started (install and first run), User Guide (use the dashboard), Operator Hub (run the system) and Developer Hub (extend the system). See [docs/README.md](../README.md).
+In documentation, an entry point organized around a specific user persona or goal (Getting Started, User Guide, Operator Hub, Developer Hub; see [docs/README.md](../README.md)). In the frontend navigation registry (`frontend/src/config/surfaces.ts`), one of the nine sidebar destinations — five Easy hubs (`Dashboard`, `Timeline & Search`, `Alerts & Rules`, `Household`, `Settings`) and four Advanced hubs (`Entities & Re-ID`, `AI Workbench`, `GPU & Models`, `Operations & Monitoring`) — each owning a primary route and an optional sub-surface tab list rendered by `HubTabBar`.
 
 ---
 
@@ -385,6 +385,10 @@ A 128-bit identifier that is unique across space and time. Used extensively in t
 ### Verdict Source
 
 Which step of the three-step chain decided an [Alert](#alert) (`backend/services/alerting/verdict.py`): `local` (the local `ai-vlm` engine), `cloud` (an opt-in cloud VLM), or `detector` (the detector + Triton specialists fallback when VLM verification is unavailable).
+
+### ViewMode
+
+The active UI complexity mode (`'easy' | 'advanced'`, persisted in `localStorage['ui-mode']` via `ViewModeProvider` in `frontend/src/contexts/ViewModeContext.tsx` and toggled by `ModeSwitch`). Easy mode renders the five everyday hubs and hides operator chrome (`AdvancedOnly`); Advanced mode adds the four operator/AI hubs and operator diagnostics while keeping every route reachable by URL in both modes.
 
 ### VRAM (Video RAM)
 

@@ -69,29 +69,29 @@ export class SettingsPage extends BasePage {
     // Note: AI Models tab was moved to /ai page
     this.tabList = page.locator('[role="tablist"]');
     this.camerasTab = page
-      .getByRole('tab', { name: /CAMERAS/i })
-      .or(page.locator('button').filter({ hasText: 'CAMERAS' }));
+      .getByRole('tab', { name: /Cameras/i })
+      .or(page.locator('button').filter({ hasText: /Cameras/i }));
     this.rulesTab = page
-      .getByRole('tab', { name: /RULES/i })
-      .or(page.locator('button').filter({ hasText: 'RULES' }));
+      .getByRole('tab', { name: /Rules/i })
+      .or(page.locator('button').filter({ hasText: /Rules/i }));
     this.processingTab = page
-      .getByRole('tab', { name: /PROCESSING/i })
-      .or(page.locator('button').filter({ hasText: 'PROCESSING' }));
+      .getByRole('tab', { name: /Processing/i })
+      .or(page.locator('button').filter({ hasText: /Processing/i }));
     this.notificationsTab = page
-      .getByRole('tab', { name: /NOTIFICATIONS/i })
-      .or(page.locator('button').filter({ hasText: 'NOTIFICATIONS' }));
+      .getByRole('tab', { name: /Notifications/i })
+      .or(page.locator('button').filter({ hasText: /Notifications/i }));
     this.ambientTab = page
-      .getByRole('tab', { name: /AMBIENT/i })
-      .or(page.locator('button').filter({ hasText: 'AMBIENT' }));
+      .getByRole('tab', { name: /Ambient/i })
+      .or(page.locator('button').filter({ hasText: /Ambient/i }));
     this.calibrationTab = page
-      .getByRole('tab', { name: /CALIBRATION/i })
-      .or(page.locator('button').filter({ hasText: 'CALIBRATION' }));
+      .getByRole('tab', { name: /Calibration/i })
+      .or(page.locator('button').filter({ hasText: /Calibration/i }));
     this.promptsTab = page
-      .getByRole('tab', { name: /PROMPTS/i })
-      .or(page.locator('button').filter({ hasText: 'PROMPTS' }));
+      .getByRole('tab', { name: /Prompts/i })
+      .or(page.locator('button').filter({ hasText: /Prompts/i }));
     this.storageTab = page
-      .getByRole('tab', { name: /STORAGE/i })
-      .or(page.locator('button').filter({ hasText: 'STORAGE' }));
+      .getByRole('tab', { name: /Storage/i })
+      .or(page.locator('button').filter({ hasText: /Storage/i }));
 
     // Tab Panels (filter to visible panel only to avoid strict mode violation)
     this.tabPanel = page.locator('[role="tabpanel"]:not([aria-hidden="true"])');

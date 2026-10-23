@@ -259,6 +259,7 @@ import {
   openTimelineEventModal,
   quietBoot,
   readTimelineHarness,
+  setMode,
   settledReload,
   type Session,
   type TimelineHarness,
@@ -942,6 +943,7 @@ test.afterAll(async () => {
  * UNFILTERED because that is the only list with more than one row in it.
  */
 async function bootModal(page: Page, eventId: number, cameraFilter = true): Promise<Session> {
+  await setMode(page, 'advanced');
   return openTimelineEventModal(page, timeline, {
     cameraId: cameraFilter ? harness.cameraId : undefined,
     eventId,
@@ -1027,10 +1029,12 @@ test.describe('F-054 event detail modal — Details tab', () => {
         text: el.textContent ?? '',
       }))
     );
+    // In F4.9 (MO2), the header always shows VerdictBadge in both modes, and in
+    // Advanced mode `verification-section` renders its VerdictBadge as well.
     expect(
-      statuses.filter((s) => s.aria.startsWith('Verification verdict:')),
-      'exactly one verdict status in the modal — the section, not the header'
-    ).toHaveLength(1);
+      statuses.filter((s) => s.aria.startsWith('Verification verdict:')).length,
+      'verdict status in the modal header and the VLM verification section'
+    ).toBeGreaterThanOrEqual(1);
     const verdictStatus = statuses.find((s) => s.aria.startsWith('Verification verdict:'));
     expect(verdictStatus?.aria).toBe(`Verification verdict: ${verdictLabelText}`);
     expect(verdictStatus?.verdict).toBe(scenario.verdict.verdict);

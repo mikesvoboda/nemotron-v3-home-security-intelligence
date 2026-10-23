@@ -194,7 +194,8 @@ describe('mounted shell holds one realtime owner [r204]', () => {
     renderWithProviders(
       <ShellProviders>
         <Shell />
-      </ShellProviders>
+      </ShellProviders>,
+      { mode: 'advanced' }
     );
 
     await act(async () => {

@@ -329,10 +329,10 @@ test.describe('Model Zoo Panel - Navigation', () => {
     await setupModelZooMocks(page);
 
     // Navigate to Settings page
-    await page.goto('/settings');
+    await page.goto('/settings/ai-models');
 
     // Wait for settings page to load
-    await expect(page.getByRole('heading', { name: /Settings/i })).toBeVisible();
+    await expect(page.getByRole('heading', { name: /GPU & Models|Settings/i })).toBeVisible();
 
     // Click on AI Models tab
     const aiModelsTab = page
@@ -349,8 +349,8 @@ test.describe('Model Zoo Panel - Navigation', () => {
   test('Model Zoo panel is visible in AI Models settings', async ({ page }) => {
     await setupModelZooMocks(page);
 
-    await page.goto('/settings');
-    await expect(page.getByRole('heading', { name: /Settings/i })).toBeVisible();
+    await page.goto('/settings/ai-models');
+    await expect(page.getByRole('heading', { name: /GPU & Models|Settings/i })).toBeVisible();
 
     // Navigate to AI Models tab
     const aiModelsTab = page
@@ -370,7 +370,7 @@ test.describe('Model Zoo Panel - Navigation', () => {
 test.describe('Model Zoo Panel - Display', () => {
   test.beforeEach(async ({ page }) => {
     await setupModelZooMocks(page);
-    await page.goto('/settings');
+    await page.goto('/settings/ai-models');
 
     // Navigate to AI Models tab
     const aiModelsTab = page
@@ -491,7 +491,7 @@ test.describe('Model Zoo Panel - Display', () => {
 test.describe('Model Zoo Panel - Interactions', () => {
   test.beforeEach(async ({ page }) => {
     await setupModelZooMocks(page);
-    await page.goto('/settings');
+    await page.goto('/settings/ai-models');
 
     // Navigate to AI Models tab
     const aiModelsTab = page
@@ -627,7 +627,7 @@ test.describe('Model Zoo Panel - Interactions', () => {
 test.describe('Model Zoo Panel - Error Handling', () => {
   test('shows error toast when load fails', async ({ page }) => {
     await setupModelZooMocks(page, { loadError: true });
-    await page.goto('/settings');
+    await page.goto('/settings/ai-models');
 
     // Navigate to AI Models tab
     const aiModelsTab = page
@@ -651,7 +651,7 @@ test.describe('Model Zoo Panel - Error Handling', () => {
 
   test('handles service unavailable gracefully', async ({ page }) => {
     await setupModelZooMocks(page, { serviceUnavailable: true });
-    await page.goto('/settings');
+    await page.goto('/settings/ai-models');
 
     // Navigate to AI Models tab
     const aiModelsTab = page
@@ -680,7 +680,7 @@ test.describe('Model Zoo Panel - Error Handling', () => {
 
   test('auto-refreshes model status every 5 seconds', async ({ page }) => {
     await setupModelZooMocks(page);
-    await page.goto('/settings');
+    await page.goto('/settings/ai-models');
 
     // Navigate to AI Models tab
     const aiModelsTab = page
@@ -739,7 +739,7 @@ test.describe('Model Zoo Panel - VRAM Display', () => {
     };
 
     await setupModelZooMocks(page, { vram: highVramMock });
-    await page.goto('/settings');
+    await page.goto('/settings/ai-models');
 
     // Navigate to AI Models tab
     const aiModelsTab = page
@@ -767,7 +767,7 @@ test.describe('Model Zoo Panel - VRAM Display', () => {
 
   test('displays loaded model count in VRAM summary', async ({ page }) => {
     await setupModelZooMocks(page);
-    await page.goto('/settings');
+    await page.goto('/settings/ai-models');
 
     // Navigate to AI Models tab
     const aiModelsTab = page
@@ -791,7 +791,7 @@ test.describe('Model Zoo Panel - VRAM Display', () => {
 test.describe('Model Zoo Panel - Model Card Details', () => {
   test.beforeEach(async ({ page }) => {
     await setupModelZooMocks(page);
-    await page.goto('/settings');
+    await page.goto('/settings/ai-models');
 
     // Navigate to AI Models tab
     const aiModelsTab = page

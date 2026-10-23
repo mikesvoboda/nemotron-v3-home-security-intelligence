@@ -92,10 +92,10 @@ function createHealthyServices(): Partial<Record<ServiceName, ServiceStatus>> {
   };
 }
 
-// Custom render that wraps with shared navigation fixture (AnnouncementProvider)
+// Custom render that wraps with shared navigation fixture (Router + AnnouncementProvider)
 function renderWithProvider(ui: React.ReactElement) {
   return renderWithNavigation(ui, {
-    withRouter: false,
+    withRouter: true,
     withSidebarContext: false,
     withQueryClient: false,
     withThemeProvider: false,
