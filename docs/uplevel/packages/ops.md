@@ -276,7 +276,7 @@ image builds, and the golden paths stay green.
 
 **Flags:** none. **Depends on:** `R2`; `O2.5`'s item 2 posted (rulings 260, 323).
 **Assigned:** heavy-b, after `O3.3` (ruling 260); `O2.5`'s run has posted (ruling 323).
-**PR:** none yet. (rulings 241 and 260)
+**PR:** #7400. (rulings 241 and 260)
 
 - [ ] The prod file is the base; the CI stack and the fake AI are overlays. No service is defined in
       two files.
