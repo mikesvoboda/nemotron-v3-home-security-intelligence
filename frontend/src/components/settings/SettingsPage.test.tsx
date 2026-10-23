@@ -6,14 +6,13 @@
  * @see NEM-4938 - Convert Settings page to nested sub-routes
  */
 
-import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
-import { render, screen, waitFor } from '@testing-library/react';
-import userEvent from '@testing-library/user-event';
-import { MemoryRouter, Routes, Route, Navigate } from 'react-router-dom';
+import { screen, waitFor } from '@testing-library/react';
+import { Routes, Route, Navigate } from 'react-router-dom';
 import { describe, it, expect, vi } from 'vitest';
 
 import SettingsPage from './SettingsPage';
 import { settingsTabs } from './settingsTabsConfig';
+import { renderWithNavigation } from '../../test-utils';
 
 // Mock the settings components
 vi.mock('./CamerasSettings', () => ({
@@ -56,82 +55,56 @@ vi.mock('./AdminSettings', () => ({
   default: () => <div data-testid="admin-settings">Admin Settings</div>,
 }));
 
-// Helper to create a fresh QueryClient for each test
-function createTestQueryClient() {
-  return new QueryClient({
-    defaultOptions: {
-      queries: {
-        retry: false,
-        gcTime: 0,
-      },
-    },
-  });
-}
-
-// Helper to render with all required providers and routing
+// Helper to render with shared navigation fixture and nested settings routes
 interface RenderOptions {
   route?: string;
 }
 
 function renderWithProviders(ui: React.ReactElement, options: RenderOptions = {}) {
   const { route = '/settings/cameras' } = options;
-  const queryClient = createTestQueryClient();
-  const user = userEvent.setup();
 
-  return {
-    user,
-    ...render(
-      <QueryClientProvider client={queryClient}>
-        <MemoryRouter initialEntries={[route]}>
-          <Routes>
-            <Route path="/settings" element={ui}>
-              <Route index element={<Navigate to="cameras" replace />} />
-              <Route
-                path="cameras"
-                element={<div data-testid="cameras-settings">Cameras Settings</div>}
-              />
-              <Route
-                path="rules"
-                element={<div data-testid="alert-rules-settings">Alert Rules Settings</div>}
-              />
-              <Route
-                path="processing"
-                element={<div data-testid="processing-settings">Processing Settings</div>}
-              />
-              <Route
-                path="notifications"
-                element={<div data-testid="notification-settings">Notification Settings</div>}
-              />
-              <Route
-                path="ambient"
-                element={<div data-testid="ambient-settings">Ambient Status Settings</div>}
-              />
-              <Route
-                path="access"
-                element={<div data-testid="access-control-settings">Access Control Settings</div>}
-              />
-              <Route
-                path="prompts"
-                element={<div data-testid="prompt-management">Prompt Management</div>}
-              />
-              <Route
-                path="storage"
-                element={<div data-testid="file-operations-panel">File Operations Panel</div>}
-              />
-              <Route
-                path="ai-models"
-                element={<div data-testid="ai-models-tab">AI Models Tab</div>}
-              />
-              <Route
-                path="admin"
-                element={<div data-testid="admin-settings">Admin Settings</div>}
-              />
-            </Route>
-          </Routes>
-        </MemoryRouter>
-      </QueryClientProvider>
-    ),
-  };
+  return renderWithNavigation(
+    <Routes>
+      <Route path="/settings" element={ui}>
+        <Route index element={<Navigate to="cameras" replace />} />
+        <Route
+          path="cameras"
+          element={<div data-testid="cameras-settings">Cameras Settings</div>}
+        />
+        <Route
+          path="rules"
+          element={<div data-testid="alert-rules-settings">Alert Rules Settings</div>}
+        />
+        <Route
+          path="processing"
+          element={<div data-testid="processing-settings">Processing Settings</div>}
+        />
+        <Route
+          path="notifications"
+          element={<div data-testid="notification-settings">Notification Settings</div>}
+        />
+        <Route
+          path="ambient"
+          element={<div data-testid="ambient-settings">Ambient Status Settings</div>}
+        />
+        <Route
+          path="access"
+          element={<div data-testid="access-control-settings">Access Control Settings</div>}
+        />
+        <Route
+          path="prompts"
+          element={<div data-testid="prompt-management">Prompt Management</div>}
+        />
+        <Route
+          path="storage"
+          element={<div data-testid="file-operations-panel">File Operations Panel</div>}
+        />
+        <Route path="ai-models" element={<div data-testid="ai-models-tab">AI Models Tab</div>} />
+        <Route path="admin" element={<div data-testid="admin-settings">Admin Settings</div>} />
+      </Route>
+    </Routes>,
+    { route }
+  );
 }
 
 describe('SettingsPage', () => {

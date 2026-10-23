@@ -5,12 +5,12 @@
  * and actions using the cmdk library.
  */
 
-import { render, screen, waitFor } from '@testing-library/react';
+import { screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
-import { BrowserRouter } from 'react-router-dom';
 import { describe, expect, it, vi, beforeEach, beforeAll, afterAll } from 'vitest';
 
 import CommandPalette from './CommandPalette';
+import { renderWithNavigation } from '../../test-utils';
 
 // Mock scrollIntoView for cmdk library
 beforeAll(() => {
@@ -21,9 +21,9 @@ afterAll(() => {
   vi.restoreAllMocks();
 });
 
-// Wrapper component with Router
+// Wrapper component with shared navigation fixture
 function renderWithRouter(ui: React.ReactElement) {
-  return render(<BrowserRouter>{ui}</BrowserRouter>);
+  return renderWithNavigation(ui, { useMemoryRouter: false });
 }
 
 describe('CommandPalette', () => {
