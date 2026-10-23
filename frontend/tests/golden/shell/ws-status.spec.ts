@@ -155,10 +155,8 @@ import { GUARD_MESSAGE, expect, test } from '../guard';
 import {
   BOOT_QUIET_MS,
   closedByGuard,
-  loginAsAdminShell as loginAsAdmin,
-  quietBootShell as quietBoot,
+  openShell,
   readShellHarness,
-  seedTourDismissed,
   type ShellHarness,
 } from '../harness';
 
@@ -177,13 +175,6 @@ const TIME_SINCE = /^(No messages yet|Just now|\d+s ago|\d+m ago|\d+h ago)$/;
  *  probe. Carried here verbatim because the reload boots the app, not just the
  *  document. */
 const WARM = ['/api/auth/setup-status', '/api/cameras', '/api/auth/me'];
-
-async function openShell(page: import('@playwright/test').Page, h: ShellHarness) {
-  await seedTourDismissed(page);
-  await loginAsAdmin(page, h);
-  await quietBoot(page, h);
-  await expect(page.getByTestId('header-branding')).toBeVisible({ timeout: 20_000 });
-}
 
 /** What the shipped worker reports about itself (offline-cache.spec.ts:144
  *  shape — same instrument, this dir's own copy). */

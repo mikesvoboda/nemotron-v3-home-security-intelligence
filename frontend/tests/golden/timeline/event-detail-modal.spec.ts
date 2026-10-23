@@ -256,11 +256,9 @@ import {
   apiWrite,
   closedByGuard,
   hardDeleteFixtureRows,
-  loginAsAdminShell as loginAsAdmin,
+  openTimelineEventModal,
   quietBoot,
   readTimelineHarness,
-  seedDefaultViewMode,
-  seedTourDismissed,
   settledReload,
   waitForEventCards,
   type Session,
@@ -945,21 +943,10 @@ test.afterAll(async () => {
  * UNFILTERED because that is the only list with more than one row in it.
  */
 async function bootModal(page: Page, eventId: number, cameraFilter = true): Promise<Session> {
-  const session = await adminSession(timeline);
-  await seedTourDismissed(page);
-  await seedDefaultViewMode(page);
-  await loginAsAdmin(page, timeline);
-  const query = cameraFilter
-    ? `?camera=${encodeURIComponent(harness.cameraId)}&event=${eventId}`
-    : `?event=${eventId}`;
-  await quietBoot(page, timeline, `/timeline${query}`);
-  await expect(page.getByTestId('timeline-page')).toBeVisible();
-  await waitForEventCards(page);
-  await expect(
-    page.getByTestId('event-detail-modal'),
-    'the `?event=` deep link opens the modal'
-  ).toBeVisible();
-  return session;
+  return openTimelineEventModal(page, timeline, {
+    cameraId: cameraFilter ? harness.cameraId : undefined,
+    eventId,
+  });
 }
 
 /** The modal, scoped. Two reasons, both measured: `risk-badge` is 1 inside the

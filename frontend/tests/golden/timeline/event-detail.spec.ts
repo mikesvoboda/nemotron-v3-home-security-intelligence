@@ -106,11 +106,8 @@ import {
   createDetailFixture,
   DETAIL_ROWS,
   hardDeleteFixtureRows,
-  loginAsAdminShell as loginAsAdmin,
-  quietBoot,
+  openTimelineEventModal,
   readTimelineHarness,
-  seedDefaultViewMode,
-  seedTourDismissed,
   settledReload,
   waitForEventCards,
   type DetailFixture,
@@ -156,20 +153,17 @@ test.afterAll(async () => {
 });
 
 /** Opens the modal for one fixture row through the shipped `?event=` door, or
- *  boots the filtered list when no id is given (F-056's second door has no modal). */
+ *  boots the filtered list when no id is given (F-056's second door has no modal).
+ *  Delegates to the shared event-modal fixture `openTimelineEventModal` in
+ *  `./harness.ts` (F4.9 consolidation). */
 async function bootTimeline(page: Page, eventId?: number): Promise<Session> {
-  const session = await adminSession(harness);
-  await seedTourDismissed(page);
-  await seedDefaultViewMode(page);
-  await loginAsAdmin(page, harness);
   // The camera filter scopes the set to this fixture (so a foreign row cannot
   // join the counts) and `event=` is the door the modal clause names.
-  const link = `/timeline?camera=${encodeURIComponent(fx.cameraId)}${
-    eventId === undefined ? '' : `&event=${eventId}`
-  }`;
-  await quietBoot(page, harness, link);
-  await expect(page.getByTestId('timeline-page')).toBeVisible();
-  await waitForEventCards(page);
+  // Line count preserved so packages/frontend.md's :358 cite stays exact.
+  const session = await openTimelineEventModal(page, harness, {
+    cameraId: fx.cameraId,
+    eventId,
+  });
   return session;
 }
 

@@ -27,6 +27,8 @@ import userEvent, { UserEvent } from '@testing-library/user-event';
 import { ReactElement, ReactNode } from 'react';
 import { BrowserRouter, MemoryRouter } from 'react-router-dom';
 
+import { ThemeProvider } from '../contexts';
+import { AnnouncementProvider } from '../contexts/AnnouncementContext';
 import { SidebarContext, SidebarContextType } from '../hooks/useSidebarContext';
 import { createQueryClient } from '../services/queryClient';
 
@@ -88,6 +90,24 @@ export interface RenderWithProvidersOptions extends Omit<RenderOptions, 'wrapper
    * Useful for testing specific query states or pre-populating cache.
    */
   queryClient?: QueryClient;
+
+  /**
+   * Initial entries for MemoryRouter when testing multi-entry history.
+   * Overrides `route` when provided.
+   */
+  initialEntries?: string[];
+
+  /**
+   * Whether to wrap with ThemeProvider (dark default).
+   * @default false
+   */
+  withThemeProvider?: boolean;
+
+  /**
+   * Whether to wrap with AnnouncementProvider.
+   * @default false
+   */
+  withAnnouncementProvider?: boolean;
 }
 
 /**
@@ -109,11 +129,14 @@ function createWrapper(
 ): React.ComponentType<{ children: ReactNode }> {
   const {
     route = '/',
+    initialEntries,
     useMemoryRouter = true,
     sidebarContext,
     withSidebarContext = true,
     withRouter = true,
     withQueryClient = true,
+    withThemeProvider = false,
+    withAnnouncementProvider = false,
     queryClient,
   } = options;
 
@@ -127,11 +150,17 @@ function createWrapper(
     ...sidebarContext,
   };
 
+  const entries = initialEntries ?? [route];
+
   return function Wrapper({ children }: { children: ReactNode }) {
     let wrapped = <>{children}</>;
 
-    // Wrap with SidebarContext if needed
-    if (withSidebarContext) {
+    if (withAnnouncementProvider) {
+      wrapped = <AnnouncementProvider>{wrapped}</AnnouncementProvider>;
+    }
+
+    // Wrap with SidebarContext if needed (and not mocked away by a test)
+    if (withSidebarContext && SidebarContext?.Provider) {
       wrapped = (
         <SidebarContext.Provider value={mergedSidebarContext}>{wrapped}</SidebarContext.Provider>
       );
@@ -140,10 +169,14 @@ function createWrapper(
     // Wrap with Router if needed
     if (withRouter) {
       if (useMemoryRouter) {
-        wrapped = <MemoryRouter initialEntries={[route]}>{wrapped}</MemoryRouter>;
+        wrapped = <MemoryRouter initialEntries={entries}>{wrapped}</MemoryRouter>;
       } else {
         wrapped = <BrowserRouter>{wrapped}</BrowserRouter>;
       }
+    }
+
+    if (withThemeProvider) {
+      wrapped = <ThemeProvider defaultMode="dark">{wrapped}</ThemeProvider>;
     }
 
     // Wrap with QueryClientProvider if needed (outermost provider)
@@ -191,11 +224,14 @@ export function renderWithProviders(
 ): RenderWithProvidersResult {
   const {
     route: _route,
+    initialEntries: _initialEntries,
     useMemoryRouter: _useMemoryRouter,
     sidebarContext: _sidebarContext,
     withSidebarContext: _withSidebarContext,
     withRouter: _withRouter,
     withQueryClient: _withQueryClient,
+    withThemeProvider: _withThemeProvider,
+    withAnnouncementProvider: _withAnnouncementProvider,
     queryClient: _queryClient,
     ...restOptions
   } = options;
@@ -235,6 +271,22 @@ export function createQueryWrapper(queryClient?: QueryClient) {
   return function QueryWrapper({ children }: { children: ReactNode }) {
     return <QueryClientProvider client={testQueryClient}>{children}</QueryClientProvider>;
   };
+}
+
+/**
+ * Shared navigation test render fixture for navigation, shell, and page components
+ * (Sidebar, MobileBottomNav, CommandPalette, ShortcutsHelpModal, Header, Layout,
+ * SettingsPage, AnalyticsPage, ProductTour).
+ */
+export function renderWithNavigation(
+  ui: ReactElement,
+  options: RenderWithProvidersOptions = {}
+): RenderWithProvidersResult {
+  return renderWithProviders(ui, {
+    withThemeProvider: true,
+    withAnnouncementProvider: true,
+    ...options,
+  });
 }
 
 /**

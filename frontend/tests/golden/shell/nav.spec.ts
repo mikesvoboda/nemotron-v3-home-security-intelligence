@@ -85,10 +85,8 @@ import { GUARD_MESSAGE, expect, test } from '../guard';
 import {
   BOOT_QUIET_MS,
   closedByGuard,
-  quietBootShell as quietBoot,
-  loginAsAdminShell as loginAsAdmin,
+  openShell,
   readShellHarness,
-  seedTourDismissed,
   type ShellHarness,
 } from '../harness';
 
@@ -100,13 +98,6 @@ test.skip(
 
 /** Width the mouse moves to when it must NOT be hovering the rail. */
 const FAR_RIGHT: [number, number] = [1400, 500];
-
-async function openShell(page: import('@playwright/test').Page, h: ShellHarness) {
-  await seedTourDismissed(page);
-  await loginAsAdmin(page, h);
-  await quietBoot(page, h);
-  await expect(page.getByTestId('header-branding')).toBeVisible({ timeout: 20_000 });
-}
 
 /** Reload is a document load ⇒ boot wave ⇒ drain first (harness.ts). */
 async function drainAndReload(page: import('@playwright/test').Page) {

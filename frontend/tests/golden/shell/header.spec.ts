@@ -45,10 +45,8 @@ import { GUARD_MESSAGE, expect, test } from '../guard';
 import {
   BOOT_QUIET_MS,
   closedByGuard,
-  loginAsAdminShell as loginAsAdmin,
-  quietBootShell as quietBoot,
+  openShell,
   readShellHarness,
-  seedTourDismissed,
   type ShellHarness,
 } from '../harness';
 
@@ -61,13 +59,6 @@ test.skip(
 interface HealthBody {
   status?: string;
   services?: Record<string, unknown>;
-}
-
-async function openShell(page: import('@playwright/test').Page, h: ShellHarness) {
-  await seedTourDismissed(page);
-  await loginAsAdmin(page, h);
-  await quietBoot(page, h);
-  await expect(page.getByTestId('header-branding')).toBeVisible({ timeout: 20_000 });
 }
 
 test.describe('golden path: header chrome @critical', () => {

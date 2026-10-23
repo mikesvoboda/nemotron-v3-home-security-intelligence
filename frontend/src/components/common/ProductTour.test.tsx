@@ -1,5 +1,4 @@
-import { render, screen, fireEvent, waitFor } from '@testing-library/react';
-import { BrowserRouter } from 'react-router-dom';
+import { screen, fireEvent, waitFor } from '@testing-library/react';
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 
 import ProductTour from './ProductTour';
@@ -9,6 +8,7 @@ import {
   tourSteps,
   restartProductTour,
 } from '../../config/tourSteps';
+import { renderWithNavigation } from '../../test-utils';
 
 // Mock react-joyride
 vi.mock('react-joyride', () => ({
@@ -157,9 +157,9 @@ vi.mock('react-joyride', () => ({
   },
 }));
 
-// Helper to wrap component with router
+// Helper to wrap component with shared navigation fixture
 const renderWithRouter = (ui: React.ReactElement) => {
-  return render(<BrowserRouter>{ui}</BrowserRouter>);
+  return renderWithNavigation(ui, { useMemoryRouter: false });
 };
 
 describe('ProductTour', () => {
@@ -436,11 +436,7 @@ describe('ProductTour', () => {
       const { rerender } = renderWithRouter(<ProductTour run={false} />);
       expect(screen.queryByTestId('joyride-mock')).not.toBeInTheDocument();
 
-      rerender(
-        <BrowserRouter>
-          <ProductTour run={true} forceRun />
-        </BrowserRouter>
-      );
+      rerender(<ProductTour run={true} forceRun />);
       expect(screen.getByTestId('joyride-mock')).toBeInTheDocument();
     });
   });

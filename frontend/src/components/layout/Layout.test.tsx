@@ -1,12 +1,11 @@
 import { render, screen, fireEvent } from '@testing-library/react';
-import { ReactNode } from 'react';
 import { describe, expect, it, vi, beforeEach, Mock } from 'vitest';
 
 import Layout from './Layout';
-import { AnnouncementProvider } from '../../contexts/AnnouncementContext';
 import { useServiceStatus } from '../../hooks/useServiceStatus';
 import { useSidebarContext } from '../../hooks/useSidebarContext';
 import { useVerdictEngineStatus } from '../../hooks/useVerdictEngineStatus';
+import { createServiceStatus, renderWithNavigation } from '../../test-utils';
 import { ServiceName, ServiceStatus } from '../common/ServiceStatusAlert';
 
 // Mock the child components
@@ -78,20 +77,6 @@ vi.mock('../../hooks/useConnectionStatus', () => ({
   }),
 }));
 
-// Helper to create service status
-function createServiceStatus(
-  service: ServiceName,
-  status: ServiceStatus['status'],
-  message?: string | null
-): ServiceStatus {
-  return {
-    service,
-    status,
-    message,
-    timestamp: '2025-12-26T12:00:00Z',
-  };
-}
-
 // Helper to create empty services record (the hook's map starts empty)
 function createEmptyServices(): Partial<Record<ServiceName, ServiceStatus>> {
   return {};
@@ -107,14 +92,14 @@ function createHealthyServices(): Partial<Record<ServiceName, ServiceStatus>> {
   };
 }
 
-// Wrapper with AnnouncementProvider for tests
-function Wrapper({ children }: { children: ReactNode }) {
-  return <AnnouncementProvider>{children}</AnnouncementProvider>;
-}
-
-// Custom render that wraps with AnnouncementProvider
+// Custom render that wraps with shared navigation fixture (AnnouncementProvider)
 function renderWithProvider(ui: React.ReactElement) {
-  return render(ui, { wrapper: Wrapper });
+  return renderWithNavigation(ui, {
+    withRouter: false,
+    withSidebarContext: false,
+    withQueryClient: false,
+    withThemeProvider: false,
+  });
 }
 
 describe('Layout', () => {
