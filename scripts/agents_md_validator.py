@@ -854,7 +854,7 @@ def evaluate_line_caps(scan: Scan, config: ValidatorConfig) -> dict[str, Any]:
     Two comparisons, both kept visible:
 
     - `over` — the tier-cap work list. Reporting-only still (it does not feed
-      violations): the 17 frontend files over their tier cap are the FRONTEND
+      violations): the 16 frontend files over their tier cap are the FRONTEND
       lane's W3.2 work, and failing on them from the backend PR would gate a
       lane's tree on another lane's rewrite. The set is the rewrite map.
     - `over_baseline` — the per-file fall-only baselines

@@ -52,8 +52,8 @@ from `dependencies.py`'s `Annotated` aliases, and delegate to
 - **Pagination is cursor-based; offset is deprecated but tolerated.**
   List endpoints page by opaque cursor (`pagination.py` — `encode_cursor`
   /`decode_cursor`, cursor-injection hardened, NEM-2602). A request
-  passing BOTH `offset` and `cursor` is refused
-  (`validate_pagination_params`); a nonzero `offset` alone still serves
+  passing BOTH `offset` and `cursor` is refused when the `offset` is
+  nonzero (`validate_pagination_params`); a nonzero `offset` alone still serves
   but carries a deprecation warning header (`get_deprecation_warning`) —
   new endpoints take `cursor` only, and do not copy offset back in.
 

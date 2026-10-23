@@ -44,10 +44,10 @@ relationship rules only — query behaviour lives in
   `ended_at >= started_at` are named `ck_*` constraints (guard:
   `backend/tests/unit/models/test_check_constraints.py` asserts the
   expression, not just presence). Add the constraint with the column.
-- **Soft delete = `deleted_at IS NULL`, partial-indexed.** `Camera` and
-  `Event` carry `deleted_at` plus a partial index on the active set
-  (`postgresql_where="deleted_at IS NULL"`); `is_deleted` is a property,
-  not a column. Guard: `backend/tests/unit/models/test_soft_delete.py`.
+- **Soft delete = `deleted_at IS NULL`** — both models have `deleted_at`;
+  only `Event` partial-indexes its active set (`idx_events_active`,
+  `postgresql_where="deleted_at IS NULL"`); `is_deleted` is a property, not a
+  column. Guard pins fields/properties (`test_soft_delete.py`).
 - **IDs are UUIDv7 strings** (`default=lambda: str(uuid7())` from
   `backend/models/alert.py` et al.) — time-ordered so B-tree inserts stay
   local (property-tested in `backend/tests/unit/models/test_uuid7.py`).
@@ -70,9 +70,10 @@ relationship rules only — query behaviour lives in
   backs the rule at the database level.
 - **JSONB for structured payloads** (`entities`, `flags`,
   `confidence_factors` on `Event`) with GIN indexes; full-text search rides
-  the `search_vector` TSVECTOR + GIN index, populated by the Postgres
-  trigger the recorded migration adds (services build
-  `to_tsvector` expressions against it — `backend/services/search.py`).
+  the `search_vector` TSVECTOR + GIN index (`idx_events_search_vector`); the
+  populating trigger is NOT in any recorded migration — its DDL ships in the
+  `test_event_search.py` fixture, with ILIKE fallback + per-event refresh in
+  `search.py`.
 - **Time-series indexes**: B-tree for lookup columns, BRIN for append-only
   chronology (`ix_events_started_at_brin` — ~1000x smaller than B-tree on
   ordered timestamps).
@@ -111,11 +112,10 @@ uv run pytest backend/tests/unit/models/test_check_constraints.py --timeout=60
 uv run pytest backend/tests/unit/models/test_models_hypothesis.py --timeout=60
 ```
 
-53 test files, one per module plus cross-cutting suites: the
-Hypothesis-based property tests (`test_models_hypothesis.py`), the CHECK
-constraint expressions, and the retirement scans. Real-database behaviour
-( cascades, partial indexes, triggers) is covered by
-`backend/tests/integration/test_database.py`.
+52 test files, one per module plus cross-cutting suites: Hypothesis-based
+property tests, CHECK constraint expressions, retirement scans. The
+engine/session-lifecycle-only `test_database.py` (integration) does not
+cover cascades, partial indexes or triggers (triggers: `test_event_search.py`).
 
 ## Related
 
