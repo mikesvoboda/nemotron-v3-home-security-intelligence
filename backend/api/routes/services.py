@@ -62,7 +62,7 @@ async def get_orchestrator(request: Request) -> Any:
     """
     orchestrator = getattr(request.app.state, "orchestrator", None)
     if orchestrator is None:
-        raise HTTPException(503, "Container orchestrator not available (engine not available)")
+        raise HTTPException(503, "Container orchestrator not available")
     return orchestrator
 
 
@@ -75,7 +75,10 @@ async def get_admin_orchestrator(
     if override is not None:
         res = override()
         return await res if inspect.isawaitable(res) else res
-    return await get_orchestrator(request)
+    orchestrator = getattr(request.app.state, "orchestrator", None)
+    if orchestrator is None:
+        raise HTTPException(503, "Container orchestrator not available (engine not available)")
+    return orchestrator
 
 
 async def _resolve_orchestrator(request: Request | None, explicit: Any = None) -> Any:

@@ -491,7 +491,8 @@ async def _reject_api_key_for_admin_session(
         return
     if not session_id:
         api_key = request.headers.get("X-API-Key") or request.query_params.get("api_key")
-        if api_key and not request.url.path.startswith("/api/auth/api-keys"):
+        path = request.url.path
+        if api_key and (path.startswith("/api/system/") or path.startswith("/api/debug")):
             raise HTTPException(
                 status_code=status.HTTP_403_FORBIDDEN,
                 detail="Admin session required; API keys are not permitted",
