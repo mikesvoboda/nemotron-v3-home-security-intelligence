@@ -222,12 +222,13 @@ export type {
   UseEventDetectionsQueryReturn,
 } from './useEventDetectionsQuery';
 
-export { useAlertsInfiniteQuery, alertsQueryKeys } from './useAlertsQuery';
+export { useAlertsQuery, alertsQueryKeys } from './useAlertsQuery';
 export type {
-  AlertRiskFilter,
-  UseAlertsInfiniteQueryOptions,
-  UseAlertsInfiniteQueryReturn,
+  AlertStatusFilter,
+  UseAlertsQueryOptions,
+  UseAlertsQueryReturn,
 } from './useAlertsQuery';
+export { useOpenAlertCount } from './useOpenAlertCount';
 
 // Alert instance management hooks (NEM-3647)
 export {

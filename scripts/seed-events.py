@@ -337,7 +337,6 @@ from backend.models.notification_preferences import (  # noqa: E402
     RiskLevel,
 )
 from backend.models.plate_read import PlateRead  # noqa: E402
-from backend.models.prometheus_alert import PrometheusAlert, PrometheusAlertStatus  # noqa: E402
 from backend.models.prompt_config import PromptConfig  # noqa: E402
 from backend.models.prompt_version import AIModel, PromptVersion  # noqa: E402
 from backend.models.property import Property  # noqa: E402
@@ -5411,129 +5410,6 @@ async def seed_event_feedback(feedback_rate: float = 0.3) -> int:
     return created
 
 
-async def seed_prometheus_alerts(num_alerts: int = 25) -> int:
-    """Create Prometheus alert records.
-
-    Creates alerts with realistic distributions of status and severity.
-
-    Args:
-        num_alerts: Number of alerts to create
-
-    Returns:
-        Number of alerts created
-    """
-    import hashlib
-
-    alert_templates = [
-        {
-            "alertname": "HighCPU",
-            "severity": "warning",
-            "summary": "High CPU usage detected on {instance}",
-            "description": "CPU usage has been above 80% for 5 minutes",
-        },
-        {
-            "alertname": "GPUMemoryPressure",
-            "severity": "critical",
-            "summary": "GPU memory pressure on {instance}",
-            "description": "GPU memory usage exceeded 90%",
-        },
-        {
-            "alertname": "DiskSpaceLow",
-            "severity": "warning",
-            "summary": "Disk space low on {instance}",
-            "description": "Less than 10% disk space remaining",
-        },
-        {
-            "alertname": "AIServiceUnhealthy",
-            "severity": "critical",
-            "summary": "AI service {service} is unhealthy",
-            "description": "Service health check failed for 3 consecutive attempts",
-        },
-        {
-            "alertname": "HighLatency",
-            "severity": "warning",
-            "summary": "High latency in {service}",
-            "description": "P95 latency exceeded 5 seconds",
-        },
-        {
-            "alertname": "ErrorRateSpike",
-            "severity": "critical",
-            "summary": "Error rate spike in {service}",
-            "description": "Error rate exceeded 5% in the last 5 minutes",
-        },
-        {
-            "alertname": "CameraOffline",
-            "severity": "warning",
-            "summary": "Camera {camera} is offline",
-            "description": "No frames received from camera for 5 minutes",
-        },
-        {
-            "alertname": "DatabaseConnectionPool",
-            "severity": "warning",
-            "summary": "Database connection pool exhausted",
-            "description": "All database connections are in use",
-        },
-    ]
-
-    instances = ["ai-gateway:8090", "ai-vlm:8098", "backend:8000"]
-    services = ["yolo26", "nemotron", "florence", "clip", "backend"]
-    cameras = ["front_door", "backyard", "garage", "driveway"]
-
-    created = 0
-
-    async with get_session() as session:
-        for i in range(num_alerts):
-            template = random.choice(alert_templates)  # noqa: S311
-            instance = random.choice(instances)  # noqa: S311
-            service = random.choice(services)  # noqa: S311
-            camera = random.choice(cameras)  # noqa: S311
-
-            # Generate fingerprint using SHA-256 (truncated for compatibility)
-            fingerprint_data = f"{template['alertname']}-{instance}-{i}"
-            fingerprint = hashlib.sha256(fingerprint_data.encode()).hexdigest()[:16]
-
-            # Determine status (70% resolved, 30% firing)
-            is_firing = random.random() < 0.30  # noqa: S311
-            status = PrometheusAlertStatus.FIRING if is_firing else PrometheusAlertStatus.RESOLVED
-
-            starts_at = datetime.now(UTC) - timedelta(hours=random.randint(1, 72))  # noqa: S311
-            ends_at = None if is_firing else starts_at + timedelta(minutes=random.randint(5, 120))  # noqa: S311
-
-            labels = {
-                "alertname": template["alertname"],
-                "severity": template["severity"],
-                "instance": instance,
-                "service": service,
-                "camera": camera,
-                "job": "security-monitoring",
-            }
-
-            annotations = {
-                "summary": template["summary"].format(
-                    instance=instance, service=service, camera=camera
-                ),
-                "description": template["description"],
-                "runbook_url": f"https://docs.example.com/runbooks/{template['alertname'].lower()}",
-            }
-
-            alert = PrometheusAlert(
-                fingerprint=fingerprint,
-                status=status,
-                labels=labels,
-                annotations=annotations,
-                starts_at=starts_at,
-                ends_at=ends_at,
-                received_at=starts_at + timedelta(seconds=random.randint(1, 30)),  # noqa: S311
-            )
-            session.add(alert)
-            created += 1
-
-        await session.commit()
-
-    print(f"  Created {created} Prometheus alerts")
-    return created
-
-
 async def seed_experiment_results(num_results: int = 50) -> int:
     """Create A/B test comparison results.
 
@@ -5630,10 +5506,7 @@ async def seed_experimentation_feedback_layer() -> dict[str, int]:
     print("\n  Step 3: Creating event feedback...")
     counts["event_feedback"] = await seed_event_feedback()
 
-    print("\n  Step 4: Creating Prometheus alerts...")
-    counts["prometheus_alerts"] = await seed_prometheus_alerts()
-
-    print("\n  Step 5: Creating experiment results...")
+    print("\n  Step 4: Creating experiment results...")
     counts["experiment_results"] = await seed_experiment_results()
 
     return counts
@@ -7108,9 +6981,6 @@ async def clear_all_data() -> None:
         print("  Clearing experiment results...")
         await session.execute(delete(ExperimentResult))
 
-        print("  Clearing Prometheus alerts...")
-        await session.execute(delete(PrometheusAlert))
-
         print("  Clearing event feedback...")
         await session.execute(delete(EventFeedback))
 
@@ -7961,7 +7831,6 @@ This generates real data including:
         print(f"    - Prompt configs: {total_created.get('prompt_configs', 0)}")
         print(f"    - Prompt versions: {total_created.get('prompt_versions', 0)}")
         print(f"    - Event feedback: {total_created.get('event_feedback', 0)}")
-        print(f"    - Prometheus alerts: {total_created.get('prometheus_alerts', 0)}")
         print(f"    - Experiment results: {total_created.get('experiment_results', 0)}")
         print("  Zone Monitoring layer (Phase 6):")
         print(f"    - Zone activity baselines: {total_created.get('zone_activity_baselines', 0)}")

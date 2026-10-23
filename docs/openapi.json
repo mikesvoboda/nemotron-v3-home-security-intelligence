@@ -87,6 +87,18 @@
             "description": "99th percentile latency in milliseconds",
             "title": "Latency P99 Ms"
           },
+          "state": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Granular AI service state (ready, loading, idle, failing, unknown)",
+            "title": "State"
+          },
           "status": {
             "$ref": "#/components/schemas/AIServiceStatus",
             "description": "Current health status of the service"
@@ -2707,6 +2719,7 @@
       "AlertServiceResponse": {
         "description": "Schema for alert response from Alert Service operations.",
         "example": {
+          "camera_id": "front_door",
           "channels": [
             "pushover"
           ],
@@ -2722,6 +2735,18 @@
           "updated_at": "2025-01-31T12:00:00Z"
         },
         "properties": {
+          "camera_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Camera that produced the triggering event, read through the event (F4.1: the Alerts page's camera column; None when the event is gone)",
+            "title": "Camera Id"
+          },
           "channels": {
             "description": "Notification channels",
             "items": {
@@ -2964,90 +2989,6 @@
         "title": "AlertStatus",
         "type": "string"
       },
-      "AlertmanagerAlert": {
-        "description": "Schema for a single alert in Alertmanager webhook payload.\n\nRepresents one alert instance with its labels, annotations, and timing.\nThis schema matches the Alertmanager webhook format.",
-        "example": {
-          "annotations": {
-            "description": "CPU usage is above 80% for 5 minutes",
-            "summary": "CPU usage is high"
-          },
-          "endsAt": "0001-01-01T00:00:00Z",
-          "fingerprint": "abc123def456",
-          "generatorURL": "http://prometheus:9090/graph?...",
-          "labels": {
-            "alertname": "HighCPU",
-            "instance": "localhost:9090",
-            "severity": "warning"
-          },
-          "startsAt": "2026-01-20T12:00:00Z",
-          "status": "firing"
-        },
-        "properties": {
-          "annotations": {
-            "additionalProperties": {
-              "type": "string"
-            },
-            "description": "Alert annotations (summary, description)",
-            "title": "Annotations",
-            "type": "object"
-          },
-          "endsAt": {
-            "anyOf": [
-              {
-                "format": "date-time",
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "description": "When the alert was resolved",
-            "title": "Endsat"
-          },
-          "fingerprint": {
-            "description": "Unique identifier for alert deduplication",
-            "title": "Fingerprint",
-            "type": "string"
-          },
-          "generatorURL": {
-            "anyOf": [
-              {
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "description": "URL to the Prometheus graph",
-            "title": "Generatorurl"
-          },
-          "labels": {
-            "additionalProperties": {
-              "type": "string"
-            },
-            "description": "Alert labels (alertname, severity, etc.)",
-            "title": "Labels",
-            "type": "object"
-          },
-          "startsAt": {
-            "description": "When the alert started firing",
-            "format": "date-time",
-            "title": "Startsat",
-            "type": "string"
-          },
-          "status": {
-            "$ref": "#/components/schemas/PrometheusAlertStatus",
-            "description": "Alert status (firing or resolved)"
-          }
-        },
-        "required": [
-          "fingerprint",
-          "status",
-          "startsAt"
-        ],
-        "title": "AlertmanagerAlert",
-        "type": "object"
-      },
       "AlertmanagerStatus": {
         "description": "Alertmanager alert status values.",
         "enum": [
@@ -3056,122 +2997,6 @@
         ],
         "title": "AlertmanagerStatus",
         "type": "string"
-      },
-      "AlertmanagerWebhook": {
-        "description": "Schema for Alertmanager webhook payload.\n\nThis is the format Alertmanager sends when configured with a webhook receiver.\nSee: https://prometheus.io/docs/alerting/latest/configuration/#webhook_config",
-        "example": {
-          "alerts": [
-            {
-              "annotations": {
-                "description": "CPU at 85%"
-              },
-              "endsAt": "0001-01-01T00:00:00Z",
-              "fingerprint": "abc123",
-              "labels": {
-                "alertname": "HighCPU",
-                "severity": "warning"
-              },
-              "startsAt": "2026-01-20T12:00:00Z",
-              "status": "firing"
-            }
-          ],
-          "commonAnnotations": {
-            "summary": "CPU usage is high"
-          },
-          "commonLabels": {
-            "alertname": "HighCPU",
-            "severity": "warning"
-          },
-          "externalURL": "http://alertmanager:9093",
-          "groupKey": "{}:{alertname=\"HighCPU\"}",
-          "groupLabels": {
-            "alertname": "HighCPU"
-          },
-          "receiver": "webhook-receiver",
-          "status": "firing",
-          "truncatedAlerts": 0,
-          "version": "4"
-        },
-        "properties": {
-          "alerts": {
-            "description": "List of alerts in this group",
-            "items": {
-              "$ref": "#/components/schemas/AlertmanagerAlert"
-            },
-            "title": "Alerts",
-            "type": "array"
-          },
-          "commonAnnotations": {
-            "additionalProperties": {
-              "type": "string"
-            },
-            "description": "Annotations common to all alerts",
-            "title": "Commonannotations",
-            "type": "object"
-          },
-          "commonLabels": {
-            "additionalProperties": {
-              "type": "string"
-            },
-            "description": "Labels common to all alerts",
-            "title": "Commonlabels",
-            "type": "object"
-          },
-          "externalURL": {
-            "anyOf": [
-              {
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "description": "Alertmanager external URL",
-            "title": "Externalurl"
-          },
-          "groupKey": {
-            "description": "Key identifying the alert group",
-            "title": "Groupkey",
-            "type": "string"
-          },
-          "groupLabels": {
-            "additionalProperties": {
-              "type": "string"
-            },
-            "description": "Labels used for grouping",
-            "title": "Grouplabels",
-            "type": "object"
-          },
-          "receiver": {
-            "description": "Name of the receiver that matched",
-            "title": "Receiver",
-            "type": "string"
-          },
-          "status": {
-            "$ref": "#/components/schemas/PrometheusAlertStatus",
-            "description": "Overall group status"
-          },
-          "truncatedAlerts": {
-            "default": 0,
-            "description": "Number of truncated alerts",
-            "title": "Truncatedalerts",
-            "type": "integer"
-          },
-          "version": {
-            "default": "4",
-            "description": "Alertmanager webhook version",
-            "title": "Version",
-            "type": "string"
-          }
-        },
-        "required": [
-          "groupKey",
-          "status",
-          "receiver",
-          "alerts"
-        ],
-        "title": "AlertmanagerWebhook",
-        "type": "object"
       },
       "AlertmanagerWebhookPayload": {
         "description": "Schema for Alertmanager webhook payload.\n\nThis is the format Alertmanager sends when configured with a webhook receiver.\nSee: https://prometheus.io/docs/alerting/latest/configuration/#webhook_config",
@@ -3287,52 +3112,6 @@
           "alerts"
         ],
         "title": "AlertmanagerWebhookPayload",
-        "type": "object"
-      },
-      "AlertmanagerWebhookResponse": {
-        "description": "Response schema for the alertmanager webhook endpoint.",
-        "example": {
-          "broadcast": 2,
-          "message": "Processed 2 alert(s)",
-          "received": 2,
-          "status": "ok",
-          "stored": 2
-        },
-        "properties": {
-          "broadcast": {
-            "description": "Number of alerts broadcast via WebSocket",
-            "title": "Broadcast",
-            "type": "integer"
-          },
-          "message": {
-            "description": "Human-readable status message",
-            "title": "Message",
-            "type": "string"
-          },
-          "received": {
-            "description": "Number of alerts received",
-            "title": "Received",
-            "type": "integer"
-          },
-          "status": {
-            "description": "Processing status (ok or error)",
-            "title": "Status",
-            "type": "string"
-          },
-          "stored": {
-            "description": "Number of alerts stored in database",
-            "title": "Stored",
-            "type": "integer"
-          }
-        },
-        "required": [
-          "status",
-          "received",
-          "stored",
-          "broadcast",
-          "message"
-        ],
-        "title": "AlertmanagerWebhookResponse",
         "type": "object"
       },
       "AllPromptsResponse": {
@@ -21262,6 +21041,11 @@
       "InferenceMetrics": {
         "description": "AI inference latency and throughput metrics.",
         "example": {
+          "ai_vlm_latency_ms": {
+            "avg": 2100,
+            "p95": 4800,
+            "p99": 8200
+          },
           "nemotron_latency_ms": {
             "avg": 2100,
             "p95": 4800,
@@ -21275,6 +21059,11 @@
             "analysis": 0,
             "detection": 0
           },
+          "rtdetr_latency_ms": {
+            "avg": 45,
+            "p95": 82,
+            "p99": 120
+          },
           "throughput": {
             "events_per_min": 2.1,
             "images_per_min": 12.4
@@ -21286,6 +21075,21 @@
           }
         },
         "properties": {
+          "ai_vlm_latency_ms": {
+            "anyOf": [
+              {
+                "additionalProperties": {
+                  "type": "number"
+                },
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "AI VLM latency stats (avg, p95, p99)",
+            "title": "Ai Vlm Latency Ms"
+          },
           "nemotron_latency_ms": {
             "additionalProperties": {
               "type": "number"
@@ -21309,6 +21113,21 @@
             "description": "Queue depths (detection, analysis)",
             "title": "Queues",
             "type": "object"
+          },
+          "rtdetr_latency_ms": {
+            "anyOf": [
+              {
+                "additionalProperties": {
+                  "type": "number"
+                },
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Legacy detector latency stats alias (avg, p95, p99)",
+            "title": "Rtdetr Latency Ms"
           },
           "throughput": {
             "additionalProperties": {
@@ -21335,6 +21154,97 @@
           "queues"
         ],
         "title": "InferenceMetrics",
+        "type": "object"
+      },
+      "InfrastructureAlertItem": {
+        "description": "Active firing infrastructure alert item (matches /ws/events infrastructure_alert.data).",
+        "properties": {
+          "alertname": {
+            "description": "Alert name",
+            "title": "Alertname",
+            "type": "string"
+          },
+          "component": {
+            "default": "unknown",
+            "description": "Target component",
+            "title": "Component",
+            "type": "string"
+          },
+          "description": {
+            "default": "",
+            "description": "Detailed description",
+            "title": "Description",
+            "type": "string"
+          },
+          "fingerprint": {
+            "description": "Alert fingerprint",
+            "title": "Fingerprint",
+            "type": "string"
+          },
+          "receiver": {
+            "default": "alertmanager",
+            "description": "Alert receiver name",
+            "title": "Receiver",
+            "type": "string"
+          },
+          "severity": {
+            "default": "info",
+            "description": "Alert severity",
+            "title": "Severity",
+            "type": "string"
+          },
+          "started_at": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Alert start timestamp (ISO 8601)",
+            "title": "Started At"
+          },
+          "status": {
+            "default": "firing",
+            "description": "Alert status (firing)",
+            "title": "Status",
+            "type": "string"
+          },
+          "summary": {
+            "default": "",
+            "description": "Short summary",
+            "title": "Summary",
+            "type": "string"
+          }
+        },
+        "required": [
+          "alertname",
+          "fingerprint"
+        ],
+        "title": "InfrastructureAlertItem",
+        "type": "object"
+      },
+      "InfrastructureAlertsResponse": {
+        "description": "Response schema for GET /api/system/infrastructure-alerts.",
+        "properties": {
+          "alerts": {
+            "description": "Active firing infrastructure alerts",
+            "items": {
+              "$ref": "#/components/schemas/InfrastructureAlertItem"
+            },
+            "title": "Alerts",
+            "type": "array"
+          },
+          "total": {
+            "default": 0,
+            "description": "Number of active firing alerts",
+            "minimum": 0.0,
+            "title": "Total",
+            "type": "integer"
+          }
+        },
+        "title": "InfrastructureAlertsResponse",
         "type": "object"
       },
       "InfrastructureHealthStatus": {
@@ -27825,6 +27735,17 @@
             "title": "Ai Models",
             "type": "object"
           },
+          "ai_vlm": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/NemotronMetrics"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "AI VLM metrics"
+          },
           "alerts": {
             "description": "Active performance alerts",
             "items": {
@@ -27900,11 +27821,33 @@
             ],
             "description": "Nemotron-specific metrics"
           },
+          "rtdetr": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/AiModelMetrics"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Legacy detector metrics alias"
+          },
           "timestamp": {
             "description": "When this update was generated (UTC)",
             "format": "date-time",
             "title": "Timestamp",
             "type": "string"
+          },
+          "yolo26": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/AiModelMetrics"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "YOLO26 detector metrics"
           }
         },
         "title": "PerformanceUpdate",
@@ -30128,15 +30071,6 @@
         ],
         "title": "ProfileStopResponse",
         "type": "object"
-      },
-      "PrometheusAlertStatus": {
-        "description": "Prometheus alert status values.",
-        "enum": [
-          "firing",
-          "resolved"
-        ],
-        "title": "PrometheusAlertStatus",
-        "type": "string"
       },
       "PromptDiffEntry": {
         "description": "Diff entry for a single model's configuration.",
@@ -42024,7 +41958,7 @@
     },
     "/api/alert-service/alerts": {
       "get": {
-        "description": "List all alerts with optional filtering and pagination.\n\nArgs:\n    status_filter: Filter by alert status (pending, delivered, acknowledged, dismissed)\n    severity_filter: Filter by severity level (low, medium, high, critical)\n    event_id: Filter by associated event ID\n    rule_id: Filter by alert rule ID\n    limit: Maximum number of results to return\n    offset: Number of results to skip for pagination\n    db: Database session\n\nReturns:\n    AlertServiceListResponse with alerts and pagination info",
+        "description": "List all alerts with optional filtering and pagination.\n\nArgs:\n    status_filter: Filter by alert status (open, pending, delivered, acknowledged, dismissed)\n    severity_filter: Filter by severity level (low, medium, high, critical)\n    event_id: Filter by associated event ID\n    rule_id: Filter by alert rule ID\n    limit: Maximum number of results to return\n    offset: Number of results to skip for pagination\n    db: Database session\n\nReturns:\n    AlertServiceListResponse with alerts and pagination info",
         "operationId": "alert-service_list_alerts",
         "parameters": [
           {
@@ -60310,6 +60244,28 @@
         ]
       }
     },
+    "/api/system/infrastructure-alerts": {
+      "get": {
+        "description": "Proxy Alertmanager's /api/v2/alerts and return active firing alerts in the same shape as the /ws/events infrastructure_alert message.",
+        "operationId": "system_get_infrastructure_alerts",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/InfrastructureAlertsResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          }
+        },
+        "summary": "Get Active Firing Infrastructure Alerts",
+        "tags": [
+          "system"
+        ]
+      }
+    },
     "/api/system/model-zoo/latency/history": {
       "get": {
         "description": "Get latency history for a specific Model Zoo model.\n\nReturns time-series latency data for the dropdown-controlled chart.\nEach bucket contains aggregated statistics (avg, p50, p95).\n\nArgs:\n    model: Model name to get history for\n    since: Number of minutes of history to return (default 60)\n    bucket_seconds: Size of each time bucket in seconds (default 60)\n\nReturns:\n    ModelLatencyHistoryResponse with chronologically ordered snapshots\n\nRaises:\n    HTTPException: 404 if model not found in registry",
@@ -61017,7 +60973,7 @@
     },
     "/api/system/services/{name}/disable": {
       "post": {
-        "description": "Manually disable a service.\n\nPrevents self-healing restarts.\n\nArgs:\n    name: Service name to disable\n    orchestrator: Container orchestrator instance (injected)\n\nReturns:\n    Action result with updated service information\n\nRaises:\n    HTTPException: 404 if service not found",
+        "description": "Manually disable a service (guarded by `get_current_admin_user` until F4.8 retires it).",
         "operationId": "services_disable_service",
         "parameters": [
           {
@@ -61027,6 +60983,22 @@
             "schema": {
               "title": "Name",
               "type": "string"
+            }
+          },
+          {
+            "in": "cookie",
+            "name": "session_id",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Session Id"
             }
           }
         ],
@@ -61040,6 +61012,12 @@
               }
             },
             "description": "Successful Response"
+          },
+          "401": {
+            "description": "Not authenticated"
+          },
+          "403": {
+            "description": "Admin session required"
           },
           "404": {
             "description": "Service not found"
@@ -61069,7 +61047,7 @@
     },
     "/api/system/services/{name}/enable": {
       "post": {
-        "description": "Re-enable a disabled service.\n\nResets failure count and allows self-healing to resume.\n\nArgs:\n    name: Service name to enable\n    orchestrator: Container orchestrator instance (injected)\n\nReturns:\n    Action result with updated service information\n\nRaises:\n    HTTPException: 404 if service not found",
+        "description": "Re-enable a disabled service (guarded by `get_current_admin_user` until F4.8 retires it).",
         "operationId": "services_enable_service",
         "parameters": [
           {
@@ -61079,6 +61057,22 @@
             "schema": {
               "title": "Name",
               "type": "string"
+            }
+          },
+          {
+            "in": "cookie",
+            "name": "session_id",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Session Id"
             }
           }
         ],
@@ -61092,6 +61086,12 @@
               }
             },
             "description": "Successful Response"
+          },
+          "401": {
+            "description": "Not authenticated"
+          },
+          "403": {
+            "description": "Admin session required"
           },
           "404": {
             "description": "Service not found"
@@ -61121,7 +61121,7 @@
     },
     "/api/system/services/{name}/restart": {
       "post": {
-        "description": "Manually restart a service.\n\nResets failure count (manual restart is intentional).\n\nArgs:\n    name: Service name to restart\n    orchestrator: Container orchestrator instance (injected)\n\nReturns:\n    Action result with updated service information\n\nRaises:\n    HTTPException: 404 if service not found, 400 if service is disabled",
+        "description": "Manually restart an allowed service (`ai-gateway`, `ai-vlm`, `redis`, `postgres`).\n\nRequires an admin session (`get_current_admin_user`); API keys are refused with 403.\nCommits a 'restart requested' audit row before calling the engine, and records the\noutcome in a fresh session afterward (B4.11 / 4n-status.md).",
         "operationId": "services_restart_service",
         "parameters": [
           {
@@ -61131,6 +61131,22 @@
             "schema": {
               "title": "Name",
               "type": "string"
+            }
+          },
+          {
+            "in": "cookie",
+            "name": "session_id",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Session Id"
             }
           }
         ],
@@ -61145,8 +61161,11 @@
             },
             "description": "Successful Response"
           },
-          "400": {
-            "description": "Bad request - Service is disabled"
+          "401": {
+            "description": "Not authenticated"
+          },
+          "403": {
+            "description": "Admin session required"
           },
           "404": {
             "description": "Service not found"
@@ -61176,7 +61195,7 @@
     },
     "/api/system/services/{name}/start": {
       "post": {
-        "description": "Start a stopped service container.\n\nArgs:\n    name: Service name to start\n    orchestrator: Container orchestrator instance (injected)\n\nReturns:\n    Action result with updated service information\n\nRaises:\n    HTTPException: 404 if service not found,\n                   400 if service is already running or disabled",
+        "description": "Start a stopped service container (guarded by `get_current_admin_user` until F4.8 retires it).",
         "operationId": "services_start_service",
         "parameters": [
           {
@@ -61186,6 +61205,22 @@
             "schema": {
               "title": "Name",
               "type": "string"
+            }
+          },
+          {
+            "in": "cookie",
+            "name": "session_id",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Session Id"
             }
           }
         ],
@@ -61202,6 +61237,12 @@
           },
           "400": {
             "description": "Bad request - Service already running or disabled"
+          },
+          "401": {
+            "description": "Not authenticated"
+          },
+          "403": {
+            "description": "Admin session required"
           },
           "404": {
             "description": "Service not found"
@@ -61543,6 +61584,22 @@
               "title": "Worker Name",
               "type": "string"
             }
+          },
+          {
+            "in": "cookie",
+            "name": "session_id",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Session Id"
+            }
           }
         ],
         "responses": {
@@ -61586,6 +61643,22 @@
               "title": "Worker Name",
               "type": "string"
             }
+          },
+          {
+            "in": "cookie",
+            "name": "session_id",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Session Id"
+            }
           }
         ],
         "responses": {
@@ -61628,6 +61701,22 @@
             "schema": {
               "title": "Worker Name",
               "type": "string"
+            }
+          },
+          {
+            "in": "cookie",
+            "name": "session_id",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Session Id"
             }
           }
         ],
@@ -61868,44 +61957,6 @@
         "summary": "Get track with full trajectory",
         "tags": [
           "tracks"
-        ]
-      }
-    },
-    "/api/v1/alertmanager/webhook": {
-      "post": {
-        "description": "Receive webhook notifications from Alertmanager.\n\nThis endpoint receives alerts from Prometheus Alertmanager and:\n1. Stores each alert in the database for history tracking\n2. Broadcasts each alert via WebSocket for real-time frontend updates\n3. Returns acknowledgment to Alertmanager\n\nThe alerts are infrastructure alerts (GPU memory, pipeline health, etc.)\nwhich are stored for history and displayed alongside security alerts.\n\nArgs:\n    payload: Alertmanager webhook payload containing alert details\n    db: Database session (injected)\n    redis_client: Redis client for WebSocket broadcasting (optional)\n\nReturns:\n    AlertmanagerWebhookResponse with processing status",
-        "operationId": "alertmanager_receive_alertmanager_webhook",
-        "requestBody": {
-          "content": {
-            "application/json": {
-              "schema": {
-                "$ref": "#/components/schemas/AlertmanagerWebhook"
-              }
-            }
-          },
-          "required": true
-        },
-        "responses": {
-          "200": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/AlertmanagerWebhookResponse"
-                }
-              }
-            },
-            "description": "Webhook received and processed"
-          },
-          "422": {
-            "description": "Invalid payload format"
-          },
-          "500": {
-            "description": "Internal server error"
-          }
-        },
-        "summary": "Receive Alertmanager Webhook",
-        "tags": [
-          "alertmanager"
         ]
       }
     },

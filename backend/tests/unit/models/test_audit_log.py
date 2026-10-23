@@ -234,7 +234,7 @@ class TestAuditActionEnum:
 
     def test_audit_action_count(self):
         """Test AuditAction has expected number of values."""
-        assert len(AuditAction) == 35
+        assert len(AuditAction) == 37
         assert AuditAction.EVENT_PURGED.value == "event_purged"
 
     def test_audit_action_all_unique(self):

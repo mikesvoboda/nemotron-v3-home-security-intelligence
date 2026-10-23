@@ -962,14 +962,26 @@ class TestAIServicesHealthEndpoint:
 
                     assert response.status_code == 200
                     data = response.json()
-                    assert data["overall_status"] == "degraded"
-                    # The degraded badge was earned by a non-critical row going
-                    # unhealthy, not by a silent all-200 response: pin that the
-                    # row we failed actually reported unhealthy.
-                    for cfg in non_critical_rows:
-                        url = getattr(mock_settings, cfg["url_attr"])
-                        if url:
-                            assert data["services"][cfg["name"]]["status"] == "unhealthy"
+                    assert data["overall_status"] == "healthy"
+                    assert data["services"]["ai-vlm"]["status"] == "healthy"
+
+                    # When ai_health records a failing VLM call, the non-critical row
+                    # reports unhealthy and overall_status becomes degraded without
+                    # making any HTTP request to ai-vlm (B4.11 T4).
+                    from backend.services import ai_health
+
+                    ai_health.record_vlm_call("failing", "Connection refused")
+                    try:
+                        response_fail = await async_client.get("/api/health/ai-services")
+                        assert response_fail.status_code == 200
+                        data_fail = response_fail.json()
+                        assert data_fail["overall_status"] == "degraded"
+                        for cfg in non_critical_rows:
+                            url = getattr(mock_settings, cfg["url_attr"])
+                            if url:
+                                assert data_fail["services"][cfg["name"]]["status"] == "unhealthy"
+                    finally:
+                        ai_health.reset_ai_health_state()
 
 
 # =============================================================================
@@ -1130,12 +1142,19 @@ class TestRetiredLlmRow:
 
     @pytest.mark.asyncio
     async def test_ai_vlm_down_is_degraded(self, async_client: AsyncClient) -> None:
-        response, _ = await self._get(async_client, down={"ai_vlm_url"})
+        from backend.services import ai_health
 
-        assert response.status_code == 200
-        data = response.json()
-        assert data["overall_status"] == "degraded"
-        assert data["services"]["ai-vlm"]["status"] == "unhealthy"
+        ai_health.record_vlm_call("failing", "Connection refused")
+        try:
+            response, probed = await self._get(async_client, down={"ai_vlm_url"})
+
+            assert response.status_code == 200
+            data = response.json()
+            assert data["overall_status"] == "degraded"
+            assert data["services"]["ai-vlm"]["status"] == "unhealthy"
+            assert not [u for u in probed if u.startswith(self.URLS["ai_vlm_url"])], probed
+        finally:
+            ai_health.reset_ai_health_state()
 
     def test_the_table_itself_is_the_shipped_shape(self) -> None:
         """The table is the shipped shape — ai-vlm sits in the retired LLM's

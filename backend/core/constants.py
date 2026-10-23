@@ -13,22 +13,18 @@ Usage:
         ANALYSIS_QUEUE,
         DLQ_DETECTION_QUEUE,
         DLQ_ANALYSIS_QUEUE,
-        get_prefixed_queue_name,
         CacheInvalidationReason,
     )
 
     # Queue operations (use add_to_queue_safe for proper backpressure handling)
-    # Use get_prefixed_queue_name for proper key namespacing
-    prefixed_queue = get_prefixed_queue_name(DETECTION_QUEUE)
-    result = await redis.add_to_queue_safe(prefixed_queue, data)
-    await redis.get_queue_length(get_prefixed_queue_name(ANALYSIS_QUEUE))
+    result = await redis.add_to_queue_safe(DETECTION_QUEUE, data)
+    await redis.get_queue_length(ANALYSIS_QUEUE)
 
     # Cache invalidation with typed reasons
     await cache.invalidate_events(reason=CacheInvalidationReason.EVENT_CREATED)
 """
 
 from enum import Enum
-from functools import lru_cache
 
 
 # -----------------------------------------------------------------------------
@@ -219,49 +215,6 @@ def get_dlq_overflow_name(queue_name: str) -> str:
 
 
 # -----------------------------------------------------------------------------
-# Global Key Prefix Functions (NEM-1621)
-# -----------------------------------------------------------------------------
-
-
-@lru_cache(maxsize=1)
-def _get_redis_key_prefix() -> str:
-    """Get the global Redis key prefix from settings.
-
-    This is cached to avoid repeated settings lookups. The cache is cleared
-    when settings change (e.g., in tests).
-
-    Returns:
-        The global Redis key prefix (default: "hsi")
-    """
-    # Import here to avoid circular imports
-    from backend.core.config import get_settings
-
-    return get_settings().redis_key_prefix
-
-
-def get_prefixed_queue_name(queue_name: str) -> str:
-    """Get a queue name with the global prefix applied.
-
-    This function prepends the global Redis key prefix to queue names,
-    enabling key isolation for multi-instance and blue-green deployments.
-
-    Args:
-        queue_name: Raw queue name (e.g., "detection_queue")
-
-    Returns:
-        Prefixed queue name (e.g., "hsi:queue:detection_queue")
-
-    Examples:
-        >>> get_prefixed_queue_name("detection_queue")
-        "hsi:queue:detection_queue"
-        >>> get_prefixed_queue_name("dlq:detection_queue")
-        "hsi:queue:dlq:detection_queue"
-    """
-    prefix = _get_redis_key_prefix()
-    return f"{prefix}:queue:{queue_name}"
-
-
-# -----------------------------------------------------------------------------
 # API-key scopes (R60, ruling 60)
 # -----------------------------------------------------------------------------
 # One flat key list was the finding: any hash match in API_KEYS opened every
@@ -357,6 +310,5 @@ __all__ = [
     "CacheInvalidationReason",
     "get_dlq_name",
     "get_dlq_overflow_name",
-    "get_prefixed_queue_name",
     "resolve_api_key_scope",
 ]

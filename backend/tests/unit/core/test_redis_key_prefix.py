@@ -153,46 +153,23 @@ def test_cache_keys_queue_with_dlq():
 
 
 # =============================================================================
-# Constants Tests - Queue name functions with prefix
+# Constants Tests - Queue names and retired prefix helper
 # =============================================================================
 
 
-def test_constants_get_prefixed_queue_name_exists():
-    """Test that get_prefixed_queue_name function exists in constants."""
-    from backend.core.constants import get_prefixed_queue_name
+def test_constants_get_prefixed_queue_name_retired():
+    """The unused get_prefixed_queue_name helper is retired (B4.11 T2)."""
+    from backend.core import constants
 
-    assert callable(get_prefixed_queue_name)
-
-
-def test_constants_get_prefixed_queue_name_format():
-    """Test get_prefixed_queue_name returns correct format."""
-    from backend.core.constants import get_prefixed_queue_name
-
-    name = get_prefixed_queue_name("detection_queue")
-    # Should include prefix from settings
-    assert ":queue:" in name
-    assert "detection_queue" in name
+    assert not hasattr(constants, "get_prefixed_queue_name")
 
 
-def test_constants_get_prefixed_dlq_name():
-    """Test get_prefixed_queue_name works with DLQ names."""
-    from backend.core.constants import get_prefixed_queue_name
+def test_constants_queue_names_unprefixed():
+    """Queue name constants match the keys the pipeline actually uses."""
+    from backend.core.constants import ANALYSIS_QUEUE, DETECTION_QUEUE
 
-    name = get_prefixed_queue_name("dlq:detection_queue")
-    assert "dlq:detection_queue" in name
-
-
-def test_constants_queue_names_use_prefix():
-    """Test that queue name constants include prefix."""
-    from backend.core.constants import ANALYSIS_QUEUE, DETECTION_QUEUE, get_prefixed_queue_name
-
-    # The raw constants should still be unprefixed for backwards compatibility
     assert DETECTION_QUEUE == "detection_queue"
     assert ANALYSIS_QUEUE == "analysis_queue"
-
-    # But get_prefixed_queue_name should add prefix
-    prefixed = get_prefixed_queue_name(DETECTION_QUEUE)
-    assert prefixed.startswith("hsi:")
 
 
 # =============================================================================

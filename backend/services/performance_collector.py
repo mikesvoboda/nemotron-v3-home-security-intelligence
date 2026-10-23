@@ -197,8 +197,10 @@ class PerformanceCollector:
             resp = await client.get(f"{self._settings.yolo26_url}/health")
             if resp.status_code == 200:
                 data = resp.json()
+                model_loaded = data.get("model_loaded", True) is not False
+                is_healthy = data.get("status") == "healthy" and model_loaded
                 return AiModelMetrics(
-                    status="healthy" if data.get("status") == "healthy" else "unhealthy",
+                    status="healthy" if is_healthy else "unhealthy",
                     vram_gb=data.get("vram_used_gb", 0),
                     model=data.get("model_name", "yolo26"),
                     device=data.get("device", "unknown"),
@@ -208,26 +210,33 @@ class PerformanceCollector:
         return AiModelMetrics(status="unreachable", vram_gb=0, model="yolo26", device="unknown")
 
     async def collect_nemotron_metrics(self) -> NemotronMetrics | None:
-        """Collect LLM metrics from the shipped engine.
+        """Collect VLM metrics from ``ai_health`` without HTTP-probing ``ai-vlm``.
 
-        R8 S2 re-home: the slot probe follows the surviving llama.cpp server
-        (ai-vlm - same /slots contract). The method and the NemotronMetrics
-        schema names are API surface the frontend and the websocket payload
-        resolve; renaming them is its own decision, not drift from this one.
+        Any HTTP request to ``ai-vlm`` resets llama.cpp's ``--sleep-idle-seconds``
+        timer (B4.11 T4), so status and slot capacity come from ``ai_health`` and
+        settings rather than ``/slots``.
         """
+        from backend.services import ai_health
+
         try:
-            client = await self._get_http_client()
-            resp = await client.get(f"{self._settings.ai_vlm_url}/slots")
-            if resp.status_code == 200:
-                slots = resp.json()
-                active = sum(1 for s in slots if s.get("state", 0) != 0)
-                context = slots[0].get("n_ctx", 4096) if slots else 4096
+            vlm_state = await ai_health.state("ai_vlm", settings=self._settings)
+            slots_total = int(getattr(self._settings, "vlm_slot_count", 2) or 2)
+            total_ctx = int(getattr(self._settings, "vlm_context_window", 8192) or 8192)
+            context_size = total_ctx // max(1, slots_total)
+            if vlm_state.state == "failing":
                 return NemotronMetrics(
-                    status="healthy",
-                    slots_active=active,
-                    slots_total=len(slots),
-                    context_size=context,
+                    status="unreachable",
+                    slots_active=0,
+                    slots_total=0,
+                    context_size=0,
                 )
+            status_str = "loading" if vlm_state.state == "loading" else "healthy"
+            return NemotronMetrics(
+                status=status_str,
+                slots_active=0,
+                slots_total=slots_total,
+                context_size=context_size,
+            )
         except Exception as e:
             logger.warning(f"Nemotron metrics failed: {e}")
         return NemotronMetrics(status="unreachable", slots_active=0, slots_total=0, context_size=0)
@@ -476,11 +485,16 @@ class PerformanceCollector:
         )
         results.append(detector_health)
 
-        # AI LLM: the shipped engine (ai-vlm), re-homed in R8 S2 from the
-        # retired ai-llm service.
-        llm_health = await self._check_service_health(
-            client, "ai-vlm", f"{self._settings.ai_vlm_url}/health"
-        )
+        # AI VLM: read from ai_health without probing ai-vlm over HTTP (B4.11 T4)
+        from backend.services import ai_health
+
+        vlm_state = await ai_health.state("ai_vlm", settings=self._settings)
+        if vlm_state.state == "failing":
+            llm_health = ContainerMetrics(name="ai-vlm", status="unknown", health="unhealthy")
+        elif vlm_state.state == "loading":
+            llm_health = ContainerMetrics(name="ai-vlm", status="running", health="starting")
+        else:
+            llm_health = ContainerMetrics(name="ai-vlm", status="running", health="healthy")
         results.append(llm_health)
 
         # Log summary of container health
@@ -624,7 +638,14 @@ class PerformanceCollector:
         """Collect inference latency metrics from PipelineLatencyTracker."""
         try:
             from backend.core.database import get_session
-            from backend.core.metrics import get_pipeline_latency_tracker
+            from backend.core.metrics import (
+                PipelineLatencyTracker,
+                get_pipeline_latency_tracker,
+            )
+            from backend.services.ai_health import (
+                get_detector_latency_stats,
+                get_vlm_latency_stats,
+            )
 
             tracker = get_pipeline_latency_tracker()
 
@@ -632,6 +653,29 @@ class PerformanceCollector:
             yolo26_stats = tracker.get_stage_stats("watch_to_detect", window_minutes=5)
             nemotron_stats = tracker.get_stage_stats("batch_to_analyze", window_minutes=5)
             pipeline_stats = tracker.get_stage_stats("total_pipeline", window_minutes=5)
+
+            is_real_tracker = type(tracker) is PipelineLatencyTracker
+            detector_hist = get_detector_latency_stats() if is_real_tracker else {}
+            vlm_hist = get_vlm_latency_stats() if is_real_tracker else {}
+
+            yolo26_latency = (
+                detector_hist
+                if detector_hist and any(v > 0 for v in detector_hist.values())
+                else {
+                    "avg": yolo26_stats.get("avg_ms") or 0,
+                    "p95": yolo26_stats.get("p95_ms") or 0,
+                    "p99": yolo26_stats.get("p99_ms") or 0,
+                }
+            )
+            nemotron_latency = (
+                vlm_hist
+                if vlm_hist and any(v > 0 for v in vlm_hist.values())
+                else {
+                    "avg": nemotron_stats.get("avg_ms") or 0,
+                    "p95": nemotron_stats.get("p95_ms") or 0,
+                    "p99": nemotron_stats.get("p99_ms") or 0,
+                }
+            )
 
             # Calculate throughput from database (5-minute window average)
             images_per_min = 0.0
@@ -644,16 +688,10 @@ class PerformanceCollector:
                 logger.warning(f"Failed to get throughput metrics: {e}")
 
             return InferenceMetrics(
-                yolo26_latency_ms={
-                    "avg": yolo26_stats.get("avg_ms") or 0,
-                    "p95": yolo26_stats.get("p95_ms") or 0,
-                    "p99": yolo26_stats.get("p99_ms") or 0,
-                },
-                nemotron_latency_ms={
-                    "avg": nemotron_stats.get("avg_ms") or 0,
-                    "p95": nemotron_stats.get("p95_ms") or 0,
-                    "p99": nemotron_stats.get("p99_ms") or 0,
-                },
+                yolo26_latency_ms=yolo26_latency,
+                rtdetr_latency_ms=dict(yolo26_latency),
+                nemotron_latency_ms=nemotron_latency,
+                ai_vlm_latency_ms=dict(nemotron_latency),
                 pipeline_latency_ms={
                     "avg": pipeline_stats.get("avg_ms") or 0,
                     "p95": pipeline_stats.get("p95_ms") or 0,

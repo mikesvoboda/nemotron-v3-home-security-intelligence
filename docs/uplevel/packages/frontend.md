@@ -44,10 +44,10 @@ stopped and started on a running stack.
 - [ ] The operator runs the real tier (`scripts/feature-check.sh --real`) and the inventory records
       the date per row.
 - [ ] Rows demoted only because the CI stack cannot reach them (UR-153) are reached this way:
-  - **Real tier:** the Grafana and GPU rows (F-102, F-115, F-117, F-164–F-167, F-169, F-174; F-176,
-    F-178, F-182) get their witness from `O2.5`'s two runs (ruling 256). If `O2.5`'s spike says no,
-    they are checked on the test deployment in the per-batch real-tier runs, and ops adds what they
-    need to the test deployment's compose (rulings 127, 144).
+  - **Real tier:** the GPU rows (F-176, F-178, F-182) and six Grafana rows (F-164–F-167, F-169,
+    F-174) get their witness from `O2.5`'s item 2 (rulings 256, 323). F-102, F-115 and F-117 get
+    theirs from the Monitoring package's golden path, and F-295 and F-296 from `[r323b]` (ruling
+    323).
   - **Seeded on CI:** a golden project with `DEBUG=true`, which covers the debug-gated rows and the
     request recorder; a fault seed behind the debug guard that trips a breaker and a threshold; a
     fixture that plants an orphan file; a writable `runtime.env` in the CI compose; and, after the
@@ -92,9 +92,9 @@ stopped and started on a running stack.
   docs tests the grant with `channel: 'chromium'` set in `permission.spec.ts` alone, leaving the
   golden project's config unchanged (ruling 194).
 
-**Done when:** no row says **unverified** except the rows `O2.5` witnesses (ruling 127's 12,
-F-295 and F-296; UR-10, ruling 237); every **works** row cites a green golden path and a real-tier
-date; the `R2` sheet is final.
+**Done when:** no row says **unverified** except ruling 127's 12, F-295 and F-296, whose witnesses
+ruling 323 routes to `O2.5`'s item 2, the Monitoring package and `[r323b]` (UR-10, rulings 237,
+323); every **works** row cites a green golden path and a real-tier date; the `R2` sheet is final.
 
 ### R2b Phase 2 RULING session, part 2 (after `F2.3`)
 
@@ -227,8 +227,10 @@ paths; the inventory row reads **works** once the operator records the real-tier
   reachable directly behind `O1.11`'s login (rulings 128, 135). The package removes the zone panels
   from `monitoring/grafana/dashboards/video-analytics.json`, and F-117's inventory row says why:
   nothing in the product writes `hsi_zone*` since #7319 deleted `zone_crossing_service.py`, so the
-  panels have never shown data. F-117 stays complete. A future zone feature adds the panels back
-  with a writer, and until then no PR adds a writer for `hsi_zone*` (ruling 301).
+  panels have never shown data. F-117 stays complete. The package's golden path is the witness for
+  F-102, F-115 and F-117, which stay **unverified** until it lands (ruling 323). A future zone
+  feature adds the panels back with a writer, and until then no PR adds a writer for `hsi_zone*`
+  (ruling 301).
 
 **The P1 packages' frontend parts** (ruling 308, record 6326364266), each with its design as step 1.
 **The P2 packages' frontend parts** (ruling 317, record 6347331324) follow them: `F4.8`, `F4.6` and
@@ -256,16 +258,18 @@ Design: [`../4n-timeline.md`](../4n-timeline.md). Covers F-044, F-055.
 ### F4.1 The Alerts page
 
 **Flags:** none. **Assigned:** frontend, after `F4.4` (ruling 308). **Depends on:** `B4.1`
-merged; it runs beside `B4.2`. **PR:** #7367. (ruling 308, record 6326364266)
+merged; it runs beside `B4.2`. **PR:** #7367, #7370. (ruling 308, record 6326364266)
 
 Design: [`../4n-alerting.md`](../4n-alerting.md), "Packages" row 2, beside `B4.2`. Covers F-078,
 F-079.
 
 - [x] The test-only PR (step 2).
-- [ ] The build PR: alert rows; Acknowledge, Dismiss, Snooze; the timeline's Snooze moves to
+- [x] The build PR: alert rows; Acknowledge, Dismiss, Snooze; the timeline's Snooze moves to
       activity snoozes; `alerts.spec.ts` and the snooze steps of `event-detail-modal.spec.ts`
       rewritten.
-- [ ] Golden path (Playwright): the alert appears live, then acknowledge, dismiss, snooze.
+- [x] Golden path (Playwright): the alert appears live, then acknowledge, dismiss, snooze —
+      `frontend/tests/golden/analytics-alerts/alerts.spec.ts`, witnessed green by this PR's CI
+      `Feature check (fake AI)` run.
 
 **Done when:** steps 4–6 hold for its rows.
 
@@ -1015,3 +1019,25 @@ skip themselves under CI.
       A file the setup rewrites on every run may leave the tree (ignored instead).
 
 **Done when:** the test passes in CI at a ready head and the UR-89 review approves.
+
+### [r323b] F-295 and F-296 get witnesses outside `O2.5`
+
+**Flags:** none. **Assigned:** frontend, last on its queue; it gates nothing (ruling 323).
+**Depends on:** none.
+**PR:** none yet. (ruling 323, record 6356971214)
+
+Neither run of `O2.5` could witness these two rows. F-295's push cannot be driven inside any golden
+run: the summary job runs once at boot, then sleeps 3600 s. F-296's two legs are `test.fixme`,
+because the fake tier supplies no video detection and no event with two detections.
+
+- [ ] **F-295.** A backend integration test runs `SummaryJob.run()` and receives the
+      `summary_update` frame on `/ws/events`; it is the PR's cross-lane part (UR-9). A
+      `useSummaries` unit test shows the refetch on that frame. Together they are F-295's witness:
+      the owner waives UR-14's golden-path bar for this row alone, and the golden leg keeps its
+      stated skip.
+- [ ] **F-296.** The fake tier supplies a video detection and an event with two detections whose
+      orderings disagree, and the two `test.fixme` legs in `timeline/download-media.spec.ts` become
+      running tests. The supply-witness leg at `:768` changes with them: on prod-shape it got the
+      route's own 400, where it expects CI's 500.
+
+**Done when:** CI is green, both rows record their witness, and the UR-89 review approves.
