@@ -276,7 +276,7 @@ F-079.
 ### F4.3 The Trash UI
 
 **Flags:** none. **Assigned:** frontend, after `F4.1` (ruling 308). **Depends on:** `B4.4`
-merged. **PR:** #7404 (ruling 308, record 6326364266)
+merged. **PR:** #7404 (ruling 308, record 6326364266); step-2 PR: #7405
 
 Design: [`../4n-trash.md`](../4n-trash.md), the `F4.3` parts. Covers F-087, F-088 with `B4.4`.
 
