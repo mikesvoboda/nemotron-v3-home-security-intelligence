@@ -1,9 +1,22 @@
 """SQLAlchemy models for home security intelligence system."""
 
 from .alert import ActivitySnooze, Alert, AlertEvent, AlertRule, AlertSeverity, AlertStatus
+from .alert_delivery import (
+    DeliveryChannelKind,
+    DeliveryStatus,
+    NotificationDelivery,
+    Recipient,
+    RecipientChannel,
+)
 from .analytics_zone import LineZone, PolygonZone
 from .api_key import APIKey
 from .area import Area, camera_areas
+from .arming import (
+    ArmingChange,
+    ArmingModeExclusion,
+    ArmingScheduleEntry,
+    ArmingState,
+)
 from .audit import AuditAction, AuditLog, AuditStatus
 from .backup_job import BackupJob, BackupJobStatus, RestoreJob, RestoreJobStatus
 from .baseline import ActivityBaseline, ClassBaseline
@@ -102,6 +115,10 @@ __all__ = [
     "AnomalySeverity",
     "AnomalyType",
     "Area",
+    "ArmingChange",
+    "ArmingModeExclusion",
+    "ArmingScheduleEntry",
+    "ArmingState",
     "AuditAction",
     "AuditLog",
     "AuditStatus",
@@ -117,6 +134,8 @@ __all__ = [
     "CameraZoneType",
     "ClassBaseline",
     "DayOfWeek",
+    "DeliveryChannelKind",
+    "DeliveryStatus",
     "Detection",
     "DwellTimeRecord",
     "EnrollmentCandidate",
@@ -158,6 +177,7 @@ __all__ = [
     "Log",
     "LogLevel",
     "MemberRole",
+    "NotificationDelivery",
     "NotificationPreferences",
     "NotificationSound",
     "OutboundWebhook",
@@ -173,6 +193,8 @@ __all__ = [
     "PromptVersion",
     "Property",
     "QuietHoursPeriod",
+    "Recipient",
+    "RecipientChannel",
     "RegisteredVehicle",
     "RestoreJob",
     "RestoreJobStatus",

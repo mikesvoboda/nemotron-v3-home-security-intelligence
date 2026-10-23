@@ -12,9 +12,26 @@ from collections.abc import Mapping, Sequence
 from dataclasses import dataclass
 from typing import Any, Literal
 
-VerdictSource = Literal["local", "cloud", "detector"]
+from backend.services.severity import get_severity_service
+
+VerdictSource = Literal["local", "cloud", "detector", "external"]
 VerdictKind = Literal["confirmed", "uncertain", "rejected"]
 FaceStatus = Literal["trusted", "unknown", "none"]
+
+
+def external_severity_top_score(severity: str | None) -> int:
+    """Return the top of the SeverityService band for `severity` (4n-arming.md A4)."""
+    sev = get_severity_service()
+    key = str(severity or "medium").strip().lower()
+    if key == "low":
+        return int(sev.low_max)
+    if key == "medium":
+        return int(sev.medium_max)
+    if key == "high":
+        return int(sev.high_max)
+    if key == "critical":
+        return 100
+    return int(sev.medium_max)
 
 
 @dataclass(frozen=True, slots=True)
@@ -123,13 +140,28 @@ def resolve(
     """Resolve the verdict source, verdict value, recognised names, and trusted suppression."""
     spec = specialists or SpecialistEvidence()
     raw_verdict, raw_score = _extract_event_verdict_and_score(event, verdict, risk_score)
+    event_source = (
+        event.get("source") if isinstance(event, Mapping) else getattr(event, "source", None)
+    )
 
-    # Step 1 -> 2 -> 3 chain: local VLM -> cloud VLM slot -> detector fallback
+    # Step 1 -> 2 -> 3 chain: local VLM -> cloud VLM slot -> detector fallback, plus external (B4.7)
     source: VerdictSource
     final_verdict: VerdictKind | None
     final_score: int | None
 
-    if raw_verdict in ("confirmed", "uncertain", "rejected") and raw_score is not None:
+    if str(event_source or "").lower() == "external":
+        source = "external"
+        final_verdict = None
+        if raw_score is not None:
+            final_score = int(raw_score)
+        else:
+            raw_level = (
+                event.get("risk_level")
+                if isinstance(event, Mapping)
+                else getattr(event, "risk_level", None)
+            )
+            final_score = external_severity_top_score(raw_level)
+    elif raw_verdict in ("confirmed", "uncertain", "rejected") and raw_score is not None:
         source = "local"
         final_verdict = raw_verdict  # type: ignore[assignment]
         final_score = int(raw_score)

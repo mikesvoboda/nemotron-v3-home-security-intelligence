@@ -95,7 +95,7 @@ model takes to answer.
 | question                                   | decision                                                                                                                                                                                                                                                                                                         | why                                                                                                  |
 | ------------------------------------------ | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------- |
 | What can the services panel do?            | Restart only, for `ai-gateway`, `ai-vlm`, `redis` and `postgres`; worker cards use the worker restart. Enable, disable, `/start` and the worker stop and start routes retire (owner, ST-1; T6).                                                                                                                  | One real action, guarded; the others never stopped anything, or bypass the guard.                    |
-| Who may restart?                           | An admin with a session, through `get_current_admin_user`, in every setup; API keys never. With LAN exposure off, Restart asks for an admin sign-in, or offers to create the first admin account. The audit names the person (owner, review T1).                                                                 | `require_admin_access` does not check who calls; a restart of Postgres is the household admin's act. |
+| Who may restart?                           | An admin with a session, through `get_current_admin_user`, in every setup; API keys never. With LAN exposure off, Restart asks for an admin sign-in; with no account at all the app is already on `/setup` (`4n-debug-tools.md`, DT11). The audit names the person (owner, review T1).                           | `require_admin_access` does not check who calls; a restart of Postgres is the household admin's act. |
 | Where is a real restart witnessed?         | The owner, on the live install after these packages deploy: sign in as admin, restart `ai-gateway` from Operations, read the audit row and the badge going loading → ready. Pytest with a fake engine proves the rest (owner, review T5).                                                                        | UR-134 keeps every test deployment away from the container engine.                                   |
 | What does "AI service healthy" mean?       | One backend health module behind every badge and card. The detector is ready when the gateway reports its model loaded; the VLM is ready when its last call succeeded and its breaker is closed. A sleeping VLM is "Idle (asleep)", neutral, never probed awake; loading is amber; failing is red (owner, ST-2). | The case people need to see, a model that is not loaded, shows; a quiet night does not look broken.  |
 | Are the API names renamed?                 | Yes, by expand then contract (T3): `B4.11` adds `ai_vlm` and `yolo26` beside `nemotron` and `rtdetr`; `F4.8` moves every consumer and removes the old names in the same PR (UR-9). Branding and prompt management keep their names.                                                                              | R2 ruled the re-key; each package stays green on its own.                                            |
@@ -171,19 +171,21 @@ model takes to answer.
   and the `prometheus_alerts` table retire with a recorded upgrade; `admin.py`'s mode-aware flush
   and `constants.py`'s helper; `docs/openapi.json` and the generated types are regenerated (UR-83).
 - **frontend (`F4.8`, contract):** `useAIServiceStatus`, `AIServiceStatus`, `useAIMetrics`,
-  `AIPerformanceSummaryRow`, `AIModelsSettings`, `ModelStatusCards`, `ServicesPanel` (Restart
-  only, the sign-in prompt, Postgres no longer blocked), `PerformanceCharts`,
+  `AIPerformanceSummaryRow`, `AIModelsSettings`, `ModelStatusCards`, `ServicesPanel` (Restart only,
+  the sign-in prompt, Postgres no longer blocked), the shared `useIsAdmin` (it loads `/api/auth/me`
+  whether or not the backend requires auth, and reads 401 as "not signed in" without redirecting)
+  and `AdminSignInPrompt`, which `F4.10` reuses (`4n-debug-tools.md`, DT5), `PerformanceCharts`,
   `usePerformanceMetrics`, `PerformanceDashboard`, `useFullHealthQuery`, `metricsParser`,
   `useServiceStatus` (`ai-vlm`), `usePrometheusAlertWebSocket` (events socket, shape, page-open
   load), `CommandPalette`, `useKeyboardShortcuts`, `TracingPage`; test fixtures
   (`test-utils/factories.ts`, `services/__mocks__/api.ts`). **Its cross-lane part** (UR-9, T3): the
-  same PR removes the old `nemotron` and `rtdetr` fields, moves the `ai_models` key, regenerates
-  the contract and types, and edits `operations/performance.spec.ts:55` and `:66`; and it retires
-  the enable, disable and `/start` service routes and the worker stop and start routes
-  (`services.py`, `system.py`) together with their callers (the start, stop, enable and disable
-  mutations in `useServiceMutations` and `useWorkerActions`; `api.ts`'s `/start`, `/disable` and
-  `/enable` clients and `supervisorApi.ts`'s worker start and stop; the panels' buttons), with a
-  404 test for each, and clears every persisted `enabled=false` once (T7, T8).
+  same PR removes the old `nemotron` and `rtdetr` fields, moves the `ai_models` key, regenerates the
+  contract and types, and edits `operations/performance.spec.ts:55` and `:66`; and it retires the
+  enable, disable and `/start` service routes and the worker stop and start routes (`services.py`,
+  `system.py`) together with their callers (the start, stop, enable and disable mutations in
+  `useServiceMutations` and `useWorkerActions`; `api.ts`'s `/start`, `/disable` and `/enable`
+  clients and `supervisorApi.ts`'s worker start and stop; the panels' buttons), with a 404 test for
+  each, and clears every persisted `enabled=false` once (T7, T8).
 - **monitoring:** none; the Tempo data source and Alertmanager's sink stay.
 
 ## Failure handling
@@ -207,10 +209,13 @@ model takes to answer.
     `ready`;
   - every route returns `snapshot()`'s shape, and a state change publishes `ai_service_status`;
   - the orchestrator's health loop never requests `ai-vlm`;
-  - restart, with a fake engine: refused with 401 without a session, 403 for a non-admin and for
-    any API key; done and audited with the admin's name, the "requested" row committed first; 503
-    without an engine; a name outside the four is refused; a once-disabled service restarts;
+  - restart, with a fake engine: refused with 401 without a session or with an API key alone, and
+    403 for a non-admin (`4n-debug-tools.md`, DT6); done and audited with the admin's name, the
+    "requested" row committed first; 503 without an engine; a name outside the four is refused; a
+    once-disabled service restarts;
   - the retired routes answer 404;
+  - the interim guard on the five control routes (`B4.11`) refuses as restart does, and the
+    one-time flag clear (`F4.8`) leaves no service disabled (#7365's round-3 review);
   - the proxy's mapping;
   - flush in streams mode trims, acknowledges and keeps the consumer group, and in list mode
     deletes the lists.
@@ -219,7 +224,7 @@ model takes to answer.
 
 - **Spec, backend** (`backend/tests/golden/external/test_system_status.py`): every health route
   returns the snapshot's shape with `yolo26` ready and `ai_vlm` idle on the fake stack; restart
-  answers 401 without a session, 403 for a non-admin and for an API key, and 503 "engine not
+  answers 401 without a session or with an API key alone, 403 for a non-admin, and 503 "engine not
   available" for an admin (UR-134); the old receiver answers 404.
 - **Spec, UI** (Playwright):
   - the header badge, the dashboard row and the model cards show the fake stack's `yolo26` ready
@@ -232,7 +237,8 @@ model takes to answer.
 
   The edits to `dashboard/ai-summary-row.spec.ts`, `operations/performance.spec.ts`,
   `operations/grafana-embeds.spec.ts` and `shell/palette.spec.ts` follow the new keys and links,
-  in the PR that changes each.
+  in the PR that changes each. `F4.8` also edits `operations/worker-management.spec.ts:88-113`,
+  F-143's golden path, which clicks the worker stop and start it retires (ruling 321).
 
 - **Fake-stack scenario:** the fake gateway reports its model loaded; the fake VLM answers one call
   and then idles.
@@ -259,10 +265,10 @@ upgrades stay.
 
 ## Packages
 
-| package | lane (ruling 317) | depends on | contents                                                                                                                                                                                                                                            | its own golden path       |
-| ------- | ----------------- | ---------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------- |
-| `B4.11` | heavy-b           | none       | Expand: the health module and its readers, the new fields beside the old, the latency histograms, restart only under the admin session with its audit, the never-probed VLM, the alerts proxy, the receiver's retirement, the mode-aware flush.     | Backend pytest of routes. |
-| `F4.8`  | frontend          | `B4.11`    | Contract: the badge, row, cards, panel with its sign-in prompt, chart, banner, the alert badge's socket and load, the palette, Tracing; removes the old fields, retires the control routes with their callers and clears the disabled flags (UR-9). | Playwright above.         |
+| package | lane (ruling 317)                 | depends on | contents                                                                                                                                                                                                                                            | its own golden path       |
+| ------- | --------------------------------- | ---------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------- |
+| `B4.11` | heavy-b                           | none       | Expand: the health module and its readers, the new fields beside the old, the latency histograms, restart only under the admin session with its audit, the never-probed VLM, the alerts proxy, the receiver's retirement, the mode-aware flush.     | Backend pytest of routes. |
+| `F4.8`  | frontend (owner tier, ruling 321) | `B4.11`    | Contract: the badge, row, cards, panel with its sign-in prompt, chart, banner, the alert badge's socket and load, the palette, Tracing; removes the old fields, retires the control routes with their callers and clears the disabled flags (UR-9). | Playwright above.         |
 
 Each runs the six steps as two PRs: a test-only consolidation PR, then the build.
 
@@ -288,4 +294,4 @@ confirmed every review finding and found more; the plan PR's review added one (T
 Each package: its golden path green on the fake stack and its real-tier check posted, and for F-140
 the owner's witnessed restart on the live install. F-293's row reads **retired** (R2a row 9 deletes
 its receiver); the other twelve rows read **works** once both packages have merged and their checks
-are posted.
+are posted. F-143's row re-cites its edited spec: worker restart stays, stop and start retire.

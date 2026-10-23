@@ -52,7 +52,8 @@ The personal data this feature stores or shows, its retention, who can reach it 
 
 ## Rollout and reversal
 
-How the feature is switched on, and how it is backed out if it misbehaves.
+How the feature is switched on, and how it is backed out if it misbehaves. Say what a revert leaves
+behind: a recorded upgrade stays, and a Postgres enum value it added cannot be dropped.
 
 ## Done when
 

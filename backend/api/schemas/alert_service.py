@@ -122,6 +122,9 @@ class AlertServiceResponse(BaseModel):
     match_count: int | None = Field(None, description="Number of folded event matches")
     last_seen_at: datetime | None = Field(None, description="Timestamp of latest folded event")
     last_event_id: int | None = Field(None, description="ID of latest folded event")
+    raised_while_unarmed: bool | None = Field(
+        None, description="Whether this alert was raised while the camera was unarmed"
+    )
 
     @field_validator("verdict_source", mode="before")
     @classmethod
@@ -142,6 +145,11 @@ class AlertServiceResponse(BaseModel):
     @classmethod
     def _coerce_last_event_id(cls, v: object) -> int | None:
         return v if isinstance(v, int) and not isinstance(v, bool) else None
+
+    @field_validator("raised_while_unarmed", mode="before")
+    @classmethod
+    def _coerce_raised_while_unarmed(cls, v: object) -> bool:
+        return v if isinstance(v, bool) else False
 
 
 class AlertServiceListResponse(BaseModel):
