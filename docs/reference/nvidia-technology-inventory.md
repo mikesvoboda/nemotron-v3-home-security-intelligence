@@ -37,7 +37,7 @@ The two hosts the AI images are built for:
 
 | Target host              | Architecture | Compute capability | Driver in code                                                   | Runs                           |
 | ------------------------ | ------------ | ------------------ | ---------------------------------------------------------------- | ------------------------------ |
-| NVIDIA GB300 (aarch64)   | Blackwell    | sm_103 (CC 10.3)   | 610.57.04 recorded in `ai/vlm/Dockerfile:57`                     | `CUDA_ARCHITECTURES=103` build |
+| NVIDIA GB300 (aarch64)   | Blackwell    | sm_103 (CC 10.3)   | 615.71.09 recorded in `ai/vlm/Dockerfile:57`                     | `CUDA_ARCHITECTURES=103` build |
 | NVIDIA RTX A5500 (24 GB) | Ampere       | sm_86              | `MINIMUM_DRIVER_VERSION = 580` (`setup_lib/nvidia_detect.py:38`) | `CUDA_ARCHITECTURES=86` build  |
 
 - **Driver floor:** 580, for CUDA 13.x (`setup_lib/nvidia_detect.py:38`, with the
@@ -57,8 +57,8 @@ The two hosts the AI images are built for:
 
 | Container          | Base Image                                                 | Source                         |
 | ------------------ | ---------------------------------------------------------- | ------------------------------ |
-| `ai-vlm` (builder) | `docker.io/nvidia/cuda:13.3.1-devel-ubuntu22.04`           | `ai/vlm/Dockerfile:19`         |
-| `ai-vlm` (runtime) | `docker.io/nvidia/cuda:13.3.1-runtime-ubuntu22.04`         | `ai/vlm/Dockerfile:86`         |
+| `ai-vlm` (builder) | `docker.io/nvidia/cuda:13.4.3-devel-ubuntu24.04`           | `ai/vlm/Dockerfile:19`         |
+| `ai-vlm` (runtime) | `docker.io/nvidia/cuda:13.4.3-runtime-ubuntu24.04`         | `ai/vlm/Dockerfile:86`         |
 | `ai-gateway`       | `nvcr.io/nvidia/tritonserver:26.09-py3`                    | `ai/gateway/Dockerfile:1`      |
 | `ai-llm-vllm`      | `docker.io/vllm/vllm-openai:cu130-nightly`                 | `docker-compose.prod.yml:291`  |
 | `dcgm-exporter`    | `nvcr.io/nvidia/k8s/dcgm-exporter:3.3.5-3.4.0-ubuntu22.04` | `docker-compose.prod.yml:1377` |
@@ -89,14 +89,14 @@ Weights are host-mounted, never baked:
 | ---------------------------------- | ---------------------------------------------- | ----------------------------------------------------- |
 | NVIDIA Triton Inference Server     | **26.09**                                      | `ai/gateway/Dockerfile:1`                             |
 | NVIDIA TensorRT                    | bundled in the `nvcr.io/nvidia/*:26.0x` images | `ai/common/tensorrt_utils.py` (runtime version check) |
-| NVIDIA CUDA Toolkit (`ai-vlm`)     | **13.3.1**                                     | `ai/vlm/Dockerfile:19,86`                             |
+| NVIDIA CUDA Toolkit (`ai-vlm`)     | **13.4.3**                                     | `ai/vlm/Dockerfile:19,86`                             |
 | NVIDIA CUDA Toolkit (`ai-gateway`) | bundled in `tritonserver:26.09-py3`            | `ai/gateway/Dockerfile:1`                             |
 | NVIDIA DCGM                        | **3.3.5** (exporter **3.4.0**)                 | `docker-compose.prod.yml:1377`                        |
 | NVIDIA Container Toolkit           | detected via `nvidia-ctk`                      | `setup_lib/nvidia_toolkit.py`                         |
 | NVIDIA driver (host floor)         | **580** minimum for CUDA 13.x                  | `setup_lib/nvidia_detect.py:38`                       |
 | nvidia-ml-py (NVML bindings)       | `>=12.560.30,<14.0.0`                          | `pyproject.toml:24`                                   |
 | tritonclient[grpc]                 | `>=2.42.0`                                     | `ai/gateway/requirements.txt`                         |
-| llama.cpp                          | tag **b7972**                                  | `ai/vlm/Dockerfile:46`                                |
+| llama.cpp                          | tag **b11819**                                 | `ai/vlm/Dockerfile:46`                                |
 | bitsandbytes                       | `>=0.44.0` (quantization extra)                | `pyproject.toml:175`                                  |
 | onnxruntime (CPU, `face` extra)    | `>=1.16` — `CPUExecutionProvider` only         | `pyproject.toml:196-200`                              |
 | PyTorch (backend)                  | **2.14.0+cpu**                                 | `uv.lock:25`                                          |
@@ -142,9 +142,9 @@ not from the image: `MODEL_PATH` and `MMPROJ_PATH` at
 
 | Setting             | Value                                                                   | Source                    |
 | ------------------- | ----------------------------------------------------------------------- | ------------------------- |
-| Source pin          | `ARG LLAMA_CPP_REF=b7972`                                               | `ai/vlm/Dockerfile:46`    |
-| CUDA base (builder) | `nvidia/cuda:13.3.1-devel-ubuntu22.04`                                  | `ai/vlm/Dockerfile:19`    |
-| CUDA base (runtime) | `nvidia/cuda:13.3.1-runtime-ubuntu22.04`                                | `ai/vlm/Dockerfile:86`    |
+| Source pin          | `ARG LLAMA_CPP_REF=b11819`                                              | `ai/vlm/Dockerfile:46`    |
+| CUDA base (builder) | `nvidia/cuda:13.4.3-devel-ubuntu24.04`                                  | `ai/vlm/Dockerfile:19`    |
+| CUDA base (runtime) | `nvidia/cuda:13.4.3-runtime-ubuntu24.04`                                | `ai/vlm/Dockerfile:86`    |
 | CMake flags         | `-DGGML_CUDA=ON`, `-DGGML_CUDA_FA_ALL_QUANTS=ON`, `-DGGML_NATIVE=ON`    | `ai/vlm/Dockerfile:74-76` |
 | Target arch         | `ARG CUDA_ARCHITECTURES=""` → `-DCMAKE_CUDA_ARCHITECTURES=<n>` when set | `ai/vlm/Dockerfile:64-69` |
 | Built artifact      | `llama-server` + its `.so*` set                                         | `ai/vlm/Dockerfile:97-98` |
