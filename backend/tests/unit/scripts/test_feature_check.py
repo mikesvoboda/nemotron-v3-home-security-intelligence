@@ -359,6 +359,60 @@ def test_the_backend_leg_env_carries_the_in_network_webhook_host(
     assert not env["FEATURE_CHECK_SINK_WEBHOOK_HOST"].startswith("http"), env
 
 
+def test_the_backend_leg_env_carries_the_in_network_push_host(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """The golden env's push HOST is the backend's own in-network spelling.
+
+    B4.3's push leg registers a subscription whose endpoint the BACKEND dials
+    (``http://<FEATURE_CHECK_SINK_PUSH_HOST>/push/...`` — the sink's service
+    DNS name on ci-net), so the env value must be the one the run BOOTS with,
+    read off the rendered compose.json the same way the webhook host above is,
+    NOT a host-side loopback URL (which from inside the backend container
+    points at the backend itself) and NOT a literal the harness re-typed.
+    """
+    calls: list[tuple[list[str], dict[str, Any]]] = []
+    run = _golden_only_run(tmp_path, monkeypatch, True, calls)
+    monkeypatch.setattr(fc, "REPO_ROOT", tmp_path)
+    golden = tmp_path / "no-backend-golden"
+    golden.mkdir()
+    (golden / "test_one.py").write_text("def test_one():\n", encoding="utf-8")
+    # A second spelling in the document proves the env is READ, not echoed:
+    # the export must follow the file, whatever the file says.
+    _write_rendered_compose(run, push_host="push-sink:9999")
+    run.golden()
+    _, kwargs = _backend_leg(calls)
+    env = kwargs["env"]
+    assert env["FEATURE_CHECK_SINK_PUSH_HOST"] == "push-sink:9999", env
+    assert not env["FEATURE_CHECK_SINK_PUSH_HOST"].startswith("http"), env
+
+
+def test_a_golden_env_with_no_rendered_stack_refuses_the_push_host(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """A rendered document missing the push env refuses, not falls back.
+
+    The webhook host's refusal above covers the no-render case (it reads
+    first); this one pins the OTHER branch — a rendered compose.json that
+    carries the webhook env but lost the push entry refuses too, rather than
+    exporting a hardcoded `push-sink:8092` that could silently drift from
+    what the backend actually dials.
+    """
+    calls: list[tuple[list[str], dict[str, Any]]] = []
+    run = _golden_only_run(tmp_path, monkeypatch, True, calls)
+    monkeypatch.setattr(fc, "REPO_ROOT", tmp_path)
+    golden = tmp_path / "no-backend-golden"
+    golden.mkdir()
+    (golden / "test_one.py").write_text("def test_one():\n", encoding="utf-8")
+    backend_env = ["FEATURE_CHECK_SINK_WEBHOOK_HOST=webhook-sink:8091"]
+    run.compose_file.write_text(
+        json.dumps({"services": {"backend": {"environment": backend_env}}}) + "\n",
+        encoding="utf-8",
+    )
+    with pytest.raises(fc.HarnessError, match=r"FEATURE_CHECK_SINK_PUSH_HOST"):
+        run.golden()
+
+
 def test_a_golden_env_with_no_rendered_stack_refuses_the_webhook_host(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
@@ -2130,18 +2184,23 @@ _SINK_PORT_ANSWERS = {
 }
 
 
-def _write_rendered_compose(run: Any, webhook_host: str = "webhook-sink:8091") -> None:
+def _write_rendered_compose(
+    run: Any, webhook_host: str = "webhook-sink:8091", push_host: str = "push-sink:8092"
+) -> None:
     """A rendered compose.json with the backend env the sinks overlay spells.
 
-    The golden env's in-network export reads the rendered backend env (the
+    The golden env's in-network exports read the rendered backend env (the
     single spelling lives in the overlay; run_check renders before golden).
     A golden() fixture never renders, so the helper writes the one document
-    `_sink_webhook_host` reads — into the run's own dir (its project name is
+    `_sink_env_host` reads — into the run's own dir (its project name is
     a random stamp, so the path comes off the run, not a constant) — in the
     same list-of-entries shape compose's `config --format json` emits from
     the CI stack's `KEY=VALUE` list env.
     """
-    backend_env = [f"FEATURE_CHECK_SINK_WEBHOOK_HOST={webhook_host}"]
+    backend_env = [
+        f"FEATURE_CHECK_SINK_WEBHOOK_HOST={webhook_host}",
+        f"FEATURE_CHECK_SINK_PUSH_HOST={push_host}",
+    ]
     run.compose_file.write_text(
         json.dumps({"services": {"backend": {"environment": backend_env}}}) + "\n",
         encoding="utf-8",

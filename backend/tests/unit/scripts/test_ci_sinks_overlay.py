@@ -27,6 +27,7 @@ the sink server's wire contract in ``test_ci_sink_server.py``.
 from __future__ import annotations
 
 import ast
+import base64
 import re
 import sys
 from pathlib import Path
@@ -186,6 +187,54 @@ class TestTheBackendEnv:
         assert backend["DEFAULT_EMAIL_RECIPIENTS"] == '["sinks@nemotron.test"]'
         assert backend["FEATURE_CHECK_SINK_WEBHOOK_HOST"] == "webhook-sink:8091"
         assert backend["FEATURE_CHECK_SINK_PUSH_HOST"] == "push-sink:8092"
+
+    def test_the_golden_env_exports_both_in_network_hosts(self) -> None:
+        """Both in-network hosts reach the golden env, read off the render.
+
+        The webhook leg (r308a) dials ``FEATURE_CHECK_SINK_WEBHOOK_HOST``; the
+        push leg (B4.3) registers a subscription aimed at
+        ``FEATURE_CHECK_SINK_PUSH_HOST``. Both exports read the rendered
+        compose.json in ``feature_check.py`` (``_sink_env_host``) — the same
+        document compose consumes — so a rename here and the leg's env move
+        together or the harness refuses loudly.
+        """
+        harness = (REPO_ROOT / "scripts" / "feature_check.py").read_text(encoding="utf-8")
+        assert '_sink_env_host("FEATURE_CHECK_SINK_WEBHOOK_HOST")' in harness
+        assert '_sink_env_host("FEATURE_CHECK_SINK_PUSH_HOST")' in harness
+        assert 'env["FEATURE_CHECK_SINK_PUSH_HOST"] = self._sink_push_host()' in harness
+
+    def test_the_backend_env_names_a_fixed_test_vapid_pair(self, overlay: dict) -> None:
+        """The Web Push VAPID env opens the adapter's fail-closed gate (B4.3).
+
+        The adapter returns ``webpush_not_configured`` when
+        ``settings.vapid_private_key`` is None (``webpush.py``), so without
+        these keys every send would fail closed in the fake stack and B4.3's
+        golden leg would have nothing to prove. Production generates a
+        per-install pair at setup (``setup_lib/credentials.py`` writes
+        ``VAPID_PRIVATE_KEY``/``VAPID_PUBLIC_KEY`` to ``.env``); the overlay
+        carries a fixed TEST-ONLY pair — the same doctrine ``ci_test_password``
+        holds for Postgres. The pin is structural, not byte-precise: the value
+        must load as a PKCS8 private key whose derived public key equals the
+        committed one (a mistyped half-pair is the failure mode that would
+        otherwise surface only as a 4xx from the push fake).
+        """
+        backend = _env(overlay["services"]["backend"])
+        private_b64 = backend["VAPID_PRIVATE_KEY"]
+        public_b64 = backend["VAPID_PUBLIC_KEY"]
+
+        from cryptography.hazmat.primitives import serialization
+
+        key = serialization.load_der_private_key(
+            base64.urlsafe_b64decode(private_b64 + "=" * (-len(private_b64) % 4)),
+            password=None,
+        )
+        derived = base64.urlsafe_b64encode(
+            key.public_key().public_bytes(
+                serialization.Encoding.X962,
+                serialization.PublicFormat.UncompressedPoint,
+            )
+        ).rstrip(b"=")
+        assert derived == public_b64.encode()
 
     def test_the_backend_starts_after_the_sinks_are_healthy(self, overlay: dict) -> None:
         depends = overlay["services"]["backend"]["depends_on"]

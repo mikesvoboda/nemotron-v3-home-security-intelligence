@@ -8,7 +8,7 @@ One stdlib-only program serves all three modes:
   (``GET /messages`` lists them, ``DELETE /messages`` clears, ``/health``).
 * ``http <port> <mode>`` — a request recorder; ``webhook`` answers every POST
   with 200, ``push`` answers POSTs under /push/ with 201 (RFC 8030's
-  Created). ``GET /requests`` lists records (path, headers, body,
+  Created). ``GET /requests`` lists records (path, headers, body, body_b64,
   received_at); ``DELETE /requests`` clears. ``GET /health`` on both.
 
 Writes nothing outside ``SINK_DATA_DIR`` (the container sets it to a tmpfs —
@@ -23,6 +23,7 @@ them; in compose the ports are fixed and the lines are the boot log.
 from __future__ import annotations
 
 import asyncio
+import base64
 import email
 import json
 import os
@@ -283,6 +284,11 @@ class _SinkHTTP(BaseHTTPRequestHandler):
             "path": self.path,
             "headers": {key.lower(): value for key, value in self.headers.items()},
             "body": body.decode("utf-8", errors="replace"),
+            # B4.3: Web Push bodies are AES128GCM ciphertext (RFC 8291) — not
+            # valid UTF-8, so the decoded form above mangles them. The base64
+            # twin carries the exact bytes a golden leg decrypts; for plain
+            # JSON bodies it is the same payload re-encoded.
+            "body_b64": base64.b64encode(body).decode("ascii"),
             "received_at": _now(),
         }
         _requests().add(record)
