@@ -5048,7 +5048,7 @@ def _fake_gateway_body() -> dict[str, Any]:
             "8090",
             "--no-server-header",
         ],
-        "environment": {"FAKE_VLM_BUILD_INFO": "b7972-fake-ai"},
+        "environment": {"FAKE_VLM_BUILD_INFO": "b11819-fake-ai"},
         "healthcheck": {
             "test": [
                 "CMD",
@@ -5271,7 +5271,7 @@ def _fake_vlm_body() -> dict[str, Any]:
             "8098",
             "--no-server-header",
         ],
-        "environment": {"FAKE_VLM_BUILD_INFO": "b7972-fake-ai"},
+        "environment": {"FAKE_VLM_BUILD_INFO": "b11819-fake-ai"},
         "healthcheck": {
             "test": [
                 "CMD",
