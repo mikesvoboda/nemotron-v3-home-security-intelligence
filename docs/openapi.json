@@ -87,6 +87,18 @@
             "description": "99th percentile latency in milliseconds",
             "title": "Latency P99 Ms"
           },
+          "state": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Granular AI service state (ready, loading, idle, failing, unknown)",
+            "title": "State"
+          },
           "status": {
             "$ref": "#/components/schemas/AIServiceStatus",
             "description": "Current health status of the service"
@@ -1284,6 +1296,18 @@
             "description": "Additional context",
             "title": "Metadata"
           },
+          "raised_while_unarmed": {
+            "anyOf": [
+              {
+                "type": "boolean"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Whether this alert was raised while the camera was unarmed",
+            "title": "Raised While Unarmed"
+          },
           "rule_id": {
             "anyOf": [
               {
@@ -1474,6 +1498,21 @@
             "description": "Alert even if the AI verdict is rejected",
             "title": "Alert On Rejected"
           },
+          "alert_on_rejected_modes": {
+            "anyOf": [
+              {
+                "items": {
+                  "type": "string"
+                },
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Arming modes in which a rejected verdict still alerts (null = every mode)",
+            "title": "Alert On Rejected Modes"
+          },
           "camera_ids": {
             "anyOf": [
               {
@@ -1646,6 +1685,21 @@
             "default": "medium",
             "description": "Severity level for triggered alerts"
           },
+          "sources": {
+            "anyOf": [
+              {
+                "items": {
+                  "type": "string"
+                },
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Event sources this rule matches (camera, external)",
+            "title": "Sources"
+          },
           "threat_confidence_threshold": {
             "anyOf": [
               {
@@ -1813,6 +1867,21 @@
             ],
             "description": "Alert even if the AI verdict is rejected",
             "title": "Alert On Rejected"
+          },
+          "alert_on_rejected_modes": {
+            "anyOf": [
+              {
+                "items": {
+                  "type": "string"
+                },
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Arming modes in which a rejected verdict still alerts",
+            "title": "Alert On Rejected Modes"
           },
           "camera_ids": {
             "anyOf": [
@@ -1984,6 +2053,21 @@
             "$ref": "#/components/schemas/AlertSeverity",
             "description": "Severity level"
           },
+          "sources": {
+            "anyOf": [
+              {
+                "items": {
+                  "type": "string"
+                },
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Event sources this rule matches (camera, external)",
+            "title": "Sources"
+          },
           "threat_confidence_threshold": {
             "anyOf": [
               {
@@ -2150,6 +2234,21 @@
             ],
             "description": "Alert even if the AI verdict is rejected",
             "title": "Alert On Rejected"
+          },
+          "alert_on_rejected_modes": {
+            "anyOf": [
+              {
+                "items": {
+                  "type": "string"
+                },
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Arming modes in which a rejected verdict still alerts",
+            "title": "Alert On Rejected Modes"
           },
           "camera_ids": {
             "anyOf": [
@@ -2372,6 +2471,21 @@
               }
             ],
             "description": "Severity level"
+          },
+          "sources": {
+            "anyOf": [
+              {
+                "items": {
+                  "type": "string"
+                },
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Event sources this rule matches (camera, external)",
+            "title": "Sources"
           },
           "threat_confidence_threshold": {
             "anyOf": [
@@ -2605,6 +2719,7 @@
       "AlertServiceResponse": {
         "description": "Schema for alert response from Alert Service operations.",
         "example": {
+          "camera_id": "front_door",
           "channels": [
             "pushover"
           ],
@@ -2620,6 +2735,18 @@
           "updated_at": "2025-01-31T12:00:00Z"
         },
         "properties": {
+          "camera_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Camera that produced the triggering event, read through the event (F4.1: the Alerts page's camera column; None when the event is gone)",
+            "title": "Camera Id"
+          },
           "channels": {
             "description": "Notification channels",
             "items": {
@@ -2711,6 +2838,18 @@
             ],
             "description": "Additional context metadata",
             "title": "Metadata"
+          },
+          "raised_while_unarmed": {
+            "anyOf": [
+              {
+                "type": "boolean"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Whether this alert was raised while the camera was unarmed",
+            "title": "Raised While Unarmed"
           },
           "rule_id": {
             "anyOf": [
@@ -2850,90 +2989,6 @@
         "title": "AlertStatus",
         "type": "string"
       },
-      "AlertmanagerAlert": {
-        "description": "Schema for a single alert in Alertmanager webhook payload.\n\nRepresents one alert instance with its labels, annotations, and timing.\nThis schema matches the Alertmanager webhook format.",
-        "example": {
-          "annotations": {
-            "description": "CPU usage is above 80% for 5 minutes",
-            "summary": "CPU usage is high"
-          },
-          "endsAt": "0001-01-01T00:00:00Z",
-          "fingerprint": "abc123def456",
-          "generatorURL": "http://prometheus:9090/graph?...",
-          "labels": {
-            "alertname": "HighCPU",
-            "instance": "localhost:9090",
-            "severity": "warning"
-          },
-          "startsAt": "2026-01-20T12:00:00Z",
-          "status": "firing"
-        },
-        "properties": {
-          "annotations": {
-            "additionalProperties": {
-              "type": "string"
-            },
-            "description": "Alert annotations (summary, description)",
-            "title": "Annotations",
-            "type": "object"
-          },
-          "endsAt": {
-            "anyOf": [
-              {
-                "format": "date-time",
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "description": "When the alert was resolved",
-            "title": "Endsat"
-          },
-          "fingerprint": {
-            "description": "Unique identifier for alert deduplication",
-            "title": "Fingerprint",
-            "type": "string"
-          },
-          "generatorURL": {
-            "anyOf": [
-              {
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "description": "URL to the Prometheus graph",
-            "title": "Generatorurl"
-          },
-          "labels": {
-            "additionalProperties": {
-              "type": "string"
-            },
-            "description": "Alert labels (alertname, severity, etc.)",
-            "title": "Labels",
-            "type": "object"
-          },
-          "startsAt": {
-            "description": "When the alert started firing",
-            "format": "date-time",
-            "title": "Startsat",
-            "type": "string"
-          },
-          "status": {
-            "$ref": "#/components/schemas/PrometheusAlertStatus",
-            "description": "Alert status (firing or resolved)"
-          }
-        },
-        "required": [
-          "fingerprint",
-          "status",
-          "startsAt"
-        ],
-        "title": "AlertmanagerAlert",
-        "type": "object"
-      },
       "AlertmanagerStatus": {
         "description": "Alertmanager alert status values.",
         "enum": [
@@ -2942,122 +2997,6 @@
         ],
         "title": "AlertmanagerStatus",
         "type": "string"
-      },
-      "AlertmanagerWebhook": {
-        "description": "Schema for Alertmanager webhook payload.\n\nThis is the format Alertmanager sends when configured with a webhook receiver.\nSee: https://prometheus.io/docs/alerting/latest/configuration/#webhook_config",
-        "example": {
-          "alerts": [
-            {
-              "annotations": {
-                "description": "CPU at 85%"
-              },
-              "endsAt": "0001-01-01T00:00:00Z",
-              "fingerprint": "abc123",
-              "labels": {
-                "alertname": "HighCPU",
-                "severity": "warning"
-              },
-              "startsAt": "2026-01-20T12:00:00Z",
-              "status": "firing"
-            }
-          ],
-          "commonAnnotations": {
-            "summary": "CPU usage is high"
-          },
-          "commonLabels": {
-            "alertname": "HighCPU",
-            "severity": "warning"
-          },
-          "externalURL": "http://alertmanager:9093",
-          "groupKey": "{}:{alertname=\"HighCPU\"}",
-          "groupLabels": {
-            "alertname": "HighCPU"
-          },
-          "receiver": "webhook-receiver",
-          "status": "firing",
-          "truncatedAlerts": 0,
-          "version": "4"
-        },
-        "properties": {
-          "alerts": {
-            "description": "List of alerts in this group",
-            "items": {
-              "$ref": "#/components/schemas/AlertmanagerAlert"
-            },
-            "title": "Alerts",
-            "type": "array"
-          },
-          "commonAnnotations": {
-            "additionalProperties": {
-              "type": "string"
-            },
-            "description": "Annotations common to all alerts",
-            "title": "Commonannotations",
-            "type": "object"
-          },
-          "commonLabels": {
-            "additionalProperties": {
-              "type": "string"
-            },
-            "description": "Labels common to all alerts",
-            "title": "Commonlabels",
-            "type": "object"
-          },
-          "externalURL": {
-            "anyOf": [
-              {
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "description": "Alertmanager external URL",
-            "title": "Externalurl"
-          },
-          "groupKey": {
-            "description": "Key identifying the alert group",
-            "title": "Groupkey",
-            "type": "string"
-          },
-          "groupLabels": {
-            "additionalProperties": {
-              "type": "string"
-            },
-            "description": "Labels used for grouping",
-            "title": "Grouplabels",
-            "type": "object"
-          },
-          "receiver": {
-            "description": "Name of the receiver that matched",
-            "title": "Receiver",
-            "type": "string"
-          },
-          "status": {
-            "$ref": "#/components/schemas/PrometheusAlertStatus",
-            "description": "Overall group status"
-          },
-          "truncatedAlerts": {
-            "default": 0,
-            "description": "Number of truncated alerts",
-            "title": "Truncatedalerts",
-            "type": "integer"
-          },
-          "version": {
-            "default": "4",
-            "description": "Alertmanager webhook version",
-            "title": "Version",
-            "type": "string"
-          }
-        },
-        "required": [
-          "groupKey",
-          "status",
-          "receiver",
-          "alerts"
-        ],
-        "title": "AlertmanagerWebhook",
-        "type": "object"
       },
       "AlertmanagerWebhookPayload": {
         "description": "Schema for Alertmanager webhook payload.\n\nThis is the format Alertmanager sends when configured with a webhook receiver.\nSee: https://prometheus.io/docs/alerting/latest/configuration/#webhook_config",
@@ -3173,52 +3112,6 @@
           "alerts"
         ],
         "title": "AlertmanagerWebhookPayload",
-        "type": "object"
-      },
-      "AlertmanagerWebhookResponse": {
-        "description": "Response schema for the alertmanager webhook endpoint.",
-        "example": {
-          "broadcast": 2,
-          "message": "Processed 2 alert(s)",
-          "received": 2,
-          "status": "ok",
-          "stored": 2
-        },
-        "properties": {
-          "broadcast": {
-            "description": "Number of alerts broadcast via WebSocket",
-            "title": "Broadcast",
-            "type": "integer"
-          },
-          "message": {
-            "description": "Human-readable status message",
-            "title": "Message",
-            "type": "string"
-          },
-          "received": {
-            "description": "Number of alerts received",
-            "title": "Received",
-            "type": "integer"
-          },
-          "status": {
-            "description": "Processing status (ok or error)",
-            "title": "Status",
-            "type": "string"
-          },
-          "stored": {
-            "description": "Number of alerts stored in database",
-            "title": "Stored",
-            "type": "integer"
-          }
-        },
-        "required": [
-          "status",
-          "received",
-          "stored",
-          "broadcast",
-          "message"
-        ],
-        "title": "AlertmanagerWebhookResponse",
         "type": "object"
       },
       "AllPromptsResponse": {
@@ -4110,6 +4003,282 @@
         "title": "AreaUpdate",
         "type": "object"
       },
+      "ArmingChangeItemResponse": {
+        "description": "A single entry in the arming change history.",
+        "properties": {
+          "changed_at": {
+            "format": "date-time",
+            "title": "Changed At",
+            "type": "string"
+          },
+          "exclusions_after": {
+            "additionalProperties": {
+              "items": {
+                "type": "string"
+              },
+              "type": "array"
+            },
+            "title": "Exclusions After",
+            "type": "object"
+          },
+          "from_value": {
+            "anyOf": [
+              {},
+              {
+                "type": "null"
+              }
+            ],
+            "title": "From Value"
+          },
+          "id": {
+            "title": "Id",
+            "type": "integer"
+          },
+          "kind": {
+            "title": "Kind",
+            "type": "string"
+          },
+          "mode_after": {
+            "title": "Mode After",
+            "type": "string"
+          },
+          "source_kind": {
+            "title": "Source Kind",
+            "type": "string"
+          },
+          "source_name": {
+            "title": "Source Name",
+            "type": "string"
+          },
+          "to_value": {
+            "title": "To Value"
+          }
+        },
+        "required": [
+          "id",
+          "kind",
+          "to_value",
+          "mode_after",
+          "source_kind",
+          "source_name",
+          "changed_at"
+        ],
+        "title": "ArmingChangeItemResponse",
+        "type": "object"
+      },
+      "ArmingChangesListResponse": {
+        "description": "Response for GET /api/arming/changes.",
+        "properties": {
+          "items": {
+            "items": {
+              "$ref": "#/components/schemas/ArmingChangeItemResponse"
+            },
+            "title": "Items",
+            "type": "array"
+          }
+        },
+        "title": "ArmingChangesListResponse",
+        "type": "object"
+      },
+      "ArmingEventDecisionResponse": {
+        "description": "Response for GET /api/arming/events/{event_id}/decision.",
+        "properties": {
+          "decided_by": {
+            "title": "Decided By",
+            "type": "string"
+          },
+          "event_id": {
+            "title": "Event Id",
+            "type": "integer"
+          },
+          "notify": {
+            "title": "Notify",
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "event_id",
+          "notify",
+          "decided_by"
+        ],
+        "title": "ArmingEventDecisionResponse",
+        "type": "object"
+      },
+      "ArmingModeCamerasResponse": {
+        "description": "Response for GET/PUT /api/arming/modes/{mode}/cameras.",
+        "properties": {
+          "excluded_camera_ids": {
+            "description": "Camera IDs excluded from alerting in this mode",
+            "items": {
+              "type": "string"
+            },
+            "title": "Excluded Camera Ids",
+            "type": "array"
+          },
+          "mode": {
+            "description": "Arming mode",
+            "title": "Mode",
+            "type": "string"
+          }
+        },
+        "required": [
+          "mode"
+        ],
+        "title": "ArmingModeCamerasResponse",
+        "type": "object"
+      },
+      "ArmingModeCamerasUpdateRequest": {
+        "description": "Request for PUT /api/arming/modes/{mode}/cameras.",
+        "properties": {
+          "excluded_camera_ids": {
+            "description": "Camera IDs to leave out of alerting in this mode",
+            "items": {
+              "type": "string"
+            },
+            "title": "Excluded Camera Ids",
+            "type": "array"
+          }
+        },
+        "title": "ArmingModeCamerasUpdateRequest",
+        "type": "object"
+      },
+      "ArmingScheduleEntrySchema": {
+        "description": "A single weekly schedule entry.",
+        "properties": {
+          "days": {
+            "description": "Weekdays (monday..sunday)",
+            "items": {
+              "type": "string"
+            },
+            "minItems": 1,
+            "title": "Days",
+            "type": "array"
+          },
+          "id": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Schedule entry ID",
+            "title": "Id"
+          },
+          "mode": {
+            "description": "Target arming mode: home, away, night, or disarmed",
+            "title": "Mode",
+            "type": "string"
+          },
+          "time": {
+            "description": "Local time in HH:MM (24-hour)",
+            "title": "Time",
+            "type": "string"
+          }
+        },
+        "required": [
+          "days",
+          "time",
+          "mode"
+        ],
+        "title": "ArmingScheduleEntrySchema",
+        "type": "object"
+      },
+      "ArmingScheduleResponse": {
+        "description": "Response for GET/PUT /api/arming/schedule.",
+        "properties": {
+          "items": {
+            "items": {
+              "$ref": "#/components/schemas/ArmingScheduleEntrySchema"
+            },
+            "title": "Items",
+            "type": "array"
+          }
+        },
+        "title": "ArmingScheduleResponse",
+        "type": "object"
+      },
+      "ArmingScheduleUpdateRequest": {
+        "description": "Request for PUT /api/arming/schedule.",
+        "properties": {
+          "items": {
+            "items": {
+              "$ref": "#/components/schemas/ArmingScheduleEntrySchema"
+            },
+            "title": "Items",
+            "type": "array"
+          }
+        },
+        "title": "ArmingScheduleUpdateRequest",
+        "type": "object"
+      },
+      "ArmingSetModeRequest": {
+        "description": "Request for PUT /api/arming/mode.",
+        "properties": {
+          "mode": {
+            "description": "Target arming mode: home, away, night, or disarmed",
+            "title": "Mode",
+            "type": "string"
+          }
+        },
+        "required": [
+          "mode"
+        ],
+        "title": "ArmingSetModeRequest",
+        "type": "object"
+      },
+      "ArmingStatusResponse": {
+        "description": "Response for GET /api/arming.",
+        "properties": {
+          "by_whom": {
+            "description": "Who or what set the current mode",
+            "title": "By Whom",
+            "type": "string"
+          },
+          "mode": {
+            "description": "Current household arming mode (home, away, night, disarmed)",
+            "title": "Mode",
+            "type": "string"
+          },
+          "next_scheduled": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/NextScheduledTransitionResponse"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Next scheduled transition if a schedule is configured"
+          },
+          "since": {
+            "description": "UTC timestamp when the current mode was set",
+            "format": "date-time",
+            "title": "Since",
+            "type": "string"
+          },
+          "source_kind": {
+            "description": "Source kind (user, webhook, mqtt, schedule, system)",
+            "title": "Source Kind",
+            "type": "string"
+          },
+          "source_name": {
+            "description": "Source identifier",
+            "title": "Source Name",
+            "type": "string"
+          }
+        },
+        "required": [
+          "mode",
+          "since",
+          "source_kind",
+          "source_name",
+          "by_whom"
+        ],
+        "title": "ArmingStatusResponse",
+        "type": "object"
+      },
       "AssociatedDetection": {
         "description": "Detection associated with an anomaly for investigation context.",
         "example": {
@@ -4625,7 +4794,7 @@
         "type": "object"
       },
       "BackupContentInfo": {
-        "description": "Information about a single backup content type.\n\nStored inside the backup manifest to track what data is included\nand verify integrity via checksum.",
+        "description": "Information about a single backup content type.",
         "properties": {
           "checksum": {
             "description": "SHA256 checksum of the JSON file",
@@ -4646,14 +4815,14 @@
         "type": "object"
       },
       "BackupJobCreate": {
-        "description": "Schema for creating a backup job (no parameters needed for full backup).\n\nFull system backups export all data without filters. Simply POST\nto the endpoint to create a new backup job.",
+        "description": "Schema for creating a backup job (no parameters needed for full backup).",
         "example": {},
         "properties": {},
         "title": "BackupJobCreate",
         "type": "object"
       },
       "BackupJobProgress": {
-        "description": "Progress information for a backup job.\n\nTracks how many tables have been exported and the overall\nprogress percentage.",
+        "description": "Progress information for a backup job.",
         "properties": {
           "completed_tables": {
             "default": 0,
@@ -4682,7 +4851,7 @@
             "type": "integer"
           },
           "total_tables": {
-            "default": 8,
+            "default": 12,
             "description": "Total tables to export",
             "title": "Total Tables",
             "type": "integer"
@@ -4692,7 +4861,7 @@
         "type": "object"
       },
       "BackupJobResponse": {
-        "description": "Full status response for a backup job.\n\nComplete status information for a backup job, including progress,\ntiming, result, and any error information.",
+        "description": "Full status response for a backup job.",
         "properties": {
           "completed_at": {
             "anyOf": [
@@ -4795,7 +4964,7 @@
         "type": "object"
       },
       "BackupJobStartResponse": {
-        "description": "Response when creating a backup job.\n\nReturns the job ID that can be used to track progress via\nGET /api/backup/{job_id}.",
+        "description": "Response when creating a backup job.",
         "example": {
           "job_id": "019478a1-b2c3-7def-8901-234567890abc",
           "message": "Backup job created. Use GET /api/backup/{job_id} to track progress.",
@@ -4837,7 +5006,7 @@
         "type": "string"
       },
       "BackupListItem": {
-        "description": "Summary item for backup list.\n\nLightweight representation of a backup for list views.",
+        "description": "Summary item for backup list.",
         "properties": {
           "created_at": {
             "description": "Creation timestamp",
@@ -4866,6 +5035,18 @@
             "description": "Backup ID",
             "title": "Id",
             "type": "string"
+          },
+          "label": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Optional label (e.g. safety backup note)",
+            "title": "Label"
           },
           "status": {
             "$ref": "#/components/schemas/BackupJobStatus",
@@ -4902,7 +5083,7 @@
         "type": "object"
       },
       "BackupManifest": {
-        "description": "Manifest file stored inside backup ZIP.\n\nThe manifest is written as manifest.json at the root of the backup\narchive. It contains metadata about the backup and checksums for\nall included data files.",
+        "description": "Manifest file stored inside backup ZIP.",
         "properties": {
           "app_version": {
             "anyOf": [
@@ -4925,7 +5106,7 @@
             "additionalProperties": {
               "$ref": "#/components/schemas/BackupContentInfo"
             },
-            "description": "Map of content type to info (events, alerts, cameras, etc.)",
+            "description": "Map of content type to info",
             "title": "Contents",
             "type": "object"
           },
@@ -4935,8 +5116,32 @@
             "title": "Created At",
             "type": "string"
           },
+          "installation_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Identifier of the installation that created the backup",
+            "title": "Installation Id"
+          },
+          "label": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Optional label (e.g. 'before restore of <backup> at <time>')",
+            "title": "Label"
+          },
           "version": {
-            "description": "Backup format version (e.g., '1.0')",
+            "description": "Backup format version (e.g., '1.1')",
             "title": "Version",
             "type": "string"
           }
@@ -8762,6 +8967,7 @@
           "grafana_url": "/grafana",
           "log_retention_days": 7,
           "retention_days": 30,
+          "trash_retention_days": 30,
           "version": "0.1.0"
         },
         "properties": {
@@ -8824,6 +9030,13 @@
             "maximum": 365.0,
             "minimum": 1.0,
             "title": "Retention Days",
+            "type": "integer"
+          },
+          "trash_retention_days": {
+            "description": "Number of days to keep soft-deleted events in Trash before purging (0 disables the Trash clock)",
+            "maximum": 365.0,
+            "minimum": 0.0,
+            "title": "Trash Retention Days",
             "type": "integer"
           },
           "version": {
@@ -8945,6 +9158,20 @@
             ],
             "description": "Number of days to retain events and detections",
             "title": "Retention Days"
+          },
+          "trash_retention_days": {
+            "anyOf": [
+              {
+                "maximum": 365.0,
+                "minimum": 0.0,
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Number of days to keep soft-deleted events in Trash before purging (0 disables the Trash clock)",
+            "title": "Trash Retention Days"
           }
         },
         "title": "ConfigUpdateRequest",
@@ -11562,6 +11789,66 @@
         "title": "DwellTimeRecordResponse",
         "type": "object"
       },
+      "EmptyTrashResponse": {
+        "description": "Response schema for DELETE /api/events/deleted (Empty Trash, B4.4).",
+        "properties": {
+          "deleted_count": {
+            "description": "Alias for purged_count (number of events permanently deleted)",
+            "minimum": 0.0,
+            "title": "Deleted Count",
+            "type": "integer"
+          },
+          "detections_removed": {
+            "default": 0,
+            "description": "Number of detection rows deleted",
+            "minimum": 0.0,
+            "title": "Detections Removed",
+            "type": "integer"
+          },
+          "files_deleted": {
+            "default": 0,
+            "description": "Number of media files deleted",
+            "minimum": 0.0,
+            "title": "Files Deleted",
+            "type": "integer"
+          },
+          "files_failed": {
+            "default": 0,
+            "description": "Number of media files that failed to delete",
+            "minimum": 0.0,
+            "title": "Files Failed",
+            "type": "integer"
+          },
+          "kept": {
+            "description": "Event IDs kept in Trash because a file deletion failed",
+            "items": {
+              "type": "integer"
+            },
+            "title": "Kept",
+            "type": "array"
+          },
+          "purged": {
+            "description": "Event IDs permanently purged from Trash",
+            "items": {
+              "type": "integer"
+            },
+            "title": "Purged",
+            "type": "array"
+          },
+          "purged_count": {
+            "description": "Number of trashed events permanently purged",
+            "minimum": 0.0,
+            "title": "Purged Count",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "purged_count",
+          "deleted_count"
+        ],
+        "title": "EmptyTrashResponse",
+        "type": "object"
+      },
       "EnrichmentModelInfo": {
         "description": "Information about the AI model that produced an enrichment result (NEM-3535).\n\nExposes which model processed each enrichment, enabling model performance\ntracking and debugging.",
         "example": {
@@ -13296,6 +13583,18 @@
             "minLength": 1,
             "title": "Summary",
             "type": "string"
+          },
+          "verdict": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Optional VLM verdict (confirmed, uncertain, rejected, verification_failed)",
+            "title": "Verdict"
           }
         },
         "required": [
@@ -20519,10 +20818,35 @@
         "type": "object"
       },
       "InboundAlertPayload": {
-        "description": "Payload for creating an external alert.",
+        "description": "Payload for creating an external alert event on a camera (B4.7 / 4n-arming.md).",
         "properties": {
+          "camera_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Camera ID associated with the external sensor/alert (required by /alert).",
+            "title": "Camera Id"
+          },
+          "idempotency_key": {
+            "anyOf": [
+              {
+                "maxLength": 255,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Optional caller idempotency key (namespaced per API key fingerprint).",
+            "title": "Idempotency Key"
+          },
           "message": {
-            "description": "Alert message.",
+            "description": "Alert message stored as the external event summary.",
             "maxLength": 1000,
             "minLength": 1,
             "title": "Message",
@@ -20541,7 +20865,7 @@
             "type": "string"
           },
           "source": {
-            "description": "Source system identifier (e.g., 'ifttt', 'zapier').",
+            "description": "Source system identifier (e.g., 'ifttt', 'home_assistant').",
             "maxLength": 100,
             "minLength": 1,
             "title": "Source",
@@ -20555,8 +20879,54 @@
         "title": "InboundAlertPayload",
         "type": "object"
       },
+      "InboundAlertWebhookResponse": {
+        "description": "Response returned by /alert.",
+        "properties": {
+          "alert_ids": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Alert Ids",
+            "type": "array"
+          },
+          "batch_id": {
+            "title": "Batch Id",
+            "type": "string"
+          },
+          "camera_id": {
+            "title": "Camera Id",
+            "type": "string"
+          },
+          "event_id": {
+            "title": "Event Id",
+            "type": "integer"
+          },
+          "notify": {
+            "title": "Notify",
+            "type": "boolean"
+          },
+          "severity": {
+            "title": "Severity",
+            "type": "string"
+          },
+          "status": {
+            "default": "ok",
+            "title": "Status",
+            "type": "string"
+          }
+        },
+        "required": [
+          "event_id",
+          "batch_id",
+          "camera_id",
+          "severity",
+          "notify"
+        ],
+        "title": "InboundAlertWebhookResponse",
+        "type": "object"
+      },
       "InboundArmPayload": {
-        "description": "Payload for arming zones.",
+        "description": "Payload for arming the household via inbound webhook.",
         "properties": {
           "mode": {
             "anyOf": [
@@ -20567,7 +20937,7 @@
                 "type": "null"
               }
             ],
-            "description": "Optional arm mode (full, perimeter, instant).",
+            "description": "Optional target mode (home, away, night, disarmed; default away).",
             "title": "Mode"
           },
           "zone_ids": {
@@ -20582,7 +20952,7 @@
                 "type": "null"
               }
             ],
-            "description": "Zone IDs to arm. If None, arms all zones.",
+            "description": "Zone IDs (unsupported; supplying zone_ids returns 422 naming the four modes).",
             "title": "Zone Ids"
           }
         },
@@ -20590,7 +20960,7 @@
         "type": "object"
       },
       "InboundDisarmPayload": {
-        "description": "Payload for disarming zones.",
+        "description": "Payload for disarming the household via inbound webhook.",
         "properties": {
           "reason": {
             "anyOf": [
@@ -20617,7 +20987,7 @@
                 "type": "null"
               }
             ],
-            "description": "Zone IDs to disarm. If None, disarms all zones.",
+            "description": "Zone IDs (unsupported; supplying zone_ids returns 422 naming the four modes).",
             "title": "Zone Ids"
           }
         },
@@ -20625,7 +20995,7 @@
         "type": "object"
       },
       "InboundModePayload": {
-        "description": "Payload for setting system mode.",
+        "description": "Payload for setting the household arming mode.",
         "properties": {
           "mode": {
             "description": "System mode: home, away, night, disarmed.",
@@ -20639,9 +21009,43 @@
         "title": "InboundModePayload",
         "type": "object"
       },
+      "InboundModeWebhookResponse": {
+        "description": "Response returned by /mode, /arm, and /disarm.",
+        "properties": {
+          "mode": {
+            "title": "Mode",
+            "type": "string"
+          },
+          "source_kind": {
+            "default": "webhook",
+            "title": "Source Kind",
+            "type": "string"
+          },
+          "source_name": {
+            "title": "Source Name",
+            "type": "string"
+          },
+          "status": {
+            "default": "ok",
+            "title": "Status",
+            "type": "string"
+          }
+        },
+        "required": [
+          "mode",
+          "source_name"
+        ],
+        "title": "InboundModeWebhookResponse",
+        "type": "object"
+      },
       "InferenceMetrics": {
         "description": "AI inference latency and throughput metrics.",
         "example": {
+          "ai_vlm_latency_ms": {
+            "avg": 2100,
+            "p95": 4800,
+            "p99": 8200
+          },
           "nemotron_latency_ms": {
             "avg": 2100,
             "p95": 4800,
@@ -20655,6 +21059,11 @@
             "analysis": 0,
             "detection": 0
           },
+          "rtdetr_latency_ms": {
+            "avg": 45,
+            "p95": 82,
+            "p99": 120
+          },
           "throughput": {
             "events_per_min": 2.1,
             "images_per_min": 12.4
@@ -20666,6 +21075,21 @@
           }
         },
         "properties": {
+          "ai_vlm_latency_ms": {
+            "anyOf": [
+              {
+                "additionalProperties": {
+                  "type": "number"
+                },
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "AI VLM latency stats (avg, p95, p99)",
+            "title": "Ai Vlm Latency Ms"
+          },
           "nemotron_latency_ms": {
             "additionalProperties": {
               "type": "number"
@@ -20689,6 +21113,21 @@
             "description": "Queue depths (detection, analysis)",
             "title": "Queues",
             "type": "object"
+          },
+          "rtdetr_latency_ms": {
+            "anyOf": [
+              {
+                "additionalProperties": {
+                  "type": "number"
+                },
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Legacy detector latency stats alias (avg, p95, p99)",
+            "title": "Rtdetr Latency Ms"
           },
           "throughput": {
             "additionalProperties": {
@@ -20715,6 +21154,97 @@
           "queues"
         ],
         "title": "InferenceMetrics",
+        "type": "object"
+      },
+      "InfrastructureAlertItem": {
+        "description": "Active firing infrastructure alert item (matches /ws/events infrastructure_alert.data).",
+        "properties": {
+          "alertname": {
+            "description": "Alert name",
+            "title": "Alertname",
+            "type": "string"
+          },
+          "component": {
+            "default": "unknown",
+            "description": "Target component",
+            "title": "Component",
+            "type": "string"
+          },
+          "description": {
+            "default": "",
+            "description": "Detailed description",
+            "title": "Description",
+            "type": "string"
+          },
+          "fingerprint": {
+            "description": "Alert fingerprint",
+            "title": "Fingerprint",
+            "type": "string"
+          },
+          "receiver": {
+            "default": "alertmanager",
+            "description": "Alert receiver name",
+            "title": "Receiver",
+            "type": "string"
+          },
+          "severity": {
+            "default": "info",
+            "description": "Alert severity",
+            "title": "Severity",
+            "type": "string"
+          },
+          "started_at": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Alert start timestamp (ISO 8601)",
+            "title": "Started At"
+          },
+          "status": {
+            "default": "firing",
+            "description": "Alert status (firing)",
+            "title": "Status",
+            "type": "string"
+          },
+          "summary": {
+            "default": "",
+            "description": "Short summary",
+            "title": "Summary",
+            "type": "string"
+          }
+        },
+        "required": [
+          "alertname",
+          "fingerprint"
+        ],
+        "title": "InfrastructureAlertItem",
+        "type": "object"
+      },
+      "InfrastructureAlertsResponse": {
+        "description": "Response schema for GET /api/system/infrastructure-alerts.",
+        "properties": {
+          "alerts": {
+            "description": "Active firing infrastructure alerts",
+            "items": {
+              "$ref": "#/components/schemas/InfrastructureAlertItem"
+            },
+            "title": "Alerts",
+            "type": "array"
+          },
+          "total": {
+            "default": 0,
+            "description": "Number of active firing alerts",
+            "minimum": 0.0,
+            "title": "Total",
+            "type": "integer"
+          }
+        },
+        "title": "InfrastructureAlertsResponse",
         "type": "object"
       },
       "InfrastructureHealthStatus": {
@@ -25558,6 +26088,28 @@
         "title": "NemotronMetrics",
         "type": "object"
       },
+      "NextScheduledTransitionResponse": {
+        "description": "Next scheduled mode transition.",
+        "properties": {
+          "at": {
+            "description": "UTC timestamp of the next scheduled transition",
+            "format": "date-time",
+            "title": "At",
+            "type": "string"
+          },
+          "mode": {
+            "description": "Target arming mode (home, away, night, disarmed)",
+            "title": "Mode",
+            "type": "string"
+          }
+        },
+        "required": [
+          "at",
+          "mode"
+        ],
+        "title": "NextScheduledTransitionResponse",
+        "type": "object"
+      },
       "NotificationChannel": {
         "description": "Notification channel types.",
         "enum": [
@@ -27183,6 +27735,17 @@
             "title": "Ai Models",
             "type": "object"
           },
+          "ai_vlm": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/NemotronMetrics"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "AI VLM metrics"
+          },
           "alerts": {
             "description": "Active performance alerts",
             "items": {
@@ -27258,11 +27821,33 @@
             ],
             "description": "Nemotron-specific metrics"
           },
+          "rtdetr": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/AiModelMetrics"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Legacy detector metrics alias"
+          },
           "timestamp": {
             "description": "When this update was generated (UTC)",
             "format": "date-time",
             "title": "Timestamp",
             "type": "string"
+          },
+          "yolo26": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/AiModelMetrics"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "YOLO26 detector metrics"
           }
         },
         "title": "PerformanceUpdate",
@@ -29486,15 +30071,6 @@
         ],
         "title": "ProfileStopResponse",
         "type": "object"
-      },
-      "PrometheusAlertStatus": {
-        "description": "Prometheus alert status values.",
-        "enum": [
-          "firing",
-          "resolved"
-        ],
-        "title": "PrometheusAlertStatus",
-        "type": "string"
       },
       "PromptDiffEntry": {
         "description": "Diff entry for a single model's configuration.",
@@ -32305,7 +32881,7 @@
         "type": "object"
       },
       "RestoreJobProgress": {
-        "description": "Progress information for a restore job.\n\nTracks how many tables have been restored and the overall\nprogress percentage.",
+        "description": "Progress information for a restore job.",
         "properties": {
           "completed_tables": {
             "default": 0,
@@ -32334,7 +32910,7 @@
             "type": "integer"
           },
           "total_tables": {
-            "default": 8,
+            "default": 12,
             "description": "Total tables to restore",
             "title": "Total Tables",
             "type": "integer"
@@ -32344,8 +32920,26 @@
         "type": "object"
       },
       "RestoreJobResponse": {
-        "description": "Full status response for a restore job.\n\nComplete status information for a restore job, including progress,\nsource backup info, timing, result, and any error information.",
+        "description": "Full status response for a restore job.",
         "properties": {
+          "added_rows": {
+            "anyOf": [
+              {
+                "additionalProperties": {
+                  "items": {
+                    "type": "string"
+                  },
+                  "type": "array"
+                },
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Added rows by name per table",
+            "title": "Added Rows"
+          },
           "backup_created_at": {
             "anyOf": [
               {
@@ -32370,6 +32964,21 @@
             ],
             "description": "Source backup ID from manifest",
             "title": "Backup Id"
+          },
+          "cleared_known_person_links": {
+            "anyOf": [
+              {
+                "items": {
+                  "type": "string"
+                },
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Household member names whose known-person links were cleared",
+            "title": "Cleared Known Person Links"
           },
           "completed_at": {
             "anyOf": [
@@ -32425,6 +33034,45 @@
           "progress": {
             "$ref": "#/components/schemas/RestoreJobProgress"
           },
+          "safety_backup_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Automatic safety backup job ID created before restore",
+            "title": "Safety Backup Id"
+          },
+          "same_installation": {
+            "anyOf": [
+              {
+                "type": "boolean"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Whether the restored archive came from this installation",
+            "title": "Same Installation"
+          },
+          "skipped_tables": {
+            "anyOf": [
+              {
+                "items": {
+                  "type": "string"
+                },
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Tables skipped by version adapter (e.g. events, alerts on 1.0 archives)",
+            "title": "Skipped Tables"
+          },
           "started_at": {
             "anyOf": [
               {
@@ -32441,6 +33089,21 @@
           "status": {
             "$ref": "#/components/schemas/RestoreJobStatus",
             "description": "Current job status"
+          },
+          "tables": {
+            "anyOf": [
+              {
+                "additionalProperties": {
+                  "$ref": "#/components/schemas/TableRestoreSummary"
+                },
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Per-table restore breakdown (updated, inserted, replaced, kept)",
+            "title": "Tables"
           }
         },
         "required": [
@@ -32452,7 +33115,7 @@
         "type": "object"
       },
       "RestoreJobStartResponse": {
-        "description": "Response when starting a restore job.\n\nReturns the job ID that can be used to track progress via\nGET /api/backup/restore/{job_id}.",
+        "description": "Response when starting a restore job.",
         "properties": {
           "job_id": {
             "description": "Unique restore job identifier",
@@ -35642,6 +36305,37 @@
         "title": "SystemStatsResponse",
         "type": "object"
       },
+      "TableRestoreSummary": {
+        "description": "Per-table restore statistics.",
+        "properties": {
+          "inserted": {
+            "default": 0,
+            "description": "Rows added",
+            "title": "Inserted",
+            "type": "integer"
+          },
+          "kept": {
+            "default": 0,
+            "description": "Existing rows not in the backup and kept",
+            "title": "Kept",
+            "type": "integer"
+          },
+          "replaced": {
+            "default": 0,
+            "description": "Rows replaced (e.g. baselines)",
+            "title": "Replaced",
+            "type": "integer"
+          },
+          "updated": {
+            "default": 0,
+            "description": "Rows updated in place",
+            "title": "Updated",
+            "type": "integer"
+          }
+        },
+        "title": "TableRestoreSummary",
+        "type": "object"
+      },
       "TargetHealth": {
         "description": "Health status for a single Prometheus scrape target.",
         "example": {
@@ -38197,6 +38891,12 @@
             "title": "Name",
             "type": "string"
           },
+          "on_local_network": {
+            "default": false,
+            "description": "Allow private/unique-local targets and plain HTTP for this webhook (the household's own network). Loopback, link-local and metadata addresses stay blocked either way.",
+            "title": "On Local Network",
+            "type": "boolean"
+          },
           "payload_template": {
             "anyOf": [
               {
@@ -38595,6 +39295,12 @@
             "title": "Name",
             "type": "string"
           },
+          "on_local_network": {
+            "default": false,
+            "description": "Whether private/unique-local targets are allowed for this webhook",
+            "title": "On Local Network",
+            "type": "boolean"
+          },
           "payload_template": {
             "anyOf": [
               {
@@ -38858,6 +39564,18 @@
               }
             ],
             "title": "Name"
+          },
+          "on_local_network": {
+            "anyOf": [
+              {
+                "type": "boolean"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Set true to allow private/unique-local targets and plain HTTP for this webhook",
+            "title": "On Local Network"
           },
           "payload_template": {
             "anyOf": [
@@ -41240,7 +41958,7 @@
     },
     "/api/alert-service/alerts": {
       "get": {
-        "description": "List all alerts with optional filtering and pagination.\n\nArgs:\n    status_filter: Filter by alert status (pending, delivered, acknowledged, dismissed)\n    severity_filter: Filter by severity level (low, medium, high, critical)\n    event_id: Filter by associated event ID\n    rule_id: Filter by alert rule ID\n    limit: Maximum number of results to return\n    offset: Number of results to skip for pagination\n    db: Database session\n\nReturns:\n    AlertServiceListResponse with alerts and pagination info",
+        "description": "List all alerts with optional filtering and pagination.\n\nArgs:\n    status_filter: Filter by alert status (open, pending, delivered, acknowledged, dismissed)\n    severity_filter: Filter by severity level (low, medium, high, critical)\n    event_id: Filter by associated event ID\n    rule_id: Filter by alert rule ID\n    limit: Maximum number of results to return\n    offset: Number of results to skip for pagination\n    db: Database session\n\nReturns:\n    AlertServiceListResponse with alerts and pagination info",
         "operationId": "alert-service_list_alerts",
         "parameters": [
           {
@@ -44008,6 +44726,315 @@
         "summary": "Get Risk Score Trends",
         "tags": [
           "analytics"
+        ]
+      }
+    },
+    "/api/arming": {
+      "get": {
+        "description": "Return current household arming mode, source, timestamp, and next scheduled transition.",
+        "operationId": "arming_read_arming_status",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ArmingStatusResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          }
+        },
+        "summary": "Read Arming Status",
+        "tags": [
+          "arming"
+        ]
+      }
+    },
+    "/api/arming/changes": {
+      "get": {
+        "description": "Return recent arming mode and camera exclusion changes.",
+        "operationId": "arming_read_arming_changes",
+        "parameters": [
+          {
+            "in": "query",
+            "name": "limit",
+            "required": false,
+            "schema": {
+              "default": 100,
+              "maximum": 500,
+              "minimum": 1,
+              "title": "Limit",
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ArmingChangesListResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Read Arming Changes",
+        "tags": [
+          "arming"
+        ]
+      }
+    },
+    "/api/arming/events/{event_id}/decision": {
+      "get": {
+        "description": "Return the persisted notify decision (`notify` and `decided_by`) for `event_id`.",
+        "operationId": "arming_read_event_notify_decision",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "event_id",
+            "required": true,
+            "schema": {
+              "title": "Event Id",
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ArmingEventDecisionResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Read Event Notify Decision",
+        "tags": [
+          "arming"
+        ]
+      }
+    },
+    "/api/arming/mode": {
+      "put": {
+        "description": "Switch the household arming mode from the app.",
+        "operationId": "arming_update_arming_mode",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ArmingSetModeRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ArmingStatusResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Update Arming Mode",
+        "tags": [
+          "arming"
+        ]
+      }
+    },
+    "/api/arming/modes/{mode}/cameras": {
+      "get": {
+        "description": "Return the excluded camera IDs for `mode`.",
+        "operationId": "arming_read_mode_cameras",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "mode",
+            "required": true,
+            "schema": {
+              "title": "Mode",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ArmingModeCamerasResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Read Mode Cameras",
+        "tags": [
+          "arming"
+        ]
+      },
+      "put": {
+        "description": "Replace the excluded camera IDs for `mode` (`home`, `away`, or `night`).",
+        "operationId": "arming_update_mode_cameras",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "mode",
+            "required": true,
+            "schema": {
+              "title": "Mode",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ArmingModeCamerasUpdateRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ArmingModeCamerasResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Update Mode Cameras",
+        "tags": [
+          "arming"
+        ]
+      }
+    },
+    "/api/arming/schedule": {
+      "get": {
+        "description": "Return the weekly arming schedule.",
+        "operationId": "arming_read_arming_schedule",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ArmingScheduleResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          }
+        },
+        "summary": "Read Arming Schedule",
+        "tags": [
+          "arming"
+        ]
+      },
+      "put": {
+        "description": "Replace the weekly arming schedule and wake the in-process scheduler.",
+        "operationId": "arming_update_arming_schedule",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ArmingScheduleUpdateRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ArmingScheduleResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Update Arming Schedule",
+        "tags": [
+          "arming"
         ]
       }
     },
@@ -50043,7 +51070,7 @@
     },
     "/api/events": {
       "get": {
-        "description": "List events with optional filtering and cursor-based pagination.\n\nSupports both cursor-based pagination (recommended) and offset pagination (deprecated).\nCursor-based pagination offers better performance for large datasets.\n\nBy default, soft-deleted events (events with deleted_at set) are excluded from results.\nUse include_deleted=true to include them.\n\nSparse Fieldsets (NEM-1434):\nUse the `fields` parameter to request only specific fields in the response,\nreducing payload size. Example: ?fields=id,camera_id,risk_level,summary,reviewed\n\nArgs:\n    camera_id: Optional camera ID to filter by\n    risk_level: Optional risk level to filter by (low, medium, high, critical)\n    verdict: Optional VLM verdict filter (confirmed/rejected/uncertain/\n        verification_failed, or 'none' for never-verified events). An\n        unrecognised value is a 422 from the Literal-typed param - never\n        an empty list, which would read as a false all-clear.\n    start_date: Optional start date for date range filter\n    end_date: Optional end date for date range filter\n    reviewed: Optional filter by reviewed status\n    object_type: Optional object type to filter by (person, vehicle, animal, etc.)\n    limit: Maximum number of results to return (1-100, default 50)\n    offset: Number of results to skip (deprecated, use cursor instead)\n    cursor: Pagination cursor from previous response's next_cursor field\n    fields: Comma-separated list of fields to include (sparse fieldsets)\n    include_deleted: Include soft-deleted events in results (default False)\n    db: Database session\n\nReturns:\n    EventListResponse containing filtered events and pagination info\n\nRaises:\n    HTTPException: 400 if start_date is after end_date\n    HTTPException: 400 if cursor is invalid\n    HTTPException: 400 if invalid fields are requested",
+        "description": "List events with optional filtering and cursor-based pagination.\n\nSupports both cursor-based pagination (recommended) and offset pagination (deprecated).\nCursor-based pagination offers better performance for large datasets.\n\nBy default, soft-deleted events (events with deleted_at set) are excluded from results.\nUse include_deleted=true to include them.\n\nSparse Fieldsets (NEM-1434):\nUse the `fields` parameter to request only specific fields in the response,\nreducing payload size. Example: ?fields=id,camera_id,risk_level,summary,reviewed\n\nArgs:\n    camera_id: Optional camera ID to filter by\n    risk_level: Optional risk level to filter by (low, medium, high, critical)\n    verdict: Optional VLM verdict filter (confirmed/rejected/uncertain/\n        verification_failed, or 'none' for never-verified events). An\n        unrecognised value is a 422 from the Literal-typed param - never\n        an empty list, which would read as a false all-clear.\n    min_confidence: Optional detector-confidence floor (0.0-1.0): the\n        event matches when any of its detections is at or above it; 0\n        means the event has at least one detection. Outside 0 to 1 is\n        a 422 from the Query bounds.\n    start_date: Optional start date for date range filter\n    end_date: Optional end date for date range filter\n    reviewed: Optional filter by reviewed status\n    object_type: Optional object type to filter by (person, vehicle, animal, etc.)\n    limit: Maximum number of results to return (1-100, default 50)\n    offset: Number of results to skip (deprecated, use cursor instead)\n    cursor: Pagination cursor from previous response's next_cursor field\n    fields: Comma-separated list of fields to include (sparse fieldsets)\n    include_deleted: Include soft-deleted events in results (default False)\n    db: Database session\n\nReturns:\n    EventListResponse containing filtered events and pagination info\n\nRaises:\n    HTTPException: 400 if start_date is after end_date\n    HTTPException: 400 if cursor is invalid\n    HTTPException: 400 if invalid fields are requested",
         "operationId": "events_list_events",
         "parameters": [
           {
@@ -50105,6 +51132,26 @@
               ],
               "description": "Filter by VLM verification verdict (confirmed, rejected, uncertain, verification_failed) or 'none' for events never verified. Anything else is a 422, never an empty list - a typo'd verdict must not read as a false all-clear.",
               "title": "Verdict"
+            }
+          },
+          {
+            "description": "Minimum detector confidence across the event's detections (0.0-1.0). An event matches when ANY of its detections is at or above the threshold. 0 means the event has at least one detection. Values outside 0 to 1 are a 422.",
+            "in": "query",
+            "name": "min_confidence",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "maximum": 1.0,
+                  "minimum": 0.0,
+                  "type": "number"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Minimum detector confidence across the event's detections (0.0-1.0). An event matches when ANY of its detections is at or above the threshold. 0 means the event has at least one detection. Values outside 0 to 1 are a 422.",
+              "title": "Min Confidence"
             }
           },
           {
@@ -50586,6 +51633,26 @@
       }
     },
     "/api/events/deleted": {
+      "delete": {
+        "description": "Permanently purge all soft-deleted events currently in Trash (B4.4).",
+        "operationId": "events_empty_trash",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/EmptyTrashResponse"
+                }
+              }
+            },
+            "description": "Trash emptied"
+          }
+        },
+        "summary": "Empty trash (permanently purge all soft-deleted events)",
+        "tags": [
+          "events"
+        ]
+      },
       "get": {
         "description": "List all soft-deleted events for trash view.\n\nReturns events that have been soft-deleted (deleted_at is not null),\nordered by deleted_at descending (most recently deleted first).\n\nThis endpoint enables a \"trash\" view where users can see deleted events\nand optionally restore them.\n\nArgs:\n    db: Database session\n\nReturns:\n    DeletedEventsListResponse containing list of deleted events and count",
         "operationId": "events_list_deleted_events",
@@ -51219,7 +52286,7 @@
     },
     "/api/events/{event_id}": {
       "delete": {
-        "description": "Soft delete a single event with optional cascade to related detections.\n\nBy default, cascade=True soft deletes all related detections using the same\ntimestamp as the event. This enables cascade restore by matching timestamps.\n\nArgs:\n    event_id: ID of the event to delete\n    cascade: If True, cascade soft delete to related detections\n    db: Database session\n    cache: Cache service for invalidation\n\nRaises:\n    HTTPException: 404 if event not found, 409 if already deleted",
+        "description": "Soft delete a live event or permanently purge a trashed event (`?permanent=true`).",
         "operationId": "events_delete_event",
         "parameters": [
           {
@@ -51229,6 +52296,18 @@
             "schema": {
               "title": "Event Id",
               "type": "integer"
+            }
+          },
+          {
+            "description": "If True, permanently purge a soft-deleted event from Trash",
+            "in": "query",
+            "name": "permanent",
+            "required": false,
+            "schema": {
+              "default": false,
+              "description": "If True, permanently purge a soft-deleted event from Trash",
+              "title": "Permanent",
+              "type": "boolean"
             }
           },
           {
@@ -51252,7 +52331,7 @@
             "description": "Event not found"
           },
           "409": {
-            "description": "Event already deleted"
+            "description": "Event already deleted or not in Trash for permanent delete"
           },
           "422": {
             "content": {
@@ -51265,7 +52344,7 @@
             "description": "Validation Error"
           }
         },
-        "summary": "Soft delete a single event",
+        "summary": "Soft delete or permanently purge a single event",
         "tags": [
           "events"
         ]
@@ -59165,6 +60244,28 @@
         ]
       }
     },
+    "/api/system/infrastructure-alerts": {
+      "get": {
+        "description": "Proxy Alertmanager's /api/v2/alerts and return active firing alerts in the same shape as the /ws/events infrastructure_alert message.",
+        "operationId": "system_get_infrastructure_alerts",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/InfrastructureAlertsResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          }
+        },
+        "summary": "Get Active Firing Infrastructure Alerts",
+        "tags": [
+          "system"
+        ]
+      }
+    },
     "/api/system/model-zoo/latency/history": {
       "get": {
         "description": "Get latency history for a specific Model Zoo model.\n\nReturns time-series latency data for the dropdown-controlled chart.\nEach bucket contains aggregated statistics (avg, p50, p95).\n\nArgs:\n    model: Model name to get history for\n    since: Number of minutes of history to return (default 60)\n    bucket_seconds: Size of each time bucket in seconds (default 60)\n\nReturns:\n    ModelLatencyHistoryResponse with chronologically ordered snapshots\n\nRaises:\n    HTTPException: 404 if model not found in registry",
@@ -59872,7 +60973,7 @@
     },
     "/api/system/services/{name}/disable": {
       "post": {
-        "description": "Manually disable a service.\n\nPrevents self-healing restarts.\n\nArgs:\n    name: Service name to disable\n    orchestrator: Container orchestrator instance (injected)\n\nReturns:\n    Action result with updated service information\n\nRaises:\n    HTTPException: 404 if service not found",
+        "description": "Manually disable a service (guarded by `get_current_admin_user` until F4.8 retires it).",
         "operationId": "services_disable_service",
         "parameters": [
           {
@@ -59882,6 +60983,22 @@
             "schema": {
               "title": "Name",
               "type": "string"
+            }
+          },
+          {
+            "in": "cookie",
+            "name": "session_id",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Session Id"
             }
           }
         ],
@@ -59895,6 +61012,12 @@
               }
             },
             "description": "Successful Response"
+          },
+          "401": {
+            "description": "Not authenticated"
+          },
+          "403": {
+            "description": "Admin session required"
           },
           "404": {
             "description": "Service not found"
@@ -59924,7 +61047,7 @@
     },
     "/api/system/services/{name}/enable": {
       "post": {
-        "description": "Re-enable a disabled service.\n\nResets failure count and allows self-healing to resume.\n\nArgs:\n    name: Service name to enable\n    orchestrator: Container orchestrator instance (injected)\n\nReturns:\n    Action result with updated service information\n\nRaises:\n    HTTPException: 404 if service not found",
+        "description": "Re-enable a disabled service (guarded by `get_current_admin_user` until F4.8 retires it).",
         "operationId": "services_enable_service",
         "parameters": [
           {
@@ -59934,6 +61057,22 @@
             "schema": {
               "title": "Name",
               "type": "string"
+            }
+          },
+          {
+            "in": "cookie",
+            "name": "session_id",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Session Id"
             }
           }
         ],
@@ -59947,6 +61086,12 @@
               }
             },
             "description": "Successful Response"
+          },
+          "401": {
+            "description": "Not authenticated"
+          },
+          "403": {
+            "description": "Admin session required"
           },
           "404": {
             "description": "Service not found"
@@ -59976,7 +61121,7 @@
     },
     "/api/system/services/{name}/restart": {
       "post": {
-        "description": "Manually restart a service.\n\nResets failure count (manual restart is intentional).\n\nArgs:\n    name: Service name to restart\n    orchestrator: Container orchestrator instance (injected)\n\nReturns:\n    Action result with updated service information\n\nRaises:\n    HTTPException: 404 if service not found, 400 if service is disabled",
+        "description": "Manually restart an allowed service (`ai-gateway`, `ai-vlm`, `redis`, `postgres`).\n\nRequires an admin session (`get_current_admin_user`); API keys are refused with 403.\nCommits a 'restart requested' audit row before calling the engine, and records the\noutcome in a fresh session afterward (B4.11 / 4n-status.md).",
         "operationId": "services_restart_service",
         "parameters": [
           {
@@ -59986,6 +61131,22 @@
             "schema": {
               "title": "Name",
               "type": "string"
+            }
+          },
+          {
+            "in": "cookie",
+            "name": "session_id",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Session Id"
             }
           }
         ],
@@ -60000,8 +61161,11 @@
             },
             "description": "Successful Response"
           },
-          "400": {
-            "description": "Bad request - Service is disabled"
+          "401": {
+            "description": "Not authenticated"
+          },
+          "403": {
+            "description": "Admin session required"
           },
           "404": {
             "description": "Service not found"
@@ -60031,7 +61195,7 @@
     },
     "/api/system/services/{name}/start": {
       "post": {
-        "description": "Start a stopped service container.\n\nArgs:\n    name: Service name to start\n    orchestrator: Container orchestrator instance (injected)\n\nReturns:\n    Action result with updated service information\n\nRaises:\n    HTTPException: 404 if service not found,\n                   400 if service is already running or disabled",
+        "description": "Start a stopped service container (guarded by `get_current_admin_user` until F4.8 retires it).",
         "operationId": "services_start_service",
         "parameters": [
           {
@@ -60041,6 +61205,22 @@
             "schema": {
               "title": "Name",
               "type": "string"
+            }
+          },
+          {
+            "in": "cookie",
+            "name": "session_id",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Session Id"
             }
           }
         ],
@@ -60057,6 +61237,12 @@
           },
           "400": {
             "description": "Bad request - Service already running or disabled"
+          },
+          "401": {
+            "description": "Not authenticated"
+          },
+          "403": {
+            "description": "Admin session required"
           },
           "404": {
             "description": "Service not found"
@@ -60398,6 +61584,22 @@
               "title": "Worker Name",
               "type": "string"
             }
+          },
+          {
+            "in": "cookie",
+            "name": "session_id",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Session Id"
+            }
           }
         ],
         "responses": {
@@ -60441,6 +61643,22 @@
               "title": "Worker Name",
               "type": "string"
             }
+          },
+          {
+            "in": "cookie",
+            "name": "session_id",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Session Id"
+            }
           }
         ],
         "responses": {
@@ -60483,6 +61701,22 @@
             "schema": {
               "title": "Worker Name",
               "type": "string"
+            }
+          },
+          {
+            "in": "cookie",
+            "name": "session_id",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Session Id"
             }
           }
         ],
@@ -60723,44 +61957,6 @@
         "summary": "Get track with full trajectory",
         "tags": [
           "tracks"
-        ]
-      }
-    },
-    "/api/v1/alertmanager/webhook": {
-      "post": {
-        "description": "Receive webhook notifications from Alertmanager.\n\nThis endpoint receives alerts from Prometheus Alertmanager and:\n1. Stores each alert in the database for history tracking\n2. Broadcasts each alert via WebSocket for real-time frontend updates\n3. Returns acknowledgment to Alertmanager\n\nThe alerts are infrastructure alerts (GPU memory, pipeline health, etc.)\nwhich are stored for history and displayed alongside security alerts.\n\nArgs:\n    payload: Alertmanager webhook payload containing alert details\n    db: Database session (injected)\n    redis_client: Redis client for WebSocket broadcasting (optional)\n\nReturns:\n    AlertmanagerWebhookResponse with processing status",
-        "operationId": "alertmanager_receive_alertmanager_webhook",
-        "requestBody": {
-          "content": {
-            "application/json": {
-              "schema": {
-                "$ref": "#/components/schemas/AlertmanagerWebhook"
-              }
-            }
-          },
-          "required": true
-        },
-        "responses": {
-          "200": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/AlertmanagerWebhookResponse"
-                }
-              }
-            },
-            "description": "Webhook received and processed"
-          },
-          "422": {
-            "description": "Invalid payload format"
-          },
-          "500": {
-            "description": "Internal server error"
-          }
-        },
-        "summary": "Receive Alertmanager Webhook",
-        "tags": [
-          "alertmanager"
         ]
       }
     },
@@ -61792,7 +62988,7 @@
     },
     "/api/webhooks/inbound/alert": {
       "post": {
-        "description": "Not implemented (UR-12): external alert ingestion takes no action.\n\nAccepts ``InboundAlertPayload`` and answers 501. A malformed payload\nstill 422s (the schema is live); auth failures 401 first.",
+        "description": "Create an external event on `payload.camera_id` and run `AlertPipeline.process` (A4, A5).",
         "operationId": "inbound-webhooks_create_alert",
         "parameters": [
           {
@@ -61823,19 +63019,21 @@
           "required": true
         },
         "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/InboundAlertWebhookResponse"
+                }
+              }
+            },
+            "description": "Webhook processed"
+          },
           "401": {
             "description": "Authentication failed"
           },
           "422": {
             "description": "Invalid payload"
-          },
-          "501": {
-            "content": {
-              "application/json": {
-                "schema": {}
-              }
-            },
-            "description": "Not implemented \u2014 UR-12; this endpoint takes no action"
           }
         },
         "summary": "Create Alert",
@@ -61846,7 +63044,7 @@
     },
     "/api/webhooks/inbound/arm": {
       "post": {
-        "description": "Not implemented (UR-12): arming zones takes no action.\n\nThis is the endpoint D3 names: it used to answer \"Arm command for N\nzones queued\" having queued nothing, telling an integrator the house\nwas armed when it was not.",
+        "description": "Arm the household in `payload.mode` (default `away`).",
         "operationId": "inbound-webhooks_arm_zones",
         "parameters": [
           {
@@ -61877,19 +63075,21 @@
           "required": true
         },
         "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/InboundModeWebhookResponse"
+                }
+              }
+            },
+            "description": "Webhook processed"
+          },
           "401": {
             "description": "Authentication failed"
           },
           "422": {
             "description": "Invalid payload"
-          },
-          "501": {
-            "content": {
-              "application/json": {
-                "schema": {}
-              }
-            },
-            "description": "Not implemented \u2014 UR-12; this endpoint takes no action"
           }
         },
         "summary": "Arm Zones",
@@ -61900,7 +63100,7 @@
     },
     "/api/webhooks/inbound/disarm": {
       "post": {
-        "description": "Not implemented (UR-12): disarming zones takes no action.",
+        "description": "Disarm the household (`mode = 'disarmed'`).",
         "operationId": "inbound-webhooks_disarm_zones",
         "parameters": [
           {
@@ -61931,19 +63131,21 @@
           "required": true
         },
         "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/InboundModeWebhookResponse"
+                }
+              }
+            },
+            "description": "Webhook processed"
+          },
           "401": {
             "description": "Authentication failed"
           },
           "422": {
             "description": "Invalid payload"
-          },
-          "501": {
-            "content": {
-              "application/json": {
-                "schema": {}
-              }
-            },
-            "description": "Not implemented \u2014 UR-12; this endpoint takes no action"
           }
         },
         "summary": "Disarm Zones",
@@ -61954,7 +63156,7 @@
     },
     "/api/webhooks/inbound/mode": {
       "post": {
-        "description": "Not implemented (UR-12): system-mode changes take no action.\n\nMode values are no longer validated here: the check lived in the handler\nthat acted on them, and ``InboundModePayload`` is kept unchanged for the\narming feature, whose ruling it is.",
+        "description": "Set the household arming mode (`home`, `away`, `night`, `disarmed`).",
         "operationId": "inbound-webhooks_set_system_mode",
         "parameters": [
           {
@@ -61985,19 +63187,21 @@
           "required": true
         },
         "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/InboundModeWebhookResponse"
+                }
+              }
+            },
+            "description": "Webhook processed"
+          },
           "401": {
             "description": "Authentication failed"
           },
           "422": {
             "description": "Invalid payload"
-          },
-          "501": {
-            "content": {
-              "application/json": {
-                "schema": {}
-              }
-            },
-            "description": "Not implemented \u2014 UR-12; this endpoint takes no action"
           }
         },
         "summary": "Set System Mode",

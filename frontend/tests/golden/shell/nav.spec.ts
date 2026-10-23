@@ -82,15 +82,7 @@
  *   way, see the F-018 row; the drawer also has no Escape-to-close at all).
  */
 import { GUARD_MESSAGE, expect, test } from '../guard';
-import {
-  BOOT_QUIET_MS,
-  closedByGuard,
-  quietBootShell as quietBoot,
-  loginAsAdminShell as loginAsAdmin,
-  readShellHarness,
-  seedTourDismissed,
-  type ShellHarness,
-} from '../harness';
+import { BOOT_QUIET_MS, closedByGuard, openShell, readShellHarness } from '../harness';
 
 const harness = readShellHarness();
 test.skip(
@@ -100,13 +92,6 @@ test.skip(
 
 /** Width the mouse moves to when it must NOT be hovering the rail. */
 const FAR_RIGHT: [number, number] = [1400, 500];
-
-async function openShell(page: import('@playwright/test').Page, h: ShellHarness) {
-  await seedTourDismissed(page);
-  await loginAsAdmin(page, h);
-  await quietBoot(page, h);
-  await expect(page.getByTestId('header-branding')).toBeVisible({ timeout: 20_000 });
-}
 
 /** Reload is a document load ⇒ boot wave ⇒ drain first (harness.ts). */
 async function drainAndReload(page: import('@playwright/test').Page) {
@@ -181,7 +166,7 @@ async function tabWalkStops(page: import('@playwright/test').Page, n: number) {
 }
 
 test.describe('golden path: sidebar + mobile navigation @critical', () => {
-  test('F-017 (desktop): an item click navigates; group and sidebar collapse are remembered across reload', async ({
+  test('F-017 (desktop): an item click navigates; sidebar collapse is remembered across reload', async ({
     page,
   }) => {
     test.info().skip(!harness.ready, harness.ready ? '' : harness.why);
@@ -198,30 +183,15 @@ test.describe('golden path: sidebar + mobile navigation @critical', () => {
     await expect(sidebar).toHaveClass(/w-64/);
     await expect(sidebar).toHaveAttribute('data-collapsed', 'false');
 
-    // Clause 2: collapse ANALYTICS (defaultExpanded true, not the active
-    // route, so the auto-expand effect cannot be the thing under test).
-    const analyticsHeader = page.getByTestId('nav-group-header-analytics');
-    await expect(analyticsHeader).toHaveAttribute('aria-expanded', 'true');
-    await analyticsHeader.click();
-    await expect(analyticsHeader).toHaveAttribute('aria-expanded', 'false');
-    await expect(page.getByTestId('nav-group-content-analytics')).toHaveClass(/max-h-0/);
-    await page.mouse.move(...FAR_RIGHT);
-    const jar = await page.evaluate(() => localStorage.getItem('sidebar-expansion-state'));
-    expect(jar ? JSON.parse(jar).analytics : undefined).toBe(false);
+    // Easy mode renders the five hubs flat (F4.9).
+    await expect(sidebar.locator('[data-testid^="sidebar-hub-"]')).toHaveCount(5);
 
-    // Clause 1: a NavLink click navigates client-side (SPA, no boot wave).
-    await page
-      .getByTestId('nav-group-content-monitoring')
-      .getByRole('link', { name: 'Timeline' })
-      .click();
+    // Clause 1: a hub link click navigates client-side (SPA, no boot wave).
+    await page.getByTestId('sidebar-hub-timeline-search').click();
     await expect(page).toHaveURL(`${h.ui}/timeline`);
-
-    // Remembered = survives a RELOAD (mount initializer re-reads the jar).
-    await drainAndReload(page);
-    await page.mouse.move(...FAR_RIGHT);
-    await expect(page.getByTestId('nav-group-header-analytics')).toHaveAttribute(
-      'aria-expanded',
-      'false'
+    await expect(page.getByTestId('sidebar-hub-timeline-search')).toHaveAttribute(
+      'aria-current',
+      'page'
     );
 
     // Clause 3: the desktop collapse control. The pointer is left inside the
@@ -271,15 +241,14 @@ test.describe('golden path: sidebar + mobile navigation @critical', () => {
       await bar.getByRole('link', { name: 'Go to Timeline' }).click();
       await expect(page).toHaveURL(`${h.ui}/timeline`);
 
-      // The More sheet: groups × non-primary items, closing as it navigates
-      // (MobileBottomNav.tsx:58-63). Entities is monitoring's non-primary
-      // item (primaryNavIds = dashboard/timeline/alerts, :32-38).
+      // The More sheet: ModeSwitch + remaining Easy hubs (Household, Settings),
+      // closing as it navigates (MobileBottomNav.tsx, F4.9).
       await page.getByTestId('mobile-nav-more-button').click();
       const sheet = page.getByTestId('mobile-nav-more-menu');
       await expect(sheet).toBeVisible();
-      await expect(page.getByTestId('mobile-nav-group-monitoring')).toBeVisible();
-      await page.getByTestId('mobile-nav-item-entities').click();
-      await expect(page).toHaveURL(`${h.ui}/entities`);
+      await expect(sheet.getByTestId('mode-switch')).toBeVisible();
+      await page.getByTestId('mobile-nav-item-household').click();
+      await expect(page).toHaveURL(`${h.ui}/household`);
       await expect(sheet).toHaveCount(0); // AnimatePresence unmounts on close
 
       // Half two, THE FIX: the same hamburger at the SAME 375 now slides a real

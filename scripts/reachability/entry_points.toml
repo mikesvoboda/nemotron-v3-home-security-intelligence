@@ -46,6 +46,7 @@ entries = [
   "scripts/check-test-collection.py",
   "scripts/check-test-coverage-gate.py",
   "scripts/check-test-duration-budget.py",
+  "scripts/check-trivy-delta.py",
   "scripts/ci-metrics-collector.py",
   "scripts/create-docs-tasks.py",
   "scripts/fast_select.py",

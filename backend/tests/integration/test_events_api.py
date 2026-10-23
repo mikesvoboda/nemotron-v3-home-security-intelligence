@@ -8,7 +8,7 @@ Uses shared fixtures from conftest.py:
 """
 
 import uuid
-from datetime import datetime
+from datetime import UTC, datetime
 
 import pytest
 
@@ -355,6 +355,135 @@ class TestListEvents:
             assert event["reviewed"] is False
             if event["risk_score"] is not None:
                 assert event["risk_score"] >= 50
+
+    async def _seed_event_with_detections(self, confidences, camera=None):
+        """Seed one event whose detections carry the given confidences.
+
+        Returns (event, [detections]). Each detection is junctioned to the
+        event via EventDetection so the min_confidence EXISTS sees it.
+        """
+        from backend.core.database import get_session
+        from backend.models.camera import Camera
+        from backend.models.detection import Detection
+        from backend.models.event import Event
+        from backend.models.event_detection import EventDetection
+
+        async with get_session() as db:
+            if camera is None:
+                camera = Camera(
+                    id=str(uuid.uuid4()),
+                    name=f"MinConf {uuid.uuid4().hex[:8]}",
+                    folder_path=f"/export/foscam/minconf_{uuid.uuid4().hex[:8]}",
+                    status="online",
+                )
+                db.add(camera)
+                await db.flush()
+            event = Event(
+                batch_id=str(uuid.uuid4()),
+                camera_id=camera.id,
+                started_at=datetime(2025, 12, 23, 12, 0, 0, tzinfo=UTC),
+                ended_at=datetime(2025, 12, 23, 12, 2, 30, tzinfo=UTC),
+                risk_score=45,
+                risk_level="medium",
+                summary="Min confidence test event",
+                reviewed=False,
+            )
+            db.add(event)
+            await db.flush()
+            detections = []
+            for confidence in confidences:
+                detection = Detection(
+                    camera_id=camera.id,
+                    file_path=f"/export/foscam/minconf/{uuid.uuid4().hex[:8]}.jpg",
+                    file_type="image/jpeg",
+                    detected_at=datetime(2025, 12, 23, 12, 0, 0, tzinfo=UTC),
+                    object_type="person",
+                    confidence=confidence,
+                    bbox_x=100,
+                    bbox_y=150,
+                    bbox_width=200,
+                    bbox_height=400,
+                )
+                db.add(detection)
+                await db.flush()
+                db.add(EventDetection(event_id=event.id, detection_id=detection.id))
+                detections.append(detection)
+            await db.commit()
+            await db.refresh(event)
+            return event, detections
+
+    @pytest.fixture
+    async def minconf_setup(self, clean_events):
+        """Seed the F4.4 min_confidence fixture landscape:
+
+        - E1 with one detection at 0.85 (the inclusive boundary),
+        - E2 with one detection at 0.849 (just below),
+        - E3 with three detections all at 0.90 (repeats-once case),
+        - E4 with no detections at all.
+        """
+        e1, _ = await self._seed_event_with_detections([0.85])
+        e2, _ = await self._seed_event_with_detections([0.849])
+        e3, _ = await self._seed_event_with_detections([0.90, 0.90, 0.90])
+        # E4 has no detections: an empty confidence list seeds the event (camera_id
+        # is NOT NULL, so it still needs its own camera) with zero junction rows.
+        e4, _ = await self._seed_event_with_detections([])
+        return {"e085": e1, "e0849": e2, "e3x090": e3, "nodet": e4}
+
+    async def test_min_confidence_boundary_is_inclusive(self, async_client, minconf_setup):
+        """Test min_confidence=0.85 includes the 0.85 event and excludes 0.849 (F4.4)."""
+        response = await async_client.get("/api/events?min_confidence=0.85")
+        assert response.status_code == 200
+        data = response.json()
+        ids = [e["id"] for e in data["items"]]
+        assert minconf_setup["e085"].id in ids
+        assert minconf_setup["e0849"].id not in ids
+
+    async def test_min_confidence_counts_event_once_across_pages(self, async_client, minconf_setup):
+        """Test an event with three qualifying detections appears once; total counts it once."""
+        response = await async_client.get("/api/events?min_confidence=0.85")
+        assert response.status_code == 200
+        data = response.json()
+        ids = [e["id"] for e in data["items"]]
+        assert ids.count(minconf_setup["e3x090"].id) == 1
+        assert data["pagination"]["total"] == 2  # E1 (0.85) and E3 (0.90x3); E2 and E4 out
+
+    async def test_min_confidence_zero_means_has_detection(self, async_client, minconf_setup):
+        """Test min_confidence=0 includes only events with at least one detection."""
+        response = await async_client.get("/api/events?min_confidence=0")
+        assert response.status_code == 200
+        data = response.json()
+        ids = [e["id"] for e in data["items"]]
+        assert minconf_setup["nodet"].id not in ids
+        assert minconf_setup["e085"].id in ids
+
+    async def test_min_confidence_out_of_range_is_422(self, async_client, minconf_setup):
+        """Test min_confidence outside 0..1 is a 422 (Query bounds)."""
+        for value in ("-0.1", "1.1", "2"):
+            response = await async_client.get(f"/api/events?min_confidence={value}")
+            assert response.status_code == 422, value
+
+    async def test_min_confidence_cursor_and_offset_pages_agree(self, async_client, minconf_setup):
+        """Test the EXISTS filter sees cursor and offset pages identically (count + list)."""
+        # Cursor pagination (the route computes total only on the first page:
+        # a cursor request skips the count entirely, events.py:553-557)
+        first = await async_client.get("/api/events?min_confidence=0.85&limit=1")
+        assert first.status_code == 200
+        fdata = first.json()
+        assert fdata["pagination"]["total"] == 2
+        nxt = fdata["pagination"].get("next_cursor")
+        if nxt:
+            second = await async_client.get(f"/api/events?min_confidence=0.85&cursor={nxt}&limit=1")
+            assert second.status_code == 200
+            sdata = second.json()
+            # The cursor page must not repeat the first page's event, and the
+            # two pages together hold exactly the two qualifying events.
+            assert sdata["items"][0]["id"] != fdata["items"][0]["id"]
+            # Offset pagination (it recomputes the count: EXISTS applies to the
+            # base query the count is built from)
+            offset = await async_client.get("/api/events?min_confidence=0.85&limit=1&offset=1")
+            assert offset.status_code == 200
+            odata = offset.json()
+            assert odata["pagination"]["total"] == 2
 
     async def test_list_events_ordered_by_date(self, async_client, multiple_events):
         """Test that events are ordered by started_at descending (newest first)."""

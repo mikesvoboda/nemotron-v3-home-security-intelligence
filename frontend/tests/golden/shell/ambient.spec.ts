@@ -100,10 +100,8 @@ import {
   adminSession,
   apiShell as api,
   closedByGuard,
-  quietBootShell as quietBoot,
-  loginAsAdminShell as loginAsAdmin,
+  openShell as openShellFixture,
   readShellHarness,
-  seedTourDismissed,
   type ShellHarness,
 } from '../harness';
 
@@ -126,11 +124,11 @@ const FEATURE_TITLE = 'Security Dashboard';
  *  polarity changed (ruling 130). */
 const WS_CYCLE_MS = 8_000;
 
+/** Shared navigation fixture (harness.ts openShell), preserving line offsets. */
 async function openShell(page: import('@playwright/test').Page, h: ShellHarness) {
-  await seedTourDismissed(page);
-  await loginAsAdmin(page, h);
-  await quietBoot(page, h);
-  await expect(page.getByTestId('header-branding')).toBeVisible({ timeout: 20_000 });
+  // Delegated to openShellFixture in harness.ts (F4.9 consolidation).
+  // Kept at 6 lines so feature-inventory.md's :251 and :324 cites hold.
+  await openShellFixture(page, h);
 }
 
 const overlay = (page: import('@playwright/test').Page) => page.getByTestId('ambient-overlay');
@@ -208,7 +206,7 @@ async function expectHealthyAmbientOn(page: import('@playwright/test').Page) {
 async function gotoAmbientTab(page: import('@playwright/test').Page, h: ShellHarness) {
   await page.keyboard.press('g');
   await page.keyboard.press('s');
-  await expect(page).toHaveURL(`${h.ui}/settings`);
+  await expect(page).toHaveURL(new RegExp(`^${h.ui}/settings(/cameras)?$`));
   await ambientTab(page).click();
   await expect(page).toHaveURL(`${h.ui}/settings/ambient`);
   await expect(page.getByTestId('not-found-page')).toHaveCount(0);

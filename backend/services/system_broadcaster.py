@@ -134,6 +134,7 @@ class SystemBroadcaster:
         # 60 minutes at 5-second intervals = 720 snapshots
         # This allows serving 5m, 15m, and 60m time ranges
         self._performance_history: deque[PerformanceUpdate] = deque(maxlen=720)
+        self._ai_health_unsub: Callable[[], None] | None = None
 
     def _get_redis(self) -> RedisClient | None:
         """Get the Redis client instance.
@@ -827,10 +828,12 @@ class SystemBroadcaster:
 
         # Per-service entries: yolo26 plus whichever verdict engine the
         # pipeline mode checked (nemotron in legacy, ai-vlm in vlm).
-        ai_block: dict[str, str] = {"status": ai_status}
-        for service in ("yolo26", "nemotron", "ai-vlm"):
+        ai_block: dict[str, Any] = {"status": ai_status}
+        for service in ("yolo26", "nemotron", "ai-vlm", "ai_vlm"):
             if service in ai_health:
                 ai_block[service] = "healthy" if ai_health[service] else "unhealthy"
+        if isinstance(ai_health.get("states"), dict):
+            ai_block["states"] = ai_health["states"]
 
         return {
             "type": "system_status",
@@ -1025,65 +1028,54 @@ class SystemBroadcaster:
             logger.debug(f"Redis health check failed: {e}")
         return False
 
-    async def _check_ai_health(self) -> dict[str, bool]:
-        """Check AI services (YOLO26v2 and the verdict engine) health.
+    async def _check_ai_health(self) -> dict[str, Any]:
+        """Check AI services (YOLO26 and ai-vlm) health via ``ai_health``.
 
-        Performs concurrent health checks on both AI services to minimize
-        latency in the broadcast loop. Uses a short timeout to avoid blocking.
-        The verdict engine is ai-vlm (spec rev 5; R8 retired the mode branch
-        that could select the legacy LLM).
-
-        Returns:
-            Dictionary with:
-            - yolo26: True if YOLO26v2 is healthy
-            - ai-vlm: True if the engine is healthy
-            - any_healthy: True if at least one AI service is healthy
-            - all_healthy: True if all AI services are healthy
+        ``yolo26`` is checked against ``/yolo26/health`` (including ``model_loaded``)
+        and ``ai_vlm`` is read from passive ``ai_health`` state so ``ai-vlm`` is
+        never HTTP-probed for status (preserving ``--sleep-idle-seconds``, B4.11 T4).
         """
+        from backend.services import ai_health as ai_health_mod
+
         settings = get_settings()
         yolo26_healthy = False
         engine_healthy = False
-        engine_key = "ai-vlm"
-        engine_url = settings.ai_vlm_url
+        yolo26_state_str = "failing"
+        vlm_state_str = "unknown"
 
-        async def check_yolo26() -> bool:
-            try:
-                async with httpx.AsyncClient(timeout=AI_HEALTH_CHECK_TIMEOUT) as client:
-                    response = await client.get(f"{settings.yolo26_url}/health")
-                    return bool(response.status_code == 200)
-            except httpx.ConnectError, httpx.TimeoutException, httpx.HTTPStatusError, OSError:
-                # Network errors, timeouts, HTTP errors, and OS-level socket errors
-                return False
-
-        async def check_engine() -> bool:
-            try:
-                async with httpx.AsyncClient(timeout=AI_HEALTH_CHECK_TIMEOUT) as client:
-                    response = await client.get(f"{engine_url}/health")
-                    return bool(response.status_code == 200)
-            except httpx.ConnectError, httpx.TimeoutException, httpx.HTTPStatusError, OSError:
-                # Network errors, timeouts, HTTP errors, and OS-level socket errors
-                return False
-
-        # Check both services concurrently for efficiency (NEM-1656)
-        # Note: Using asyncio.gather instead of TaskGroup here because:
-        # 1. These are independent operations - we want partial results even if one fails
-        # 2. Each check function handles its own exceptions and returns bool
-        # 3. TaskGroup would cancel the other check if one fails, which is undesirable
         try:
-            yolo26_healthy, engine_healthy = await asyncio.gather(
-                check_yolo26(),
-                check_engine(),
-            )
-        except (asyncio.CancelledError, RuntimeError) as e:
-            # asyncio.CancelledError: task cancellation during shutdown
-            # RuntimeError: event loop issues
+            async with httpx.AsyncClient(timeout=AI_HEALTH_CHECK_TIMEOUT) as client:
+                snap = await ai_health_mod.snapshot(
+                    settings=settings,
+                    timeout=AI_HEALTH_CHECK_TIMEOUT,
+                    http_client=client,
+                )
+            yolo26_state = snap["yolo26"]
+            vlm_state = snap["ai_vlm"]
+            yolo26_state_str = yolo26_state.state
+            vlm_state_str = vlm_state.state
+            yolo26_healthy = yolo26_state.state == "ready"
+            engine_healthy = vlm_state.state in ("ready", "idle", "unknown")
+        except (
+            asyncio.CancelledError,
+            RuntimeError,
+            httpx.ConnectError,
+            httpx.TimeoutException,
+            httpx.HTTPStatusError,
+            OSError,
+        ) as e:
             logger.warning(f"Error during AI health check: {e}", exc_info=True)
 
         return {
             "yolo26": yolo26_healthy,
-            engine_key: engine_healthy,
+            "ai-vlm": engine_healthy,
+            "ai_vlm": engine_healthy,
             "any_healthy": yolo26_healthy or engine_healthy,
             "all_healthy": yolo26_healthy and engine_healthy,
+            "states": {
+                "yolo26": yolo26_state_str,
+                "ai_vlm": vlm_state_str,
+            },
         }
 
     async def _get_health_status(self) -> str:
@@ -1114,6 +1106,27 @@ class SystemBroadcaster:
             logger.error(f"Failed to check health status: {e}", exc_info=True)
             return "unhealthy"
 
+    async def _on_ai_health_change(self, state_obj: Any) -> None:
+        """Broadcast ``ai_service_status`` when an AI service changes state."""
+        message = {
+            "type": "ai_service_status",
+            "data": {
+                "service": state_obj.service,
+                "state": state_obj.state,
+                "detail": state_obj.detail,
+                "since": state_obj.since.isoformat() if state_obj.since else None,
+            },
+            "timestamp": datetime.now(UTC).isoformat(),
+        }
+        await self._send_to_local_clients(message)
+        redis_client = self._get_redis()
+        if redis_client is not None:
+            with contextlib.suppress(Exception):
+                await redis_client.publish(
+                    SYSTEM_STATUS_CHANNEL,
+                    {"_origin_instance": self._instance_id, "payload": message},
+                )
+
     async def start_broadcasting(self, interval: float = 5.0) -> None:
         """Start periodic broadcasting of system status.
 
@@ -1129,6 +1142,10 @@ class SystemBroadcaster:
 
         self._running = True
 
+        from backend.services import ai_health as ai_health_mod
+
+        self._ai_health_unsub = ai_health_mod.on_change(self._on_ai_health_change)
+
         # Start the pub/sub listener for multi-instance support
         await self._start_pubsub_listener()
 
@@ -1142,6 +1159,12 @@ class SystemBroadcaster:
         Stops both the broadcast loop and the pub/sub listener.
         """
         self._running = False
+
+        unsub = getattr(self, "_ai_health_unsub", None)
+        if callable(unsub):
+            with contextlib.suppress(Exception):
+                unsub()
+            self._ai_health_unsub = None
 
         # NEM-4987: Broadcast shutdown notice before stopping
         shutdown_message = {

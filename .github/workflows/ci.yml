@@ -329,6 +329,7 @@ jobs:
           scripts/test_ai_surface_census.py
           scripts/test_check_npm_audit_exemptions.py
           scripts/test_check_pip_audit_exemptions.py
+          scripts/test_check_trivy_delta.py
           scripts/test_agents_md_validator.py
           scripts/test_validate_docs_symbol_context.py
           scripts/test_pipeline_vs_independent_arm.py
@@ -1399,9 +1400,32 @@ jobs:
 
       - name: Install PostgreSQL client tools
         # Required for backup/restore tests (pg_dump, pg_restore)
+        # Ruling 322: pin the client to the server's major. ubuntu-latest
+        # moved to 26.04 and its unpinned `postgresql-client` resolved to PG 18,
+        # whose sessions open with `SET transaction_timeout = 0` — rejected by
+        # the postgres:16-alpine service container, so the restore tests fail
+        # deterministically. 26.04's archive carries only PG 18, so the pinned
+        # client comes from the PostgreSQL apt repository (pgdg).
         run: |
           sudo apt-get update
-          sudo apt-get install -y postgresql-client
+          sudo apt-get install -y curl ca-certificates gnupg
+          . /etc/os-release
+          echo "deb [signed-by=/usr/share/keyrings/postgresql.gpg] http://apt.postgresql.org/pub/repos/apt ${VERSION_CODENAME}-pgdg main" \
+            | sudo tee /etc/apt/sources.list.d/pgdg.list > /dev/null
+          curl -fsSL https://www.postgresql.org/media/keys/ACCC4CF8.asc \
+            | sudo gpg --dearmor -o /usr/share/keyrings/postgresql.gpg
+          sudo apt-get update
+          sudo apt-get install -y postgresql-client-16
+          # /usr/bin/pg_restore is a postgresql-client-common pg_wrapper symlink
+          # that dispatches to the NEWEST installed client major, and the 26.04
+          # runner image preinstalls client 18 (the red-main run installed only
+          # the 15 kB `postgresql-client` metapackage — its 18 binaries were
+          # already present). With 16 installed alongside, bare `pg_restore`
+          # still ran 18 and the restore tests kept the SET transaction_timeout
+          # signature. Put the versioned 16 binaries first on PATH so the tests
+          # invoke the pinned client, and assert the pinned binary is real.
+          test -x /usr/lib/postgresql/16/bin/pg_restore
+          echo "/usr/lib/postgresql/16/bin" >> "$GITHUB_PATH"
 
       - name: Run Services integration tests
         # Service tests: test_*_integration.py, test_batch*.py, test_detector*.py, test_file_watcher*.py, test_circuit*.py
@@ -3683,6 +3707,13 @@ jobs:
       security-events: write
     secrets: inherit # pragma: allowlist secret
     if: github.event_name != 'pull_request' || github.event.pull_request.draft != true
+    # [r294] UR-122: the call SELECTS the gate mode, same shape as
+    # security-dependency-audit's audit-mode: gate above. A called workflow
+    # inherits the caller's event, so the mode must travel as an input -
+    # this call arrives there as event_name=push on PR merges, identical to
+    # trivy.yml's own full-scan push legs (its daily schedule + dispatch).
+    with:
+      trivy-mode: gate
     uses: ./.github/workflows/trivy.yml
 
   # OB.2: dependency audit joins the WP1.2 call set (four workflows now).

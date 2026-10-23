@@ -2,7 +2,7 @@
 
 ## Purpose
 
-The pinned ComfyUI v0.37.0 renderer (spec §3.1-§3.2): its podman image, an HTTP client, an offline graph validator and one API-graph builder per model.
+The pinned ComfyUI v0.42.1 renderer (spec §3.1-§3.2): its podman image, an HTTP client, an offline graph validator and one API-graph builder per model.
 
 ## Key Files
 

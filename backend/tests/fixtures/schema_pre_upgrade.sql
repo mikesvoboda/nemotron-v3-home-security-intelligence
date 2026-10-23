@@ -234,3 +234,61 @@ INSERT INTO prompt_versions (model, version, config_json, is_active) VALUES
     ('yolo_world',   1, '{"classes": ["knife", "gun", "package", "crowbar", "spray paint", "Amazon box", "FedEx package", "suspicious bag"], "confidence_threshold": 0.35}', TRUE),
     ('xclip',        1, '{"action_classes": ["loitering", "running away", "fighting", "breaking in", "climbing fence", "hiding", "normal walking"]}', TRUE),
     ('fashion_clip', 1, '{"clothing_categories": ["dark hoodie", "face mask", "gloves", "all black", "delivery uniform", "high-vis vest", "business attire"], "suspicious_indicators": ["all black", "face mask", "hoodie up", "gloves at night"]}', TRUE);
+
+-- ---------------------------------------------------------------------------------------
+-- 0013 target (B4.2): quiet_hours_periods / outbound_webhooks in their PRE-0013 shapes
+-- (no recipient_id, no on_local_network), and an EMPTY recipients table so 0013's
+-- Household INSERT has somewhere to go (0013 does not create the delivery tables --
+-- they are create_all-owned, and this fixture database never runs create_all). Without
+-- these, upgrade 0013 fails on this database with `relation does not exist` / column-already-exists and
+-- the upgrade-path run records it as "applied" without ever executing. Same transcription
+-- discipline as the sibling blocks above: only the columns the upgrades and create_all
+-- leave alone are spelled out, and no FKs (create_all does not add constraints to a table
+-- that already exists, so an FK here would be testing the fixture, not the upgrade path).
+-- The quiet-hours rows are the subject matter: 0013's UPDATE re-points them at the
+-- Household recipient its INSERT seeds, so rows must exist here for the run to have done
+-- anything measurable.
+-- ---------------------------------------------------------------------------------------
+CREATE TABLE recipients (
+    id                    UUID PRIMARY KEY,
+    name                  VARCHAR(100) NOT NULL,
+    enabled               BOOLEAN      NOT NULL DEFAULT TRUE,
+    user_id               VARCHAR(64),
+    critical_breaks_quiet BOOLEAN      NOT NULL DEFAULT TRUE,
+    created_at            TIMESTAMPTZ  NOT NULL DEFAULT timezone('utc', now()),
+    updated_at            TIMESTAMPTZ  NOT NULL DEFAULT timezone('utc', now())
+);
+
+CREATE TABLE quiet_hours_periods (
+    id          SERIAL PRIMARY KEY,
+    label       VARCHAR(100),
+    start_time  TIME         NOT NULL,
+    end_time    TIME         NOT NULL,
+    days        JSONB,
+    is_active   BOOLEAN      NOT NULL DEFAULT TRUE
+);
+
+INSERT INTO quiet_hours_periods (label, start_time, end_time, days) VALUES
+    ('Night', '22:00', '06:00', '["mon","tue","wed","thu","fri","sat","sun"]'),
+    ('School run', '08:00', '09:00', '["mon","fri"]');
+
+CREATE TABLE outbound_webhooks (
+    id          UUID PRIMARY KEY,
+    name        VARCHAR(100),
+    url         VARCHAR(2048) NOT NULL,
+    enabled     BOOLEAN       NOT NULL DEFAULT TRUE
+);
+
+INSERT INTO outbound_webhooks (id, name, url) VALUES
+    ('00000000-0000-0000-0000-00000000000a', 'nvr-relay', 'http://nvr.local/hooks/alert');
+
+-- ---------------------------------------------------------------------------------------
+-- 0015 target (B4.11 R2a row 9): prometheus_alerts table (retired with /api/v1/alertmanager/webhook).
+-- ---------------------------------------------------------------------------------------
+CREATE TABLE prometheus_alerts (
+    id          SERIAL PRIMARY KEY,
+    fingerprint VARCHAR(64) NOT NULL,
+    status      VARCHAR(32) NOT NULL DEFAULT 'firing'
+);
+
+INSERT INTO prometheus_alerts (fingerprint, status) VALUES ('fp-legacy-1', 'firing');

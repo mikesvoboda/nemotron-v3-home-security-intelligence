@@ -517,7 +517,7 @@ services:
       # S-2 per-build enforcement: the probe runs by default, and the build
       # assertion only fires when the operator names the build. Empty default
       # is deliberate — compose cannot know which llama-server build a local
-      # build produced; .env.example ships the pinned b7972 for the shipped
+      # build produced; .env.example ships the pinned b11819 for the shipped
       # image. Threading is what makes setting it in .env actually DO something.
       - VLM_ENFORCEMENT_PROBE_ENABLED=${VLM_ENFORCEMENT_PROBE_ENABLED:-true}
       - VLM_REQUIRED_BUILD=${VLM_REQUIRED_BUILD:-}
@@ -541,6 +541,7 @@ services:
       # the ai-vlm block byte for byte (test_ai_vlm_compose_service pins it).
       - VLM_CTX_SIZE=${VLM_CTX_SIZE:-32768}
       - VLM_PARALLEL=${VLM_PARALLEL:-2}
+      - VLM_SLEEP_IDLE_SECONDS=${VLM_SLEEP_IDLE_SECONDS:-300}
       # LLM context budget for the token counter's defaults (config.py
       # nemotron_context_window = CTX_SIZE // PARALLEL). The legacy 30B's own
       # llama.cpp server is gone; the shipped verdict engine budgets its slots
@@ -596,6 +597,7 @@ services:
       - SESSION_COOKIE_SECURE=${SESSION_COOKIE_SECURE:-true}
       - FAST_PATH_ENABLED=${FAST_PATH_ENABLED:-false}
       - FAST_PATH_CONFIDENCE_THRESHOLD=${FAST_PATH_CONFIDENCE_THRESHOLD:-0.90}
+      - TRASH_RETENTION_DAYS=${TRASH_RETENTION_DAYS:-30}
       # OpenTelemetry distributed tracing (NEM-1629)
       # Enabled by default since monitoring stack is included
       - OTEL_ENABLED=${OTEL_ENABLED:-true}

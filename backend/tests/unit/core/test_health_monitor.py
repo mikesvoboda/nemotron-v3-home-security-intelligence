@@ -1,6 +1,7 @@
 """Unit tests for ServiceHealthMonitor service."""
 
 import asyncio
+import contextlib
 from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
@@ -388,6 +389,24 @@ async def test_broadcasts_status_on_recovery(mock_manager, mock_broadcaster, fas
     mock_manager.check_health.side_effect = check_health_varying
     mock_manager.restart.return_value = True  # Restart succeeds
 
+    # Wait for the healthy broadcast by EVENT, not by a fixed window: the
+    # fail -> restart -> recover chain crosses three sleeps and two broadcast
+    # awaits, and a loaded 2-core CI runner (run 39815862976, both attempts)
+    # pushed that chain past the old 0.5s sleep — the captured log stopped at
+    # the restart broadcast while gw1 completed 162 tests in the failing
+    # test's 0.7s window. Same file, same wait-for-an-event shape as
+    # test_graceful_shutdown_during_health_check below. The assertion is
+    # unchanged: a missing recovery broadcast still fails, after the 5s cap.
+    healthy_event = asyncio.Event()
+
+    async def broadcast_service_status_recording(event_data):
+        if event_data.get("data", {}).get("status") == "healthy":
+            healthy_event.set()
+
+    mock_broadcaster.broadcast_service_status = AsyncMock(
+        side_effect=broadcast_service_status_recording
+    )
+
     config = ServiceConfig(
         name="test_service",
         health_url="http://localhost:9999/health",
@@ -405,8 +424,10 @@ async def test_broadcasts_status_on_recovery(mock_manager, mock_broadcaster, fas
     )
 
     await monitor.start()
-    # Wait for recovery cycle (mocked 2s pause allows faster completion)
-    await asyncio.sleep(0.5)
+    with contextlib.suppress(asyncio.TimeoutError):
+        # Generous cap: nominal chain is ~0.1s; 5s is far under the 60s
+        # per-test timeout even at the worst measured CI contention.
+        await asyncio.wait_for(healthy_event.wait(), timeout=5.0)
     await monitor.stop()
 
     # Find broadcast calls with "healthy" status

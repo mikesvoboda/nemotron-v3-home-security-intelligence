@@ -1,23 +1,22 @@
-import { render, screen, fireEvent, act } from '@testing-library/react';
-import { MemoryRouter } from 'react-router-dom';
+import { screen, fireEvent, act } from '@testing-library/react';
 import { describe, expect, it, vi, beforeEach, afterEach } from 'vitest';
 
 import Header from './Header';
-import { ThemeProvider } from '../../contexts';
 import * as useConnectionStatusModule from '../../hooks/useConnectionStatus';
 import * as useHealthStatusQueryModule from '../../hooks/useHealthStatusQuery';
+import { renderWithNavigation } from '../../test-utils';
 
 import type { ChannelStatus, ConnectionState } from '../../hooks/useConnectionStatus';
 
-// Helper to render Header with Router and Theme context
-const renderHeader = (initialRoute: string = '/') => {
-  return render(
-    <ThemeProvider defaultMode="dark">
-      <MemoryRouter initialEntries={[initialRoute]}>
-        <Header />
-      </MemoryRouter>
-    </ThemeProvider>
-  );
+// Helper to render Header with shared navigation fixture (Router + ThemeProvider)
+const renderHeader = (initialRoute: string = '/', mode: 'easy' | 'advanced' = 'easy') => {
+  return renderWithNavigation(<Header />, {
+    route: initialRoute,
+    mode,
+    withSidebarContext: false,
+    withQueryClient: false,
+    withAnnouncementProvider: false,
+  });
 };
 
 // Mock the useSidebarContext hook
@@ -288,8 +287,13 @@ describe('Header', () => {
     expect(screen.getByText('LIVE MONITORING')).toBeInTheDocument();
   });
 
-  it('displays GPU stats placeholder when no data', () => {
-    renderHeader();
+  it('displays GPU stats placeholder when no data in Advanced mode and hides GPU pill in Easy mode', () => {
+    const { unmount } = renderHeader('/', 'easy');
+    expect(screen.getByTestId('mode-switch')).toBeInTheDocument();
+    expect(screen.queryByText('GPU:')).not.toBeInTheDocument();
+    unmount();
+
+    renderHeader('/', 'advanced');
     expect(screen.getByText('GPU:')).toBeInTheDocument();
     expect(screen.getByText('--')).toBeInTheDocument();
   });
@@ -321,13 +325,13 @@ describe('Header', () => {
   });
 
   it('renders GPU stats with correct styling', () => {
-    const { container } = renderHeader();
+    const { container } = renderHeader('/', 'advanced');
     const gpuStats = container.querySelector('.bg-gray-800.rounded-lg');
     expect(gpuStats).toBeInTheDocument();
   });
 
   it('GPU value has NVIDIA green color', () => {
-    renderHeader();
+    renderHeader('/', 'advanced');
     const gpuValue = screen.getByText('--');
     expect(gpuValue).toHaveClass('text-[#76B900]');
   });
@@ -372,7 +376,7 @@ describe('Header', () => {
       isPlaceholderData: false,
     });
 
-    renderHeader();
+    renderHeader('/', 'advanced');
     expect(screen.getByText('76% | 30.5 FPS')).toBeInTheDocument();
   });
 
@@ -410,7 +414,7 @@ describe('Header', () => {
       isPlaceholderData: false,
     });
 
-    renderHeader();
+    renderHeader('/', 'advanced');
     expect(screen.getByText('66°C | 30.5 FPS')).toBeInTheDocument();
   });
 
@@ -448,7 +452,7 @@ describe('Header', () => {
       isPlaceholderData: false,
     });
 
-    renderHeader();
+    renderHeader('/', 'advanced');
     expect(screen.getByText('45% | 63°C | 30.5 FPS')).toBeInTheDocument();
   });
 
@@ -1056,7 +1060,7 @@ describe('Header', () => {
         isPlaceholderData: false,
       });
 
-      renderHeader();
+      renderHeader('/', 'advanced');
 
       expect(screen.getByTestId('websocket-status')).toBeInTheDocument();
     });
@@ -1095,7 +1099,7 @@ describe('Header', () => {
         isPlaceholderData: false,
       });
 
-      renderHeader();
+      renderHeader('/', 'advanced');
 
       fireEvent.mouseEnter(screen.getByTestId('websocket-status'));
 
@@ -1326,7 +1330,7 @@ describe('Header', () => {
         isPlaceholderData: false,
       });
 
-      renderHeader();
+      renderHeader('/', 'advanced');
 
       expect(screen.getByText('REST Fallback')).toBeInTheDocument();
     });

@@ -184,6 +184,8 @@ class TestCombinedSchemaValidation:
             "camera_ids",
             "excluded_camera_ids",
             "alert_on_rejected",
+            "alert_on_rejected_modes",
+            "sources",
             "zone_ids",
             "min_confidence",
             "schedule",

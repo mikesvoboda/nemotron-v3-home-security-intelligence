@@ -753,3 +753,215 @@ export function createGPUStatsResponse(overrides?: Partial<GPUStatsResponse>): G
 export function createEventResponse(overrides?: Partial<Event>): Event {
   return createEvent(overrides);
 }
+
+// ============================================================================
+// Navigation & Event-Modal Fixtures (F4.9 consolidation)
+// ============================================================================
+
+import type {
+  Event as EventModalEvent,
+  EventDetailModalProps,
+} from '../components/events/EventDetailModal';
+import type { ViewportInfo } from '../hooks/useViewport';
+import type { Detection as WireDetection } from '../types/generated';
+
+export interface NavigationFixture {
+  desktopViewport: ViewportInfo;
+  mobileViewport: ViewportInfo;
+  tabletViewport: ViewportInfo;
+  connectionSummary: {
+    eventsChannel: {
+      name: string;
+      state: 'connected' | 'reconnecting' | 'disconnected' | 'failed';
+      reconnectAttempts: number;
+      maxReconnectAttempts: number;
+      lastMessageTime: Date | null;
+      hasExhaustedRetries: boolean;
+    };
+    systemChannel: {
+      name: string;
+      state: 'connected' | 'reconnecting' | 'disconnected' | 'failed';
+      reconnectAttempts: number;
+      maxReconnectAttempts: number;
+      lastMessageTime: Date | null;
+      hasExhaustedRetries: boolean;
+    };
+    overallState: 'connected' | 'reconnecting' | 'disconnected' | 'failed';
+    anyReconnecting: boolean;
+    allConnected: boolean;
+    totalReconnectAttempts: number;
+    hasExhaustedRetries: boolean;
+    allFailed: boolean;
+    disconnectedSince: Date | null;
+  };
+}
+
+/**
+ * Shared navigation test fixture for Sidebar, MobileBottomNav, CommandPalette,
+ * ShortcutsHelpModal, Header, Layout, SettingsPage, AnalyticsPage, and ProductTour tests.
+ */
+export function createNavigationFixture(
+  overrides: Partial<NavigationFixture> = {}
+): NavigationFixture {
+  return {
+    desktopViewport: {
+      isMobile: false,
+      isTablet: false,
+      isDesktop: true,
+      width: 1200,
+      breakpoint: 'lg',
+    },
+    mobileViewport: {
+      isMobile: true,
+      isTablet: false,
+      isDesktop: false,
+      width: 375,
+      breakpoint: 'sm',
+    },
+    tabletViewport: {
+      isMobile: false,
+      isTablet: true,
+      isDesktop: false,
+      width: 768,
+      breakpoint: 'md',
+    },
+    connectionSummary: {
+      eventsChannel: {
+        name: 'Events',
+        state: 'connected',
+        reconnectAttempts: 0,
+        maxReconnectAttempts: 5,
+        lastMessageTime: null,
+        hasExhaustedRetries: false,
+      },
+      systemChannel: {
+        name: 'System',
+        state: 'connected',
+        reconnectAttempts: 0,
+        maxReconnectAttempts: 5,
+        lastMessageTime: null,
+        hasExhaustedRetries: false,
+      },
+      overallState: 'connected',
+      anyReconnecting: false,
+      allConnected: true,
+      totalReconnectAttempts: 0,
+      hasExhaustedRetries: false,
+      allFailed: false,
+      disconnectedSince: null,
+    },
+    ...overrides,
+  };
+}
+
+/**
+ * Shared wire-shape detections fixture for EventDetailModal tests (F4.4 / F4.9).
+ */
+export function createEventModalDetections(overrides?: Partial<WireDetection>[]): WireDetection[] {
+  const defaults: WireDetection[] = [
+    {
+      id: 1,
+      camera_id: 'front_door',
+      file_path: '/export/foscam/front_door/20251223_120000.jpg',
+      detected_at: '2024-01-15T10:30:00Z',
+      object_type: 'person',
+      confidence: 0.95,
+      bbox_x: 100,
+      bbox_y: 100,
+      bbox_width: 200,
+      bbox_height: 300,
+      media_type: 'image',
+    },
+    {
+      id: 2,
+      camera_id: 'front_door',
+      file_path: '/export/foscam/front_door/20251223_120001.jpg',
+      detected_at: '2024-01-15T10:30:01Z',
+      object_type: 'package',
+      confidence: 0.87,
+      bbox_x: 400,
+      bbox_y: 200,
+      bbox_width: 150,
+      bbox_height: 100,
+      media_type: 'image',
+    },
+  ];
+  if (!overrides) {
+    return defaults;
+  }
+  return overrides.map((ov, i) => ({
+    ...defaults[i % defaults.length],
+    id: i + 1,
+    ...ov,
+  }));
+}
+
+/**
+ * Shared paginated detections response fixture for EventDetailModal tests.
+ */
+export function createEventModalDetectionsResponse(items?: WireDetection[]) {
+  const resolved = items ?? createEventModalDetections();
+  return {
+    items: resolved,
+    pagination: {
+      total: resolved.length,
+      limit: 100,
+      offset: 0,
+      has_more: false,
+    },
+  };
+}
+
+/**
+ * Shared EventDetailModal event fixture (numeric id string so detections fetch runs).
+ */
+export function createEventModalEvent(overrides: Partial<EventModalEvent> = {}): EventModalEvent {
+  return {
+    id: '123',
+    timestamp: '2024-01-15T10:30:00Z',
+    camera_name: 'Front Door',
+    risk_score: 65,
+    risk_label: 'High',
+    summary: 'Person detected approaching the front entrance with a package',
+    reasoning:
+      'The detected person is approaching the entrance during evening hours carrying an unidentified package. This warrants attention.',
+    image_url: 'https://example.com/image.jpg',
+    thumbnail_url: 'https://example.com/thumbnail.jpg',
+    reviewed: false,
+    ...overrides,
+  };
+}
+
+export interface EventModalFixture {
+  event: EventModalEvent;
+  props: EventDetailModalProps;
+  detections: WireDetection[];
+  detectionsResponse: ReturnType<typeof createEventModalDetectionsResponse>;
+}
+
+/**
+ * Shared event-modal fixture bundling the modal's Event, props, and wire detections.
+ */
+export function createEventModalFixture(
+  options: {
+    event?: Partial<EventModalEvent>;
+    props?: Partial<EventDetailModalProps>;
+    detections?: WireDetection[];
+  } = {}
+): EventModalFixture {
+  const event = createEventModalEvent(options.event);
+  const detections = options.detections ?? createEventModalDetections();
+  const detectionsResponse = createEventModalDetectionsResponse(detections);
+  const props: EventDetailModalProps = {
+    event,
+    isOpen: true,
+    onClose: () => {},
+    ...options.props,
+  };
+  return {
+    event,
+    props,
+    detections,
+    detectionsResponse,
+  };
+}

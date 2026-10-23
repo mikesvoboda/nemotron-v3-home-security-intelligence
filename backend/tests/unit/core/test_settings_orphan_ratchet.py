@@ -30,8 +30,6 @@ SCANNER = REPO_ROOT / "scripts" / "audit" / "settings_orphans.py"
 ALLOWED_UNREAD_OUTSIDE_CONFIG: dict[str, str] = {
     "llama_slot_count": "feeds _derive_slot_context_window (info.data.get) which divides "
     "the CTX_SIZE pool into the per-request budget",
-    "vlm_slot_count": "read by the VLM slot-context validator (info.data.get) that divides "
-    "vlm_context_window across parallel slots",
     "violence_definitive_threshold": "compared against violence_suspected_threshold by the "
     "ordering model_validator (definitive > suspected)",
     "violence_suspected_threshold": "compared against violence_definitive_threshold by the "

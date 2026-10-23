@@ -17,6 +17,7 @@ class AuditAction(str, Enum):
     # Event actions
     EVENT_REVIEWED = "event_reviewed"
     EVENT_DISMISSED = "event_dismissed"
+    EVENT_PURGED = "event_purged"
 
     # Settings actions
     SETTINGS_CHANGED = "settings_changed"
@@ -77,6 +78,10 @@ class AuditAction(str, Enum):
     EXPORT_DOWNLOADED = "export_downloaded"
     EXPORT_EXPIRED = "export_expired"
     EXPORT_CANCELLED = "export_cancelled"
+
+    # Service & worker control actions (B4.11 / 4n-status.md)
+    SERVICE_RESTART = "service_restart"
+    WORKER_RESTART = "worker_restart"
 
 
 class AuditStatus(str, Enum):

@@ -610,7 +610,7 @@ export interface paths {
          * @description List all alerts with optional filtering and pagination.
          *
          *     Args:
-         *         status_filter: Filter by alert status (pending, delivered, acknowledged, dismissed)
+         *         status_filter: Filter by alert status (open, pending, delivered, acknowledged, dismissed)
          *         severity_filter: Filter by severity level (low, medium, high, critical)
          *         event_id: Filter by associated event ID
          *         rule_id: Filter by alert rule ID
@@ -2037,6 +2037,134 @@ export interface paths {
          */
         get: operations["analytics_get_risk_score_trends"];
         put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/arming": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Read Arming Status
+         * @description Return current household arming mode, source, timestamp, and next scheduled transition.
+         */
+        get: operations["arming_read_arming_status"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/arming/changes": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Read Arming Changes
+         * @description Return recent arming mode and camera exclusion changes.
+         */
+        get: operations["arming_read_arming_changes"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/arming/events/{event_id}/decision": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Read Event Notify Decision
+         * @description Return the persisted notify decision (`notify` and `decided_by`) for `event_id`.
+         */
+        get: operations["arming_read_event_notify_decision"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/arming/mode": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        /**
+         * Update Arming Mode
+         * @description Switch the household arming mode from the app.
+         */
+        put: operations["arming_update_arming_mode"];
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/arming/modes/{mode}/cameras": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Read Mode Cameras
+         * @description Return the excluded camera IDs for `mode`.
+         */
+        get: operations["arming_read_mode_cameras"];
+        /**
+         * Update Mode Cameras
+         * @description Replace the excluded camera IDs for `mode` (`home`, `away`, or `night`).
+         */
+        put: operations["arming_update_mode_cameras"];
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/arming/schedule": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Read Arming Schedule
+         * @description Return the weekly arming schedule.
+         */
+        get: operations["arming_read_arming_schedule"];
+        /**
+         * Update Arming Schedule
+         * @description Replace the weekly arming schedule and wake the in-process scheduler.
+         */
+        put: operations["arming_update_arming_schedule"];
         post?: never;
         delete?: never;
         options?: never;
@@ -5332,6 +5460,10 @@ export interface paths {
          *             verification_failed, or 'none' for never-verified events). An
          *             unrecognised value is a 422 from the Literal-typed param - never
          *             an empty list, which would read as a false all-clear.
+         *         min_confidence: Optional detector-confidence floor (0.0-1.0): the
+         *             event matches when any of its detections is at or above it; 0
+         *             means the event has at least one detection. Outside 0 to 1 is
+         *             a 422 from the Query bounds.
          *         start_date: Optional start date for date range filter
          *         end_date: Optional end date for date range filter
          *         reviewed: Optional filter by reviewed status
@@ -5548,7 +5680,11 @@ export interface paths {
         get: operations["events_list_deleted_events"];
         put?: never;
         post?: never;
-        delete?: never;
+        /**
+         * Empty trash (permanently purge all soft-deleted events)
+         * @description Permanently purge all soft-deleted events currently in Trash (B4.4).
+         */
+        delete: operations["events_empty_trash"];
         options?: never;
         head?: never;
         patch?: never;
@@ -5772,20 +5908,8 @@ export interface paths {
         put?: never;
         post?: never;
         /**
-         * Soft delete a single event
-         * @description Soft delete a single event with optional cascade to related detections.
-         *
-         *     By default, cascade=True soft deletes all related detections using the same
-         *     timestamp as the event. This enables cascade restore by matching timestamps.
-         *
-         *     Args:
-         *         event_id: ID of the event to delete
-         *         cascade: If True, cascade soft delete to related detections
-         *         db: Database session
-         *         cache: Cache service for invalidation
-         *
-         *     Raises:
-         *         HTTPException: 404 if event not found, 409 if already deleted
+         * Soft delete or permanently purge a single event
+         * @description Soft delete a live event or permanently purge a trashed event (`?permanent=true`).
          */
         delete: operations["events_delete_event"];
         options?: never;
@@ -9823,6 +9947,26 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/system/infrastructure-alerts": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Get Active Firing Infrastructure Alerts
+         * @description Proxy Alertmanager's /api/v2/alerts and return active firing alerts in the same shape as the /ws/events infrastructure_alert message.
+         */
+        get: operations["system_get_infrastructure_alerts"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/system/model-zoo/latency/history": {
         parameters: {
             query?: never;
@@ -10444,19 +10588,7 @@ export interface paths {
         put?: never;
         /**
          * Disable Service
-         * @description Manually disable a service.
-         *
-         *     Prevents self-healing restarts.
-         *
-         *     Args:
-         *         name: Service name to disable
-         *         orchestrator: Container orchestrator instance (injected)
-         *
-         *     Returns:
-         *         Action result with updated service information
-         *
-         *     Raises:
-         *         HTTPException: 404 if service not found
+         * @description Manually disable a service (guarded by `get_current_admin_user` until F4.8 retires it).
          */
         post: operations["services_disable_service"];
         delete?: never;
@@ -10476,19 +10608,7 @@ export interface paths {
         put?: never;
         /**
          * Enable Service
-         * @description Re-enable a disabled service.
-         *
-         *     Resets failure count and allows self-healing to resume.
-         *
-         *     Args:
-         *         name: Service name to enable
-         *         orchestrator: Container orchestrator instance (injected)
-         *
-         *     Returns:
-         *         Action result with updated service information
-         *
-         *     Raises:
-         *         HTTPException: 404 if service not found
+         * @description Re-enable a disabled service (guarded by `get_current_admin_user` until F4.8 retires it).
          */
         post: operations["services_enable_service"];
         delete?: never;
@@ -10508,19 +10628,11 @@ export interface paths {
         put?: never;
         /**
          * Restart Service
-         * @description Manually restart a service.
+         * @description Manually restart an allowed service (`ai-gateway`, `ai-vlm`, `redis`, `postgres`).
          *
-         *     Resets failure count (manual restart is intentional).
-         *
-         *     Args:
-         *         name: Service name to restart
-         *         orchestrator: Container orchestrator instance (injected)
-         *
-         *     Returns:
-         *         Action result with updated service information
-         *
-         *     Raises:
-         *         HTTPException: 404 if service not found, 400 if service is disabled
+         *     Requires an admin session (`get_current_admin_user`); API keys are refused with 403.
+         *     Commits a 'restart requested' audit row before calling the engine, and records the
+         *     outcome in a fresh session afterward (B4.11 / 4n-status.md).
          */
         post: operations["services_restart_service"];
         delete?: never;
@@ -10540,18 +10652,7 @@ export interface paths {
         put?: never;
         /**
          * Start Service
-         * @description Start a stopped service container.
-         *
-         *     Args:
-         *         name: Service name to start
-         *         orchestrator: Container orchestrator instance (injected)
-         *
-         *     Returns:
-         *         Action result with updated service information
-         *
-         *     Raises:
-         *         HTTPException: 404 if service not found,
-         *                        400 if service is already running or disabled
+         * @description Start a stopped service container (guarded by `get_current_admin_user` until F4.8 retires it).
          */
         post: operations["services_start_service"];
         delete?: never;
@@ -11060,42 +11161,6 @@ export interface paths {
         get: operations["tracks_get_track_history"];
         put?: never;
         post?: never;
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/api/v1/alertmanager/webhook": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get?: never;
-        put?: never;
-        /**
-         * Receive Alertmanager Webhook
-         * @description Receive webhook notifications from Alertmanager.
-         *
-         *     This endpoint receives alerts from Prometheus Alertmanager and:
-         *     1. Stores each alert in the database for history tracking
-         *     2. Broadcasts each alert via WebSocket for real-time frontend updates
-         *     3. Returns acknowledgment to Alertmanager
-         *
-         *     The alerts are infrastructure alerts (GPU memory, pipeline health, etc.)
-         *     which are stored for history and displayed alongside security alerts.
-         *
-         *     Args:
-         *         payload: Alertmanager webhook payload containing alert details
-         *         db: Database session (injected)
-         *         redis_client: Redis client for WebSocket broadcasting (optional)
-         *
-         *     Returns:
-         *         AlertmanagerWebhookResponse with processing status
-         */
-        post: operations["alertmanager_receive_alertmanager_webhook"];
         delete?: never;
         options?: never;
         head?: never;
@@ -11653,10 +11718,7 @@ export interface paths {
         put?: never;
         /**
          * Create Alert
-         * @description Not implemented (UR-12): external alert ingestion takes no action.
-         *
-         *     Accepts ``InboundAlertPayload`` and answers 501. A malformed payload
-         *     still 422s (the schema is live); auth failures 401 first.
+         * @description Create an external event on `payload.camera_id` and run `AlertPipeline.process` (A4, A5).
          */
         post: operations["inbound-webhooks_create_alert"];
         delete?: never;
@@ -11676,11 +11738,7 @@ export interface paths {
         put?: never;
         /**
          * Arm Zones
-         * @description Not implemented (UR-12): arming zones takes no action.
-         *
-         *     This is the endpoint D3 names: it used to answer "Arm command for N
-         *     zones queued" having queued nothing, telling an integrator the house
-         *     was armed when it was not.
+         * @description Arm the household in `payload.mode` (default `away`).
          */
         post: operations["inbound-webhooks_arm_zones"];
         delete?: never;
@@ -11700,7 +11758,7 @@ export interface paths {
         put?: never;
         /**
          * Disarm Zones
-         * @description Not implemented (UR-12): disarming zones takes no action.
+         * @description Disarm the household (`mode = 'disarmed'`).
          */
         post: operations["inbound-webhooks_disarm_zones"];
         delete?: never;
@@ -11720,11 +11778,7 @@ export interface paths {
         put?: never;
         /**
          * Set System Mode
-         * @description Not implemented (UR-12): system-mode changes take no action.
-         *
-         *     Mode values are no longer validated here: the check lived in the handler
-         *     that acted on them, and ``InboundModePayload`` is kept unchanged for the
-         *     arming feature, whose ruling it is.
+         * @description Set the household arming mode (`home`, `away`, `night`, `disarmed`).
          */
         post: operations["inbound-webhooks_set_system_mode"];
         delete?: never;
@@ -12195,6 +12249,11 @@ export interface components {
              * @description 99th percentile latency in milliseconds
              */
             latency_p99_ms?: number | null;
+            /**
+             * State
+             * @description Granular AI service state (ready, loading, idle, failing, unknown)
+             */
+            state?: string | null;
             /** @description Current health status of the service */
             status: components["schemas"]["AIServiceStatus"];
             /**
@@ -13076,6 +13135,11 @@ export interface components {
                 [key: string]: unknown;
             } | null;
             /**
+             * Raised While Unarmed
+             * @description Whether this alert was raised while the camera was unarmed
+             */
+            raised_while_unarmed?: boolean | null;
+            /**
              * Rule Id
              * @description Alert rule UUID that matched
              */
@@ -13198,6 +13262,11 @@ export interface components {
              */
             alert_on_rejected?: boolean | null;
             /**
+             * Alert On Rejected Modes
+             * @description Arming modes in which a rejected verdict still alerts (null = every mode)
+             */
+            alert_on_rejected_modes?: string[] | null;
+            /**
              * Camera Ids
              * @description Camera IDs to apply rule to (empty = all cameras)
              */
@@ -13281,6 +13350,11 @@ export interface components {
              * @default medium
              */
             severity: components["schemas"]["AlertSeverity"];
+            /**
+             * Sources
+             * @description Event sources this rule matches (camera, external)
+             */
+            sources?: string[] | null;
             /**
              * Threat Confidence Threshold
              * @description Minimum threat detection confidence (0.0-1.0)
@@ -13393,6 +13467,11 @@ export interface components {
              */
             alert_on_rejected?: boolean | null;
             /**
+             * Alert On Rejected Modes
+             * @description Arming modes in which a rejected verdict still alerts
+             */
+            alert_on_rejected_modes?: string[] | null;
+            /**
              * Camera Ids
              * @description Camera IDs to apply to
              */
@@ -13481,6 +13560,11 @@ export interface components {
             schedule?: components["schemas"]["AlertRuleSchedule"] | null;
             /** @description Severity level */
             severity: components["schemas"]["AlertSeverity"];
+            /**
+             * Sources
+             * @description Event sources this rule matches (camera, external)
+             */
+            sources?: string[] | null;
             /**
              * Threat Confidence Threshold
              * @description Minimum threat confidence
@@ -13580,6 +13664,11 @@ export interface components {
              */
             alert_on_rejected?: boolean | null;
             /**
+             * Alert On Rejected Modes
+             * @description Arming modes in which a rejected verdict still alerts
+             */
+            alert_on_rejected_modes?: string[] | null;
+            /**
              * Camera Ids
              * @description Camera IDs to apply rule to
              */
@@ -13655,6 +13744,11 @@ export interface components {
             schedule?: components["schemas"]["AlertRuleSchedule"] | null;
             /** @description Severity level */
             severity?: components["schemas"]["AlertSeverity"] | null;
+            /**
+             * Sources
+             * @description Event sources this rule matches (camera, external)
+             */
+            sources?: string[] | null;
             /**
              * Threat Confidence Threshold
              * @description Minimum threat confidence
@@ -13808,6 +13902,7 @@ export interface components {
          * AlertServiceResponse
          * @description Schema for alert response from Alert Service operations.
          * @example {
+         *       "camera_id": "front_door",
          *       "channels": [
          *         "pushover"
          *       ],
@@ -13824,6 +13919,11 @@ export interface components {
          *     }
          */
         AlertServiceResponse: {
+            /**
+             * Camera Id
+             * @description Camera that produced the triggering event, read through the event (F4.1: the Alerts page's camera column; None when the event is gone)
+             */
+            camera_id?: string | null;
             /**
              * Channels
              * @description Notification channels
@@ -13877,6 +13977,11 @@ export interface components {
             metadata?: {
                 [key: string]: unknown;
             } | null;
+            /**
+             * Raised While Unarmed
+             * @description Whether this alert was raised while the camera was unarmed
+             */
+            raised_while_unarmed?: boolean | null;
             /**
              * Rule Id
              * @description Alert rule UUID that triggered this
@@ -13942,170 +14047,11 @@ export interface components {
          */
         AlertStatus: "open" | "pending" | "delivered" | "acknowledged" | "dismissed";
         /**
-         * AlertmanagerAlert
-         * @description Schema for a single alert in Alertmanager webhook payload.
-         *
-         *     Represents one alert instance with its labels, annotations, and timing.
-         *     This schema matches the Alertmanager webhook format.
-         * @example {
-         *       "annotations": {
-         *         "description": "CPU usage is above 80% for 5 minutes",
-         *         "summary": "CPU usage is high"
-         *       },
-         *       "endsAt": "0001-01-01T00:00:00Z",
-         *       "fingerprint": "abc123def456",
-         *       "generatorURL": "http://prometheus:9090/graph?...",
-         *       "labels": {
-         *         "alertname": "HighCPU",
-         *         "instance": "localhost:9090",
-         *         "severity": "warning"
-         *       },
-         *       "startsAt": "2026-01-20T12:00:00Z",
-         *       "status": "firing"
-         *     }
-         */
-        AlertmanagerAlert: {
-            /**
-             * Annotations
-             * @description Alert annotations (summary, description)
-             */
-            annotations?: {
-                [key: string]: string;
-            };
-            /**
-             * Endsat
-             * @description When the alert was resolved
-             */
-            endsAt?: string | null;
-            /**
-             * Fingerprint
-             * @description Unique identifier for alert deduplication
-             */
-            fingerprint: string;
-            /**
-             * Generatorurl
-             * @description URL to the Prometheus graph
-             */
-            generatorURL?: string | null;
-            /**
-             * Labels
-             * @description Alert labels (alertname, severity, etc.)
-             */
-            labels?: {
-                [key: string]: string;
-            };
-            /**
-             * Startsat
-             * Format: date-time
-             * @description When the alert started firing
-             */
-            startsAt: string;
-            /** @description Alert status (firing or resolved) */
-            status: components["schemas"]["PrometheusAlertStatus"];
-        };
-        /**
          * AlertmanagerStatus
          * @description Alertmanager alert status values.
          * @enum {string}
          */
         AlertmanagerStatus: "firing" | "resolved";
-        /**
-         * AlertmanagerWebhook
-         * @description Schema for Alertmanager webhook payload.
-         *
-         *     This is the format Alertmanager sends when configured with a webhook receiver.
-         *     See: https://prometheus.io/docs/alerting/latest/configuration/#webhook_config
-         * @example {
-         *       "alerts": [
-         *         {
-         *           "annotations": {
-         *             "description": "CPU at 85%"
-         *           },
-         *           "endsAt": "0001-01-01T00:00:00Z",
-         *           "fingerprint": "abc123",
-         *           "labels": {
-         *             "alertname": "HighCPU",
-         *             "severity": "warning"
-         *           },
-         *           "startsAt": "2026-01-20T12:00:00Z",
-         *           "status": "firing"
-         *         }
-         *       ],
-         *       "commonAnnotations": {
-         *         "summary": "CPU usage is high"
-         *       },
-         *       "commonLabels": {
-         *         "alertname": "HighCPU",
-         *         "severity": "warning"
-         *       },
-         *       "externalURL": "http://alertmanager:9093",
-         *       "groupKey": "{}:{alertname=\"HighCPU\"}",
-         *       "groupLabels": {
-         *         "alertname": "HighCPU"
-         *       },
-         *       "receiver": "webhook-receiver",
-         *       "status": "firing",
-         *       "truncatedAlerts": 0,
-         *       "version": "4"
-         *     }
-         */
-        AlertmanagerWebhook: {
-            /**
-             * Alerts
-             * @description List of alerts in this group
-             */
-            alerts: components["schemas"]["AlertmanagerAlert"][];
-            /**
-             * Commonannotations
-             * @description Annotations common to all alerts
-             */
-            commonAnnotations?: {
-                [key: string]: string;
-            };
-            /**
-             * Commonlabels
-             * @description Labels common to all alerts
-             */
-            commonLabels?: {
-                [key: string]: string;
-            };
-            /**
-             * Externalurl
-             * @description Alertmanager external URL
-             */
-            externalURL?: string | null;
-            /**
-             * Groupkey
-             * @description Key identifying the alert group
-             */
-            groupKey: string;
-            /**
-             * Grouplabels
-             * @description Labels used for grouping
-             */
-            groupLabels?: {
-                [key: string]: string;
-            };
-            /**
-             * Receiver
-             * @description Name of the receiver that matched
-             */
-            receiver: string;
-            /** @description Overall group status */
-            status: components["schemas"]["PrometheusAlertStatus"];
-            /**
-             * Truncatedalerts
-             * @description Number of truncated alerts
-             * @default 0
-             */
-            truncatedAlerts: number;
-            /**
-             * Version
-             * @description Alertmanager webhook version
-             * @default 4
-             */
-            version: string;
-        };
         /**
          * AlertmanagerWebhookPayload
          * @description Schema for Alertmanager webhook payload.
@@ -14202,44 +14148,6 @@ export interface components {
              * @default 4
              */
             version: string;
-        };
-        /**
-         * AlertmanagerWebhookResponse
-         * @description Response schema for the alertmanager webhook endpoint.
-         * @example {
-         *       "broadcast": 2,
-         *       "message": "Processed 2 alert(s)",
-         *       "received": 2,
-         *       "status": "ok",
-         *       "stored": 2
-         *     }
-         */
-        AlertmanagerWebhookResponse: {
-            /**
-             * Broadcast
-             * @description Number of alerts broadcast via WebSocket
-             */
-            broadcast: number;
-            /**
-             * Message
-             * @description Human-readable status message
-             */
-            message: string;
-            /**
-             * Received
-             * @description Number of alerts received
-             */
-            received: number;
-            /**
-             * Status
-             * @description Processing status (ok or error)
-             */
-            status: string;
-            /**
-             * Stored
-             * @description Number of alerts stored in database
-             */
-            stored: number;
         };
         /**
          * AllPromptsResponse
@@ -14878,6 +14786,169 @@ export interface components {
             name?: string | null;
         };
         /**
+         * ArmingChangeItemResponse
+         * @description A single entry in the arming change history.
+         */
+        ArmingChangeItemResponse: {
+            /**
+             * Changed At
+             * Format: date-time
+             */
+            changed_at: string;
+            /** Exclusions After */
+            exclusions_after?: {
+                [key: string]: string[];
+            };
+            /** From Value */
+            from_value?: unknown | null;
+            /** Id */
+            id: number;
+            /** Kind */
+            kind: string;
+            /** Mode After */
+            mode_after: string;
+            /** Source Kind */
+            source_kind: string;
+            /** Source Name */
+            source_name: string;
+            /** To Value */
+            to_value: unknown;
+        };
+        /**
+         * ArmingChangesListResponse
+         * @description Response for GET /api/arming/changes.
+         */
+        ArmingChangesListResponse: {
+            /** Items */
+            items?: components["schemas"]["ArmingChangeItemResponse"][];
+        };
+        /**
+         * ArmingEventDecisionResponse
+         * @description Response for GET /api/arming/events/{event_id}/decision.
+         */
+        ArmingEventDecisionResponse: {
+            /** Decided By */
+            decided_by: string;
+            /** Event Id */
+            event_id: number;
+            /** Notify */
+            notify: boolean;
+        };
+        /**
+         * ArmingModeCamerasResponse
+         * @description Response for GET/PUT /api/arming/modes/{mode}/cameras.
+         */
+        ArmingModeCamerasResponse: {
+            /**
+             * Excluded Camera Ids
+             * @description Camera IDs excluded from alerting in this mode
+             */
+            excluded_camera_ids?: string[];
+            /**
+             * Mode
+             * @description Arming mode
+             */
+            mode: string;
+        };
+        /**
+         * ArmingModeCamerasUpdateRequest
+         * @description Request for PUT /api/arming/modes/{mode}/cameras.
+         */
+        ArmingModeCamerasUpdateRequest: {
+            /**
+             * Excluded Camera Ids
+             * @description Camera IDs to leave out of alerting in this mode
+             */
+            excluded_camera_ids?: string[];
+        };
+        /**
+         * ArmingScheduleEntrySchema
+         * @description A single weekly schedule entry.
+         */
+        ArmingScheduleEntrySchema: {
+            /**
+             * Days
+             * @description Weekdays (monday..sunday)
+             */
+            days: string[];
+            /**
+             * Id
+             * @description Schedule entry ID
+             */
+            id?: number | null;
+            /**
+             * Mode
+             * @description Target arming mode: home, away, night, or disarmed
+             */
+            mode: string;
+            /**
+             * Time
+             * @description Local time in HH:MM (24-hour)
+             */
+            time: string;
+        };
+        /**
+         * ArmingScheduleResponse
+         * @description Response for GET/PUT /api/arming/schedule.
+         */
+        ArmingScheduleResponse: {
+            /** Items */
+            items?: components["schemas"]["ArmingScheduleEntrySchema"][];
+        };
+        /**
+         * ArmingScheduleUpdateRequest
+         * @description Request for PUT /api/arming/schedule.
+         */
+        ArmingScheduleUpdateRequest: {
+            /** Items */
+            items?: components["schemas"]["ArmingScheduleEntrySchema"][];
+        };
+        /**
+         * ArmingSetModeRequest
+         * @description Request for PUT /api/arming/mode.
+         */
+        ArmingSetModeRequest: {
+            /**
+             * Mode
+             * @description Target arming mode: home, away, night, or disarmed
+             */
+            mode: string;
+        };
+        /**
+         * ArmingStatusResponse
+         * @description Response for GET /api/arming.
+         */
+        ArmingStatusResponse: {
+            /**
+             * By Whom
+             * @description Who or what set the current mode
+             */
+            by_whom: string;
+            /**
+             * Mode
+             * @description Current household arming mode (home, away, night, disarmed)
+             */
+            mode: string;
+            /** @description Next scheduled transition if a schedule is configured */
+            next_scheduled?: components["schemas"]["NextScheduledTransitionResponse"] | null;
+            /**
+             * Since
+             * Format: date-time
+             * @description UTC timestamp when the current mode was set
+             */
+            since: string;
+            /**
+             * Source Kind
+             * @description Source kind (user, webhook, mqtt, schedule, system)
+             */
+            source_kind: string;
+            /**
+             * Source Name
+             * @description Source identifier
+             */
+            source_name: string;
+        };
+        /**
          * AssociatedDetection
          * @description Detection associated with an anomaly for investigation context.
          * @example {
@@ -15224,9 +15295,6 @@ export interface components {
         /**
          * BackupContentInfo
          * @description Information about a single backup content type.
-         *
-         *     Stored inside the backup manifest to track what data is included
-         *     and verify integrity via checksum.
          */
         BackupContentInfo: {
             /**
@@ -15243,18 +15311,12 @@ export interface components {
         /**
          * BackupJobCreate
          * @description Schema for creating a backup job (no parameters needed for full backup).
-         *
-         *     Full system backups export all data without filters. Simply POST
-         *     to the endpoint to create a new backup job.
          * @example {}
          */
         BackupJobCreate: Record<string, never>;
         /**
          * BackupJobProgress
          * @description Progress information for a backup job.
-         *
-         *     Tracks how many tables have been exported and the overall
-         *     progress percentage.
          */
         BackupJobProgress: {
             /**
@@ -15277,16 +15339,13 @@ export interface components {
             /**
              * Total Tables
              * @description Total tables to export
-             * @default 8
+             * @default 12
              */
             total_tables: number;
         };
         /**
          * BackupJobResponse
          * @description Full status response for a backup job.
-         *
-         *     Complete status information for a backup job, including progress,
-         *     timing, result, and any error information.
          */
         BackupJobResponse: {
             /**
@@ -15334,9 +15393,6 @@ export interface components {
         /**
          * BackupJobStartResponse
          * @description Response when creating a backup job.
-         *
-         *     Returns the job ID that can be used to track progress via
-         *     GET /api/backup/{job_id}.
          * @example {
          *       "job_id": "019478a1-b2c3-7def-8901-234567890abc",
          *       "message": "Backup job created. Use GET /api/backup/{job_id} to track progress.",
@@ -15369,8 +15425,6 @@ export interface components {
         /**
          * BackupListItem
          * @description Summary item for backup list.
-         *
-         *     Lightweight representation of a backup for list views.
          */
         BackupListItem: {
             /**
@@ -15394,6 +15448,11 @@ export interface components {
              * @description Backup ID
              */
             id: string;
+            /**
+             * Label
+             * @description Optional label (e.g. safety backup note)
+             */
+            label?: string | null;
             /** @description Job status */
             status: components["schemas"]["BackupJobStatus"];
         };
@@ -15414,10 +15473,6 @@ export interface components {
         /**
          * BackupManifest
          * @description Manifest file stored inside backup ZIP.
-         *
-         *     The manifest is written as manifest.json at the root of the backup
-         *     archive. It contains metadata about the backup and checksums for
-         *     all included data files.
          */
         BackupManifest: {
             /**
@@ -15432,7 +15487,7 @@ export interface components {
             backup_id: string;
             /**
              * Contents
-             * @description Map of content type to info (events, alerts, cameras, etc.)
+             * @description Map of content type to info
              */
             contents?: {
                 [key: string]: components["schemas"]["BackupContentInfo"];
@@ -15444,8 +15499,18 @@ export interface components {
              */
             created_at: string;
             /**
+             * Installation Id
+             * @description Identifier of the installation that created the backup
+             */
+            installation_id?: string | null;
+            /**
+             * Label
+             * @description Optional label (e.g. 'before restore of <backup> at <time>')
+             */
+            label?: string | null;
+            /**
              * Version
-             * @description Backup format version (e.g., '1.0')
+             * @description Backup format version (e.g., '1.1')
              */
             version: string;
         };
@@ -18193,6 +18258,7 @@ export interface components {
          *       "grafana_url": "/grafana",
          *       "log_retention_days": 7,
          *       "retention_days": 30,
+         *       "trash_retention_days": 30,
          *       "version": "0.1.0"
          *     }
          */
@@ -18249,6 +18315,11 @@ export interface components {
              */
             retention_days: number;
             /**
+             * Trash Retention Days
+             * @description Number of days to keep soft-deleted events in Trash before purging (0 disables the Trash clock)
+             */
+            trash_retention_days?: number;
+            /**
              * Version
              * @description Application version
              */
@@ -18297,6 +18368,11 @@ export interface components {
              * @description Number of days to retain events and detections
              */
             retention_days?: number | null;
+            /**
+             * Trash Retention Days
+             * @description Number of days to keep soft-deleted events in Trash before purging (0 disables the Trash clock)
+             */
+            trash_retention_days?: number | null;
         };
         /**
          * ContainerMetrics
@@ -20169,6 +20245,50 @@ export interface components {
             zone_id: number;
         };
         /**
+         * EmptyTrashResponse
+         * @description Response schema for DELETE /api/events/deleted (Empty Trash, B4.4).
+         */
+        EmptyTrashResponse: {
+            /**
+             * Deleted Count
+             * @description Alias for purged_count (number of events permanently deleted)
+             */
+            deleted_count: number;
+            /**
+             * Detections Removed
+             * @description Number of detection rows deleted
+             * @default 0
+             */
+            detections_removed: number;
+            /**
+             * Files Deleted
+             * @description Number of media files deleted
+             * @default 0
+             */
+            files_deleted: number;
+            /**
+             * Files Failed
+             * @description Number of media files that failed to delete
+             * @default 0
+             */
+            files_failed: number;
+            /**
+             * Kept
+             * @description Event IDs kept in Trash because a file deletion failed
+             */
+            kept?: number[];
+            /**
+             * Purged
+             * @description Event IDs permanently purged from Trash
+             */
+            purged?: number[];
+            /**
+             * Purged Count
+             * @description Number of trashed events permanently purged
+             */
+            purged_count: number;
+        };
+        /**
          * EnrichmentModelInfo
          * @description Information about the AI model that produced an enrichment result (NEM-3535).
          *
@@ -21382,6 +21502,11 @@ export interface components {
              * @description Event summary
              */
             summary: string;
+            /**
+             * Verdict
+             * @description Optional VLM verdict (confirmed, uncertain, rejected, verification_failed)
+             */
+            verdict?: string | null;
         };
         /**
          * EventBulkCreateRequest
@@ -26488,12 +26613,22 @@ export interface components {
         };
         /**
          * InboundAlertPayload
-         * @description Payload for creating an external alert.
+         * @description Payload for creating an external alert event on a camera (B4.7 / 4n-arming.md).
          */
         InboundAlertPayload: {
             /**
+             * Camera Id
+             * @description Camera ID associated with the external sensor/alert (required by /alert).
+             */
+            camera_id?: string | null;
+            /**
+             * Idempotency Key
+             * @description Optional caller idempotency key (namespaced per API key fingerprint).
+             */
+            idempotency_key?: string | null;
+            /**
              * Message
-             * @description Alert message.
+             * @description Alert message stored as the external event summary.
              */
             message: string;
             /**
@@ -26511,29 +26646,52 @@ export interface components {
             severity: string;
             /**
              * Source
-             * @description Source system identifier (e.g., 'ifttt', 'zapier').
+             * @description Source system identifier (e.g., 'ifttt', 'home_assistant').
              */
             source: string;
         };
         /**
+         * InboundAlertWebhookResponse
+         * @description Response returned by /alert.
+         */
+        InboundAlertWebhookResponse: {
+            /** Alert Ids */
+            alert_ids?: string[];
+            /** Batch Id */
+            batch_id: string;
+            /** Camera Id */
+            camera_id: string;
+            /** Event Id */
+            event_id: number;
+            /** Notify */
+            notify: boolean;
+            /** Severity */
+            severity: string;
+            /**
+             * Status
+             * @default ok
+             */
+            status: string;
+        };
+        /**
          * InboundArmPayload
-         * @description Payload for arming zones.
+         * @description Payload for arming the household via inbound webhook.
          */
         InboundArmPayload: {
             /**
              * Mode
-             * @description Optional arm mode (full, perimeter, instant).
+             * @description Optional target mode (home, away, night, disarmed; default away).
              */
             mode?: string | null;
             /**
              * Zone Ids
-             * @description Zone IDs to arm. If None, arms all zones.
+             * @description Zone IDs (unsupported; supplying zone_ids returns 422 naming the four modes).
              */
             zone_ids?: string[] | null;
         };
         /**
          * InboundDisarmPayload
-         * @description Payload for disarming zones.
+         * @description Payload for disarming the household via inbound webhook.
          */
         InboundDisarmPayload: {
             /**
@@ -26543,13 +26701,13 @@ export interface components {
             reason?: string | null;
             /**
              * Zone Ids
-             * @description Zone IDs to disarm. If None, disarms all zones.
+             * @description Zone IDs (unsupported; supplying zone_ids returns 422 naming the four modes).
              */
             zone_ids?: string[] | null;
         };
         /**
          * InboundModePayload
-         * @description Payload for setting system mode.
+         * @description Payload for setting the household arming mode.
          */
         InboundModePayload: {
             /**
@@ -26559,9 +26717,34 @@ export interface components {
             mode: string;
         };
         /**
+         * InboundModeWebhookResponse
+         * @description Response returned by /mode, /arm, and /disarm.
+         */
+        InboundModeWebhookResponse: {
+            /** Mode */
+            mode: string;
+            /**
+             * Source Kind
+             * @default webhook
+             */
+            source_kind: string;
+            /** Source Name */
+            source_name: string;
+            /**
+             * Status
+             * @default ok
+             */
+            status: string;
+        };
+        /**
          * InferenceMetrics
          * @description AI inference latency and throughput metrics.
          * @example {
+         *       "ai_vlm_latency_ms": {
+         *         "avg": 2100,
+         *         "p95": 4800,
+         *         "p99": 8200
+         *       },
          *       "nemotron_latency_ms": {
          *         "avg": 2100,
          *         "p95": 4800,
@@ -26575,6 +26758,11 @@ export interface components {
          *         "analysis": 0,
          *         "detection": 0
          *       },
+         *       "rtdetr_latency_ms": {
+         *         "avg": 45,
+         *         "p95": 82,
+         *         "p99": 120
+         *       },
          *       "throughput": {
          *         "events_per_min": 2.1,
          *         "images_per_min": 12.4
@@ -26587,6 +26775,13 @@ export interface components {
          *     }
          */
         InferenceMetrics: {
+            /**
+             * Ai Vlm Latency Ms
+             * @description AI VLM latency stats (avg, p95, p99)
+             */
+            ai_vlm_latency_ms?: {
+                [key: string]: number;
+            } | null;
             /**
              * Nemotron Latency Ms
              * @description Nemotron latency stats (avg, p95, p99)
@@ -26609,6 +26804,13 @@ export interface components {
                 [key: string]: number;
             };
             /**
+             * Rtdetr Latency Ms
+             * @description Legacy detector latency stats alias (avg, p95, p99)
+             */
+            rtdetr_latency_ms?: {
+                [key: string]: number;
+            } | null;
+            /**
              * Throughput
              * @description Throughput metrics (images_per_min, events_per_min)
              */
@@ -26622,6 +26824,80 @@ export interface components {
             yolo26_latency_ms: {
                 [key: string]: number;
             };
+        };
+        /**
+         * InfrastructureAlertItem
+         * @description Active firing infrastructure alert item (matches /ws/events infrastructure_alert.data).
+         */
+        InfrastructureAlertItem: {
+            /**
+             * Alertname
+             * @description Alert name
+             */
+            alertname: string;
+            /**
+             * Component
+             * @description Target component
+             * @default unknown
+             */
+            component: string;
+            /**
+             * Description
+             * @description Detailed description
+             * @default
+             */
+            description: string;
+            /**
+             * Fingerprint
+             * @description Alert fingerprint
+             */
+            fingerprint: string;
+            /**
+             * Receiver
+             * @description Alert receiver name
+             * @default alertmanager
+             */
+            receiver: string;
+            /**
+             * Severity
+             * @description Alert severity
+             * @default info
+             */
+            severity: string;
+            /**
+             * Started At
+             * @description Alert start timestamp (ISO 8601)
+             */
+            started_at?: string | null;
+            /**
+             * Status
+             * @description Alert status (firing)
+             * @default firing
+             */
+            status: string;
+            /**
+             * Summary
+             * @description Short summary
+             * @default
+             */
+            summary: string;
+        };
+        /**
+         * InfrastructureAlertsResponse
+         * @description Response schema for GET /api/system/infrastructure-alerts.
+         */
+        InfrastructureAlertsResponse: {
+            /**
+             * Alerts
+             * @description Active firing infrastructure alerts
+             */
+            alerts?: components["schemas"]["InfrastructureAlertItem"][];
+            /**
+             * Total
+             * @description Number of active firing alerts
+             * @default 0
+             */
+            total: number;
         };
         /**
          * InfrastructureHealthStatus
@@ -30152,6 +30428,23 @@ export interface components {
             status: string;
         };
         /**
+         * NextScheduledTransitionResponse
+         * @description Next scheduled mode transition.
+         */
+        NextScheduledTransitionResponse: {
+            /**
+             * At
+             * Format: date-time
+             * @description UTC timestamp of the next scheduled transition
+             */
+            at: string;
+            /**
+             * Mode
+             * @description Target arming mode (home, away, night, disarmed)
+             */
+            mode: string;
+        };
+        /**
          * NotificationChannel
          * @description Notification channel types.
          * @enum {string}
@@ -31275,6 +31568,8 @@ export interface components {
             ai_models?: {
                 [key: string]: components["schemas"]["AiModelMetrics"] | components["schemas"]["NemotronMetrics"];
             };
+            /** @description AI VLM metrics */
+            ai_vlm?: components["schemas"]["NemotronMetrics"] | null;
             /**
              * Alerts
              * @description Active performance alerts
@@ -31300,12 +31595,16 @@ export interface components {
             inference?: components["schemas"]["InferenceMetrics"] | null;
             /** @description Nemotron-specific metrics */
             nemotron?: components["schemas"]["NemotronMetrics"] | null;
+            /** @description Legacy detector metrics alias */
+            rtdetr?: components["schemas"]["AiModelMetrics"] | null;
             /**
              * Timestamp
              * Format: date-time
              * @description When this update was generated (UTC)
              */
             timestamp?: string;
+            /** @description YOLO26 detector metrics */
+            yolo26?: components["schemas"]["AiModelMetrics"] | null;
         };
         /**
          * PersonAppearance
@@ -32835,12 +33134,6 @@ export interface components {
              */
             stopped_at: string;
         };
-        /**
-         * PrometheusAlertStatus
-         * @description Prometheus alert status values.
-         * @enum {string}
-         */
-        PrometheusAlertStatus: "firing" | "resolved";
         /**
          * PromptDiffEntry
          * @description Diff entry for a single model's configuration.
@@ -34786,9 +35079,6 @@ export interface components {
         /**
          * RestoreJobProgress
          * @description Progress information for a restore job.
-         *
-         *     Tracks how many tables have been restored and the overall
-         *     progress percentage.
          */
         RestoreJobProgress: {
             /**
@@ -34811,18 +35101,22 @@ export interface components {
             /**
              * Total Tables
              * @description Total tables to restore
-             * @default 8
+             * @default 12
              */
             total_tables: number;
         };
         /**
          * RestoreJobResponse
          * @description Full status response for a restore job.
-         *
-         *     Complete status information for a restore job, including progress,
-         *     source backup info, timing, result, and any error information.
          */
         RestoreJobResponse: {
+            /**
+             * Added Rows
+             * @description Added rows by name per table
+             */
+            added_rows?: {
+                [key: string]: string[];
+            } | null;
             /**
              * Backup Created At
              * @description When source backup was created
@@ -34833,6 +35127,11 @@ export interface components {
              * @description Source backup ID from manifest
              */
             backup_id?: string | null;
+            /**
+             * Cleared Known Person Links
+             * @description Household member names whose known-person links were cleared
+             */
+            cleared_known_person_links?: string[] | null;
             /**
              * Completed At
              * @description Job completion timestamp
@@ -34863,19 +35162,38 @@ export interface components {
             } | null;
             progress?: components["schemas"]["RestoreJobProgress"];
             /**
+             * Safety Backup Id
+             * @description Automatic safety backup job ID created before restore
+             */
+            safety_backup_id?: string | null;
+            /**
+             * Same Installation
+             * @description Whether the restored archive came from this installation
+             */
+            same_installation?: boolean | null;
+            /**
+             * Skipped Tables
+             * @description Tables skipped by version adapter (e.g. events, alerts on 1.0 archives)
+             */
+            skipped_tables?: string[] | null;
+            /**
              * Started At
              * @description Job start timestamp
              */
             started_at?: string | null;
             /** @description Current job status */
             status: components["schemas"]["RestoreJobStatus"];
+            /**
+             * Tables
+             * @description Per-table restore breakdown (updated, inserted, replaced, kept)
+             */
+            tables?: {
+                [key: string]: components["schemas"]["TableRestoreSummary"];
+            } | null;
         };
         /**
          * RestoreJobStartResponse
          * @description Response when starting a restore job.
-         *
-         *     Returns the job ID that can be used to track progress via
-         *     GET /api/backup/restore/{job_id}.
          */
         RestoreJobStartResponse: {
             /**
@@ -37242,6 +37560,36 @@ export interface components {
             uptime_seconds: number;
         };
         /**
+         * TableRestoreSummary
+         * @description Per-table restore statistics.
+         */
+        TableRestoreSummary: {
+            /**
+             * Inserted
+             * @description Rows added
+             * @default 0
+             */
+            inserted: number;
+            /**
+             * Kept
+             * @description Existing rows not in the backup and kept
+             * @default 0
+             */
+            kept: number;
+            /**
+             * Replaced
+             * @description Rows replaced (e.g. baselines)
+             * @default 0
+             */
+            replaced: number;
+            /**
+             * Updated
+             * @description Rows updated in place
+             * @default 0
+             */
+            updated: number;
+        };
+        /**
          * TargetHealth
          * @description Health status for a single Prometheus scrape target.
          * @example {
@@ -39108,6 +39456,12 @@ export interface components {
              */
             name: string;
             /**
+             * On Local Network
+             * @description Allow private/unique-local targets and plain HTTP for this webhook (the household's own network). Loopback, link-local and metadata addresses stay blocked either way.
+             * @default false
+             */
+            on_local_network: boolean;
+            /**
              * Payload Template
              * @description Custom payload template (Jinja2)
              */
@@ -39427,6 +39781,12 @@ export interface components {
              * @description Webhook name
              */
             name: string;
+            /**
+             * On Local Network
+             * @description Whether private/unique-local targets are allowed for this webhook
+             * @default false
+             */
+            on_local_network: boolean;
             /** Payload Template */
             payload_template?: string | null;
             /** Retry Delay Seconds */
@@ -39570,6 +39930,11 @@ export interface components {
             max_retries?: number | null;
             /** Name */
             name?: string | null;
+            /**
+             * On Local Network
+             * @description Set true to allow private/unique-local targets and plain HTTP for this webhook
+             */
+            on_local_network?: boolean | null;
             /** Payload Template */
             payload_template?: string | null;
             /** Retry Delay Seconds */
@@ -43574,6 +43939,240 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content?: never;
+            };
+        };
+    };
+    arming_read_arming_status: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ArmingStatusResponse"];
+                };
+            };
+        };
+    };
+    arming_read_arming_changes: {
+        parameters: {
+            query?: {
+                limit?: number;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ArmingChangesListResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    arming_read_event_notify_decision: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                event_id: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ArmingEventDecisionResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    arming_update_arming_mode: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ArmingSetModeRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ArmingStatusResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    arming_read_mode_cameras: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                mode: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ArmingModeCamerasResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    arming_update_mode_cameras: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                mode: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ArmingModeCamerasUpdateRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ArmingModeCamerasResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    arming_read_arming_schedule: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ArmingScheduleResponse"];
+                };
+            };
+        };
+    };
+    arming_update_arming_schedule: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ArmingScheduleUpdateRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ArmingScheduleResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
             };
         };
     };
@@ -48018,6 +48617,8 @@ export interface operations {
                 risk_level?: string | null;
                 /** @description Filter by VLM verification verdict (confirmed, rejected, uncertain, verification_failed) or 'none' for events never verified. Anything else is a 422, never an empty list - a typo'd verdict must not read as a false all-clear. */
                 verdict?: ("confirmed" | "rejected" | "uncertain" | "verification_failed" | "none") | null;
+                /** @description Minimum detector confidence across the event's detections (0.0-1.0). An event matches when ANY of its detections is at or above the threshold. 0 means the event has at least one detection. Values outside 0 to 1 are a 422. */
+                min_confidence?: number | null;
                 /** @description Filter by start date (ISO format) */
                 start_date?: string | null;
                 /** @description Filter by end date (ISO format) */
@@ -48294,6 +48895,26 @@ export interface operations {
             };
         };
     };
+    events_empty_trash: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Trash emptied */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["EmptyTrashResponse"];
+                };
+            };
+        };
+    };
     events_export_events: {
         parameters: {
             query?: {
@@ -48545,6 +49166,8 @@ export interface operations {
     events_delete_event: {
         parameters: {
             query?: {
+                /** @description If True, permanently purge a soft-deleted event from Trash */
+                permanent?: boolean;
                 /** @description Cascade soft delete to related detections */
                 cascade?: boolean;
             };
@@ -48570,7 +49193,7 @@ export interface operations {
                 };
                 content?: never;
             };
-            /** @description Event already deleted */
+            /** @description Event already deleted or not in Trash for permanent delete */
             409: {
                 headers: {
                     [name: string]: unknown;
@@ -54368,6 +54991,26 @@ export interface operations {
             };
         };
     };
+    system_get_infrastructure_alerts: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["InfrastructureAlertsResponse"];
+                };
+            };
+        };
+    };
     system_get_model_zoo_latency_history: {
         parameters: {
             query: {
@@ -54951,7 +55594,9 @@ export interface operations {
             path: {
                 name: string;
             };
-            cookie?: never;
+            cookie?: {
+                session_id?: string | null;
+            };
         };
         requestBody?: never;
         responses: {
@@ -54963,6 +55608,20 @@ export interface operations {
                 content: {
                     "application/json": components["schemas"]["ServiceActionResponse"];
                 };
+            };
+            /** @description Not authenticated */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Admin session required */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
             };
             /** @description Service not found */
             404: {
@@ -55003,7 +55662,9 @@ export interface operations {
             path: {
                 name: string;
             };
-            cookie?: never;
+            cookie?: {
+                session_id?: string | null;
+            };
         };
         requestBody?: never;
         responses: {
@@ -55015,6 +55676,20 @@ export interface operations {
                 content: {
                     "application/json": components["schemas"]["ServiceActionResponse"];
                 };
+            };
+            /** @description Not authenticated */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Admin session required */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
             };
             /** @description Service not found */
             404: {
@@ -55055,7 +55730,9 @@ export interface operations {
             path: {
                 name: string;
             };
-            cookie?: never;
+            cookie?: {
+                session_id?: string | null;
+            };
         };
         requestBody?: never;
         responses: {
@@ -55068,8 +55745,15 @@ export interface operations {
                     "application/json": components["schemas"]["ServiceActionResponse"];
                 };
             };
-            /** @description Bad request - Service is disabled */
-            400: {
+            /** @description Not authenticated */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Admin session required */
+            403: {
                 headers: {
                     [name: string]: unknown;
                 };
@@ -55114,7 +55798,9 @@ export interface operations {
             path: {
                 name: string;
             };
-            cookie?: never;
+            cookie?: {
+                session_id?: string | null;
+            };
         };
         requestBody?: never;
         responses: {
@@ -55129,6 +55815,20 @@ export interface operations {
             };
             /** @description Bad request - Service already running or disabled */
             400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Not authenticated */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Admin session required */
+            403: {
                 headers: {
                     [name: string]: unknown;
                 };
@@ -55377,7 +56077,9 @@ export interface operations {
             path: {
                 worker_name: string;
             };
-            cookie?: never;
+            cookie?: {
+                session_id?: string | null;
+            };
         };
         requestBody?: never;
         responses: {
@@ -55408,7 +56110,9 @@ export interface operations {
             path: {
                 worker_name: string;
             };
-            cookie?: never;
+            cookie?: {
+                session_id?: string | null;
+            };
         };
         requestBody?: never;
         responses: {
@@ -55439,7 +56143,9 @@ export interface operations {
             path: {
                 worker_name: string;
             };
-            cookie?: never;
+            cookie?: {
+                session_id?: string | null;
+            };
         };
         requestBody?: never;
         responses: {
@@ -55604,44 +56310,6 @@ export interface operations {
             };
             /** @description Validation error */
             422: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content?: never;
-            };
-        };
-    };
-    alertmanager_receive_alertmanager_webhook: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        requestBody: {
-            content: {
-                "application/json": components["schemas"]["AlertmanagerWebhook"];
-            };
-        };
-        responses: {
-            /** @description Webhook received and processed */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["AlertmanagerWebhookResponse"];
-                };
-            };
-            /** @description Invalid payload format */
-            422: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content?: never;
-            };
-            /** @description Internal server error */
-            500: {
                 headers: {
                     [name: string]: unknown;
                 };
@@ -56443,6 +57111,15 @@ export interface operations {
             };
         };
         responses: {
+            /** @description Webhook processed */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["InboundAlertWebhookResponse"];
+                };
+            };
             /** @description Authentication failed */
             401: {
                 headers: {
@@ -56456,15 +57133,6 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content?: never;
-            };
-            /** @description Not implemented — UR-12; this endpoint takes no action */
-            501: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": unknown;
-                };
             };
         };
     };
@@ -56483,6 +57151,15 @@ export interface operations {
             };
         };
         responses: {
+            /** @description Webhook processed */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["InboundModeWebhookResponse"];
+                };
+            };
             /** @description Authentication failed */
             401: {
                 headers: {
@@ -56496,15 +57173,6 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content?: never;
-            };
-            /** @description Not implemented — UR-12; this endpoint takes no action */
-            501: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": unknown;
-                };
             };
         };
     };
@@ -56523,6 +57191,15 @@ export interface operations {
             };
         };
         responses: {
+            /** @description Webhook processed */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["InboundModeWebhookResponse"];
+                };
+            };
             /** @description Authentication failed */
             401: {
                 headers: {
@@ -56536,15 +57213,6 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content?: never;
-            };
-            /** @description Not implemented — UR-12; this endpoint takes no action */
-            501: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": unknown;
-                };
             };
         };
     };
@@ -56563,6 +57231,15 @@ export interface operations {
             };
         };
         responses: {
+            /** @description Webhook processed */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["InboundModeWebhookResponse"];
+                };
+            };
             /** @description Authentication failed */
             401: {
                 headers: {
@@ -56576,15 +57253,6 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content?: never;
-            };
-            /** @description Not implemented — UR-12; this endpoint takes no action */
-            501: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": unknown;
-                };
             };
         };
     };

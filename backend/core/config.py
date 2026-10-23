@@ -203,6 +203,11 @@ class OrchestratorSettings(BaseSettings):
         validation_alias="ALERTMANAGER_PORT",
         description="Alertmanager container service port for health checks.",
     )
+    alertmanager_url: str = Field(
+        default="http://alertmanager:9093",
+        validation_alias="ALERTMANAGER_URL",
+        description="Alertmanager base URL for proxying active infrastructure alerts (B4.11).",
+    )
     blackbox_exporter_port: int = Field(
         9115,
         ge=1,
@@ -429,6 +434,16 @@ class Settings(BaseSettings):
         default=None,
         description="Secret key for signing JWT tokens. MUST be set for production. "
         'Generate with: python -c "import secrets; print(secrets.token_urlsafe(48))" '
+        "Minimum 32 characters recommended for security.",
+    )
+
+    # Alert-delivery webhook signing secrets (B4.2): recipient webhook channels
+    # are stored Fernet-encrypted under this key. MUST be set when any webhook
+    # recipient channel exists; generate the same way as jwt_secret.
+    secrets_master_key: SecretStr | None = Field(
+        default=None,
+        description="Master key for encrypting stored secrets (webhook signing "
+        'secrets). Generate with: python -c "import secrets; print(secrets.token_urlsafe(48))" '
         "Minimum 32 characters recommended for security.",
     )
     # OD-12 (B1.5): the one auth switch. backend/api/middleware/auth.py reads it.
@@ -759,6 +774,11 @@ class Settings(BaseSettings):
         gt=0,
         description="Number of days to retain events and detections",
     )
+    trash_retention_days: int = Field(
+        default=30,
+        ge=0,
+        description="Number of days to keep soft-deleted events in Trash before purging (0 disables the Trash clock)",
+    )
 
     # Batch processing settings
     batch_window_seconds: int = Field(
@@ -1082,6 +1102,14 @@ class Settings(BaseSettings):
         validation_alias="VLM_PARALLEL",
         description="llama.cpp --parallel slots on the ai-vlm service "
         "(VLM_PARALLEL). Default 2 matches the shipped ai-vlm service.",
+    )
+    vlm_sleep_idle_seconds: int = Field(
+        default=300,
+        ge=0,
+        validation_alias="VLM_SLEEP_IDLE_SECONDS",
+        description="Idle seconds before ai-vlm unloads weights to CPU RAM and "
+        "enters the 'idle' (asleep) state (VLM_SLEEP_IDLE_SECONDS). Default 300 "
+        "matches the shipped ai-vlm service; 0 disables idle transition.",
     )
     vlm_context_window: int = Field(
         # Declared in llama.cpp's UNITS (the total pool) so the default

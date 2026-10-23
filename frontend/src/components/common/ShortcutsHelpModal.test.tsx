@@ -4,11 +4,12 @@
  * This component displays available keyboard shortcuts when ? is pressed.
  */
 
-import { render, screen, waitFor } from '@testing-library/react';
+import { screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { describe, expect, it, vi, beforeEach } from 'vitest';
 
 import ShortcutsHelpModal from './ShortcutsHelpModal';
+import { renderWithNavigation as render } from '../../test-utils';
 
 describe('ShortcutsHelpModal', () => {
   beforeEach(() => {
@@ -84,6 +85,10 @@ describe('ShortcutsHelpModal', () => {
       expect(gKeys.length).toBeGreaterThan(0);
       expect(screen.getByText('d')).toBeInTheDocument();
       expect(screen.getByText('t')).toBeInTheDocument();
+
+      // Advanced chords (g e, g y, g o) are marked with the Advanced badge (F4.9)
+      const advancedBadges = screen.getAllByTestId('shortcut-advanced-badge');
+      expect(advancedBadges).toHaveLength(3);
     });
 
     it('displays j/k navigation shortcuts', () => {

@@ -28,10 +28,13 @@ import json
 import os
 import re
 import secrets
+import shutil
 import signal
 import socket
 import subprocess
 import sys
+import threading
+import time
 from pathlib import Path
 from typing import Any
 
@@ -907,12 +910,19 @@ def test_the_scenario_book_outcomes_survive_a_fixture_image_swap() -> None:
     """
     book = json.loads((fc.SCENARIO_DIR / "scenarios.json").read_text(encoding="utf-8"))
     scenarios = book["scenarios"]
+    # The r287 swap's five outcomes keep their positions. F4.4's golden path
+    # appends two scenarios AFTER them (order matters: dashboard-drop.spec.ts
+    # claims the book's first fast confirmed non-harness-smoke entry, which
+    # must stay person-at-door), and pins their thresholds so the confidence
+    # band the F4.4 spec asserts is a book fact, not a hope.
     assert [s["name"] for s in scenarios] == [
         "person-at-door",
         "cat-on-porch",
         "car-in-driveway",
         "slow-reply",
         "harness-smoke",
+        "f4.4-gold-high",
+        "f4.4-gold-rejected",
     ]
     # The verdicts the tiers pin: person 82 confirmed, cat 4 rejected, car 45
     # uncertain (the DO-1 medium band), slow-reply 70 with its 40 s delay, smoke 61.
@@ -923,8 +933,29 @@ def test_the_scenario_book_outcomes_survive_a_fixture_image_swap() -> None:
     assert by_name["slow-reply"]["verdict"]["risk_score"] == 70
     assert by_name["slow-reply"]["reply_delay_seconds"] == 40
     assert by_name["harness-smoke"]["verdict"]["risk_score"] == 61
+    # F4.4's own pins: the High band (0.85) matches the 0.90 event and NOT the
+    # 0.75 one; Medium+ (0.70) matches both; the rejected scenario serves the
+    # Rejected filter. Both risk_scores sit under the medium/high boundary (60)
+    # so neither can perturb assertSoleAlertIsSmoke's one-alert pin.
+    assert by_name["f4.4-gold-high"]["detections"][0]["confidence"] == 0.9
+    assert by_name["f4.4-gold-high"]["verdict"]["verdict"] == "confirmed"
+    assert by_name["f4.4-gold-high"]["verdict"]["risk_score"] < 60
+    assert by_name["f4.4-gold-rejected"]["detections"][0]["confidence"] == 0.75
+    assert by_name["f4.4-gold-rejected"]["verdict"]["verdict"] == "rejected"
+    assert by_name["f4.4-gold-rejected"]["verdict"]["risk_score"] < 60
+    # The several-detections clause: the high scenario carries more than one,
+    # every pre-existing scenario still carries exactly one.
+    assert len(by_name["f4.4-gold-high"]["detections"]) > 1
+    for name in (
+        "person-at-door",
+        "cat-on-porch",
+        "car-in-driveway",
+        "slow-reply",
+        "harness-smoke",
+    ):
+        assert len(by_name[name]["detections"]) == 1
     # Routing still works: the book the fake loads at startup resolves every
-    # image, hashes it, and the five digests stay distinct.
+    # image, hashes it, and the digests stay distinct.
     loaded = (
         fc._load_scenario_book_for_test() if hasattr(fc, "_load_scenario_book_for_test") else None
     )
@@ -932,9 +963,9 @@ def test_the_scenario_book_outcomes_survive_a_fixture_image_swap() -> None:
         from backend.ai_contract.fake.scenarios import ScenarioBook
 
         loaded = ScenarioBook.load(fc.SCENARIO_DIR)
-    assert len(loaded) == 5, len(loaded)
+    assert len(loaded) == 7, len(loaded)
     digests = {s.digest for s in loaded}
-    assert len(digests) == 5, "two scenarios share an image"
+    assert len(digests) == 7, "two scenarios share an image"
 
 
 def test_drop_lands_the_image_in_the_camera_folder(tmp_path: Path) -> None:
@@ -4954,7 +4985,7 @@ def _fake_gateway_body() -> dict[str, Any]:
             "8090",
             "--no-server-header",
         ],
-        "environment": {"FAKE_VLM_BUILD_INFO": "b7972-fake-ai"},
+        "environment": {"FAKE_VLM_BUILD_INFO": "b11819-fake-ai"},
         "healthcheck": {
             "test": [
                 "CMD",
@@ -5177,7 +5208,7 @@ def _fake_vlm_body() -> dict[str, Any]:
             "8098",
             "--no-server-header",
         ],
-        "environment": {"FAKE_VLM_BUILD_INFO": "b7972-fake-ai"},
+        "environment": {"FAKE_VLM_BUILD_INFO": "b11819-fake-ai"},
         "healthcheck": {
             "test": [
                 "CMD",
@@ -6317,6 +6348,9 @@ class _WiredRun:
         self.summary: dict[str, Any] = {}
         self.started = True
         self.prod_shape = True
+        # the lifecycle field _finish's relay gate reads on every run now
+        # (Run.__init__ sets it to None; a knob-off run never arms one)
+        self.relay: Any = None
         self.record = record if record is not None else []
         self.fail_in = fail_in
         self.cleanup = cleanup
@@ -7502,6 +7536,485 @@ def test_gpu_ai_services_absent_or_empty_leaves_the_backend_untouched(
     assert "NVIDIA_VISIBLE_DEVICES" not in baseline["services"]["backend"]["environment"]
 
 
+# ---------------------------------------------------------------------------
+# [O2.5 venue fixes, ruling 287] the two-hop VLM relay: the knob is opt-in
+# (PROD_SHAPE_VLM_RELAY=1), refused at two checkpoints (render-time beside the
+# TRITON_IMAGE gate; parse-time beside the shard/golden-spec gates), and the
+# sidecar + host-half shape follows the relay's five lessons. Tested at the two
+# levels the other venue transforms are: the pure boot-document transform, and
+# the arm/join lifecycle through Run.up / _finish.
+# ---------------------------------------------------------------------------
+
+
+def _relay_doc() -> dict[str, Any]:
+    """A prod-shaped render whose backend is BUILD-only, as the prod stack's is
+    (docker-compose.prod.yml's backend declares no image:): the relay derives the
+    sidecar's image from that build, so the fixture must carry it -- a declared-image
+    backend is drift the transform refuses by name."""
+    doc = _prod_shape_doc()
+    backend = doc["services"]["backend"]
+    del backend["image"]
+    backend["build"] = {"context": "./", "dockerfile": "backend/Dockerfile", "target": "prod"}
+    return doc
+
+
+def _short_run_root(request: pytest.FixtureRequest) -> Path:
+    """A run root short enough to bind an AF_UNIX socket under.
+
+    ``sun_path`` holds 108 bytes and pytest's ``tmp_path`` hashes its test names
+    past that -- the default FEATURE_CHECK_ROOT is ``/tmp/hsi-feature-check`` for
+    the same reason. This mirrors the venue's own shape: a short root under /tmp,
+    unique per test, removed afterwards.
+    """
+    root = Path("/tmp") / f"fc-relay-{os.getpid()}-{secrets.token_hex(3)}"  # noqa: S108
+    request.addfinalizer(lambda: shutil.rmtree(root, ignore_errors=True))
+    return root
+
+
+def test_relay_knob_off_leaves_the_prod_render_byte_identical() -> None:
+    # The no-change pin, both venues: with the knob unset the transform adds no
+    # sidecar, no depends_on entry, and AI_VLM_URL keeps the form it already had
+    # -- the relay keys never appear in a render that did not ask for them.
+    for vlm_url in (None, "http://10.0.0.5:8123"):
+        plain = fc.as_prod_shape_deployment(_relay_doc(), vlm_url=vlm_url)
+        assert fc.VlmRelay.SERVICE not in plain["services"]
+        assert fc.VlmRelay.SERVICE not in plain["services"]["backend"].get("depends_on", {})
+        assert "vlm_container_url" not in plain["services"]["backend"]["environment"]
+        assert not any("relay" in change for change in plain["_device_changes"]), plain[
+            "_device_changes"
+        ]
+
+
+def test_relay_knob_on_adds_the_sidecar_with_the_backend_derived_image(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    # The sidecar's full shape. The image is the backend's DERIVED name
+    # (`<project>-backend:latest`), not a literal from the document: compose config
+    # bakes no image for a build-only service, and an up against a nameless service
+    # pulls first -- the pull-denied shape the prebuild exists to prevent. The run
+    # dir's parent IS the run's project (Run.__init__: dir = root / project), so the
+    # derived name is pinned here through build_images itself, the same derivation
+    # prebuild_images and `up --no-build` use. tmp_path plays the run root: the
+    # run dir hangs directly off it, its name IS the project, as Run.__init__ lays
+    # them out.
+    run_dir = tmp_path / "hsi-check-x"
+    run_dir.mkdir(parents=True)
+    doc = _relay_doc()
+    with monkeypatch.context() as patch:
+        patch.setenv("PROD_SHAPE_VLM_RELAY", "1")
+        out = fc.as_prod_shape_deployment(doc, vlm_url="http://10.0.0.5:8123", run_dir=run_dir)
+    sidecar = out["services"][fc.VlmRelay.SERVICE]
+    # the derived name, through the same derivation prebuild and up use: the
+    # run dir's parent is the run root and the run dir's name is the project
+    # (Run.__init__: dir = root / project), so the sidecar must name the image
+    # build_images records for THAT project -- never a literal, never a pull.
+    project = run_dir.name
+    assert sidecar["image"] == f"{project}-backend:latest"
+    assert sidecar["image"] == fc.build_images(doc, project=project)["backend"]
+    # lesson 4 applied literally: the backend image's own ENTRYPOINT would eat
+    # the relay argv.
+    assert sidecar["entrypoint"] == [
+        "python3",
+        "/relay/vlm_relay.py",
+        "tcp2unix",
+        f"0.0.0.0:{fc.VlmRelay.PORT}",
+        "/relay/relay.sock",
+    ]
+    assert sidecar["networks"] == {"security-net": None}
+    assert sidecar["volumes"] == [
+        {
+            "type": "bind",
+            "source": str(run_dir / "relay"),
+            "target": "/relay",
+            "read_only": True,
+        }
+    ]
+    assert "ports" not in sidecar, "the sidecar publishes nothing"
+    health = sidecar["healthcheck"]
+    assert health["test"][0] == "CMD" and "relay.sock" in " ".join(health["test"])
+    backend = out["services"]["backend"]
+    assert backend["depends_on"][fc.VlmRelay.SERVICE] == {"condition": "service_healthy"}
+    assert backend["environment"]["AI_VLM_URL"] == fc.VlmRelay.RELAY_URL
+    # the render is NOT mutated: the artifact an operator reads stays compose's
+    assert "agent-gpu-relay" not in _prod_shape_doc()["services"]
+
+
+def test_relay_knob_on_records_the_three_changes_and_never_mutates_the_input(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    # The record duty (ruling 256's shape): each of the three changes names
+    # itself in device_changes, in the per-change record the summary lifts. The
+    # input document is unchanged -- the artifact an operator reads is what
+    # compose produced, and a transform that edits in place would leak into it.
+    run_dir = tmp_path / "hsi-check-x"  # tmp_path plays the run root: root / project
+    run_dir.mkdir(parents=True)
+    doc = _relay_doc()
+    with monkeypatch.context() as patch:
+        patch.setenv("PROD_SHAPE_VLM_RELAY", "1")
+        out = fc.as_prod_shape_deployment(doc, vlm_url="http://10.0.0.5:8123", run_dir=run_dir)
+    changes = out["_device_changes"]
+    assert (
+        f"{fc.VlmRelay.SERVICE}: added (the relay sidecar; no published ports, security-net only)"
+        in changes
+    )
+    assert "backend: depends_on agent-gpu-relay (service_healthy) added" in changes
+    assert f"backend: AI_VLM_URL set to {fc.VlmRelay.RELAY_URL} (the relay form)" in changes
+    assert out["services"]["backend"]["environment"]["AI_VLM_URL"] == fc.VlmRelay.RELAY_URL
+    assert "agent-gpu-relay" not in json.dumps(doc)
+
+
+def test_relay_render_refused_without_the_real_gateway_venue(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    # Render-time gate, beside PROD_SHAPE_TRITON_IMAGE's: the knob belongs to
+    # the real-gateway venue only. Without a lease there is nothing to relay to,
+    # and without a run dir the sidecar's bind has no source -- the refusal
+    # names both, by the venue's own name. A fourth refusal pins the drift arm:
+    # a backend that boots a declared image (not prod's build-only shape) has
+    # no derived name for the sidecar, and naming what it boots is the record
+    # the operator reads.
+    with monkeypatch.context() as patch:
+        patch.setenv("PROD_SHAPE_VLM_RELAY", "1")
+        with pytest.raises(fc.HarnessError, match="PROD_SHAPE_VLM_RELAY"):
+            fc.as_prod_shape_deployment(_relay_doc(), vlm_url=None, run_dir=tmp_path)
+        with pytest.raises(fc.HarnessError, match="PROD_SHAPE_VLM_RELAY"):
+            fc.as_prod_shape_deployment(_relay_doc(), vlm_url="http://10.0.0.5:8123", run_dir=None)
+        with pytest.raises(fc.HarnessError, match="declares no build"):
+            fc.as_prod_shape_deployment(
+                _prod_shape_doc(), vlm_url="http://10.0.0.5:8123", run_dir=tmp_path
+            )
+
+
+def test_relay_knob_refused_outside_the_real_gateway_shape(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    # Parse-time gate, beside the shard and golden-spec gates: render()
+    # dispatches away before the transform on --fake and on plain --real, where
+    # every PROD_SHAPE_* knob is dormant -- a knob set there would silently
+    # witness the wrong deployment. Refused before any engine call, naming the
+    # venue it belongs to.
+    for argv in (["--fake"], ["--real"], ["--prod-shape"]):
+        called: list[Any] = []
+        # bound per iteration (ruff B023): the stub must record THIS argv's calls
+        monkeypatch.setattr(
+            fc, "run_check", lambda *a, _called=called, **_k: _called.append(a) or 0
+        )
+        with monkeypatch.context() as patch:
+            patch.setenv("PROD_SHAPE_VLM_RELAY", "1")
+            with pytest.raises(SystemExit) as caught:
+                fc.main(argv)
+        assert caught.value.code == 2
+        assert called == [], f"the refusal must precede any run: {argv}"
+
+
+def test_relay_knob_reaches_run_check_only_on_the_real_gateway_shape(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    # The gate's positive half: with --real --prod-shape the knob passes the
+    # parse gate and reaches run_check in real mode -- the only shape where the
+    # transform can apply it, and the venue whose render-time gate takes over.
+    monkeypatch.setenv(
+        "AGENT_GPU_LIBRARY",
+        str(Path("/tmp") / "stub-library"),  # noqa: S108 - a name; the venue check is stubbed
+    )
+    monkeypatch.setattr(
+        fc, "real_unavailable", lambda _environ: None
+    )  # the venue is available in this test's world
+    seen: list[tuple[str, bool]] = []
+    monkeypatch.setattr(
+        fc, "run_check", lambda args, *, mode: seen.append((mode, args.prod_shape)) or 0
+    )
+    with monkeypatch.context() as patch:
+        patch.setenv("PROD_SHAPE_VLM_RELAY", "1")
+        assert fc.main(["--real", "--prod-shape"]) == 0
+    assert seen == [("real", True)]
+
+
+def test_the_url_gates_still_refuse_the_relay_form() -> None:
+    # The negative probes for the unchanged gate: the relay URL is a
+    # compose-internal name that reaches the backend as a recorded env value,
+    # never through the pool-URL gates -- a knob-on run whose gates started
+    # accepting the relay form would widen every run's reach. Each refusal is
+    # the existing one, unchanged.
+    for gate in (
+        lambda url: fc.vlm_dial_url(url, 18123, alias_resolves=lambda _name: True),
+        lambda url: fc._require_pool_url(url, 18123, dialed="a run dials only"),
+    ):
+        with pytest.raises(fc.HarnessError, match="a run reaches only"):
+            gate(fc.VlmRelay.RELAY_URL)
+    with pytest.raises(fc.HarnessError, match="a run reaches only"):
+        fc.agent_gpu_url(f"port 8098 -> {fc.VlmRelay.RELAY_URL}\n")
+
+
+def test_a_failed_boot_on_the_relay_knob_names_the_host_half_hop(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path, request: pytest.FixtureRequest
+) -> None:
+    # The boot-failure chain's relay clause: when up() dies with the knob on,
+    # the message carries the host half's own dial accounting -- which hop
+    # broke, in the half's own numbers. The half is armed BEFORE the boot
+    # (the arm point's whole point), so a compose failure with the sidecar
+    # pair broken reads the half's own state, not a silent zero; the summary
+    # already names the relay form the backend was handed.
+    monkeypatch.setenv("PROD_SHAPE_VLM_RELAY", "1")
+
+    class _RelayVlm:
+        url = "http://host.docker.internal:18100"
+        host_port = 18100
+
+    def deployment(self: Any, *args: str, **kwargs: Any) -> subprocess.CompletedProcess[str]:
+        raise fc.HarnessError(f"docker compose … up … exited 1: {_COMPOSE_BUILD_FAILURE}")
+
+    monkeypatch.setattr(fc.Run, "deployment", deployment)
+
+    def unreachable(self: Any, url: str) -> None:
+        raise fc.HarnessError(f"the backend cannot reach the VLM at {url}, or is not running")
+
+    monkeypatch.setattr(fc.Run, "check_vlm_reach", unreachable)
+    run = fc.Run(engine="docker", root=_short_run_root(request), image_tag="test", mode="real")
+    run.dir.mkdir(parents=True)
+    with pytest.raises(fc.HarnessError) as raised:
+        run.up(vlm=_RelayVlm())
+    message = str(raised.value)
+    # the reach probe dials the form the backend itself got -- the relay URL,
+    # not the alias -- so the failure names the wire that actually failed.
+    assert "cannot reach the VLM at http://agent-gpu-relay:8098" in message, message[:400]
+    # the hop line cites the half's own fields -- host, port, its dial count --
+    # all three, since a count alone cannot distinguish "never dialed" from
+    # "dialed and failed".
+    assert "the relay host half dialed 127.0.0.1:18100" in message, message[:400]
+    assert str(run.relay.dials) in message, message[:400]
+    # the arm's own record stands after a failed boot (join() rewrites it at
+    # teardown; the run record between boot and finish says what armed).
+    assert run.summary["results"]["vlm_relay"] == "ok"
+    assert run.summary["vlm_container_url"] == fc.VlmRelay.RELAY_URL
+    assert run.relay is not None and run.relay.started
+
+    # _finish's gate: the armed half joins on the failed-boot path too, the
+    # whole reason the arm point is inside up() after `started` flips.
+    def clean_teardown(self: Any, before: Any) -> tuple[list[str], list[str]]:
+        return [], []
+
+    monkeypatch.setattr(fc.Run, "teardown", clean_teardown)
+    status = fc._finish(run, fc.Snapshot.from_engine([], []))
+    assert run.relay is None, "the armed half must not survive _finish"
+    assert run.summary["results"]["vlm_relay"] == "stopped"
+    assert not run.dir.joinpath("relay", "relay.sock").exists()
+    # a knob-on failed boot does not change the exit contract: teardown clean
+    # is EXIT_OK, as today.
+    assert status == fc.EXIT_OK
+
+
+def test_the_relay_host_half_serves_and_joins_by_run_dir_marker(
+    monkeypatch: pytest.MonkeyPatch, request: pytest.FixtureRequest
+) -> None:
+    # The arm/join lifecycle, end to end on real sockets: arm() vendors the
+    # script into the run dir (its path IS the teardown marker), binds the
+    # socket, and a dial through it crosses both hops the probe measured --
+    # the byte sent in comes back from the stand-in VLM, which echoes it.
+    # join() stops the thread and unlinks the socket: nothing the run armed
+    # survives the run.
+    run = fc.Run(engine="docker", root=_short_run_root(request), image_tag="test", mode="real")
+    run.dir.mkdir(parents=True)
+
+    with socket.socket() as vlm_stand_in:
+        vlm_stand_in.bind(("127.0.0.1", 0))
+        vlm_stand_in.listen(4)
+
+        def echo() -> None:
+            conn, _ = vlm_stand_in.accept()
+            with conn:
+                conn.settimeout(5)
+                try:
+                    conn.sendall(conn.recv(1024))
+                except OSError:
+                    pass
+
+        acceptor = threading.Thread(target=echo)
+        acceptor.start()
+        # The instance attribute, not a class property: Run.__init__ sets
+        # vlm_dial_port as an instance attribute, which would shadow the
+        # property -- the half would read None and hang the dial.
+        run.vlm_dial_port = vlm_stand_in.getsockname()[1]
+        relay = fc.VlmRelay(run)
+        relay.arm()
+        assert run.summary["vlm_container_url"] == fc.VlmRelay.RELAY_URL
+        assert run.summary["results"]["vlm_relay"] == "ok"
+        assert (run.dir / "relay" / "vlm_relay.py").is_file(), "the script is the marker"
+        mode = (run.dir / "relay" / "relay.sock").stat().st_mode & 0o777
+        assert mode == 0o666, f"the socket must dial across a uid map: {oct(mode)}"
+        with socket.socket(socket.AF_UNIX) as client:
+            client.settimeout(5)
+            client.connect(str(relay.socket))
+            client.sendall(b"ping")
+            assert client.recv(16) == b"ping", "the byte must cross both hops"
+        relay.join()
+        acceptor.join(timeout=5)
+    assert not relay.socket.exists(), "the socket is unlinked with the run dir's marker"
+    assert run.summary["results"]["vlm_relay"] == "stopped"
+    assert relay._thread is None
+    # and a second arm over the dead socket rebinds cleanly: arm() unlinks the
+    # stale socket file first, so a re-run in the same dir never EADDRINUSEs.
+    relay2 = fc.VlmRelay(run)
+    relay2.arm()
+    relay2.join()
+    assert run.summary["results"]["vlm_relay"] == "stopped"
+
+
+def test_the_host_half_stream_is_not_capped_by_the_dial_timeout(
+    monkeypatch: pytest.MonkeyPatch, request: pytest.FixtureRequest
+) -> None:
+    # The critique's measured finding: socket.create_connection's timeout
+    # persists on the returned socket for its LIFETIME (measured in this
+    # session), so a dial timeout of 10s would cap every read gap of the
+    # relayed stream -- a slow inference killed mid-stream, silently turning
+    # the relay into a 10s VLM timeout. The tree dials connect-bounded and
+    # sets the stream unbounded: a byte sent before a long model pause still
+    # crosses, and the dial itself still fails fast when nothing listens.
+    run = fc.Run(engine="docker", root=_short_run_root(request), image_tag="test", mode="real")
+    run.dir.mkdir(parents=True)
+    with socket.socket() as vlm_stand_in:
+        vlm_stand_in.bind(("127.0.0.1", 0))
+        vlm_stand_in.listen(1)
+
+        def slow_echo() -> None:
+            conn, _ = vlm_stand_in.accept()
+            with conn:
+                conn.settimeout(10)
+                first = conn.recv(1024)
+                time.sleep(2.0)  # longer than any inherited cap would allow
+                conn.sendall(first)
+
+        acceptor = threading.Thread(target=slow_echo)
+        acceptor.start()
+        run.vlm_dial_port = vlm_stand_in.getsockname()[1]
+        relay = fc.VlmRelay(run)
+        relay.arm()
+        with socket.socket(socket.AF_UNIX) as client:
+            client.settimeout(10)
+            client.connect(str(relay.socket))
+            client.sendall(b"ping")
+            # 2s of VLM-side silence crosses; under the defect this recv dies
+            # at the dial's inherited 10s only by luck of ordering -- the pin
+            # is the SIDE's timeout, read from the same code path _serve uses.
+            assert client.recv(16) == b"ping", "the stream must not be capped"
+        relay.join()
+        acceptor.join(timeout=5)
+    # the dial is still bounded: nothing listens on this port, so _serve's
+    # dial fails fast (ECONNREFUSED -- never hangs), the relay closes the
+    # container conn (the client sees the reset), and the accounting names it.
+    dead = fc.VlmRelay(run)
+    dead.run.vlm_dial_port = 1
+    dead.arm()
+    with socket.socket(socket.AF_UNIX) as client:
+        client.settimeout(5)
+        client.connect(str(dead.socket))
+        client.sendall(b"x")
+        with pytest.raises(OSError):
+            client.recv(1)
+        deadline = time.monotonic() + 5
+        while dead.last_error is None and time.monotonic() < deadline:
+            time.sleep(0.05)
+        assert "Connection refused" in (dead.last_error or ""), dead.last_error
+    dead.join()
+    assert run.summary["results"]["vlm_relay"] in (
+        "stopped",
+        "stopped; last error: dial 127.0.0.1:1: [Errno 111] Connection refused",
+    )
+
+
+def test_a_failed_arm_leaves_no_socket_artifact(
+    monkeypatch: pytest.MonkeyPatch, request: pytest.FixtureRequest
+) -> None:
+    # The second code-named finding: arm() can fail AFTER bind (chmod, listen)
+    # while run.relay is not yet assigned -- the join path never runs for this
+    # half, so a post-bind failure must unlink the socket itself, leaving the
+    # run dir as it found it.
+    run = fc.Run(engine="docker", root=_short_run_root(request), image_tag="test", mode="real")
+    run.dir.mkdir(parents=True)
+    relay = fc.VlmRelay(run)
+    real_bind = socket.socket.bind
+
+    def bind_then_die(self: socket.socket, address: Any) -> None:
+        real_bind(self, address)  # the socket inode now exists...
+        if getattr(self, "_arm_probe", False):
+            raise OSError(5, "listen arm probe")  # ...then listen() fails
+
+    def _raise_arm_probe(self: socket.socket, backlog: Any) -> None:
+        raise OSError(5, "listen arm probe")  # backlog unused; the stub only fails
+
+    monkeypatch.setattr(socket.socket, "bind", lambda self, address: bind_then_die(self, address))
+    monkeypatch.setattr(socket.socket, "listen", _raise_arm_probe)
+    with pytest.raises(fc.HarnessError, match="could not arm"):
+        relay.arm()
+    monkeypatch.undo()
+    assert not relay.socket.exists(), "a failed arm leaves no socket artifact"
+    assert run.summary["results"].get("vlm_relay") is None
+    # and the run dir still arms cleanly afterwards (the stale file would have
+    # been unlinked by arm()'s own pre-bind sweep, but the pin is the state).
+    relay.arm()
+    assert relay.socket.exists()
+    relay.join()
+
+
+def test_the_relay_knob_lands_in_prod_rendered_json_with_no_published_ports(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    # The design §3 bullet, end to end through render_prod_shape: with the knob on,
+    # the artifact `up` boots from (prod-rendered.json -> boot_render -> compose.json)
+    # carries the sidecar -- its derived image, its read-only run-dir bind, and
+    # NO published ports -- and the three relay records reach the run summary's
+    # device_changes. Driven like the ruling-256 lift test: a compose_dispatch
+    # answering both renders by file set, with the prod render's backend BUILD-only
+    # (the _relay_doc shape, since the sidecar's image is derived from it) and a
+    # stub VLM so the venue is the sandbox one (fake_gateway splice + vlm_url).
+    run = _prod_run(tmp_path, monkeypatch, socket=_ENGINE_SOCKET)
+    monkeypatch.setenv("PROD_SHAPE_VLM_RELAY", "1")
+    monkeypatch.setattr(fc, "read_subtree_control", lambda: "")
+    ci_render = json.dumps({"services": {"ai-gateway": _fake_gateway_body()}})
+
+    prod_backend = {  # the _relay_doc shape: build-only, as prod's backend is
+        "build": {"context": "./", "dockerfile": "backend/Dockerfile", "target": "prod"},
+        "environment": {"AI_VLM_URL": "http://ai-vlm:8098"},
+    }
+
+    def compose_dispatch(files: Any, *args: Any, **kwargs: Any) -> subprocess.CompletedProcess[str]:
+        if fc.CI_STACK in files:
+            body = ci_render
+        else:
+            prod = _prod_rendered(**{**_ruling256_doc()["services"], "backend": prod_backend})
+            body = json.dumps(prod)
+        return subprocess.CompletedProcess(["fake"], 0, stdout=body, stderr="")
+
+    run.compose = compose_dispatch  # type: ignore[method-assign]
+    run.render(fc.Snapshot.from_engine([], []), vlm=_StubVlm())
+
+    landed = json.loads((run.artifacts / "prod-rendered.json").read_text(encoding="utf-8"))
+    sidecar = landed["services"][fc.VlmRelay.SERVICE]
+    # the derived image, through the derivation the prebuild and up share --
+    # the run's project name is in the artifact's sidecar image, never a pull.
+    assert sidecar["image"] == fc.build_images(landed, project=run.project)["backend"]
+    assert sidecar["volumes"] == [
+        {
+            "type": "bind",
+            "source": str(run.dir / "relay"),
+            "target": "/relay",
+            "read_only": True,
+        }
+    ]
+    assert "ports" not in sidecar, "the booted artifact's sidecar publishes nothing"
+    # the backend the run boots dials the relay form, not the lease URL
+    assert landed["services"]["backend"]["environment"]["AI_VLM_URL"] == fc.VlmRelay.RELAY_URL
+    # and the summary names all three relay changes beside the venue's own
+    changes = json.dumps(run.summary["results"]["device_changes"])
+    assert f"{fc.VlmRelay.SERVICE}: added" in changes
+    assert "backend: depends_on agent-gpu-relay (service_healthy) added" in changes
+    assert f"backend: AI_VLM_URL set to {fc.VlmRelay.RELAY_URL}" in changes
+    # the boot document on disk (compose.json) is the render `up` will boot, so the
+    # sidecar reaches the boot path too, not just the artifact an operator reads
+    booted = json.loads(run.compose_file.read_text(encoding="utf-8"))
+    assert fc.VlmRelay.SERVICE in booted["services"]
+
+
 def test_ci_golden_keeps_the_authored_fake_scenario_book(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
@@ -7933,3 +8446,160 @@ def test_a_manifest_shard_number_outside_the_manifest_is_refused(
     message = str(excinfo.value)
     assert "--shard 7/8" in message and "shard_count 3" in message, message
     assert _container_calls(calls) == [], "no leg ran on a refused selection"
+
+
+# ---------------------------------------------------------------------------
+# Phase 4 real-tier witness selectors (--pytest-k, --playwright-grep; UR-140)
+# ---------------------------------------------------------------------------
+
+
+@pytest.mark.parametrize(
+    "argv",
+    [
+        ["--fake", "--pytest-k", "test_f100"],
+        ["--prod-shape", "--pytest-k", "test_f100"],
+        ["--real", "--prod-shape", "--pytest-k", "test_f100"],
+        ["--real", "--seeded", "--pytest-k", "test_f100"],
+        ["--real", "--pytest-k", "   "],
+        ["--fake", "--playwright-grep", "F-101"],
+        ["--prod-shape", "--playwright-grep", "F-101"],
+        ["--real", "--prod-shape", "--playwright-grep", "F-101"],
+        ["--real", "--playwright-grep", "   "],
+    ],
+)
+def test_real_tier_selectors_refuse_invalid_modes_or_empty_values(
+    monkeypatch: pytest.MonkeyPatch, argv: list[str]
+) -> None:
+    """--pytest-k and --playwright-grep are real-tier witness selectors only."""
+    booted = _fake_boot(monkeypatch)
+    with pytest.raises(SystemExit):
+        fc.main(argv)
+    assert booted == []
+
+
+def test_real_tier_selectors_carry_into_run_and_record(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """--real --pytest-k ... --playwright-grep ... reaches run_check and summary."""
+    seen: dict[str, Any] = {}
+
+    def fake_run_check(args: Any, *, mode: str) -> int:
+        seen["mode"] = mode
+        seen["pytest_k"] = args.pytest_k
+        seen["playwright_grep"] = args.playwright_grep
+        probe = fc.Run(
+            engine="docker",
+            root=Path("/tmp/hsi-feature-check-tests"),  # noqa: S108 - never touched
+            image_tag="t",
+            mode=mode,
+            pytest_k=args.pytest_k,
+            playwright_grep=args.playwright_grep,
+        )
+        seen["record"] = probe.summary
+        return 0
+
+    monkeypatch.setattr(fc, "run_check", fake_run_check)
+    monkeypatch.setattr(fc, "real_unavailable", lambda _environ: None)
+    assert (
+        fc.main(
+            [
+                "--real",
+                "--pytest-k",
+                "test_f100 or test_f101",
+                "--playwright-grep",
+                "F-101",
+            ]
+        )
+        == 0
+    )
+    assert seen["mode"] == "real"
+    assert seen["pytest_k"] == "test_f100 or test_f101"
+    assert seen["playwright_grep"] == "F-101"
+    assert seen["record"]["pytest_k"] == "test_f100 or test_f101"
+    assert seen["record"]["playwright_grep"] == "F-101"
+
+
+def test_pytest_k_alone_runs_backend_with_k_and_skips_playwright(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """A backend-only witness (e.g. B4.1) runs pytest -k and skips Playwright."""
+    run = _golden_leg(tmp_path, monkeypatch, "backend", _RAN_JUNIT)
+    # Enable PLAYWRIGHT_CONFIG too to prove the skip guard suppresses Playwright.
+    config = tmp_path / "playwright.config.ts"
+    config.write_text("{ name: 'golden', testDir: './tests/golden' }\n", encoding="utf-8")
+    monkeypatch.setattr(fc, "PLAYWRIGHT_CONFIG", config)
+    recorded_argvs: list[list[str]] = []
+    orig_run = run._run
+
+    def spy_run(command: list[str], **kwargs: Any) -> subprocess.CompletedProcess[str]:
+        recorded_argvs.append(list(command))
+        return orig_run(command, **kwargs)
+
+    monkeypatch.setattr(run, "_run", spy_run)
+    run.pytest_k = "test_f216_f217 or test_f050_f079"
+    assert run.golden() == []
+    golden = run.summary["results"]["golden"]
+    assert golden["backend"] == "ok"
+    assert golden["pytest_k"] == "test_f216_f217 or test_f050_f079"
+    assert golden["playwright"] == "skipped on pytest-k"
+    pytest_calls = [c for c in recorded_argvs if c[:3] == ["uv", "run", "pytest"]]
+    assert len(pytest_calls) == 1
+    assert pytest_calls[0][-2:] == ["-k", "test_f216_f217 or test_f050_f079"]
+
+
+def test_playwright_grep_alone_skips_backend_and_passes_grep_to_playwright(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """A Playwright-only witness skips the backend pytest leg and passes --grep."""
+    calls: list[tuple[list[str], dict[str, Any]]] = []
+    run = _golden_only_run(tmp_path, monkeypatch, True, calls)
+    monkeypatch.setattr(fc, "REPO_ROOT", tmp_path)
+    backend_dir = tmp_path / "no-backend-golden"
+    backend_dir.mkdir()
+    (backend_dir / "test_one.py").write_text("def test_one():\n", encoding="utf-8")
+    run.playwright_grep = "F-101"
+    assert run.golden() == []
+    golden = run.summary["results"]["golden"]
+    assert golden["backend"] == "skipped on playwright-grep"
+    assert golden["playwright"] == "ok"
+    assert golden["playwright_grep"] == "F-101"
+    assert not any(c[:3] == ["uv", "run", "pytest"] for c, _ in calls)
+    argv, _ = _golden_container(calls)
+    assert "--grep F-101" in argv[-1], argv[-1]
+
+
+def test_both_selectors_run_both_legs_with_their_filters(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """When both --pytest-k and --playwright-grep are passed (e.g. B4.6), both legs run."""
+    calls: list[tuple[list[str], dict[str, Any]]] = []
+    run = _golden_only_run(tmp_path, monkeypatch, True, calls)
+    monkeypatch.setattr(fc, "REPO_ROOT", tmp_path)
+    backend_dir = tmp_path / "no-backend-golden"
+    backend_dir.mkdir()
+    (backend_dir / "test_backup.py").write_text("def test_f101():\n", encoding="utf-8")
+    orig_fake = fc.Run._run
+
+    def fake_with_backend_junit(
+        self: Any, command: list[str], **kwargs: Any
+    ) -> subprocess.CompletedProcess[str]:
+        res = orig_fake(self, command, **kwargs)
+        for token in command:
+            if str(token).startswith("--junitxml="):
+                Path(str(token).split("=", 1)[1]).write_text(_RAN_JUNIT, encoding="utf-8")
+        return res
+
+    monkeypatch.setattr(fc.Run, "_run", fake_with_backend_junit)
+    run.pytest_k = "test_f100 or test_f101"
+    run.playwright_grep = "F-101"
+    assert run.golden() == []
+    golden = run.summary["results"]["golden"]
+    assert golden["backend"] == "ok"
+    assert golden["pytest_k"] == "test_f100 or test_f101"
+    assert golden["playwright"] == "ok"
+    assert golden["playwright_grep"] == "F-101"
+    pytest_calls = [c for c, _ in calls if c[:3] == ["uv", "run", "pytest"]]
+    assert len(pytest_calls) == 1
+    assert pytest_calls[0][-2:] == ["-k", "test_f100 or test_f101"]
+    argv, _ = _golden_container(calls)
+    assert "--grep F-101" in argv[-1], argv[-1]

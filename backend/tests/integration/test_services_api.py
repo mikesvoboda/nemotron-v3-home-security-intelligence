@@ -9,6 +9,7 @@ from unittest.mock import AsyncMock, MagicMock
 
 import pytest
 
+from backend.api.routes.auth import get_current_admin_user, get_current_user
 from backend.api.routes.services import get_orchestrator
 from backend.api.schemas.services import ContainerServiceStatus, ServiceCategory
 from backend.tests.integration.test_helpers import get_error_message
@@ -27,8 +28,11 @@ def override_orchestrator(mock_get_orchestrator):
     """
     from backend.main import app
 
+    admin_user = MagicMock(id="admin-1", username="admin", is_admin=True)
     original = app.dependency_overrides.copy()
     app.dependency_overrides[get_orchestrator] = mock_get_orchestrator
+    app.dependency_overrides[get_current_user] = lambda: admin_user
+    app.dependency_overrides[get_current_admin_user] = lambda: admin_user
     try:
         yield
     finally:
@@ -327,14 +331,14 @@ async def test_restart_service_success(client, mock_redis):
     mock_orchestrator = AsyncMock()
 
     mock_service = MagicMock()
-    mock_service.name = "test-service"
-    mock_service.display_name = "Test Service"
+    mock_service.name = "ai-vlm"
+    mock_service.display_name = "AI VLM"
     mock_service.category = ServiceCategory.AI
     mock_service.status = ContainerServiceStatus.RUNNING
     mock_service.enabled = True
     mock_service.container_id = "abc123"
     mock_service.image = "test:latest"
-    mock_service.port = 8090
+    mock_service.port = 8098
     mock_service.failure_count = 0
     mock_service.restart_count = 0
     mock_service.last_restart_at = None
@@ -346,19 +350,17 @@ async def test_restart_service_success(client, mock_redis):
         return mock_orchestrator
 
     with override_orchestrator(mock_get_orchestrator):
-        response = await client.post("/api/system/services/test-service/restart")
+        response = await client.post("/api/system/services/ai-vlm/restart")
 
         assert response.status_code == 200
         data = response.json()
 
         assert data["success"] is True
         assert "restart initiated" in data["message"].lower()
-        assert data["service"]["name"] == "test-service"
+        assert data["service"]["name"] == "ai-vlm"
 
         # Verify restart_service was called with reset_failures=True
-        mock_orchestrator.restart_service.assert_called_once_with(
-            "test-service", reset_failures=True
-        )
+        mock_orchestrator.restart_service.assert_called_once_with("ai-vlm", reset_failures=True)
 
 
 @pytest.mark.asyncio
@@ -381,34 +383,35 @@ async def test_restart_service_not_found(client, mock_redis):
 
 @pytest.mark.asyncio
 async def test_restart_service_disabled(client, mock_redis):
-    """Test POST /api/system/services/{name}/restart returns 400 for disabled service."""
+    """Test POST /api/system/services/{name}/restart re-enables and restarts a disabled service (B4.11 T6)."""
     mock_orchestrator = AsyncMock()
 
     mock_service = MagicMock()
-    mock_service.name = "disabled-service"
-    mock_service.display_name = "Disabled Service"
+    mock_service.name = "ai-vlm"
+    mock_service.display_name = "AI VLM"
     mock_service.category = ServiceCategory.AI
     mock_service.status = ContainerServiceStatus.DISABLED
     mock_service.enabled = False
     mock_service.container_id = None
     mock_service.image = "test:latest"
-    mock_service.port = 8090
+    mock_service.port = 8098
     mock_service.failure_count = 10
     mock_service.restart_count = 5
     mock_service.last_restart_at = None
 
     mock_orchestrator.get_service = MagicMock(return_value=mock_service)
+    mock_orchestrator.restart_service.return_value = True
 
     async def mock_get_orchestrator():
         return mock_orchestrator
 
     with override_orchestrator(mock_get_orchestrator):
-        response = await client.post("/api/system/services/disabled-service/restart")
+        response = await client.post("/api/system/services/ai-vlm/restart")
 
-        assert response.status_code == 400
+        assert response.status_code == 200
         data = response.json()
-        error_msg = get_error_message(data).lower()
-        assert "disabled" in error_msg
+        assert data["success"] is True
+        mock_orchestrator.restart_service.assert_called_once_with("ai-vlm", reset_failures=True)
 
 
 @pytest.mark.asyncio

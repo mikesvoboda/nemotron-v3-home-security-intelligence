@@ -12,13 +12,16 @@ the route a user actually clicks (``POST /api/alerts/{id}/acknowledge`` →
 through ``GET /api/outbound-webhooks/{webhook_id}/deliveries``.
 
 Why the seed is deterministic instead of polled-forever: the webhook is created
-with ``max_retries: 0`` (``backend/api/schemas/outbound_webhook.py:158`` allows
+with ``max_retries: 0`` (``backend/api/schemas/outbound_webhook.py:181`` allows
 ``ge=0``), so ``_handle_delivery_failure`` takes its else-branch
 (``backend/services/webhook_service.py:470``) and the row lands ``failed`` on the
-first attempt with no ``next_retry_at`` to wait out. The refused loopback
-address is accepted by ``create_webhook`` — there is no SSRF or private-host
-guard on that path — and ``httpx`` fails it in milliseconds, so the only wait
-left is for the background task to commit.
+first attempt with no ``next_retry_at`` to wait out. The seed target is the
+backend container itself on a dead port with ``on_local_network: true`` —
+B4.2's destination policy refuses loopback at create even with the flag
+(``backend/core/url_validation.py:124-125``), and an in-network target is
+exactly what the flag admits — so ``create_webhook`` answers 201 and
+``httpx`` fails the connect in milliseconds, the only wait left being for
+the background task to commit.
 
 The poll tolerates a transient disconnect: CI run 39345706766 lost the leg to
 ``httpx.RemoteProtocolError: Server disconnected without sending a response.``
@@ -73,9 +76,14 @@ import pytest
 
 pytestmark = [pytest.mark.network, pytest.mark.timeout(300)]
 
-# Nothing listens on port 1, so the connect is refused rather than timed out —
-# the delivery reaches a terminal state without eating the marker's budget.
-REFUSED_URL = "http://127.0.0.1:1/golden-f250-f251-refused"
+# F12 (ruling 310) refuses loopback at create with or without the
+# ``on_local_network`` flag, so the seed cannot be 127.0.0.1 anymore. The
+# seed is the backend container itself on a port nothing listens on: the name
+# resolves in every stack shape (the golden backend is the compose service),
+# the flag admits the target, and the connect is REFUSED in milliseconds —
+# a dead port on a live host, the same shape port 1 was, without the policy
+# refusal's error wording.
+REFUSED_URL = "http://backend:8099/golden-f250-f251-refused"
 
 POLL_INTERVAL_S = 1.0
 POLL_DEADLINE_S = 90.0
@@ -137,6 +145,9 @@ def dead_webhook(logged_in_api: httpx.Client) -> dict[str, Any]:
             "name": f"golden-f250-f251-{uuid.uuid4().hex[:8]}",
             "url": REFUSED_URL,
             "event_types": ["alert_acknowledged"],
+            # The F12 flag admits the in-network seed target; loopback stays
+            # refused either way, so the seed rides the flag's real use case.
+            "on_local_network": True,
             # 0 retries is what makes the row terminal on the first attempt.
             "max_retries": 0,
             "retry_delay_seconds": 1,
