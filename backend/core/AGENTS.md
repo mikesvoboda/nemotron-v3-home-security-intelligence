@@ -27,7 +27,7 @@ model or a pipeline lives in `backend/services/`.
   outside `config.py` or stay on the
   `ALLOWED_UNREAD_OUTSIDE_CONFIG` allowlist with a reason
   (`backend/tests/unit/core/test_settings_orphan_ratchet.py`, scanner
-  `scripts/audit/settings_orphans.py` — the allowlist currently holds the four
+  `scripts/audit/settings_orphans.py` — the allowlist currently holds the three
   fields only the validator can see, e.g. `llama_slot_count`, which
   `_derive_slot_context_window` consumes via `info.data.get`). And every
   `.env.example` variable must be read by `config.py`, compose or `setup.py`
@@ -42,7 +42,7 @@ model or a pipeline lives in `backend/services/`.
 - **Schema changes ship with a recorded upgrade.** `create_all` creates missing
   tables and never alters an existing one (`backend/core/database.py` comments this
   inline, citing ruling 203). Column and type changes ride the ordered
-  upgrades in `backend/migrations/` (14 entries, `0001`…`0014-arming-core`):
+  upgrades in `backend/migrations/` (15 entries, `0001`…`0015-retire-prometheus-alerts-table`):
   the ORDER lives in `backend/migrations/registry.py`'s `UPGRADES`, the SQL TEXT lives
   in `docs/api/migrations/*.sql` — `MIGRATION_DIR` points there, so the
   backend container `COPY`s that one docs directory even though `docs/` is
