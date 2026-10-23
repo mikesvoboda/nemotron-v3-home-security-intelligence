@@ -24,9 +24,11 @@ import RiskHistoryCard from './RiskHistoryCard';
 import RiskScoreDistributionCard from './RiskScoreDistributionCard';
 import RiskScoreTrendCard from './RiskScoreTrendCard';
 import WeekOverWeekCard from './WeekOverWeekCard';
+import { useViewMode } from '../../contexts/ViewModeContext';
 import { useCameraAnalytics } from '../../hooks/useCameraAnalytics';
 import { fetchConfig } from '../../services/api';
 import { resolveGrafanaUrl } from '../../utils/grafanaUrl';
+import AdvancedOnly from '../common/AdvancedOnly';
 import { FeatureErrorBoundary } from '../common/FeatureErrorBoundary';
 
 /** View mode for analytics display */
@@ -36,11 +38,13 @@ type ViewMode = 'grafana' | 'native';
  * AnalyticsPage - Grafana iframe embed for analytics metrics
  */
 export default function AnalyticsPage() {
+  const { mode: appViewMode } = useViewMode();
   const [grafanaUrl, setGrafanaUrl] = useState<string>('/grafana');
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [isRefreshing, setIsRefreshing] = useState(false);
   const [viewMode, setViewMode] = useState<ViewMode>('grafana');
+  const effectiveViewMode: ViewMode = appViewMode === 'advanced' ? viewMode : 'native';
   const iframeRef = useRef<HTMLIFrameElement>(null);
 
   // Camera analytics hook for confidence metrics visualization
@@ -143,37 +147,39 @@ export default function AnalyticsPage() {
         </div>
 
         <div className="flex items-center gap-3">
-          {/* View Mode Toggle */}
-          <div
-            className="flex overflow-hidden rounded-lg border border-gray-700"
-            data-testid="view-mode-toggle"
-          >
-            <button
-              onClick={() => setViewMode('grafana')}
-              className={`px-4 py-2 text-sm font-medium transition-colors ${
-                viewMode === 'grafana'
-                  ? 'bg-[#76B900] text-black'
-                  : 'bg-gray-800 text-white hover:bg-gray-700'
-              }`}
-              data-testid="view-mode-grafana"
+          {/* View Mode Toggle - Advanced only (F4.9 MO6) */}
+          <AdvancedOnly>
+            <div
+              className="flex overflow-hidden rounded-lg border border-gray-700"
+              data-testid="view-mode-toggle"
             >
-              Grafana
-            </button>
-            <button
-              onClick={() => setViewMode('native')}
-              className={`px-4 py-2 text-sm font-medium transition-colors ${
-                viewMode === 'native'
-                  ? 'bg-[#76B900] text-black'
-                  : 'bg-gray-800 text-white hover:bg-gray-700'
-              }`}
-              data-testid="view-mode-native"
-            >
-              Native
-            </button>
-          </div>
+              <button
+                onClick={() => setViewMode('grafana')}
+                className={`px-4 py-2 text-sm font-medium transition-colors ${
+                  effectiveViewMode === 'grafana'
+                    ? 'bg-[#76B900] text-black'
+                    : 'bg-gray-800 text-white hover:bg-gray-700'
+                }`}
+                data-testid="view-mode-grafana"
+              >
+                Grafana
+              </button>
+              <button
+                onClick={() => setViewMode('native')}
+                className={`px-4 py-2 text-sm font-medium transition-colors ${
+                  effectiveViewMode === 'native'
+                    ? 'bg-[#76B900] text-black'
+                    : 'bg-gray-800 text-white hover:bg-gray-700'
+                }`}
+                data-testid="view-mode-native"
+              >
+                Native
+              </button>
+            </div>
+          </AdvancedOnly>
 
           {/* External Grafana Link - only show in Grafana view */}
-          {viewMode === 'grafana' && (
+          {effectiveViewMode === 'grafana' && (
             <a
               href={`${grafanaUrl}/d/hsi-analytics?orgId=1`}
               target="_blank"
@@ -187,7 +193,7 @@ export default function AnalyticsPage() {
           )}
 
           {/* Refresh Button - only show in Grafana view */}
-          {viewMode === 'grafana' && (
+          {effectiveViewMode === 'grafana' && (
             <button
               onClick={handleRefresh}
               disabled={isRefreshing}
@@ -213,7 +219,7 @@ export default function AnalyticsPage() {
       )}
 
       {/* Grafana iframe - only show in Grafana view */}
-      {viewMode === 'grafana' && (
+      {effectiveViewMode === 'grafana' && (
         <iframe
           ref={iframeRef}
           src={dashboardUrl}
@@ -225,7 +231,7 @@ export default function AnalyticsPage() {
       )}
 
       {/* Native analytics components */}
-      {viewMode === 'native' && (
+      {effectiveViewMode === 'native' && (
         <div
           className="grid grid-cols-1 gap-6 p-6 md:grid-cols-2 xl:grid-cols-4"
           data-testid="native-analytics-view"

@@ -188,6 +188,7 @@ test.describe('Desktop Viewport Tests', () => {
   });
 
   test('all navigation links visible on desktop', async ({ page }) => {
+    await page.addInitScript(() => localStorage.setItem('ui-mode', JSON.stringify('advanced')));
     const dashboardPage = new DashboardPage(page);
     await dashboardPage.goto();
     await dashboardPage.waitForDashboardLoad();

@@ -24,7 +24,6 @@ suites (`CamerasSettings.motionSensitivity.test.tsx`,
 | ---------------------------------------- | ------------------------------------------------------------------ |
 | `AGENTS.md`, `README.md`                 | Docs for this directory                                            |
 | `SettingsPage.tsx`                       | Tabbed shell with nested `/settings/*` routes                      |
-| `settingsTabsConfig.ts`                  | Tab id/name/path/icon/description list                             |
 | `CamerasSettings.tsx`                    | Camera CRUD (FTP + RTSP), ONVIF discovery, RTSP test               |
 | `ONVIFDiscoveryPanel.tsx`                | Modal for network camera discovery via ONVIF                       |
 | `ConnectionStatusCard.tsx`               | RTSP connection-test result card                                   |
@@ -76,10 +75,10 @@ suites (`CamerasSettings.motionSensitivity.test.tsx`,
 
 **Key Features:**
 
-- Tabs come from `settingsTabsConfig.ts` and render as `NavLink`s; each tab's
+- Tabs come from `frontend/src/config/surfaces.ts` (rendered by `HubTabBar.tsx`) and render as `NavLink`s; each tab's
   panel renders in an `<Outlet/>` from the router, not from local state
-- Eleven tabs: CAMERAS, RULES, PROCESSING, NOTIFICATIONS, AMBIENT,
-  CALIBRATION, ACCESS, PROMPTS, STORAGE, AI MODELS, ADMIN
+- Ten tabs in the Settings hub: Cameras, Processing, Notifications, Ambient,
+  Access, Storage, Data, Webhooks, Audit log, Notification history (while `/settings/rules`, `/settings/prompts`, `/settings/ai-models`, and `/settings/admin` belong to the Alerts & Rules, AI Workbench, GPU & Models, and Operations & Monitoring hubs)
 - Horizontal scroll with chevron buttons and fade shadows when tabs overflow
   (NEM-3520); keyboard-accessible scroll buttons
 - Wraps content in `DebugModeProvider` (`../../contexts/DebugModeContext`)
@@ -312,7 +311,7 @@ a `BatchSettingsTooltips` validation summary rather than raw slider min/max.
 
 ## Entry Points
 
-**Start here:** `SettingsPage.tsx` + `settingsTabsConfig.ts` - routing shell
+**Start here:** `SettingsPage.tsx` + `frontend/src/config/surfaces.ts` - routing shell
 **Then explore:** `CamerasSettings.tsx` - full CRUD + modal + Zod pattern
 **Next:** `ProcessingSettings.tsx` - composition surface + settings API
 **Model work:** `ModelZooPanel.tsx` + `../../hooks/useModelZoo.ts`

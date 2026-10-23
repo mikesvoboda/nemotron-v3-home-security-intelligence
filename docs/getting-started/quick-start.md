@@ -88,55 +88,17 @@ This is your home base. Here's what each part shows you:
 
 ### The Sidebar Menu
 
-On the left side, you'll see navigation options organized into collapsible groups:
+On the left side, you'll see the five everyday **Easy** hubs by default, with an **Easy | Advanced** switch in the header (and in the mobile menu / More sheet):
 
-**MONITORING**
+| Hub                   | What's There                                                                                                           |
+| --------------------- | ---------------------------------------------------------------------------------------------------------------------- |
+| **Dashboard**         | Overview (`/`) and Trends (`/analytics`)                                                                               |
+| **Timeline & Search** | History of all events (`/timeline`) and Trash (`/trash`)                                                               |
+| **Alerts & Rules**    | Active alerts (`/alerts`), Scene changes (`/scene-changes`), and alert rules (`/settings/rules`)                       |
+| **Household**         | Members (`/household`), People & faces (`/face-recognition`), Vehicles & plates (`/plate-reads`), and Zones (`/zones`) |
+| **Settings**          | Cameras, Processing, Notifications, Ambient, Access, Storage, Data, Webhooks, Audit log, Notification history          |
 
-| Menu Item     | What's There                                                          |
-| ------------- | --------------------------------------------------------------------- |
-| **Dashboard** | The main overview (where you start)                                   |
-| **Timeline**  | History of all events - you can filter by camera, date, or risk level |
-| **Entities**  | Recognized people, vehicles, and tracked objects                      |
-| **Alerts**    | Events that need your attention                                       |
-
-**ANALYTICS** (expanded by default)
-
-| Menu Item           | What's There                                |
-| ------------------- | ------------------------------------------- |
-| **Analytics**       | Charts and statistics about security events |
-| **Video Analytics** | Video-based analytics views                 |
-| **AI Audit**        | Review AI decision-making and accuracy      |
-| **AI Performance**  | Monitor AI model performance metrics        |
-| **AI Services**     | Status of each AI service                   |
-| **Profiling**       | System performance profiling tools          |
-| **Heatmaps**        | Where activity happens in each camera view  |
-
-The ANALYTICS group also includes Plate Reads, Face Recognition, Scene Changes, Object Tracks, Performance, Household, and Re-Identification.
-
-**OPERATIONS** (collapsed by default)
-
-| Menu Item             | What's There                            |
-| --------------------- | --------------------------------------- |
-| **Jobs**              | Background job status and management    |
-| **Pipeline**          | AI processing pipeline operations       |
-| **Notifications**     | Notification delivery status            |
-| **GPU Metrics**       | Per-GPU utilization charts              |
-| **Request Profiling** | Per-request timing                      |
-| **Tracing**           | Request tracing for debugging           |
-| **Logs**              | Technical system logs (troubleshooting) |
-
-**ADMIN** (collapsed by default)
-
-| Menu Item             | What's There                                        |
-| --------------------- | --------------------------------------------------- |
-| **Zones**             | Detection zones per camera                          |
-| **Audit Log**         | Security audit trail                                |
-| **Data Management**   | Data import/export operations                       |
-| **Scheduled Reports** | Configure automated report generation               |
-| **Webhooks**          | Manage webhook integrations                         |
-| **Trash**             | Recover deleted events                              |
-| **GPU Settings**      | Configure GPU allocation for AI processing          |
-| **Settings**          | Batch window, retention, alerts, and other settings |
+Switching to **Advanced** adds an **AI Blueprint** section with four operator hubs (**AI Workbench**, **GPU & Models**, **Entities & Re-ID**, and **Operations & Monitoring**) plus operator diagnostics in the header and event modal.
 
 ---
 

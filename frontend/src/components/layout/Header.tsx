@@ -2,6 +2,7 @@ import { AlertTriangle, CheckCircle, HardDrive, Menu, Search, XCircle } from 'lu
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 
+import ModeSwitch from './ModeSwitch';
 import { PageDocsLink } from './PageDocsLink';
 import { useCommandPaletteContext } from '../../hooks/useCommandPaletteContext';
 import { useConnectionStatus } from '../../hooks/useConnectionStatus';
@@ -15,6 +16,7 @@ import {
   CRITICAL_USAGE_THRESHOLD,
 } from '../../stores/storage-status-store';
 import { ThemeToggle, WebSocketStatus } from '../common';
+import AdvancedOnly from '../common/AdvancedOnly';
 import AlertBadge from '../common/AlertBadge';
 import AlertDrawer from '../common/AlertDrawer';
 import IconButton from '../common/IconButton';
@@ -383,22 +385,31 @@ export default function Header() {
           <HealthTooltip services={services} isVisible={isTooltipVisible} />
         </div>
 
-        {/* WebSocket Connection Status - hidden on very small screens */}
-        <div className="hidden sm:block">
-          <WebSocketStatus
-            eventsChannel={summary.eventsChannel}
-            systemChannel={summary.systemChannel}
-            onRetry={retryConnection}
-            isPollingFallback={isPollingFallback}
-          />
+        {/* Easy / Advanced View Mode Switch (F4.9) */}
+        <div className="hidden sm:block" data-testid="header-mode-switch-container">
+          <ModeSwitch />
         </div>
 
-        {/* Polling fallback indicator - hidden on mobile */}
-        {isPollingFallback && (
-          <div className="hidden items-center gap-1 rounded bg-yellow-900/30 px-2 py-1 md:flex">
-            <span className="text-xs text-yellow-400">REST Fallback</span>
+        {/* WebSocket Connection Status - Advanced only (F4.9) */}
+        <AdvancedOnly>
+          <div className="hidden sm:block">
+            <WebSocketStatus
+              eventsChannel={summary.eventsChannel}
+              systemChannel={summary.systemChannel}
+              onRetry={retryConnection}
+              isPollingFallback={isPollingFallback}
+            />
           </div>
-        )}
+        </AdvancedOnly>
+
+        {/* Polling fallback indicator - Advanced only (F4.9) */}
+        <AdvancedOnly>
+          {isPollingFallback && (
+            <div className="hidden items-center gap-1 rounded bg-yellow-900/30 px-2 py-1 md:flex">
+              <span className="text-xs text-yellow-400">REST Fallback</span>
+            </div>
+          )}
+        </AdvancedOnly>
 
         {/* Storage Warning - shown when disk usage is critical (>= 90%) */}
         {isStorageCritical && storageStatus && (
@@ -414,11 +425,13 @@ export default function Header() {
           </div>
         )}
 
-        {/* GPU Quick Stats - hidden on mobile */}
-        <div className="hidden items-center gap-2 rounded-lg bg-gray-800 px-3 py-1.5 md:flex">
-          <div className="text-xs text-text-secondary">GPU:</div>
-          <div className="text-xs font-semibold text-[#76B900]">{formatGpuStats()}</div>
-        </div>
+        {/* GPU Quick Stats - Advanced only (F4.9) */}
+        <AdvancedOnly>
+          <div className="hidden items-center gap-2 rounded-lg bg-gray-800 px-3 py-1.5 md:flex">
+            <div className="text-xs text-text-secondary">GPU:</div>
+            <div className="text-xs font-semibold text-[#76B900]">{formatGpuStats()}</div>
+          </div>
+        </AdvancedOnly>
       </div>
 
       {/* Prometheus Alert Drawer (NEM-3124) */}

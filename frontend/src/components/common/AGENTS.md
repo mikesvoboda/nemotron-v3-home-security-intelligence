@@ -8,6 +8,7 @@ Contains reusable UI components shared across multiple features. These are low-l
 
 | File                                 | Purpose                                                       | Status     |
 | ------------------------------------ | ------------------------------------------------------------- | ---------- |
+| `AdvancedOnly.tsx`                   | Renders children only in Advanced view mode                   | Active     |
 | `AlertBadge.tsx`                     | Alert status badge component                                  | Active     |
 | `AlertBadge.test.tsx`                | Test suite for AlertBadge                                     | Active     |
 | `AlertDrawer.tsx`                    | Slide-out drawer for alert details                            | Active     |
