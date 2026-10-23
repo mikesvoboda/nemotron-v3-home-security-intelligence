@@ -337,9 +337,7 @@ def _decode_scrfd_outputs(
         ).reshape(-1, 2)
         if _SCRFD_ANCHORS_PER_CELL > 1:
             centers = np.stack([centers] * _SCRFD_ANCHORS_PER_CELL, axis=1).reshape(-1, 2)
-        centers = centers[
-            : scores.shape.index(scores.shape[0]) if not scores.shape else scores.shape[0]
-        ]
+        centers = centers[: scores.shape[0]]
         pos = np.where(scores >= threshold)[0]
         if pos.size == 0:
             continue
