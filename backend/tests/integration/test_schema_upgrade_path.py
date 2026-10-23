@@ -344,6 +344,8 @@ async def test_boot_upgrades_a_pre_upgrade_database(pre_upgrade_url, monkeypatch
         else:
             os.environ["DATABASE_URL"] = original
         get_settings.cache_clear()
+        if original is not None:
+            await init_db()
 
 
 @pytest.mark.timeout(120)

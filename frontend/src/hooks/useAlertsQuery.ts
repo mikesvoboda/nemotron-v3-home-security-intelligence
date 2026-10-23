@@ -1,41 +1,57 @@
 /**
- * useAlertsQuery - React Query hook for fetching high and critical risk alerts
+ * useAlertsQuery - React Query hook for the alerts table (F4.1)
  *
- * This hook provides cursor-based pagination for alerts (high + critical events)
- * using TanStack Query's useInfiniteQuery. It fetches both risk levels in parallel
- * and merges them client-side for optimal performance.
+ * Reads the alert rows the alerting pipeline writes (B4.1) through the Alert
+ * Service list endpoint, not the events feed this hook read before F4.1. The
+ * page shows open alerts by default, or all; live updates ride the existing
+ * `useAlertWebSocket`, which invalidates `alertsQueryKeys.all` on every alert
+ * frame — so the key family below is chosen to stay under that root.
  *
  * @module hooks/useAlertsQuery
  */
 
-import { useInfiniteQuery, type InfiniteData, type QueryKey } from '@tanstack/react-query';
+import { useQuery, type QueryKey } from '@tanstack/react-query';
 import { useMemo } from 'react';
 
-import { fetchEvents, type EventListResponse, type Event } from '../services/api';
+import {
+  fetchAlerts,
+  acknowledgeAlert,
+  dismissAlert,
+  isConflictError,
+  type AlertServiceResponse,
+} from '../services/alertsApi';
 import { DEFAULT_STALE_TIME } from '../services/queryClient';
 
 // ============================================================================
 // Types
 // ============================================================================
 
-/**
- * Risk filter options for alerts - only high and critical
- */
-export type AlertRiskFilter = 'all' | 'high' | 'critical';
+/** Status filter for the alerts list — the page's open/all toggle. */
+export type AlertStatusFilter = 'open' | 'all';
+
+/** Map the toggle to the API's status filter (the API has no "all" value). */
+function statusFilterParam(status: AlertStatusFilter): string | undefined {
+  return status === 'all' ? undefined : status;
+}
 
 /**
- * Options for configuring the useAlertsInfiniteQuery hook
+ * Options for the useAlertsQuery hook
  */
-export interface UseAlertsInfiniteQueryOptions {
+export interface UseAlertsQueryOptions {
   /**
-   * Filter by risk level ('all', 'high', or 'critical')
-   * @default 'all'
+   * Which alerts to show: open only (the page default) or all statuses
+   * @default 'open'
    */
-  riskFilter?: AlertRiskFilter;
+  statusFilter?: AlertStatusFilter;
+
+  /**
+   * Severity filter forwarded to the API (none by default)
+   */
+  severity?: string;
 
   /**
    * Maximum number of results per page
-   * @default 25
+   * @default 50 (the endpoint's own default)
    */
   limit?: number;
 
@@ -56,25 +72,16 @@ export interface UseAlertsInfiniteQueryOptions {
    * @default DEFAULT_STALE_TIME
    */
   staleTime?: number;
-
-  /**
-   * Maximum number of pages to store in memory per risk level query.
-   * When this limit is reached, older pages are removed when new pages are fetched.
-   * This bounds memory usage regardless of scroll depth.
-   * TanStack Query v5 feature for memory optimization.
-   * @default 10
-   */
-  maxPages?: number;
 }
 
 /**
- * Return type for the useAlertsInfiniteQuery hook
+ * Return type for the useAlertsQuery hook
  */
-export interface UseAlertsInfiniteQueryReturn {
-  /** All alerts from all loaded pages, sorted by timestamp (newest first) */
-  alerts: Event[];
+export interface UseAlertsQueryReturn {
+  /** Alert rows for the current filters, newest first */
+  alerts: AlertServiceResponse[];
 
-  /** Total count of alerts across both risk levels */
+  /** Total count of alerts matching the filter (server-side) */
   totalCount: number;
 
   /** Whether the initial fetch is in progress */
@@ -82,15 +89,6 @@ export interface UseAlertsInfiniteQueryReturn {
 
   /** Whether any fetch is in progress (including background refetch) */
   isFetching: boolean;
-
-  /** Whether the next page is being fetched */
-  isFetchingNextPage: boolean;
-
-  /** Whether there are more alerts to load */
-  hasNextPage: boolean;
-
-  /** Function to fetch the next page of alerts */
-  fetchNextPage: () => void;
 
   /** Error object if the query failed */
   error: Error | null;
@@ -106,115 +104,35 @@ export interface UseAlertsInfiniteQueryReturn {
 // Query Key Factory
 // ============================================================================
 
+/**
+ * Query keys for the alerts cache. `all` is the invalidation root shared with
+ * `useAlertWebSocket` (it invalidates `alertsQueryKeys.all` on every alert
+ * frame) and `useSnoozeEvent` — every key this factory produces lives under
+ * it, so a WebSocket push or a snooze refetches whatever is mounted.
+ */
 export const alertsQueryKeys = {
   all: ['alerts'] as const,
+  /** The F4.1 alert-rows list keyed by its filters. */
+  list: (filters: { statusFilter?: AlertStatusFilter; severity?: string; limit?: number }) =>
+    [...alertsQueryKeys.all, 'list', filters] as const,
+  /** Kept for the WebSocket hook's direct-key callers; same root. */
   infinite: (riskLevel: 'high' | 'critical', limit: number) =>
     [...alertsQueryKeys.all, 'infinite', { riskLevel, limit }] as const,
 };
-
-// ============================================================================
-// Internal Hook for Single Risk Level
-// ============================================================================
-
-interface UseSingleRiskQueryOptions {
-  riskLevel: 'high' | 'critical';
-  limit: number;
-  enabled: boolean;
-  refetchInterval: number | false;
-  staleTime: number;
-  maxPages?: number;
-}
-
-interface UseSingleRiskQueryReturn {
-  events: Event[];
-  totalCount: number;
-  isLoading: boolean;
-  isFetching: boolean;
-  isFetchingNextPage: boolean;
-  hasNextPage: boolean;
-  fetchNextPage: () => void;
-  error: Error | null;
-  isError: boolean;
-  refetch: () => Promise<unknown>;
-}
-
-function useSingleRiskQuery(options: UseSingleRiskQueryOptions): UseSingleRiskQueryReturn {
-  const { riskLevel, limit, enabled, refetchInterval, staleTime, maxPages } = options;
-
-  const queryKey = alertsQueryKeys.infinite(riskLevel, limit);
-
-  const query = useInfiniteQuery<
-    EventListResponse,
-    Error,
-    InfiniteData<EventListResponse, string | null>,
-    QueryKey,
-    string | null
-  >({
-    queryKey,
-    queryFn: async ({ pageParam }) => {
-      return fetchEvents({
-        risk_level: riskLevel,
-        limit,
-        cursor: pageParam ?? undefined,
-      });
-    },
-    initialPageParam: null,
-    getNextPageParam: (lastPage) => {
-      if (lastPage.pagination.has_more && lastPage.pagination.next_cursor) {
-        return lastPage.pagination.next_cursor;
-      }
-      return undefined;
-    },
-    enabled,
-    refetchInterval,
-    staleTime,
-    ...(maxPages !== undefined && { maxPages }),
-  });
-
-  const events = useMemo(() => {
-    if (!query.data?.pages) {
-      return [];
-    }
-    return query.data.pages.flatMap((page) => page.items);
-  }, [query.data?.pages]);
-
-  const totalCount = useMemo(() => {
-    if (!query.data?.pages?.[0]) {
-      return 0;
-    }
-    return query.data.pages[0].pagination.total;
-  }, [query.data?.pages]);
-
-  const handleFetchNextPage = (): void => {
-    void query.fetchNextPage();
-  };
-
-  return {
-    events,
-    totalCount,
-    isLoading: query.isLoading,
-    isFetching: query.isFetching,
-    isFetchingNextPage: query.isFetchingNextPage,
-    hasNextPage: query.hasNextPage ?? false,
-    fetchNextPage: handleFetchNextPage,
-    error: query.error,
-    isError: query.isError,
-    refetch: query.refetch,
-  };
-}
 
 // ============================================================================
 // Main Hook Implementation
 // ============================================================================
 
 /**
- * Hook to fetch high and critical risk alerts with infinite scroll support.
+ * Hook to fetch alert rows from the Alert Service.
  *
- * Fetches both high and critical risk events using parallel queries,
- * then merges and sorts them client-side by timestamp (newest first).
+ * Reads `GET /api/alert-service/alerts` with the page's status filter (open
+ * by default, or all). Live updates arrive through `useAlertWebSocket`, whose
+ * cache invalidation lands on this hook's keys automatically.
  *
  * @param options - Configuration options
- * @returns Merged alerts data and query state
+ * @returns Alert rows and query state
  *
  * @example
  * ```tsx
@@ -222,132 +140,67 @@ function useSingleRiskQuery(options: UseSingleRiskQueryOptions): UseSingleRiskQu
  *   alerts,
  *   totalCount,
  *   isLoading,
- *   hasNextPage,
- *   fetchNextPage,
- * } = useAlertsInfiniteQuery({ riskFilter: 'all', limit: 25 });
+ * } = useAlertsQuery({ statusFilter: 'open' });
  * ```
  */
-export function useAlertsInfiniteQuery(
-  options: UseAlertsInfiniteQueryOptions = {}
-): UseAlertsInfiniteQueryReturn {
+export function useAlertsQuery(options: UseAlertsQueryOptions = {}): UseAlertsQueryReturn {
   const {
-    riskFilter = 'all',
-    limit = 25,
+    statusFilter = 'open',
+    severity,
+    limit = 50,
     enabled = true,
     refetchInterval = false,
     staleTime = DEFAULT_STALE_TIME,
-    maxPages = 10, // Default to 10 pages for bounded memory (NEM-3362)
   } = options;
 
-  // Determine which queries to run based on filter
-  const fetchHigh = riskFilter === 'all' || riskFilter === 'high';
-  const fetchCritical = riskFilter === 'all' || riskFilter === 'critical';
+  const filters = useMemo(
+    () => ({ statusFilter, severity, limit }),
+    [statusFilter, severity, limit]
+  );
 
-  // Fetch high risk alerts
-  const highQuery = useSingleRiskQuery({
-    riskLevel: 'high',
-    limit,
-    enabled: enabled && fetchHigh,
+  const query = useQuery<
+    Awaited<ReturnType<typeof fetchAlerts>>,
+    Error,
+    Awaited<ReturnType<typeof fetchAlerts>>,
+    QueryKey
+  >({
+    queryKey: alertsQueryKeys.list(filters),
+    queryFn: () =>
+      fetchAlerts({
+        status: statusFilterParam(statusFilter),
+        severity,
+        limit,
+      }),
+    enabled,
     refetchInterval,
     staleTime,
-    maxPages,
   });
 
-  // Fetch critical risk alerts
-  const criticalQuery = useSingleRiskQuery({
-    riskLevel: 'critical',
-    limit,
-    enabled: enabled && fetchCritical,
-    refetchInterval,
-    staleTime,
-    maxPages,
-  });
-
-  // Merge and sort alerts from both queries
+  // Newest first: the endpoint sorts by created_at DESC already, but the
+  // page pins its order locally so a refetch reorder cannot surprise a
+  // reader mid-scan. last_seen_at (the fold's most recent match) is the
+  // row's real recency; created_at breaks ties and covers rows without one.
   const alerts = useMemo(() => {
-    const allAlerts: Event[] = [];
-
-    if (fetchHigh) {
-      allAlerts.push(...highQuery.events);
-    }
-
-    if (fetchCritical) {
-      allAlerts.push(...criticalQuery.events);
-    }
-
-    // Remove duplicates by ID and sort by timestamp (newest first)
-    const uniqueAlerts = Array.from(new Map(allAlerts.map((alert) => [alert.id, alert])).values());
-
-    return uniqueAlerts.sort((a, b) => {
-      const dateA = new Date(a.started_at).getTime();
-      const dateB = new Date(b.started_at).getTime();
-      return dateB - dateA;
+    const items = query.data?.items ?? [];
+    return [...items].sort((a, b) => {
+      const aTime = new Date(a.last_seen_at ?? a.created_at).getTime();
+      const bTime = new Date(b.last_seen_at ?? b.created_at).getTime();
+      return bTime - aTime;
     });
-  }, [highQuery.events, criticalQuery.events, fetchHigh, fetchCritical]);
+  }, [query.data?.items]);
 
-  // Calculate total count
-  const totalCount = useMemo(() => {
-    let total = 0;
-    if (fetchHigh) {
-      total += highQuery.totalCount;
-    }
-    if (fetchCritical) {
-      total += criticalQuery.totalCount;
-    }
-    return total;
-  }, [highQuery.totalCount, criticalQuery.totalCount, fetchHigh, fetchCritical]);
-
-  // Combine loading states
-  const isLoading =
-    (fetchHigh && highQuery.isLoading) || (fetchCritical && criticalQuery.isLoading);
-  const isFetching =
-    (fetchHigh && highQuery.isFetching) || (fetchCritical && criticalQuery.isFetching);
-  const isFetchingNextPage =
-    (fetchHigh && highQuery.isFetchingNextPage) ||
-    (fetchCritical && criticalQuery.isFetchingNextPage);
-
-  // Combine hasNextPage - true if either has more
-  const hasNextPage =
-    (fetchHigh && highQuery.hasNextPage) || (fetchCritical && criticalQuery.hasNextPage);
-
-  // Combine error states
-  const error = highQuery.error || criticalQuery.error;
-  const isError = highQuery.isError || criticalQuery.isError;
-
-  // Combined fetch next page - fetches from whichever has more
-  const fetchNextPage = (): void => {
-    if (fetchHigh && highQuery.hasNextPage) {
-      highQuery.fetchNextPage();
-    }
-    if (fetchCritical && criticalQuery.hasNextPage) {
-      criticalQuery.fetchNextPage();
-    }
-  };
-
-  // Combined refetch
-  const refetch = async (): Promise<unknown> => {
-    const promises: Promise<unknown>[] = [];
-    if (fetchHigh) {
-      promises.push(highQuery.refetch());
-    }
-    if (fetchCritical) {
-      promises.push(criticalQuery.refetch());
-    }
-    return Promise.all(promises);
-  };
+  const totalCount = query.data?.pagination.total ?? 0;
 
   return {
     alerts,
     totalCount,
-    isLoading,
-    isFetching,
-    isFetchingNextPage,
-    hasNextPage,
-    fetchNextPage,
-    error,
-    isError,
-    refetch,
+    isLoading: query.isLoading,
+    isFetching: query.isFetching,
+    error: query.error,
+    isError: query.isError,
+    refetch: query.refetch,
   };
 }
 
-export default useAlertsInfiniteQuery;
+export { acknowledgeAlert, dismissAlert, isConflictError };
+export default useAlertsQuery;

@@ -68,6 +68,11 @@ logger = get_logger(__name__)
 # one pipeline now, and the guard does not consult settings.
 RETIRED_LLM_SERVICES: frozenset[str] = frozenset({"ai-llm", "ai-llm-vllm"})
 
+# B4.11 (4n-status.md, T4): ai-vlm stays registered in ServiceRegistry for
+# manual admin restart, but the orchestrator's health loop must NEVER probe or
+# auto-restart it (a sleeping VLM is idle, never probed awake).
+NEVER_PROBED_SERVICES: frozenset[str] = frozenset({"ai-vlm"})
+
 
 def create_service_status_event(
     service: ManagedService,
@@ -428,6 +433,9 @@ class ContainerOrchestrator:
 
         if reset_failures:
             self._registry.reset_failures(name)
+            if not service.enabled or service.status == ContainerServiceStatus.DISABLED:
+                self._registry.set_enabled(name, True)
+                self._registry.update_status(name, ContainerServiceStatus.STOPPED)
 
         # Broadcast restart initiated
         await self._broadcast_status(service, "Manual restart initiated")

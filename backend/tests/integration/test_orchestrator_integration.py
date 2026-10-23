@@ -19,7 +19,7 @@ from __future__ import annotations
 import asyncio
 from datetime import UTC, datetime
 from typing import TYPE_CHECKING
-from unittest.mock import AsyncMock, patch
+from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
 
@@ -718,7 +718,7 @@ async def test_api_restart_service(
 
     # Register service
     service = ManagedService(
-        name="ai-yolo26",
+        name="ai-gateway",
         display_name="Test AI Detector",
         container_id=FAKE_CONTAINER_ID,
         image=TEST_IMAGE,
@@ -732,32 +732,41 @@ async def test_api_restart_service(
     )
     orchestrator._registry.register(service)
 
+    from backend.api.routes.auth import get_current_admin_user, get_current_user
     from backend.main import app
 
-    # Mock Docker restart to avoid timeout - we test the API behavior, not Docker
-    with (
-        patch.object(docker_client, "restart_container", new_callable=AM, return_value=True),
-        patch.object(app.state, "orchestrator", orchestrator, create=True),
-        patch(
-            "backend.api.middleware.setup_guard.SetupGuardMiddleware._check_setup_complete",
-            AsyncMock(return_value=True),
-        ),
-    ):
-        async with AsyncClient(
-            transport=ASGITransport(app=app),
-            base_url="http://test",
-        ) as client:
-            response = await client.post("/api/system/services/ai-yolo26/restart")
+    admin_user = MagicMock(id="admin-1", username="admin", is_admin=True)
+    orig_overrides = app.dependency_overrides.copy()
+    app.dependency_overrides[get_current_user] = lambda: admin_user
+    app.dependency_overrides[get_current_admin_user] = lambda: admin_user
 
-            assert response.status_code == 200
-            data = response.json()
+    try:
+        # Mock Docker restart to avoid timeout - we test the API behavior, not Docker
+        with (
+            patch.object(docker_client, "restart_container", new_callable=AM, return_value=True),
+            patch.object(app.state, "orchestrator", orchestrator, create=True),
+            patch(
+                "backend.api.middleware.setup_guard.SetupGuardMiddleware._check_setup_complete",
+                AsyncMock(return_value=True),
+            ),
+        ):
+            async with AsyncClient(
+                transport=ASGITransport(app=app),
+                base_url="http://test",
+            ) as client:
+                response = await client.post("/api/system/services/ai-gateway/restart")
 
-            assert data["success"] is True
-            assert "restart" in data["message"].lower()
-            assert data["service"]["name"] == "ai-yolo26"
+                assert response.status_code == 200
+                data = response.json()
 
-            # Verify Docker restart was called (mocked)
-            docker_client.restart_container.assert_called_once_with(FAKE_CONTAINER_ID)
+                assert data["success"] is True
+                assert "restart" in data["message"].lower()
+                assert data["service"]["name"] == "ai-gateway"
+
+                # Verify Docker restart was called (mocked)
+                docker_client.restart_container.assert_called_once_with(FAKE_CONTAINER_ID)
+    finally:
+        app.dependency_overrides = orig_overrides
 
 
 @pytest.mark.integration
@@ -803,30 +812,39 @@ async def test_api_enable_disabled_service(
     )
     orchestrator._registry.register(service)
 
+    from backend.api.routes.auth import get_current_admin_user, get_current_user
     from backend.main import app
 
-    with (
-        patch.object(app.state, "orchestrator", orchestrator, create=True),
-        patch(
-            "backend.api.middleware.setup_guard.SetupGuardMiddleware._check_setup_complete",
-            AsyncMock(return_value=True),
-        ),
-    ):
-        async with AsyncClient(
-            transport=ASGITransport(app=app),
-            base_url="http://test",
-        ) as client:
-            response = await client.post("/api/system/services/ai-yolo26/enable")
+    admin_user = MagicMock(id="admin-1", username="admin", is_admin=True)
+    orig_overrides = app.dependency_overrides.copy()
+    app.dependency_overrides[get_current_user] = lambda: admin_user
+    app.dependency_overrides[get_current_admin_user] = lambda: admin_user
 
-            assert response.status_code == 200
-            data = response.json()
+    try:
+        with (
+            patch.object(app.state, "orchestrator", orchestrator, create=True),
+            patch(
+                "backend.api.middleware.setup_guard.SetupGuardMiddleware._check_setup_complete",
+                AsyncMock(return_value=True),
+            ),
+        ):
+            async with AsyncClient(
+                transport=ASGITransport(app=app),
+                base_url="http://test",
+            ) as client:
+                response = await client.post("/api/system/services/ai-yolo26/enable")
 
-            assert data["success"] is True
-            assert "enabled" in data["message"].lower()
-            assert data["service"]["name"] == "ai-yolo26"
-            assert data["service"]["enabled"] is True
-            # Status should be STOPPED after enable (ready for restart)
-            assert data["service"]["status"] == "stopped"
+                assert response.status_code == 200
+                data = response.json()
+
+                assert data["success"] is True
+                assert "enabled" in data["message"].lower()
+                assert data["service"]["name"] == "ai-yolo26"
+                assert data["service"]["enabled"] is True
+                # Status should be STOPPED after enable (ready for restart)
+                assert data["service"]["status"] == "stopped"
+    finally:
+        app.dependency_overrides = orig_overrides
 
 
 @pytest.mark.integration
@@ -871,29 +889,38 @@ async def test_api_disable_service(
     )
     orchestrator._registry.register(service)
 
+    from backend.api.routes.auth import get_current_admin_user, get_current_user
     from backend.main import app
 
-    with (
-        patch.object(app.state, "orchestrator", orchestrator, create=True),
-        patch(
-            "backend.api.middleware.setup_guard.SetupGuardMiddleware._check_setup_complete",
-            AsyncMock(return_value=True),
-        ),
-    ):
-        async with AsyncClient(
-            transport=ASGITransport(app=app),
-            base_url="http://test",
-        ) as client:
-            response = await client.post("/api/system/services/ai-yolo26/disable")
+    admin_user = MagicMock(id="admin-1", username="admin", is_admin=True)
+    orig_overrides = app.dependency_overrides.copy()
+    app.dependency_overrides[get_current_user] = lambda: admin_user
+    app.dependency_overrides[get_current_admin_user] = lambda: admin_user
 
-            assert response.status_code == 200
-            data = response.json()
+    try:
+        with (
+            patch.object(app.state, "orchestrator", orchestrator, create=True),
+            patch(
+                "backend.api.middleware.setup_guard.SetupGuardMiddleware._check_setup_complete",
+                AsyncMock(return_value=True),
+            ),
+        ):
+            async with AsyncClient(
+                transport=ASGITransport(app=app),
+                base_url="http://test",
+            ) as client:
+                response = await client.post("/api/system/services/ai-yolo26/disable")
 
-            assert data["success"] is True
-            assert "disabled" in data["message"].lower()
-            assert data["service"]["name"] == "ai-yolo26"
-            assert data["service"]["enabled"] is False
-            assert data["service"]["status"] == "disabled"
+                assert response.status_code == 200
+                data = response.json()
+
+                assert data["success"] is True
+                assert "disabled" in data["message"].lower()
+                assert data["service"]["name"] == "ai-yolo26"
+                assert data["service"]["enabled"] is False
+                assert data["service"]["status"] == "disabled"
+    finally:
+        app.dependency_overrides = orig_overrides
 
 
 @pytest.mark.integration
@@ -941,32 +968,41 @@ async def test_api_start_stopped_service(
     )
     orchestrator._registry.register(service)
 
+    from backend.api.routes.auth import get_current_admin_user, get_current_user
     from backend.main import app
 
-    # Mock Docker start to avoid timeout - we test the API behavior, not Docker
-    with (
-        patch.object(docker_client, "start_container", new_callable=AM, return_value=True),
-        patch.object(app.state, "orchestrator", orchestrator, create=True),
-        patch(
-            "backend.api.middleware.setup_guard.SetupGuardMiddleware._check_setup_complete",
-            AsyncMock(return_value=True),
-        ),
-    ):
-        async with AsyncClient(
-            transport=ASGITransport(app=app),
-            base_url="http://test",
-        ) as client:
-            response = await client.post("/api/system/services/ai-yolo26/start")
+    admin_user = MagicMock(id="admin-1", username="admin", is_admin=True)
+    orig_overrides = app.dependency_overrides.copy()
+    app.dependency_overrides[get_current_user] = lambda: admin_user
+    app.dependency_overrides[get_current_admin_user] = lambda: admin_user
 
-            assert response.status_code == 200
-            data = response.json()
+    try:
+        # Mock Docker start to avoid timeout - we test the API behavior, not Docker
+        with (
+            patch.object(docker_client, "start_container", new_callable=AM, return_value=True),
+            patch.object(app.state, "orchestrator", orchestrator, create=True),
+            patch(
+                "backend.api.middleware.setup_guard.SetupGuardMiddleware._check_setup_complete",
+                AsyncMock(return_value=True),
+            ),
+        ):
+            async with AsyncClient(
+                transport=ASGITransport(app=app),
+                base_url="http://test",
+            ) as client:
+                response = await client.post("/api/system/services/ai-yolo26/start")
 
-            assert data["success"] is True
-            assert "start" in data["message"].lower()
-            assert data["service"]["name"] == "ai-yolo26"
+                assert response.status_code == 200
+                data = response.json()
 
-            # Verify Docker start was called (mocked)
-            docker_client.start_container.assert_called_once_with(FAKE_CONTAINER_ID)
+                assert data["success"] is True
+                assert "start" in data["message"].lower()
+                assert data["service"]["name"] == "ai-yolo26"
+
+                # Verify Docker start was called (mocked)
+                docker_client.start_container.assert_called_once_with(FAKE_CONTAINER_ID)
+    finally:
+        app.dependency_overrides = orig_overrides
 
 
 @pytest.mark.integration
@@ -996,23 +1032,32 @@ async def test_api_service_not_found(
         broadcast_fn=mock_broadcast_fn,
     )
 
+    from backend.api.routes.auth import get_current_admin_user, get_current_user
     from backend.main import app
 
-    with (
-        patch.object(app.state, "orchestrator", orchestrator, create=True),
-        patch(
-            "backend.api.middleware.setup_guard.SetupGuardMiddleware._check_setup_complete",
-            AsyncMock(return_value=True),
-        ),
-    ):
-        async with AsyncClient(
-            transport=ASGITransport(app=app),
-            base_url="http://test",
-        ) as client:
-            response = await client.post("/api/system/services/unknown-service/restart")
+    admin_user = MagicMock(id="admin-1", username="admin", is_admin=True)
+    orig_overrides = app.dependency_overrides.copy()
+    app.dependency_overrides[get_current_user] = lambda: admin_user
+    app.dependency_overrides[get_current_admin_user] = lambda: admin_user
 
-            assert response.status_code == 404
-            data = response.json()
+    try:
+        with (
+            patch.object(app.state, "orchestrator", orchestrator, create=True),
+            patch(
+                "backend.api.middleware.setup_guard.SetupGuardMiddleware._check_setup_complete",
+                AsyncMock(return_value=True),
+            ),
+        ):
+            async with AsyncClient(
+                transport=ASGITransport(app=app),
+                base_url="http://test",
+            ) as client:
+                response = await client.post("/api/system/services/unknown-service/restart")
+
+                assert response.status_code == 404
+                data = response.json()
+    finally:
+        app.dependency_overrides = orig_overrides
     error_msg = get_error_message(data)
     assert "not found" in error_msg.lower()
 

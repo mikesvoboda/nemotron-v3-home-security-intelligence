@@ -556,14 +556,14 @@ Design: [`../4n-status.md`](../4n-status.md), "Packages" row `B4.11`. Covers the
 - [x] The test-only PR (step 2): the six AI-health producers and their routes, `services.py`,
       `container_orchestrator.py` and its health loop, the worker routes, `webhooks.py`,
       `alertmanager.py` and `admin.py`'s flush.
-- [ ] The build PR: `ai_health.py` and its readers; the VLM client's call record and
+- [x] The build PR: `ai_health.py` and its readers; the VLM client's call record and
       `VLM_SLEEP_IDLE_SECONDS`; the never-probed set for `ai-vlm`; the new fields beside the old
       (expand, with the `ai_models` key unmoved); the latency histograms; restart under
       `get_current_admin_user` for the four services, its two-step audit, the disabled check gone;
       the routes `F4.8` retires, and worker restart, under the same guard; the infrastructure-alerts
       proxy; `alertmanager.py` and `prometheus_alerts` retired by a recorded upgrade; the mode-aware
       flush; the regenerated contract and types.
-- [ ] Golden path (pytest, `backend/tests/golden/external/`) as the design gives it.
+- [x] Golden path (pytest, `backend/tests/golden/external/`) as the design gives it.
 
 **Done when:** steps 4–6 hold for its rows. F-140's real-tier check is the owner's witnessed restart
 on the live install (ruling 317). F-293's row reads **retired**.
