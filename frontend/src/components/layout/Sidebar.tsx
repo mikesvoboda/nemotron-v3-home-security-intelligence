@@ -6,6 +6,7 @@ import ModeSwitch from './ModeSwitch';
 import { ADVANCED_HUBS, EASY_HUBS, hubForPath, type Hub } from '../../config/surfaces';
 import { useViewMode } from '../../contexts/ViewModeContext';
 import { useViewport } from '../../hooks/useIsMobile';
+import { useOpenAlertCount } from '../../hooks/useOpenAlertCount';
 import { useSidebarContext } from '../../hooks/useSidebarContext';
 import IconButton from '../common/IconButton';
 
@@ -44,6 +45,12 @@ interface HubItemProps {
 function HubItem({ hub, isActive, onNavClick, isCollapsed }: HubItemProps) {
   const Icon = hub.icon;
   const targetPath = hub.tabs[0]?.path ?? '/';
+  // The Alerts & Rules hub shows the open-alert count (F4.1: "the nav item
+  // shows the open count"); 0 hides the badge. One shared query for every
+  // nav surface; wired to the hub table's `badge: 'open_alerts'` marker.
+  const openAlertCount = useOpenAlertCount();
+  const badge =
+    hub.badge === 'open_alerts' && openAlertCount > 0 ? String(openAlertCount) : undefined;
 
   if (isCollapsed) {
     return (
@@ -62,6 +69,11 @@ function HubItem({ hub, isActive, onNavClick, isCollapsed }: HubItemProps) {
         <span className="pointer-events-none absolute left-full z-50 ml-2 whitespace-nowrap rounded-md bg-gray-800 px-2 py-1 text-sm text-white opacity-0 shadow-lg transition-opacity duration-200 group-hover:opacity-100">
           {hub.label}
         </span>
+        {badge ? (
+          <span className="absolute -right-1 -top-1 flex h-4 w-4 items-center justify-center rounded-full bg-yellow-500 text-[10px] font-bold text-black">
+            {badge}
+          </span>
+        ) : null}
       </Link>
     );
   }
@@ -81,6 +93,11 @@ function HubItem({ hub, isActive, onNavClick, isCollapsed }: HubItemProps) {
     >
       <Icon className="h-5 w-5 flex-shrink-0" aria-hidden="true" />
       <span className="flex-1 text-left">{hub.label}</span>
+      {badge && (
+        <span className="rounded bg-yellow-500 px-2 py-0.5 text-xs font-medium text-black">
+          {badge}
+        </span>
+      )}
     </Link>
   );
 }
