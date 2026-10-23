@@ -1416,6 +1416,16 @@ jobs:
             | sudo gpg --dearmor -o /usr/share/keyrings/postgresql.gpg
           sudo apt-get update
           sudo apt-get install -y postgresql-client-16
+          # /usr/bin/pg_restore is a postgresql-client-common pg_wrapper symlink
+          # that dispatches to the NEWEST installed client major, and the 26.04
+          # runner image preinstalls client 18 (the red-main run installed only
+          # the 15 kB `postgresql-client` metapackage — its 18 binaries were
+          # already present). With 16 installed alongside, bare `pg_restore`
+          # still ran 18 and the restore tests kept the SET transaction_timeout
+          # signature. Put the versioned 16 binaries first on PATH so the tests
+          # invoke the pinned client, and assert the pinned binary is real.
+          test -x /usr/lib/postgresql/16/bin/pg_restore
+          echo "/usr/lib/postgresql/16/bin" >> "$GITHUB_PATH"
 
       - name: Run Services integration tests
         # Service tests: test_*_integration.py, test_batch*.py, test_detector*.py, test_file_watcher*.py, test_circuit*.py
