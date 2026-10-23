@@ -866,16 +866,24 @@ def test_real_tree_matches_spec_baselines():
         # Increase path, sixth precedent.
         # 94→93 (2026-10-21, B3.2 #7319): test_benchmark_vram.py deleted with
         # backend/scripts/benchmark_vram.py (-1 imperative skip at :208).
-        # 93→95 (2026-10-22, [r308a] PR #7340): the sink smoke spec's two
-        # imperative skips — test_notification_sinks.py:73 (the sink env
-        # gate; the comprehension over os.environ reads sits behind a local
-        # alias `missing`, the conftest.py:61/:70 local-alias shape) and
-        # :171 (no events rows on the live stack; an alert needs a real
-        # events.id, the test_webhook_deliveries.py:154 data-chain shape).
-        # Both adjudicated environment via HOST_JUSTIFIED (b904d853f's
-        # channel); registry entries + baseline raised in this same commit.
+        # [r308a]'s sink smoke spec (PR #7340): the sink env gate,
+        # test_notification_sinks.py:75 (now-current line; :73 at the
+        # raise — the comprehension over os.environ reads sits behind a local
+        # alias `missing`, the conftest.py:61/:70 local-alias shape).
+        # Adjudicated environment via HOST_JUSTIFIED (b904d853f's
+        # channel); registry entry + baseline raised in the same commit.
         # Increase path, seventh precedent.
-        "pytest_skip_imperative": 95,
+        # 95→94 (2026-10-23, [r308a] PR #7390): the webhook golden leg's
+        # second imperative skip, test_notification_sinks.py:177 (then-current
+        # line; :171 at the raise — "no events on this stack; an alert needs a
+        # real events.id", the test_webhook_deliveries.py:165 data-chain
+        # shape) is GONE: the fix bulk-creates the leg's own rejected-verdict
+        # event instead of grabbing the stack's newest one, so the guard no
+        # longer exists. Registry row + gen HOST_JUSTIFIED key removed and
+        # baseline lowered in this same commit. Removal path: a suppression
+        # deleted by the defect's repair, the direction the ratchet exists to
+        # protect.
+        "pytest_skip_imperative": 94,
         # 51→49 (2026-10-21, roll 10 of #7246) then main's r285 +3 sites landed
         # inside files the F3.2 cut had already deleted (useMonitoringTargets,
         # ReidHistoryPanel tests): the merged tree MEASURES 49, so main's 52

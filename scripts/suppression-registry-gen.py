@@ -114,15 +114,17 @@ HOST_JUSTIFIED: dict[str, str] = {
     # legitimately can never be removed.
     "backend/tests/golden/external/conftest.py:61": "missing = _missing_env() — FEATURE_CHECK_* harness env absent, host state behind a local alias",
     "backend/tests/golden/external/conftest.py:70": "missing = _missing_env() — FEATURE_CHECK_* harness env absent, host state behind a local alias",
-    # [r308a]'s sink smoke specs (PR #7340): the same two shapes as the rows
-    # above. :73 gates on the sink env built behind a local alias (`missing`
+    # [r308a]'s sink smoke spec (PR #7340): the local-alias shape of the rows
+    # above. :75 gates on the sink env built behind a local alias (`missing`
     # is a comprehension over os.environ reads one statement up, invisible to
-    # the site-line probe) — the conftest.py:61/:70 local-alias shape. :171
-    # needs a real events.id (Alert.event_id is a non-nullable FK) and the
-    # guard is the stack's data state — the test_webhook_deliveries.py:165
-    # data-chain shape.
+    # the site-line probe) — the conftest.py:61/:70 local-alias shape. Its
+    # :177 skip (no events rows on the live stack; an alert needs a real
+    # events.id, the test_webhook_deliveries.py:165 data-chain shape) was
+    # REMOVED by the r308a sink fix (PR #7390): the leg bulk-creates its own
+    # rejected-verdict event instead of grabbing the stack's newest one, so
+    # the guard no longer exists — suppressions removed by the repairs are
+    # the direction the ratchet exists to protect.
     "backend/tests/golden/external/test_notification_sinks.py:75": "missing is a comprehension over os.environ reads — FEATURE_CHECK_SINK_* env absent, host state behind a local alias",
-    "backend/tests/golden/external/test_notification_sinks.py:177": "no events rows on the live stack — DB data chain, not repo content",
     # The golden webhook spec needs a real events.id (Alert.event_id is a
     # non-nullable FK); an empty events table is the stack's data state, the
     # same data-chain shape as test_risk_score_validation.py:199 above.
