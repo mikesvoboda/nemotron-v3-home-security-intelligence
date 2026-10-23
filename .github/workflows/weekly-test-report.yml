@@ -65,6 +65,30 @@ jobs:
       - name: Install backend dependencies
         run: uv sync --extra dev --frozen
 
+      # Ruling 322/324: pin the PostgreSQL client to the server's major — the
+      # same drift ci.yml's integration-tests-services pins (#7379). The
+      # backend-integration step collects backend/tests/integration/
+      # unfiltered, so it includes test_backup_restore.py's pg_dump/
+      # pg_restore subprocesses against the postgres:16-alpine service;
+      # ubuntu-latest's 26.04 image resolves the unpinned client to PG 18,
+      # whose `SET transaction_timeout = 0` the PG 16 server rejects.
+      # Mechanism copied verbatim from ci.yml (the versioned bin dir goes on
+      # PATH because bare pg_restore is a pg_wrapper symlink dispatching to
+      # the newest installed major).
+      - name: Install PostgreSQL client tools
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y curl ca-certificates gnupg
+          . /etc/os-release
+          echo "deb [signed-by=/usr/share/keyrings/postgresql.gpg] http://apt.postgresql.org/pub/repos/apt ${VERSION_CODENAME}-pgdg main" \
+            | sudo tee /etc/apt/sources.list.d/pgdg.list > /dev/null
+          curl -fsSL https://www.postgresql.org/media/keys/ACCC4CF8.asc \
+            | sudo gpg --dearmor -o /usr/share/keyrings/postgresql.gpg
+          sudo apt-get update
+          sudo apt-get install -y postgresql-client-16
+          test -x /usr/lib/postgresql/16/bin/pg_restore
+          echo "/usr/lib/postgresql/16/bin" >> "$GITHUB_PATH"
+
       - name: Set up Node.js
         uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
         with:
