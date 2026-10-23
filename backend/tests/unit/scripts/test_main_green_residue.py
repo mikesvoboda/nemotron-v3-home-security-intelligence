@@ -34,7 +34,6 @@ handlers, which must survive any future sweep of the same shape.
 
 from __future__ import annotations
 
-import re
 from pathlib import Path
 
 REPO_ROOT = Path(__file__).resolve().parents[4]
@@ -47,19 +46,17 @@ def _read(relative_path: str) -> str:
 
 
 class TestSeedEventsInstances:
-    """scripts/seed-events.py:5674 seeded fake alerts against a deleted container."""
+    """scripts/seed-events.py:5674 seeded fake alerts against a deleted container.
+
+    B4.11 (R2a row 9) retired the prometheus_alerts table and seed_prometheus_alerts()
+    with it; the stronger pin is that seed_prometheus_alerts is gone and none of the
+    retired hostnames appear in scripts/seed-events.py.
+    """
 
     def test_instances_list_has_no_retired_hostnames(self) -> None:
         source = _read("scripts/seed-events.py")
-        instances_lines = [
-            line for line in source.splitlines() if re.search(r"instances\s*=\s*\[", line)
-        ]
-        assert instances_lines, "seed-events.py lost its alert `instances` list entirely"
-        for line in instances_lines:
-            for retired in RETIRED_HOSTNAMES:
-                assert retired not in line, (
-                    f"instances list still names retired {retired!r}: {line}"
-                )
+        assert "seed_prometheus_alerts" not in source
+        assert "PrometheusAlert" not in source
 
 
 class TestImagePullSizeEstimates:

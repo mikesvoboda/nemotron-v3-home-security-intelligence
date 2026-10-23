@@ -559,7 +559,13 @@ describe('useDeleteMember', () => {
       }
     });
 
-    expect(result.current.error?.message).toContain('Member not found');
+    // Assert settled hook state through waitFor: act resolves when the
+    // mutateAsync promise settles, but React Query applies the error state
+    // in a follow-up render pass that act does not always flush before the
+    // next assert — asserting directly flakes (~1 in 18 solo runs).
+    await waitFor(() => {
+      expect(result.current.error?.message).toContain('Member not found');
+    });
   });
 });
 

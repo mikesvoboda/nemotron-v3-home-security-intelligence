@@ -3179,3 +3179,27 @@ class RestartHistoryResponse(BaseModel):
             }
         }
     )
+
+
+class InfrastructureAlertItem(BaseModel):
+    """Active firing infrastructure alert item (matches /ws/events infrastructure_alert.data)."""
+
+    alertname: str = Field(..., description="Alert name")
+    status: str = Field(default="firing", description="Alert status (firing)")
+    severity: str = Field(default="info", description="Alert severity")
+    component: str = Field(default="unknown", description="Target component")
+    summary: str = Field(default="", description="Short summary")
+    description: str = Field(default="", description="Detailed description")
+    started_at: str | None = Field(default=None, description="Alert start timestamp (ISO 8601)")
+    fingerprint: str = Field(..., description="Alert fingerprint")
+    receiver: str = Field(default="alertmanager", description="Alert receiver name")
+
+
+class InfrastructureAlertsResponse(BaseModel):
+    """Response schema for GET /api/system/infrastructure-alerts."""
+
+    alerts: list[InfrastructureAlertItem] = Field(
+        default_factory=list,
+        description="Active firing infrastructure alerts",
+    )
+    total: int = Field(default=0, ge=0, description="Number of active firing alerts")

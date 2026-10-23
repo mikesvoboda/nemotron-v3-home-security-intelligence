@@ -7,6 +7,8 @@ Webhook Endpoints:
     POST /api/webhooks/alerts - Receive Alertmanager webhook notifications
 """
 
+from typing import Any
+
 from fastapi import APIRouter, BackgroundTasks, status
 
 from backend.api.schemas.webhooks import (
@@ -20,6 +22,20 @@ from backend.services.event_broadcaster import EventBroadcaster
 logger = get_logger(__name__)
 
 router = APIRouter(prefix="/api/webhooks", tags=["webhooks"])
+
+# Active firing infrastructure alerts received via POST /api/webhooks/alerts,
+# keyed by fingerprint. Popped when a matching resolved webhook arrives.
+_active_webhook_alerts: dict[str, dict[str, Any]] = {}
+
+
+def get_active_webhook_alerts() -> list[dict[str, Any]]:
+    """Return active firing alerts recorded by the webhook receiver."""
+    return [dict(item) for item in _active_webhook_alerts.values()]
+
+
+def clear_active_webhook_alerts() -> None:
+    """Clear in-memory active webhook alerts (used by tests)."""
+    _active_webhook_alerts.clear()
 
 
 async def _broadcast_infrastructure_alerts(payload: AlertmanagerWebhookPayload) -> None:
@@ -114,6 +130,17 @@ async def receive_alertmanager_webhook(
         safe_description = sanitize_log_value(description)
 
         if alert.status == AlertmanagerStatus.FIRING:
+            _active_webhook_alerts[alert.fingerprint] = {
+                "alertname": alertname,
+                "status": alert.status.value,
+                "severity": severity,
+                "component": component,
+                "summary": alert.annotations.get("summary", ""),
+                "description": alert.annotations.get("description", ""),
+                "started_at": alert.startsAt.isoformat() if alert.startsAt else None,
+                "fingerprint": alert.fingerprint,
+                "receiver": payload.receiver,
+            }
             log_msg = (
                 f"[ALERT FIRING] {safe_alertname} ({safe_severity}) - "
                 f"component={safe_component}: {safe_description}"
@@ -125,6 +152,7 @@ async def receive_alertmanager_webhook(
             else:
                 logger.info(log_msg)
         else:
+            _active_webhook_alerts.pop(alert.fingerprint, None)
             logger.info(
                 f"[ALERT RESOLVED] {safe_alertname} ({safe_severity}) - "
                 f"component={safe_component}: resolved after firing since {alert.startsAt}"

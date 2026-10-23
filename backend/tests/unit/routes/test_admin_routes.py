@@ -808,3 +808,53 @@ class TestAdminUserManagement:
 
         assert exc_info.value.status_code == 403
         assert exc_info.value.detail == "Admin endpoints require ADMIN_ENABLED=true"
+
+    def test_flush_queues_streams_mode_trims_and_acks_without_deleting_work_streams(
+        self,
+        admin_client: TestClient,
+        mock_redis_client: MagicMock,
+    ) -> None:
+        """B4.11 T2: streams mode trims detections:stream and analysis:stream, acks pending, and deletes :dlq."""
+        raw_client = AsyncMock()
+        raw_client.xlen = AsyncMock(
+            side_effect=lambda key: {
+                "detections:stream": 3,
+                "analysis:stream": 2,
+                "detections:stream:dlq": 1,
+                "analysis:stream:dlq": 0,
+            }[key]
+        )
+        raw_client.xpending_range = AsyncMock(
+            side_effect=lambda key, *_a, **_kw: (
+                [{"message_id": b"1700000000000-0"}] if key == "detections:stream" else []
+            )
+        )
+        raw_client.xack = AsyncMock(return_value=1)
+        raw_client.xtrim = AsyncMock(return_value=3)
+        raw_client.delete = AsyncMock(return_value=1)
+        mock_redis_client._client = raw_client
+
+        from backend.core.dependencies import get_redis_dependency
+
+        admin_client.app.dependency_overrides[get_redis_dependency] = lambda: mock_redis_client
+        resp = admin_client.post("/api/admin/maintenance/flush-queues")
+
+        assert resp.status_code == 200
+        data = resp.json()
+        assert data["items_cleared"] == {
+            "detections:stream": 3,
+            "analysis:stream": 2,
+            "detections:stream:dlq": 1,
+            "analysis:stream:dlq": 0,
+        }
+        assert set(data["queues_flushed"]) == {
+            "detections:stream",
+            "analysis:stream",
+            "detections:stream:dlq",
+        }
+        # Work streams are trimmed, never deleted
+        deleted_keys = [call.args[0] for call in raw_client.delete.call_args_list]
+        assert deleted_keys == ["detections:stream:dlq"]
+        raw_client.xack.assert_awaited_once_with(
+            "detections:stream", "detection-workers", "1700000000000-0"
+        )

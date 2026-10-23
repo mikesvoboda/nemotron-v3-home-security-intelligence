@@ -41,6 +41,7 @@ from typing import TYPE_CHECKING, Any
 
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy.orm import selectinload
 
 from backend.api.schemas.outbound_webhook import WebhookEventType
 from backend.core.logging import get_logger
@@ -161,13 +162,21 @@ class AlertService:
     async def get_alert(self, alert_id: str) -> Alert | None:
         """Get an alert by ID.
 
+        Eager-loads the triggering event: `AlertServiceResponse.camera_id` is
+        derived through the relationship, and touching an unloaded relationship
+        from a sync context under AsyncSession raises MissingGreenlet. The
+        response schema guards against unloaded relationships (camera_id None),
+        but every CRUD read can afford the one extra column fetch.
+
         Args:
             alert_id: Alert UUID.
 
         Returns:
             Alert instance if found, None otherwise.
         """
-        result = await self._session.execute(select(Alert).where(Alert.id == alert_id))
+        result = await self._session.execute(
+            select(Alert).where(Alert.id == alert_id).options(selectinload(Alert.event))
+        )
         return result.scalar_one_or_none()
 
     async def update_alert(

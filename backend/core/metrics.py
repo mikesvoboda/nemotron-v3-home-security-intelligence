@@ -1446,6 +1446,19 @@ def observe_ai_request_duration(service: str, duration_seconds: float) -> None:
         duration_seconds: Duration in seconds
     """
     AI_REQUEST_DURATION.labels(service=service).observe(duration_seconds)
+    if isinstance(duration_seconds, (int, float)) and not isinstance(duration_seconds, bool):
+        try:
+            from backend.services.ai_health import (
+                record_detector_latency_ms,
+                record_vlm_latency_ms,
+            )
+
+            if service in ("yolo26", "rtdetr"):
+                record_detector_latency_ms(float(duration_seconds) * 1000.0)
+            elif service in ("ai_vlm", "ai-vlm", "nemotron"):
+                record_vlm_latency_ms(float(duration_seconds) * 1000.0)
+        except Exception:  # noqa: S110
+            pass
 
 
 # =============================================================================
