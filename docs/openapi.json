@@ -1296,6 +1296,18 @@
             "description": "Additional context",
             "title": "Metadata"
           },
+          "raised_while_unarmed": {
+            "anyOf": [
+              {
+                "type": "boolean"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Whether this alert was raised while the camera was unarmed",
+            "title": "Raised While Unarmed"
+          },
           "rule_id": {
             "anyOf": [
               {
@@ -1486,6 +1498,21 @@
             "description": "Alert even if the AI verdict is rejected",
             "title": "Alert On Rejected"
           },
+          "alert_on_rejected_modes": {
+            "anyOf": [
+              {
+                "items": {
+                  "type": "string"
+                },
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Arming modes in which a rejected verdict still alerts (null = every mode)",
+            "title": "Alert On Rejected Modes"
+          },
           "camera_ids": {
             "anyOf": [
               {
@@ -1658,6 +1685,21 @@
             "default": "medium",
             "description": "Severity level for triggered alerts"
           },
+          "sources": {
+            "anyOf": [
+              {
+                "items": {
+                  "type": "string"
+                },
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Event sources this rule matches (camera, external)",
+            "title": "Sources"
+          },
           "threat_confidence_threshold": {
             "anyOf": [
               {
@@ -1825,6 +1867,21 @@
             ],
             "description": "Alert even if the AI verdict is rejected",
             "title": "Alert On Rejected"
+          },
+          "alert_on_rejected_modes": {
+            "anyOf": [
+              {
+                "items": {
+                  "type": "string"
+                },
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Arming modes in which a rejected verdict still alerts",
+            "title": "Alert On Rejected Modes"
           },
           "camera_ids": {
             "anyOf": [
@@ -1996,6 +2053,21 @@
             "$ref": "#/components/schemas/AlertSeverity",
             "description": "Severity level"
           },
+          "sources": {
+            "anyOf": [
+              {
+                "items": {
+                  "type": "string"
+                },
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Event sources this rule matches (camera, external)",
+            "title": "Sources"
+          },
           "threat_confidence_threshold": {
             "anyOf": [
               {
@@ -2162,6 +2234,21 @@
             ],
             "description": "Alert even if the AI verdict is rejected",
             "title": "Alert On Rejected"
+          },
+          "alert_on_rejected_modes": {
+            "anyOf": [
+              {
+                "items": {
+                  "type": "string"
+                },
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Arming modes in which a rejected verdict still alerts",
+            "title": "Alert On Rejected Modes"
           },
           "camera_ids": {
             "anyOf": [
@@ -2384,6 +2471,21 @@
               }
             ],
             "description": "Severity level"
+          },
+          "sources": {
+            "anyOf": [
+              {
+                "items": {
+                  "type": "string"
+                },
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Event sources this rule matches (camera, external)",
+            "title": "Sources"
           },
           "threat_confidence_threshold": {
             "anyOf": [
@@ -2723,6 +2825,18 @@
             ],
             "description": "Additional context metadata",
             "title": "Metadata"
+          },
+          "raised_while_unarmed": {
+            "anyOf": [
+              {
+                "type": "boolean"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Whether this alert was raised while the camera was unarmed",
+            "title": "Raised While Unarmed"
           },
           "rule_id": {
             "anyOf": [
@@ -3874,6 +3988,282 @@
           }
         },
         "title": "AreaUpdate",
+        "type": "object"
+      },
+      "ArmingChangeItemResponse": {
+        "description": "A single entry in the arming change history.",
+        "properties": {
+          "changed_at": {
+            "format": "date-time",
+            "title": "Changed At",
+            "type": "string"
+          },
+          "exclusions_after": {
+            "additionalProperties": {
+              "items": {
+                "type": "string"
+              },
+              "type": "array"
+            },
+            "title": "Exclusions After",
+            "type": "object"
+          },
+          "from_value": {
+            "anyOf": [
+              {},
+              {
+                "type": "null"
+              }
+            ],
+            "title": "From Value"
+          },
+          "id": {
+            "title": "Id",
+            "type": "integer"
+          },
+          "kind": {
+            "title": "Kind",
+            "type": "string"
+          },
+          "mode_after": {
+            "title": "Mode After",
+            "type": "string"
+          },
+          "source_kind": {
+            "title": "Source Kind",
+            "type": "string"
+          },
+          "source_name": {
+            "title": "Source Name",
+            "type": "string"
+          },
+          "to_value": {
+            "title": "To Value"
+          }
+        },
+        "required": [
+          "id",
+          "kind",
+          "to_value",
+          "mode_after",
+          "source_kind",
+          "source_name",
+          "changed_at"
+        ],
+        "title": "ArmingChangeItemResponse",
+        "type": "object"
+      },
+      "ArmingChangesListResponse": {
+        "description": "Response for GET /api/arming/changes.",
+        "properties": {
+          "items": {
+            "items": {
+              "$ref": "#/components/schemas/ArmingChangeItemResponse"
+            },
+            "title": "Items",
+            "type": "array"
+          }
+        },
+        "title": "ArmingChangesListResponse",
+        "type": "object"
+      },
+      "ArmingEventDecisionResponse": {
+        "description": "Response for GET /api/arming/events/{event_id}/decision.",
+        "properties": {
+          "decided_by": {
+            "title": "Decided By",
+            "type": "string"
+          },
+          "event_id": {
+            "title": "Event Id",
+            "type": "integer"
+          },
+          "notify": {
+            "title": "Notify",
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "event_id",
+          "notify",
+          "decided_by"
+        ],
+        "title": "ArmingEventDecisionResponse",
+        "type": "object"
+      },
+      "ArmingModeCamerasResponse": {
+        "description": "Response for GET/PUT /api/arming/modes/{mode}/cameras.",
+        "properties": {
+          "excluded_camera_ids": {
+            "description": "Camera IDs excluded from alerting in this mode",
+            "items": {
+              "type": "string"
+            },
+            "title": "Excluded Camera Ids",
+            "type": "array"
+          },
+          "mode": {
+            "description": "Arming mode",
+            "title": "Mode",
+            "type": "string"
+          }
+        },
+        "required": [
+          "mode"
+        ],
+        "title": "ArmingModeCamerasResponse",
+        "type": "object"
+      },
+      "ArmingModeCamerasUpdateRequest": {
+        "description": "Request for PUT /api/arming/modes/{mode}/cameras.",
+        "properties": {
+          "excluded_camera_ids": {
+            "description": "Camera IDs to leave out of alerting in this mode",
+            "items": {
+              "type": "string"
+            },
+            "title": "Excluded Camera Ids",
+            "type": "array"
+          }
+        },
+        "title": "ArmingModeCamerasUpdateRequest",
+        "type": "object"
+      },
+      "ArmingScheduleEntrySchema": {
+        "description": "A single weekly schedule entry.",
+        "properties": {
+          "days": {
+            "description": "Weekdays (monday..sunday)",
+            "items": {
+              "type": "string"
+            },
+            "minItems": 1,
+            "title": "Days",
+            "type": "array"
+          },
+          "id": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Schedule entry ID",
+            "title": "Id"
+          },
+          "mode": {
+            "description": "Target arming mode: home, away, night, or disarmed",
+            "title": "Mode",
+            "type": "string"
+          },
+          "time": {
+            "description": "Local time in HH:MM (24-hour)",
+            "title": "Time",
+            "type": "string"
+          }
+        },
+        "required": [
+          "days",
+          "time",
+          "mode"
+        ],
+        "title": "ArmingScheduleEntrySchema",
+        "type": "object"
+      },
+      "ArmingScheduleResponse": {
+        "description": "Response for GET/PUT /api/arming/schedule.",
+        "properties": {
+          "items": {
+            "items": {
+              "$ref": "#/components/schemas/ArmingScheduleEntrySchema"
+            },
+            "title": "Items",
+            "type": "array"
+          }
+        },
+        "title": "ArmingScheduleResponse",
+        "type": "object"
+      },
+      "ArmingScheduleUpdateRequest": {
+        "description": "Request for PUT /api/arming/schedule.",
+        "properties": {
+          "items": {
+            "items": {
+              "$ref": "#/components/schemas/ArmingScheduleEntrySchema"
+            },
+            "title": "Items",
+            "type": "array"
+          }
+        },
+        "title": "ArmingScheduleUpdateRequest",
+        "type": "object"
+      },
+      "ArmingSetModeRequest": {
+        "description": "Request for PUT /api/arming/mode.",
+        "properties": {
+          "mode": {
+            "description": "Target arming mode: home, away, night, or disarmed",
+            "title": "Mode",
+            "type": "string"
+          }
+        },
+        "required": [
+          "mode"
+        ],
+        "title": "ArmingSetModeRequest",
+        "type": "object"
+      },
+      "ArmingStatusResponse": {
+        "description": "Response for GET /api/arming.",
+        "properties": {
+          "by_whom": {
+            "description": "Who or what set the current mode",
+            "title": "By Whom",
+            "type": "string"
+          },
+          "mode": {
+            "description": "Current household arming mode (home, away, night, disarmed)",
+            "title": "Mode",
+            "type": "string"
+          },
+          "next_scheduled": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/NextScheduledTransitionResponse"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Next scheduled transition if a schedule is configured"
+          },
+          "since": {
+            "description": "UTC timestamp when the current mode was set",
+            "format": "date-time",
+            "title": "Since",
+            "type": "string"
+          },
+          "source_kind": {
+            "description": "Source kind (user, webhook, mqtt, schedule, system)",
+            "title": "Source Kind",
+            "type": "string"
+          },
+          "source_name": {
+            "description": "Source identifier",
+            "title": "Source Name",
+            "type": "string"
+          }
+        },
+        "required": [
+          "mode",
+          "since",
+          "source_kind",
+          "source_name",
+          "by_whom"
+        ],
+        "title": "ArmingStatusResponse",
         "type": "object"
       },
       "AssociatedDetection": {
@@ -13180,6 +13570,18 @@
             "minLength": 1,
             "title": "Summary",
             "type": "string"
+          },
+          "verdict": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Optional VLM verdict (confirmed, uncertain, rejected, verification_failed)",
+            "title": "Verdict"
           }
         },
         "required": [
@@ -20403,10 +20805,35 @@
         "type": "object"
       },
       "InboundAlertPayload": {
-        "description": "Payload for creating an external alert.",
+        "description": "Payload for creating an external alert event on a camera (B4.7 / 4n-arming.md).",
         "properties": {
+          "camera_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Camera ID associated with the external sensor/alert (required by /alert).",
+            "title": "Camera Id"
+          },
+          "idempotency_key": {
+            "anyOf": [
+              {
+                "maxLength": 255,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Optional caller idempotency key (namespaced per API key fingerprint).",
+            "title": "Idempotency Key"
+          },
           "message": {
-            "description": "Alert message.",
+            "description": "Alert message stored as the external event summary.",
             "maxLength": 1000,
             "minLength": 1,
             "title": "Message",
@@ -20425,7 +20852,7 @@
             "type": "string"
           },
           "source": {
-            "description": "Source system identifier (e.g., 'ifttt', 'zapier').",
+            "description": "Source system identifier (e.g., 'ifttt', 'home_assistant').",
             "maxLength": 100,
             "minLength": 1,
             "title": "Source",
@@ -20439,8 +20866,54 @@
         "title": "InboundAlertPayload",
         "type": "object"
       },
+      "InboundAlertWebhookResponse": {
+        "description": "Response returned by /alert.",
+        "properties": {
+          "alert_ids": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Alert Ids",
+            "type": "array"
+          },
+          "batch_id": {
+            "title": "Batch Id",
+            "type": "string"
+          },
+          "camera_id": {
+            "title": "Camera Id",
+            "type": "string"
+          },
+          "event_id": {
+            "title": "Event Id",
+            "type": "integer"
+          },
+          "notify": {
+            "title": "Notify",
+            "type": "boolean"
+          },
+          "severity": {
+            "title": "Severity",
+            "type": "string"
+          },
+          "status": {
+            "default": "ok",
+            "title": "Status",
+            "type": "string"
+          }
+        },
+        "required": [
+          "event_id",
+          "batch_id",
+          "camera_id",
+          "severity",
+          "notify"
+        ],
+        "title": "InboundAlertWebhookResponse",
+        "type": "object"
+      },
       "InboundArmPayload": {
-        "description": "Payload for arming zones.",
+        "description": "Payload for arming the household via inbound webhook.",
         "properties": {
           "mode": {
             "anyOf": [
@@ -20451,7 +20924,7 @@
                 "type": "null"
               }
             ],
-            "description": "Optional arm mode (full, perimeter, instant).",
+            "description": "Optional target mode (home, away, night, disarmed; default away).",
             "title": "Mode"
           },
           "zone_ids": {
@@ -20466,7 +20939,7 @@
                 "type": "null"
               }
             ],
-            "description": "Zone IDs to arm. If None, arms all zones.",
+            "description": "Zone IDs (unsupported; supplying zone_ids returns 422 naming the four modes).",
             "title": "Zone Ids"
           }
         },
@@ -20474,7 +20947,7 @@
         "type": "object"
       },
       "InboundDisarmPayload": {
-        "description": "Payload for disarming zones.",
+        "description": "Payload for disarming the household via inbound webhook.",
         "properties": {
           "reason": {
             "anyOf": [
@@ -20501,7 +20974,7 @@
                 "type": "null"
               }
             ],
-            "description": "Zone IDs to disarm. If None, disarms all zones.",
+            "description": "Zone IDs (unsupported; supplying zone_ids returns 422 naming the four modes).",
             "title": "Zone Ids"
           }
         },
@@ -20509,7 +20982,7 @@
         "type": "object"
       },
       "InboundModePayload": {
-        "description": "Payload for setting system mode.",
+        "description": "Payload for setting the household arming mode.",
         "properties": {
           "mode": {
             "description": "System mode: home, away, night, disarmed.",
@@ -20521,6 +20994,35 @@
           "mode"
         ],
         "title": "InboundModePayload",
+        "type": "object"
+      },
+      "InboundModeWebhookResponse": {
+        "description": "Response returned by /mode, /arm, and /disarm.",
+        "properties": {
+          "mode": {
+            "title": "Mode",
+            "type": "string"
+          },
+          "source_kind": {
+            "default": "webhook",
+            "title": "Source Kind",
+            "type": "string"
+          },
+          "source_name": {
+            "title": "Source Name",
+            "type": "string"
+          },
+          "status": {
+            "default": "ok",
+            "title": "Status",
+            "type": "string"
+          }
+        },
+        "required": [
+          "mode",
+          "source_name"
+        ],
+        "title": "InboundModeWebhookResponse",
         "type": "object"
       },
       "InferenceMetrics": {
@@ -25571,6 +26073,28 @@
           "context_size"
         ],
         "title": "NemotronMetrics",
+        "type": "object"
+      },
+      "NextScheduledTransitionResponse": {
+        "description": "Next scheduled mode transition.",
+        "properties": {
+          "at": {
+            "description": "UTC timestamp of the next scheduled transition",
+            "format": "date-time",
+            "title": "At",
+            "type": "string"
+          },
+          "mode": {
+            "description": "Target arming mode (home, away, night, disarmed)",
+            "title": "Mode",
+            "type": "string"
+          }
+        },
+        "required": [
+          "at",
+          "mode"
+        ],
+        "title": "NextScheduledTransitionResponse",
         "type": "object"
       },
       "NotificationChannel": {
@@ -38354,6 +38878,12 @@
             "title": "Name",
             "type": "string"
           },
+          "on_local_network": {
+            "default": false,
+            "description": "Allow private/unique-local targets and plain HTTP for this webhook (the household's own network). Loopback, link-local and metadata addresses stay blocked either way.",
+            "title": "On Local Network",
+            "type": "boolean"
+          },
           "payload_template": {
             "anyOf": [
               {
@@ -38752,6 +39282,12 @@
             "title": "Name",
             "type": "string"
           },
+          "on_local_network": {
+            "default": false,
+            "description": "Whether private/unique-local targets are allowed for this webhook",
+            "title": "On Local Network",
+            "type": "boolean"
+          },
           "payload_template": {
             "anyOf": [
               {
@@ -39015,6 +39551,18 @@
               }
             ],
             "title": "Name"
+          },
+          "on_local_network": {
+            "anyOf": [
+              {
+                "type": "boolean"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Set true to allow private/unique-local targets and plain HTTP for this webhook",
+            "title": "On Local Network"
           },
           "payload_template": {
             "anyOf": [
@@ -44165,6 +44713,315 @@
         "summary": "Get Risk Score Trends",
         "tags": [
           "analytics"
+        ]
+      }
+    },
+    "/api/arming": {
+      "get": {
+        "description": "Return current household arming mode, source, timestamp, and next scheduled transition.",
+        "operationId": "arming_read_arming_status",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ArmingStatusResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          }
+        },
+        "summary": "Read Arming Status",
+        "tags": [
+          "arming"
+        ]
+      }
+    },
+    "/api/arming/changes": {
+      "get": {
+        "description": "Return recent arming mode and camera exclusion changes.",
+        "operationId": "arming_read_arming_changes",
+        "parameters": [
+          {
+            "in": "query",
+            "name": "limit",
+            "required": false,
+            "schema": {
+              "default": 100,
+              "maximum": 500,
+              "minimum": 1,
+              "title": "Limit",
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ArmingChangesListResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Read Arming Changes",
+        "tags": [
+          "arming"
+        ]
+      }
+    },
+    "/api/arming/events/{event_id}/decision": {
+      "get": {
+        "description": "Return the persisted notify decision (`notify` and `decided_by`) for `event_id`.",
+        "operationId": "arming_read_event_notify_decision",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "event_id",
+            "required": true,
+            "schema": {
+              "title": "Event Id",
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ArmingEventDecisionResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Read Event Notify Decision",
+        "tags": [
+          "arming"
+        ]
+      }
+    },
+    "/api/arming/mode": {
+      "put": {
+        "description": "Switch the household arming mode from the app.",
+        "operationId": "arming_update_arming_mode",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ArmingSetModeRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ArmingStatusResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Update Arming Mode",
+        "tags": [
+          "arming"
+        ]
+      }
+    },
+    "/api/arming/modes/{mode}/cameras": {
+      "get": {
+        "description": "Return the excluded camera IDs for `mode`.",
+        "operationId": "arming_read_mode_cameras",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "mode",
+            "required": true,
+            "schema": {
+              "title": "Mode",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ArmingModeCamerasResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Read Mode Cameras",
+        "tags": [
+          "arming"
+        ]
+      },
+      "put": {
+        "description": "Replace the excluded camera IDs for `mode` (`home`, `away`, or `night`).",
+        "operationId": "arming_update_mode_cameras",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "mode",
+            "required": true,
+            "schema": {
+              "title": "Mode",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ArmingModeCamerasUpdateRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ArmingModeCamerasResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Update Mode Cameras",
+        "tags": [
+          "arming"
+        ]
+      }
+    },
+    "/api/arming/schedule": {
+      "get": {
+        "description": "Return the weekly arming schedule.",
+        "operationId": "arming_read_arming_schedule",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ArmingScheduleResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          }
+        },
+        "summary": "Read Arming Schedule",
+        "tags": [
+          "arming"
+        ]
+      },
+      "put": {
+        "description": "Replace the weekly arming schedule and wake the in-process scheduler.",
+        "operationId": "arming_update_arming_schedule",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ArmingScheduleUpdateRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ArmingScheduleResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Update Arming Schedule",
+        "tags": [
+          "arming"
         ]
       }
     },
@@ -62118,7 +62975,7 @@
     },
     "/api/webhooks/inbound/alert": {
       "post": {
-        "description": "Not implemented (UR-12): external alert ingestion takes no action.\n\nAccepts ``InboundAlertPayload`` and answers 501. A malformed payload\nstill 422s (the schema is live); auth failures 401 first.",
+        "description": "Create an external event on `payload.camera_id` and run `AlertPipeline.process` (A4, A5).",
         "operationId": "inbound-webhooks_create_alert",
         "parameters": [
           {
@@ -62149,19 +63006,21 @@
           "required": true
         },
         "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/InboundAlertWebhookResponse"
+                }
+              }
+            },
+            "description": "Webhook processed"
+          },
           "401": {
             "description": "Authentication failed"
           },
           "422": {
             "description": "Invalid payload"
-          },
-          "501": {
-            "content": {
-              "application/json": {
-                "schema": {}
-              }
-            },
-            "description": "Not implemented \u2014 UR-12; this endpoint takes no action"
           }
         },
         "summary": "Create Alert",
@@ -62172,7 +63031,7 @@
     },
     "/api/webhooks/inbound/arm": {
       "post": {
-        "description": "Not implemented (UR-12): arming zones takes no action.\n\nThis is the endpoint D3 names: it used to answer \"Arm command for N\nzones queued\" having queued nothing, telling an integrator the house\nwas armed when it was not.",
+        "description": "Arm the household in `payload.mode` (default `away`).",
         "operationId": "inbound-webhooks_arm_zones",
         "parameters": [
           {
@@ -62203,19 +63062,21 @@
           "required": true
         },
         "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/InboundModeWebhookResponse"
+                }
+              }
+            },
+            "description": "Webhook processed"
+          },
           "401": {
             "description": "Authentication failed"
           },
           "422": {
             "description": "Invalid payload"
-          },
-          "501": {
-            "content": {
-              "application/json": {
-                "schema": {}
-              }
-            },
-            "description": "Not implemented \u2014 UR-12; this endpoint takes no action"
           }
         },
         "summary": "Arm Zones",
@@ -62226,7 +63087,7 @@
     },
     "/api/webhooks/inbound/disarm": {
       "post": {
-        "description": "Not implemented (UR-12): disarming zones takes no action.",
+        "description": "Disarm the household (`mode = 'disarmed'`).",
         "operationId": "inbound-webhooks_disarm_zones",
         "parameters": [
           {
@@ -62257,19 +63118,21 @@
           "required": true
         },
         "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/InboundModeWebhookResponse"
+                }
+              }
+            },
+            "description": "Webhook processed"
+          },
           "401": {
             "description": "Authentication failed"
           },
           "422": {
             "description": "Invalid payload"
-          },
-          "501": {
-            "content": {
-              "application/json": {
-                "schema": {}
-              }
-            },
-            "description": "Not implemented \u2014 UR-12; this endpoint takes no action"
           }
         },
         "summary": "Disarm Zones",
@@ -62280,7 +63143,7 @@
     },
     "/api/webhooks/inbound/mode": {
       "post": {
-        "description": "Not implemented (UR-12): system-mode changes take no action.\n\nMode values are no longer validated here: the check lived in the handler\nthat acted on them, and ``InboundModePayload`` is kept unchanged for the\narming feature, whose ruling it is.",
+        "description": "Set the household arming mode (`home`, `away`, `night`, `disarmed`).",
         "operationId": "inbound-webhooks_set_system_mode",
         "parameters": [
           {
@@ -62311,19 +63174,21 @@
           "required": true
         },
         "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/InboundModeWebhookResponse"
+                }
+              }
+            },
+            "description": "Webhook processed"
+          },
           "401": {
             "description": "Authentication failed"
           },
           "422": {
             "description": "Invalid payload"
-          },
-          "501": {
-            "content": {
-              "application/json": {
-                "schema": {}
-              }
-            },
-            "description": "Not implemented \u2014 UR-12; this endpoint takes no action"
           }
         },
         "summary": "Set System Mode",

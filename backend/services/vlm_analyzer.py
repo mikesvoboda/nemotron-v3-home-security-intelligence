@@ -793,9 +793,15 @@ class VlmAnalyzer:
         try:
             async with get_session() as session:
                 if isinstance(session, AsyncSession):
+                    from backend.services.alerting.delivery_writer import write_delivery_rows
                     from backend.services.alerting.pipeline import AlertPipeline
+                    from backend.services.alerting.wiring import build_default_planner
 
-                    pipeline = AlertPipeline(redis_client=self._redis)
+                    pipeline = AlertPipeline(
+                        redis_client=self._redis,
+                        planner=await build_default_planner(session),
+                        delivery_writer=write_delivery_rows,
+                    )
                     res = await pipeline._process_in_session(
                         session,
                         event_id,
@@ -803,7 +809,13 @@ class VlmAnalyzer:
                         specialists=None,
                     )
                     await session.commit()
-                    await pipeline._publish_alerts(res.created_alerts, res.updated_alerts)
+                    await pipeline.publish_and_mark(res)
+                    if res.planned_deliveries:
+                        from backend.services.delivery_worker_registry import (
+                            wake_delivery_worker,
+                        )
+
+                        wake_delivery_worker()
         except Exception as exc:  # pragma: no cover - defensive
             logger.warning(
                 "alert pipeline on idempotency hit failed",
@@ -1032,9 +1044,15 @@ class VlmAnalyzer:
         try:
             async with get_session() as session:
                 if isinstance(session, AsyncSession):
+                    from backend.services.alerting.delivery_writer import write_delivery_rows
                     from backend.services.alerting.pipeline import AlertPipeline, _ensure_utc
+                    from backend.services.alerting.wiring import build_default_planner
 
-                    pipeline = AlertPipeline(redis_client=self._redis)
+                    pipeline = AlertPipeline(
+                        redis_client=self._redis,
+                        planner=await build_default_planner(session),
+                        delivery_writer=write_delivery_rows,
+                    )
                     res = await pipeline._process_in_session(
                         session,
                         event_id,
@@ -1042,7 +1060,13 @@ class VlmAnalyzer:
                         specialists=None,
                     )
                     await session.commit()
-                    await pipeline._publish_alerts(res.created_alerts, res.updated_alerts)
+                    await pipeline.publish_and_mark(res)
+                    if res.planned_deliveries:
+                        from backend.services.delivery_worker_registry import (
+                            wake_delivery_worker,
+                        )
+
+                        wake_delivery_worker()
                     return res.notify
                 notify = await decide_notification(session, **kwargs)
                 await self._persist_notify_decision(session, event_id, notify)

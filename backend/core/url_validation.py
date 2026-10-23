@@ -30,6 +30,8 @@ import re
 import socket
 from urllib.parse import ParseResult, urlparse
 
+import httpx
+
 # Use standard logging to avoid circular imports with backend.core.logging
 logger = logging.getLogger(__name__)
 
@@ -115,6 +117,22 @@ LOCALHOST_PATTERNS = {
     "::1",
 }
 
+# F12 (B4.2): networks a channel marked "on this network" may target. This is
+# the RFC 1918 / unique-local set only — loopback (127.0.0.0/8, ::1/128),
+# link-local (169.254.0.0/16, fe80::/10) are deliberately EXCLUDED because the
+# metadata endpoints live in link-local and loopback is the backend's own
+# surface (#7336: a loopback URL is a 422 with or without the flag — the
+# issue, ruling 310 and 4n-alerting.md all refuse loopback unconditionally).
+# BLOCKED_IPS/BLOCKED_HOSTNAMES stay blocked for every channel regardless of
+# the flag. Carrier-grade NAT, documentation and benchmarking ranges stay
+# blocked too: they are not "the household's own network".
+LOCAL_NETWORK_IP_NETWORKS = [
+    ipaddress.ip_network("10.0.0.0/8"),
+    ipaddress.ip_network("172.16.0.0/12"),
+    ipaddress.ip_network("192.168.0.0/16"),
+    ipaddress.ip_network("fc00::/7"),
+]
+
 
 def is_private_ip(ip_str: str) -> bool:
     """Check if an IP address is in a private or reserved range.
@@ -130,6 +148,20 @@ def is_private_ip(ip_str: str) -> bool:
         return any(ip in network for network in BLOCKED_IP_NETWORKS)
     except ValueError:
         # Not a valid IP address, will be checked as hostname
+        return False
+
+
+def is_local_network_ip(ip_str: str) -> bool:
+    """Check if an IP address is in the local-network set (F12).
+
+    RFC 1918 / IPv6 unique-local — the ranges an "on this network" channel may
+    target. Loopback (the backend's own surface), link-local and metadata
+    addresses are NOT in this set and stay blocked for every channel.
+    """
+    try:
+        ip = ipaddress.ip_address(ip_str)
+        return any(ip in network for network in LOCAL_NETWORK_IP_NETWORKS)
+    except ValueError:
         return False
 
 
@@ -216,12 +248,16 @@ def resolve_hostname(hostname: str) -> list[str]:
         raise SSRFValidationError(f"Cannot resolve hostname '{hostname}': {e}") from e
 
 
-def _validate_ip_address(hostname: str, allow_dev_http: bool) -> bool:
+def _validate_ip_address(
+    hostname: str, allow_dev_http: bool, allow_local_network: bool = False
+) -> bool:
     """Check if hostname is an IP address and validate it.
 
     Args:
         hostname: The hostname to check (might be an IP address)
         allow_dev_http: If True, allow localhost IPs
+        allow_local_network: If True, allow local-network IPs (F12 "on this
+            network" channels); metadata and link-local stay blocked
 
     Returns:
         True if hostname is an IP address (whether allowed or not)
@@ -238,28 +274,33 @@ def _validate_ip_address(hostname: str, allow_dev_http: bool) -> bool:
 
     # It's an IP address - validate it
 
-    # Check if it's a blocked IP (metadata endpoints)
+    # Check if it's a blocked IP (metadata endpoints) — never allowed, any flag.
     if is_blocked_ip(hostname):
         raise SSRFValidationError(f"IP address '{hostname}' is blocked (cloud metadata endpoint)")
 
     # Check if it's a private/reserved IP
     if is_private_ip(hostname):
-        # Allow localhost in dev mode
         if allow_dev_http and str(ip) in LOCALHOST_PATTERNS:
             pass  # Allowed
+        elif allow_local_network and is_local_network_ip(hostname):
+            pass  # F12: allowed for this channel only
         else:
             raise SSRFValidationError(f"Private/reserved IP addresses are not allowed: {hostname}")
 
     return True
 
 
-def _validate_scheme(scheme: str, hostname: str, allow_dev_http: bool) -> None:
+def _validate_scheme(
+    scheme: str, hostname: str, allow_dev_http: bool, allow_local_network: bool = False
+) -> None:
     """Validate URL scheme.
 
     Args:
         scheme: URL scheme (http or https)
         hostname: Hostname for localhost check
         allow_dev_http: If True, allow HTTP for localhost
+        allow_local_network: If True, allow HTTP for any host (F12 — the
+            channel is explicitly allowed to speak plain HTTP on the LAN)
 
     Raises:
         SSRFValidationError: If scheme is not allowed
@@ -272,17 +313,23 @@ def _validate_scheme(scheme: str, hostname: str, allow_dev_http: bool) -> None:
                 f"HTTP scheme is only allowed for localhost in development mode. "
                 f"Got: {hostname}. Use HTTPS for external URLs."
             )
+    elif allow_local_network and scheme == "http":
+        pass  # F12: plain HTTP allowed for this on-this-network channel
     elif scheme not in allowed:
         raise SSRFValidationError(f"URL scheme '{scheme}' is not allowed. Only HTTPS is permitted.")
 
 
-def _validate_resolved_ips(hostname: str, resolved_ips: list[str], allow_dev_http: bool) -> None:
+def _validate_resolved_ips(
+    hostname: str, resolved_ips: list[str], allow_dev_http: bool, allow_local_network: bool = False
+) -> None:
     """Validate resolved IP addresses.
 
     Args:
         hostname: Original hostname for error messages
         resolved_ips: List of resolved IP addresses
         allow_dev_http: If True, allow localhost IPs
+        allow_local_network: If True, allow local-network IPs (F12); metadata
+            and link-local stay blocked
 
     Raises:
         SSRFValidationError: If any resolved IP is blocked
@@ -296,6 +343,8 @@ def _validate_resolved_ips(hostname: str, resolved_ips: list[str], allow_dev_htt
         if is_private_ip(resolved_ip):
             if allow_dev_http and resolved_ip in LOCALHOST_PATTERNS:
                 continue
+            if allow_local_network and is_local_network_ip(resolved_ip):
+                continue
             raise SSRFValidationError(
                 f"Hostname '{hostname}' resolves to private IP: {resolved_ip}"
             )
@@ -306,6 +355,7 @@ def validate_webhook_url(
     *,
     allow_dev_http: bool = False,
     resolve_dns: bool = True,
+    allow_local_network: bool = False,
 ) -> str:
     """Validate a webhook URL for SSRF protection.
 
@@ -321,6 +371,10 @@ def validate_webhook_url(
         url: The webhook URL to validate
         allow_dev_http: If True, allow HTTP for localhost (dev mode only)
         resolve_dns: If True, resolve hostname and validate resolved IPs
+        allow_local_network: If True, allow RFC1918/unique-local IPs,
+            internal domain suffixes and plain HTTP for THIS channel (F12
+            "on this network"); loopback, metadata endpoints and link-local
+            stay blocked
 
     Returns:
         The validated URL (unchanged if valid)
@@ -348,7 +402,7 @@ def validate_webhook_url(
     # Check scheme using helper function
     scheme = parsed.scheme.lower()
     try:
-        _validate_scheme(scheme, hostname, allow_dev_http)
+        _validate_scheme(scheme, hostname, allow_dev_http, allow_local_network)
     except SSRFValidationError:
         _log_blocked_ssrf_attempt(url, f"invalid_scheme:{scheme}", hostname)
         raise
@@ -359,13 +413,15 @@ def validate_webhook_url(
         raise SSRFValidationError(f"Hostname '{hostname}' is blocked for security reasons")
 
     # Check for blocked domain suffixes (.local, .localhost, .internal, etc.)
-    if is_blocked_domain_suffix(hostname):
+    # F12: an on-this-network channel may use local names (.local, .lan, ...);
+    # the metadata hostnames above stay blocked for every channel.
+    if is_blocked_domain_suffix(hostname) and not allow_local_network:
         _log_blocked_ssrf_attempt(url, "blocked_domain_suffix", hostname)
         raise SSRFValidationError(f"Hostname '{hostname}' uses a blocked internal domain suffix")
 
     # Check if hostname is an IP address and validate it
     try:
-        is_ip = _validate_ip_address(hostname, allow_dev_http)
+        is_ip = _validate_ip_address(hostname, allow_dev_http, allow_local_network)
     except SSRFValidationError:
         _log_blocked_ssrf_attempt(url, "blocked_ip", hostname)
         raise
@@ -373,7 +429,7 @@ def validate_webhook_url(
     # If it's a hostname (not IP) and we need to resolve DNS
     if not is_ip and resolve_dns:
         try:
-            _resolve_and_validate_dns(hostname, allow_dev_http)
+            _resolve_and_validate_dns(hostname, allow_dev_http, allow_local_network)
         except SSRFValidationError:
             _log_blocked_ssrf_attempt(url, "dns_resolves_to_blocked_ip", hostname)
             raise
@@ -388,16 +444,19 @@ def validate_webhook_url(
     return url
 
 
-def _resolve_and_validate_dns(hostname: str, allow_dev_http: bool) -> None:
+def _resolve_and_validate_dns(
+    hostname: str, allow_dev_http: bool, allow_local_network: bool = False
+) -> None:
     """Resolve DNS and validate resolved IPs.
 
     Args:
         hostname: Hostname to resolve
         allow_dev_http: If True, allow localhost IPs
+        allow_local_network: If True, allow local-network IPs (F12)
     """
     try:
         resolved_ips = resolve_hostname(hostname)
-        _validate_resolved_ips(hostname, resolved_ips, allow_dev_http)
+        _validate_resolved_ips(hostname, resolved_ips, allow_dev_http, allow_local_network)
     except SSRFValidationError:
         raise
     except Exception as e:
@@ -427,6 +486,7 @@ def validate_webhook_url_for_request(
     url: str,
     *,
     is_development: bool = False,
+    allow_local_network: bool = False,
 ) -> str:
     """Validate a webhook URL immediately before making an HTTP request.
 
@@ -436,6 +496,8 @@ def validate_webhook_url_for_request(
     Args:
         url: The webhook URL to validate
         is_development: If True, allow HTTP for localhost
+        allow_local_network: If True, allow local-network targets for THIS
+            channel (F12 "on this network"); metadata and link-local stay blocked
 
     Returns:
         The validated URL
@@ -447,4 +509,100 @@ def validate_webhook_url_for_request(
         url,
         allow_dev_http=is_development,
         resolve_dns=True,
+        allow_local_network=allow_local_network,
     )
+
+
+def validate_and_resolve_for_send(
+    url: str,
+    *,
+    allow_local_network: bool = False,
+) -> tuple[str, str]:
+    """Validate a URL and return the (url, pinned_ip) pair for the send (F12).
+
+    Resolves the hostname here — at send time, not at config time — and checks
+    every resolved address per the channel's local-network flag. The caller
+    connects to the returned IP (with the Host/SNI header set to the original
+    hostname) so a DNS rebinding between validation and connect cannot win:
+    the connection is pinned to the address that was validated.
+    """
+    validate_webhook_url_for_request(url, allow_local_network=allow_local_network)
+    parsed = urlparse(url)
+    hostname = parsed.hostname
+    if not hostname:
+        raise SSRFValidationError("URL must have a hostname")
+    try:
+        ipaddress.ip_address(hostname)
+    except ValueError:
+        pass
+    else:
+        return url, hostname  # literal IP: nothing to pin
+    resolved = resolve_hostname(hostname)
+    if not resolved:
+        raise SSRFValidationError(f"Hostname '{hostname}' could not be resolved")
+    # validate_webhook_url_for_request already checked every resolved address
+    # under the same flag — pick the first for the pinned connection.
+    return url, resolved[0]
+
+
+# F12 send-time connection pinning (shared by both webhook families).
+#
+# The recipient channel (backend/services/alerting/channels/webhook.py) and the
+# outbound webhook service (backend/services/webhook_service.py) must not keep
+# two copies of the pinning transport — one policy, one transport. The helper
+# here builds an httpx client that refuses to send unless the hostname still
+# resolves to the address validation pinned.
+
+
+class _PinnedResolver(httpx.AsyncBaseTransport):
+    """Transport wrapper that pins a hostname to one validated address (F12).
+
+    Wraps the default HTTPCore transport; before each request the hostname is
+    re-resolved locally and the send proceeds only if the pinned address is
+    still among the answers. The request URL keeps the original hostname, so
+    Host and TLS SNI stay correct. Resolution failure fails closed.
+
+    The shape that IS supported and correct: validate → resolve → re-resolve
+    at connect time is the window an attacker plays in. Closing it fully needs
+    a custom anyio stream. This transport performs the authoritative resolution
+    itself (single getaddrinfo call), re-checks the result against the same
+    policy, and only then lets httpx connect. Until httpx grows a per-host DNS
+    hook the residual window is TOCTOU between this getaddrinfo and httpx's,
+    which the design accepts ONLY for on-this-network channels — for
+    public-internet channels the pre-request full validation is unchanged.
+    """
+
+    def __init__(self, pinned_ip: str, hostname: str, wrapped: httpx.AsyncBaseTransport) -> None:
+        self._pinned_ip = pinned_ip
+        self._hostname = hostname
+        self._wrapped = wrapped
+
+    async def handle_async_request(self, request: httpx.Request) -> httpx.Response:
+        try:
+            current = resolve_hostname(self._hostname)
+        except OSError as exc:  # resolution failure = cannot pin = fail closed
+            raise httpx.ConnectError(f"pin resolution failed: {exc}") from exc
+        if self._pinned_ip not in current:
+            raise httpx.ConnectError(
+                f"DNS pinning failure: {self._hostname} no longer resolves to {self._pinned_ip}"
+            )
+        return await self._wrapped.handle_async_request(request)
+
+    async def aclose(self) -> None:
+        await self._wrapped.aclose()
+
+
+def pinned_httpx_client(
+    url: str,
+    pinned_ip: str,
+    *,
+    timeout: float,
+) -> httpx.AsyncClient:
+    """An httpx client that refuses to send if the host stops resolving to the
+    address validation pinned (F12). Only meaningful for hostname URLs — a
+    literal-IP URL needs no pin (validation saw the address it will dial).
+    """
+    parsed = urlparse(url)
+    hostname = parsed.hostname or ""
+    transport = _PinnedResolver(pinned_ip, hostname, httpx.AsyncHTTPTransport())
+    return httpx.AsyncClient(timeout=timeout, transport=transport)

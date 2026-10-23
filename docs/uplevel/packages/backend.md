@@ -343,7 +343,7 @@ from "Snooze an event or alert"). Covers F-050, F-079, F-216, F-217.
 
 **Flags:** none. **Assigned:** backend, after `[r295]` (ruling 308). **Depends on:** `B4.1` for the
 build PR; the test-only PR may open first. Its golden path uses `[r308a]`'s sinks.
-**PR:** #7339. (ruling 308, record 6326364266)
+**PR:** #7339, #7346. (ruling 308, record 6326364266)
 
 Design: [`../4n-alerting.md`](../4n-alerting.md), "Packages" row 2. Covers F-236, F-232.
 
@@ -352,19 +352,19 @@ Design: [`../4n-alerting.md`](../4n-alerting.md), "Packages" row 2. Covers F-236
       EQUIVALENT residue moved into `accepted_survivors.toml`, 17 entries); plus the
       `backend.api.routes.notification` suite (77 mutants, kill-loss 0) measured after UR-89 review
       found it unmeasured.
-- [ ] The build PR: recipients, channels, the outbox, `planner`, the worker, email and webhook, the
+- [x] The build PR: recipients, channels, the outbox, `planner`, the worker, email and webhook, the
       local-network flag, name redaction, history, browser rows; recipients and channels join the
       backup list without their secrets if `B4.6` has landed (else `B4.6` adds them); an
       additive recorded upgrade; if `B4.4` landed first, a purge also removes the alert's
       deliveries.
-- [ ] #7336: the outbound webhooks use this package's destination policy on create, update, Test
+- [x] #7336: the outbound webhooks use this package's destination policy on create, update, Test
       and send, with an "on this network" flag on the webhook (an additive column in the same
       upgrade); the worker also resends outbound deliveries whose `next_retry_at` has passed, under
       the same lease, until `max_retries`. Tests: a loopback, link-local or metadata URL is a 422;
       a private address passes only with the flag; a failed delivery is resent after its backoff on
       a fixed clock and stops at `max_retries`. The PR closes #7336 (ruling 310, record
       6327324775).
-- [ ] Golden path (pytest): the webhook sink gets the payload and idempotency key and History reads
+- [x] Golden path (pytest): the webhook sink gets the payload and idempotency key and History reads
       `sent`; a retry ends `failed`; quiet hours give `suppressed`; critical breaks through.
 
 **Done when:** steps 4–6 hold for its rows.
@@ -447,12 +447,12 @@ the fast lanes.
 
 **Flags:** `heavy`. **Assigned:** heavy-a, after `B4.4` (ruling 311). **Depends on:** `B4.1`
 merged for the build PR; the test-only PR may open first.
-**PR:** #7357. (ruling 311, record 6328311780)
+**PR:** #7357, #7361. (ruling 311, record 6328311780)
 
 Design: [`../4n-arming.md`](../4n-arming.md), "Packages" row `B4.7`. Covers F-290.
 
 - [x] The test-only PR (step 2): `inbound_webhooks.py` and the alerting `policy` and `pipeline`.
-- [ ] The build PR: `arming.py` (`mode_at`, `is_armed`, `set_mode`, `apply_schedule`,
+- [x] The build PR: `arming.py` (`mode_at`, `is_armed`, `set_mode`, `apply_schedule`,
       `next_scheduled`); the four arming tables, with `schedule_updated_at` and a change log that
       carries every mode's exclusions; the policy hook (raised while unarmed, the mode-scoped
       override, fail-armed, the notify decision naming arming); the resolver's `external` source,
@@ -463,7 +463,7 @@ Design: [`../4n-arming.md`](../4n-arming.md), "Packages" row `B4.7`. Covers F-29
       seeded "External alerts" rule carries a fixed UUID; whichever of `B4.6` and `B4.7` lands
       second carries a test that restores an archive holding it into an install that has it and
       finds one rule.
-- [ ] Golden path (pytest, `backend/tests/golden/external/`) as the design gives it.
+- [x] Golden path (pytest, `backend/tests/golden/external/`) as the design gives it.
 
 **Done when:** steps 4–6 hold for F-290.
 
