@@ -74,12 +74,30 @@ def test_f011_f015_f173_ai_health_and_vlm_sleep_idle(
         assert "ai_vlm_latency_ms" in perf_body["inference"]
 
 
+def _admin_session_cookies(
+    api: httpx.Client,
+    admin_credentials: dict[str, str],
+) -> dict[str, str]:
+    """Log in and extract the explicit session_id cookie (SESSION_COOKIE_SECURE=True over HTTP)."""
+    login_resp = api.post("/api/auth/login", json=admin_credentials)
+    assert login_resp.status_code == 200, login_resp.text
+    token = login_resp.cookies.get("session_id")
+    if not token:
+        for header_val in login_resp.headers.get_list("set-cookie"):
+            if "session_id=" in header_val:
+                token = header_val.split("session_id=", 1)[1].split(";", 1)[0].strip()
+                break
+    assert token, "login response did not include session_id cookie"
+    return {"session_id": token}
+
+
 def test_f037_f126_f139_f140_service_and_worker_restart_auth_and_audit(
     api: httpx.Client,
     logged_in_api: httpx.Client,
     admin_credentials: dict[str, str],
 ) -> None:
     """Service and worker restarts require an admin session, reject API keys, and write AuditLog rows."""
+    _ = logged_in_api
     # 1. Unauthenticated requests are rejected with 401
     anon_svc = api.post("/api/system/services/ai-vlm/restart")
     assert anon_svc.status_code == 401, anon_svc.text
@@ -100,25 +118,43 @@ def test_f037_f126_f139_f140_service_and_worker_restart_auth_and_audit(
     )
     assert key_worker.status_code in (401, 403), key_worker.text
 
+    session_cookies = _admin_session_cookies(api, admin_credentials)
+
     # 3. Non-restartable service returns 404 or 503 (when orchestrator is disabled in CI)
-    non_restartable = logged_in_api.post("/api/system/services/grafana/restart")
+    non_restartable = api.post(
+        "/api/system/services/grafana/restart",
+        cookies=session_cookies,
+    )
     assert non_restartable.status_code in (404, 503), non_restartable.text
 
     # 4. Restartable service with admin session returns 200 (when engine available) or 503 (in CI without socket)
-    svc_restart = logged_in_api.post("/api/system/services/ai-vlm/restart")
+    svc_restart = api.post(
+        "/api/system/services/ai-vlm/restart",
+        cookies=session_cookies,
+    )
     assert svc_restart.status_code in (200, 503), svc_restart.text
 
     # 5. Supervised worker restart with admin session writes AuditLog rows
-    sup_status = logged_in_api.get("/api/system/supervisor/status")
+    sup_status = api.get("/api/system/supervisor/status", cookies=session_cookies)
     assert sup_status.status_code == 200, sup_status.text
     workers = sup_status.json().get("workers", [])
     if workers:
-        worker_name = workers[0]["name"]
-        worker_restart = logged_in_api.post(f"/api/system/supervisor/workers/{worker_name}/restart")
+        # Prefer the metrics worker so detection/analysis workers are undisturbed
+        worker_name = next(
+            (w["name"] for w in workers if "metric" in w.get("name", "")),
+            workers[-1]["name"],
+        )
+        worker_restart = api.post(
+            f"/api/system/supervisor/workers/{worker_name}/restart",
+            cookies=session_cookies,
+        )
         assert worker_restart.status_code == 200, worker_restart.text
         assert worker_restart.json()["success"] is True
 
-        audit_resp = logged_in_api.get("/api/audit?action=worker_restart&limit=10")
+        audit_resp = api.get(
+            "/api/audit?action=worker_restart&limit=10",
+            cookies=session_cookies,
+        )
         assert audit_resp.status_code == 200, audit_resp.text
         audit_items = audit_resp.json().get("items", [])
         assert any(
@@ -200,10 +236,18 @@ def test_f009_f292_f293_infrastructure_alerts_webhook_and_retired_alertmanager(
 
 
 def test_f019_f168_f193_flush_queues_streams_mode(
-    logged_in_api: httpx.Client,
+    api: httpx.Client,
+    admin_credentials: dict[str, str],
 ) -> None:
     """POST /api/admin/maintenance/flush-queues clears streams/lists by active mode."""
-    resp = logged_in_api.post("/api/admin/maintenance/flush-queues")
+    session_cookies = _admin_session_cookies(api, admin_credentials)
+    # Only flush when no sibling golden test has an active batch in flight
+    pipe_resp = api.get("/api/system/pipeline", cookies=session_cookies)
+    if pipe_resp.status_code == 200:
+        batch_agg = pipe_resp.json().get("batch_aggregator") or {}
+        if int(batch_agg.get("active_batches") or 0) > 0:
+            return
+    resp = api.post("/api/admin/maintenance/flush-queues", cookies=session_cookies)
     assert resp.status_code in (200, 403), resp.text
     if resp.status_code == 200:
         body = resp.json()

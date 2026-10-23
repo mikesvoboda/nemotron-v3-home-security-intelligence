@@ -278,29 +278,35 @@ async def restore_pg_backup(backup_path: Path, target_database: str | None = Non
         _stdout, stderr = await result.communicate()
 
         # pg_restore may return non-zero even on success due to expected warnings
-        # Check stderr for actual errors
+        # (including pg_dump/pg_restore 17+ emitting `SET transaction_timeout = 0;`
+        # against a PostgreSQL 16 server). Filter out that benign version-skew error
+        # before checking stderr for actual restore errors.
         stderr_text = stderr.decode()
-        has_errors = any(
-            error_marker in stderr_text
-            for error_marker in [
-                "ERROR:",
-                "FATAL:",
-                "could not",
-                "does not appear to be a valid archive",
-                "is not a directory",
-                "No such file or directory",
-            ]
-        )
-
-        # Also check for non-zero return code with non-empty stderr as a failure indicator
-        # pg_restore returns 1 for errors, and 0 or 1 for warnings
-        # If return code is non-zero, stderr has content, and it's not just warnings, it's an error
         if (
-            result.returncode != 0
-            and stderr_text.strip()
-            and ("warning" not in stderr_text.lower() or has_errors)
+            'unrecognized configuration parameter "transaction_timeout"' in stderr_text
+            and "errors ignored on restore: 1" in stderr_text
         ):
-            has_errors = True
+            has_errors = False
+        else:
+            has_errors = any(
+                error_marker in stderr_text
+                for error_marker in [
+                    "ERROR:",
+                    "FATAL:",
+                    "could not",
+                    "does not appear to be a valid archive",
+                    "is not a directory",
+                    "No such file or directory",
+                ]
+            )
+            if (
+                result.returncode != 0
+                and stderr_text.strip()
+                and ("warning" not in stderr_text.lower() or has_errors)
+            ):
+                has_errors = True
+        if has_errors:
+            print(f"pg_restore failed (rc={result.returncode}): {stderr_text}")
 
         # Clean up decompressed file if we created one
         if backup_path != original_path and backup_path.exists():

@@ -1040,7 +1040,6 @@ class VlmClient:
                 continue
             vlm_duration = max(0.0, time.monotonic() - req_start)
             observe_ai_request_duration("ai_vlm", vlm_duration)
-            observe_ai_request_duration("nemotron", vlm_duration)
             record_vlm_latency_ms(vlm_duration * 1000.0)
             content = _content_of(resp)
             try:
