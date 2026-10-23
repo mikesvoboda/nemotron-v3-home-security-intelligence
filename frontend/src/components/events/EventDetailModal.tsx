@@ -53,6 +53,7 @@ import {
 import { getRiskLevel } from '../../utils/risk';
 import { formatDuration } from '../../utils/time';
 import { EventAuditDetail } from '../audit';
+import AdvancedOnly from '../common/AdvancedOnly';
 import IconButton from '../common/IconButton';
 import Lightbox from '../common/Lightbox';
 import NotifyBadge from '../common/NotifyBadge';
@@ -618,9 +619,18 @@ export default function EventDetailModal({
                           size="lg"
                         />
                       ) : (
-                        <VerdictBadge verdict={event.verdict ?? 'none'} size="md" />
+                        <VerdictBadge
+                          verdict={event.verification?.verdict ?? event.verdict ?? 'none'}
+                          size="md"
+                        />
                       )}
                     </div>
+                    {riskLevel !== null && (
+                      <VerdictBadge
+                        verdict={event.verification?.verdict ?? event.verdict ?? 'none'}
+                        size="md"
+                      />
+                    )}
                     <IconButton
                       icon={<X />}
                       aria-label="Close modal"
@@ -644,27 +654,29 @@ export default function EventDetailModal({
                   >
                     Details
                   </button>
-                  <button
-                    onClick={() => setActiveTab('analysis')}
-                    className={`px-4 py-3 text-sm font-medium transition-colors ${
-                      activeTab === 'analysis'
-                        ? 'border-b-2 border-[#76B900] text-[#76B900]'
-                        : 'text-gray-400 hover:text-gray-200'
-                    }`}
-                    data-testid="ai-analysis-tab"
-                  >
-                    AI Analysis
-                  </button>
-                  <button
-                    onClick={() => setActiveTab('audit')}
-                    className={`px-4 py-3 text-sm font-medium transition-colors ${
-                      activeTab === 'audit'
-                        ? 'border-b-2 border-[#76B900] text-[#76B900]'
-                        : 'text-gray-400 hover:text-gray-200'
-                    }`}
-                  >
-                    AI Audit
-                  </button>
+                  <AdvancedOnly>
+                    <button
+                      onClick={() => setActiveTab('analysis')}
+                      className={`px-4 py-3 text-sm font-medium transition-colors ${
+                        activeTab === 'analysis'
+                          ? 'border-b-2 border-[#76B900] text-[#76B900]'
+                          : 'text-gray-400 hover:text-gray-200'
+                      }`}
+                      data-testid="ai-analysis-tab"
+                    >
+                      AI Analysis
+                    </button>
+                    <button
+                      onClick={() => setActiveTab('audit')}
+                      className={`px-4 py-3 text-sm font-medium transition-colors ${
+                        activeTab === 'audit'
+                          ? 'border-b-2 border-[#76B900] text-[#76B900]'
+                          : 'text-gray-400 hover:text-gray-200'
+                      }`}
+                    >
+                      AI Audit
+                    </button>
+                  </AdvancedOnly>
                   <button
                     onClick={() => setActiveTab('clip')}
                     className={`px-4 py-3 text-sm font-medium transition-colors ${
@@ -795,82 +807,87 @@ export default function EventDetailModal({
                           <h3 className="text-sm font-semibold uppercase tracking-wide text-gray-400">
                             AI Summary
                           </h3>
-                          <button
-                            onClick={() => void handleReEvaluate()}
-                            disabled={isReEvaluating}
-                            className="flex items-center gap-1.5 rounded-md bg-gray-800 px-2.5 py-1 text-xs font-medium text-gray-300 transition-colors hover:bg-gray-700 hover:text-white disabled:cursor-not-allowed disabled:opacity-50"
-                            aria-label="Re-evaluate AI analysis"
-                            data-testid="re-evaluate-button"
-                          >
-                            <RefreshCw
-                              className={`h-3.5 w-3.5 ${isReEvaluating ? 'animate-spin' : ''}`}
-                            />
-                            {isReEvaluating ? 'Re-evaluating...' : 'Re-evaluate'}
-                          </button>
+                          <AdvancedOnly>
+                            <button
+                              onClick={() => void handleReEvaluate()}
+                              disabled={isReEvaluating}
+                              className="flex items-center gap-1.5 rounded-md bg-gray-800 px-2.5 py-1 text-xs font-medium text-gray-300 transition-colors hover:bg-gray-700 hover:text-white disabled:cursor-not-allowed disabled:opacity-50"
+                              aria-label="Re-evaluate AI analysis"
+                              data-testid="re-evaluate-button"
+                            >
+                              <RefreshCw
+                                className={`h-3.5 w-3.5 ${isReEvaluating ? 'animate-spin' : ''}`}
+                              />
+                              {isReEvaluating ? 'Re-evaluating...' : 'Re-evaluate'}
+                            </button>
+                          </AdvancedOnly>
                         </div>
                         {/* Re-evaluate feedback */}
-                        {reEvaluateError && (
-                          <div
-                            className="mb-2 rounded-md bg-red-900/20 px-3 py-2 text-xs text-red-400"
-                            data-testid="re-evaluate-error"
-                          >
-                            {reEvaluateError}
-                          </div>
-                        )}
-                        {reEvaluateSuccess && (
-                          <div
-                            className="mb-2 flex items-center gap-1.5 rounded-md bg-green-900/20 px-3 py-2 text-xs text-green-400"
-                            data-testid="re-evaluate-success"
-                          >
-                            <CheckCircle2 className="h-3.5 w-3.5" />
-                            Re-evaluation triggered successfully
-                          </div>
-                        )}
+                        <AdvancedOnly>
+                          {reEvaluateError && (
+                            <div
+                              className="mb-2 rounded-md bg-red-900/20 px-3 py-2 text-xs text-red-400"
+                              data-testid="re-evaluate-error"
+                            >
+                              {reEvaluateError}
+                            </div>
+                          )}
+                          {reEvaluateSuccess && (
+                            <div
+                              className="mb-2 flex items-center gap-1.5 rounded-md bg-green-900/20 px-3 py-2 text-xs text-green-400"
+                              data-testid="re-evaluate-success"
+                            >
+                              <CheckCircle2 className="h-3.5 w-3.5" />
+                              Re-evaluation triggered successfully
+                            </div>
+                          )}
+                        </AdvancedOnly>
                         <p className="text-base leading-relaxed text-gray-200">{event.summary}</p>
                       </div>
 
-                      {/* AI Scene Description (Florence-2 Caption) */}
-                      {event.scene_caption && (
-                        <div className="mb-6" data-testid="scene-caption-section">
-                          <h3 className="mb-2 flex items-center gap-2 text-sm font-semibold uppercase tracking-wide text-gray-400">
-                            <Eye className="h-4 w-4" aria-hidden="true" />
-                            AI Scene Description
-                          </h3>
-                          <div className="rounded-lg border border-gray-700 bg-black/20 p-4">
-                            <p
-                              className="text-sm italic leading-relaxed text-gray-300"
-                              data-testid="scene-caption-text"
-                            >
-                              {event.scene_caption}
-                            </p>
+                      {/* AI Scene Description (Florence-2 Caption) - Advanced only (F4.9) */}
+                      <AdvancedOnly>
+                        {event.scene_caption && (
+                          <div className="mb-6" data-testid="scene-caption-section">
+                            <h3 className="mb-2 flex items-center gap-2 text-sm font-semibold uppercase tracking-wide text-gray-400">
+                              <Eye className="h-4 w-4" aria-hidden="true" />
+                              AI Scene Description
+                            </h3>
+                            <div className="rounded-lg border border-gray-700 bg-black/20 p-4">
+                              <p
+                                className="text-sm italic leading-relaxed text-gray-300"
+                                data-testid="scene-caption-text"
+                              >
+                                {event.scene_caption}
+                              </p>
+                            </div>
                           </div>
-                        </div>
-                      )}
+                        )}
+                      </AdvancedOnly>
 
-                      {/* Risk Factors Breakdown (NEM-3671) - explains a
-                          score that exists; a NULL-score event (1.6) has no
-                          score to explain, so the section is absent, not 0 */}
-                      {event.risk_score !== null && (
-                        <RiskFactorsBreakdown
-                          riskScore={event.risk_score}
-                          reasoning={event.reasoning}
-                          entities={event.entities}
-                          flags={event.flags}
-                          recommendedAction={event.recommended_action}
-                          confidenceFactors={event.confidence_factors}
-                          isReviewed={event.reviewed}
+                      {/* Risk Factors Breakdown (NEM-3671) - Advanced only (F4.9) */}
+                      <AdvancedOnly>
+                        {event.risk_score !== null && (
+                          <RiskFactorsBreakdown
+                            riskScore={event.risk_score}
+                            reasoning={event.reasoning}
+                            entities={event.entities}
+                            flags={event.flags}
+                            recommendedAction={event.recommended_action}
+                            confidenceFactors={event.confidence_factors}
+                            isReviewed={event.reviewed}
+                            className="mb-6"
+                          />
+                        )}
+                      </AdvancedOnly>
+
+                      {/* VLM verification (1.6, spec §4): scene, criteria, frames - Advanced only (F4.9 MO2) */}
+                      <AdvancedOnly>
+                        <EventVerificationSection
+                          verification={event.verification}
                           className="mb-6"
                         />
-                      )}
-
-                      {/* VLM verification (1.6, spec §4): verdict, scene
-                          description, criteria checklist, reviewed frames.
-                          Absent (undefined) for legacy/no-row events - the
-                          header badge already reads Unverified. */}
-                      <EventVerificationSection
-                        verification={event.verification}
-                        className="mb-6"
-                      />
+                      </AdvancedOnly>
 
                       {/* Risk Factors List (NEM-3603) */}
                       {event.risk_factors && event.risk_factors.length > 0 && (
@@ -879,15 +896,17 @@ export default function EventDetailModal({
                         </div>
                       )}
 
-                      {/* Risk Score Confidence Indicators (NEM-3606) */}
-                      {event.confidence_factors && (
-                        <div className="mb-6" data-testid="confidence-indicators-section">
-                          <ConfidenceIndicators
-                            confidenceFactors={event.confidence_factors}
-                            mode="detailed"
-                          />
-                        </div>
-                      )}
+                      {/* Risk Score Confidence Indicators (NEM-3606) - Advanced only (F4.9 MO1) */}
+                      <AdvancedOnly>
+                        {event.confidence_factors && (
+                          <div className="mb-6" data-testid="confidence-indicators-section">
+                            <ConfidenceIndicators
+                              confidenceFactors={event.confidence_factors}
+                              mode="detailed"
+                            />
+                          </div>
+                        )}
+                      </AdvancedOnly>
 
                       {/* Detections with Color-Coded Confidence - from the
                           modal's own fetch (F4.4), not the event prop (the
@@ -1000,43 +1019,45 @@ export default function EventDetailModal({
                        *
                        */}
 
-                      {/* Re-Identification Matches */}
-                      {selectedDetectionId && (
-                        <div className="mb-6">
-                          <ReidMatchesPanel
-                            detectionId={selectedDetectionId}
-                            entityType={
-                              modalDetections.some(
-                                (d) =>
-                                  d.label.toLowerCase().includes('vehicle') ||
-                                  d.label.toLowerCase().includes('car') ||
-                                  d.label.toLowerCase().includes('truck')
-                              )
-                                ? 'vehicle'
-                                : 'person'
-                            }
-                          />
-                        </div>
-                      )}
+                      {/* Re-Identification Matches - Advanced only (F4.9) */}
+                      <AdvancedOnly>
+                        {selectedDetectionId && (
+                          <div className="mb-6">
+                            <ReidMatchesPanel
+                              detectionId={selectedDetectionId}
+                              entityType={
+                                modalDetections.some(
+                                  (d) =>
+                                    d.label.toLowerCase().includes('vehicle') ||
+                                    d.label.toLowerCase().includes('car') ||
+                                    d.label.toLowerCase().includes('truck')
+                                )
+                                  ? 'vehicle'
+                                  : 'person'
+                              }
+                            />
+                          </div>
+                        )}
 
-                      {/* Cross-Camera Entity Tracking */}
-                      {event.entity_id && (
-                        <div className="mb-6">
-                          <EntityTrackingPanel
-                            entityId={event.entity_id}
-                            currentCameraId={event.camera_id || event.camera_name}
-                            currentTimestamp={event.timestamp}
-                          />
-                        </div>
-                      )}
+                        {/* Cross-Camera Entity Tracking */}
+                        {event.entity_id && (
+                          <div className="mb-6">
+                            <EntityTrackingPanel
+                              entityId={event.entity_id}
+                              currentCameraId={event.camera_id || event.camera_name}
+                              currentTimestamp={event.timestamp}
+                            />
+                          </div>
+                        )}
 
-                      {/* Matched Entities (Re-ID Matches) */}
-                      {!isNaN(eventIdNumber) && (
-                        <MatchedEntitiesSection
-                          eventId={eventIdNumber}
-                          onEntityClick={(entityId) => void handleMatchedEntityClick(entityId)}
-                        />
-                      )}
+                        {/* Matched Entities (Re-ID Matches) */}
+                        {!isNaN(eventIdNumber) && (
+                          <MatchedEntitiesSection
+                            eventId={eventIdNumber}
+                            onEntityClick={(entityId) => void handleMatchedEntityClick(entityId)}
+                          />
+                        )}
+                      </AdvancedOnly>
 
                       {/* User Notes */}
                       <div className="mb-6">
@@ -1086,33 +1107,35 @@ export default function EventDetailModal({
                           Event Details
                         </h3>
                         <dl className="grid gap-2 text-sm">
-                          <div className="flex justify-between">
-                            <dt className="text-gray-400">Event ID</dt>
-                            <dd className="font-mono text-gray-300">{event.id}</dd>
-                          </div>
-                          <div className="flex justify-between">
-                            <dt className="text-gray-400">Camera</dt>
-                            <dd className="text-gray-300">{event.camera_name}</dd>
-                          </div>
-                          <div className="flex justify-between">
-                            <dt className="text-gray-400">Risk Score</dt>
-                            <dd className="text-gray-300">
-                              {event.risk_score === null
-                                ? 'Not analyzed'
-                                : `${event.risk_score} / 100`}
-                            </dd>
-                          </div>
-                          {(event.started_at || event.ended_at !== undefined) && (
+                          <AdvancedOnly>
                             <div className="flex justify-between">
-                              <dt className="text-gray-400">Duration</dt>
+                              <dt className="text-gray-400">Event ID</dt>
+                              <dd className="font-mono text-gray-300">{event.id}</dd>
+                            </div>
+                            <div className="flex justify-between">
+                              <dt className="text-gray-400">Camera</dt>
+                              <dd className="text-gray-300">{event.camera_name}</dd>
+                            </div>
+                            <div className="flex justify-between">
+                              <dt className="text-gray-400">Risk Score</dt>
                               <dd className="text-gray-300">
-                                {formatDuration(
-                                  event.started_at || event.timestamp,
-                                  event.ended_at ?? null
-                                )}
+                                {event.risk_score === null
+                                  ? 'Not analyzed'
+                                  : `${event.risk_score} / 100`}
                               </dd>
                             </div>
-                          )}
+                            {(event.started_at || event.ended_at !== undefined) && (
+                              <div className="flex justify-between">
+                                <dt className="text-gray-400">Duration</dt>
+                                <dd className="text-gray-300">
+                                  {formatDuration(
+                                    event.started_at || event.timestamp,
+                                    event.ended_at ?? null
+                                  )}
+                                </dd>
+                              </div>
+                            )}
+                          </AdvancedOnly>
                           <div className="flex justify-between">
                             <dt className="text-gray-400">Status</dt>
                             <dd className="text-gray-300">
@@ -1129,54 +1152,56 @@ export default function EventDetailModal({
                               )}
                             </dd>
                           </div>
-                          {/* Version indicator for optimistic locking (NEM-3625) */}
-                          {event.version !== undefined && (
-                            <div className="flex justify-between" data-testid="event-version">
-                              <dt className="text-gray-400">Revision</dt>
-                              <dd className="font-mono text-gray-500">Rev. {event.version}</dd>
-                            </div>
-                          )}
-                          {/* Video metadata in event details */}
-                          {isVideoDetection && selectedDetection && (
-                            <>
-                              <div className="mt-2 border-t border-gray-700 pt-2">
-                                <div className="flex items-center gap-1.5 text-xs font-semibold uppercase tracking-wide text-primary">
-                                  <Film className="h-3.5 w-3.5" />
-                                  <span>Video Details</span>
-                                </div>
+                          <AdvancedOnly>
+                            {/* Version indicator for optimistic locking (NEM-3625) */}
+                            {event.version !== undefined && (
+                              <div className="flex justify-between" data-testid="event-version">
+                                <dt className="text-gray-400">Revision</dt>
+                                <dd className="font-mono text-gray-500">Rev. {event.version}</dd>
                               </div>
-                              {selectedDetection.duration && (
-                                <div className="flex justify-between">
-                                  <dt className="text-gray-400">Video Duration</dt>
-                                  <dd className="text-gray-300">
-                                    {formatVideoDuration(selectedDetection.duration)}
-                                  </dd>
+                            )}
+                            {/* Video metadata in event details */}
+                            {isVideoDetection && selectedDetection && (
+                              <>
+                                <div className="mt-2 border-t border-gray-700 pt-2">
+                                  <div className="flex items-center gap-1.5 text-xs font-semibold uppercase tracking-wide text-primary">
+                                    <Film className="h-3.5 w-3.5" />
+                                    <span>Video Details</span>
+                                  </div>
                                 </div>
-                              )}
-                              {formatVideoResolution(
-                                selectedDetection.video_width,
-                                selectedDetection.video_height
-                              ) && (
-                                <div className="flex justify-between">
-                                  <dt className="text-gray-400">Resolution</dt>
-                                  <dd className="text-gray-300">
-                                    {formatVideoResolution(
-                                      selectedDetection.video_width,
-                                      selectedDetection.video_height
-                                    )}
-                                  </dd>
-                                </div>
-                              )}
-                              {selectedDetection.video_codec && (
-                                <div className="flex justify-between">
-                                  <dt className="text-gray-400">Codec</dt>
-                                  <dd className="text-gray-300">
-                                    {selectedDetection.video_codec.toUpperCase()}
-                                  </dd>
-                                </div>
-                              )}
-                            </>
-                          )}
+                                {selectedDetection.duration && (
+                                  <div className="flex justify-between">
+                                    <dt className="text-gray-400">Video Duration</dt>
+                                    <dd className="text-gray-300">
+                                      {formatVideoDuration(selectedDetection.duration)}
+                                    </dd>
+                                  </div>
+                                )}
+                                {formatVideoResolution(
+                                  selectedDetection.video_width,
+                                  selectedDetection.video_height
+                                ) && (
+                                  <div className="flex justify-between">
+                                    <dt className="text-gray-400">Resolution</dt>
+                                    <dd className="text-gray-300">
+                                      {formatVideoResolution(
+                                        selectedDetection.video_width,
+                                        selectedDetection.video_height
+                                      )}
+                                    </dd>
+                                  </div>
+                                )}
+                                {selectedDetection.video_codec && (
+                                  <div className="flex justify-between">
+                                    <dt className="text-gray-400">Codec</dt>
+                                    <dd className="text-gray-300">
+                                      {selectedDetection.video_codec.toUpperCase()}
+                                    </dd>
+                                  </div>
+                                )}
+                              </>
+                            )}
+                          </AdvancedOnly>
                         </dl>
                       </div>
                     </>

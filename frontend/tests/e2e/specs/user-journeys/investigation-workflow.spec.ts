@@ -55,6 +55,7 @@ async function waitForModalContent(page: Page, timeout = 15000) {
 
 test.describe('Investigation Workflow Journey (NEM-1664)', () => {
   test.beforeEach(async ({ page, browserName }) => {
+    await page.addInitScript(() => localStorage.setItem('ui-mode', JSON.stringify('advanced')));
     // Navigate to dashboard first
     await page.goto('/');
 

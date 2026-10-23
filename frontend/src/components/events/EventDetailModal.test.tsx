@@ -36,12 +36,12 @@ function createTestQueryClient() {
   });
 }
 
-// Helper to wrap component with shared query provider
-function renderWithQueryClient(ui: React.ReactElement) {
+function renderWithQueryClient(ui: React.ReactElement, mode: 'easy' | 'advanced' = 'advanced') {
   const queryClient = createTestQueryClient();
   const result = renderWithProviders(
     <QueryClientProvider client={queryClient}>{ui}</QueryClientProvider>,
     {
+      mode,
       withQueryClient: false,
       withRouter: false,
       withSidebarContext: false,
@@ -2742,6 +2742,54 @@ describe('EventDetailModal', () => {
         expect(screen.getByRole('dialog')).toBeInTheDocument();
       });
       expect(screen.queryByTestId('action-events-section')).not.toBeInTheDocument();
+    });
+  });
+
+  describe('Easy vs Advanced view mode (F4.9)', () => {
+    it('shows Details and Video Clip tabs, header VerdictBadge, Detected Objects, and Status row in Easy mode while hiding AI Analysis, AI Audit, Re-evaluate, and breakdown', async () => {
+      const eventWithExtras: Event = {
+        ...mockEvent,
+        version: 2,
+        scene_caption: 'A person walking up the steps',
+        verification: {
+          verdict: 'confirmed',
+          engine: 'llama.cpp',
+          model_id: 'qwen3-vl-8b',
+          scene_description: 'Person at front door',
+        },
+      };
+
+      renderWithQueryClient(<EventDetailModal {...mockProps} event={eventWithExtras} />, 'easy');
+
+      await waitFor(() => {
+        expect(screen.getByRole('dialog')).toBeInTheDocument();
+        expect(screen.getByText('Detected Objects (2)')).toBeInTheDocument();
+      });
+
+      // Tabs: Details and Video Clip present; AI Analysis and AI Audit hidden
+      expect(screen.getByRole('button', { name: 'Details' })).toBeInTheDocument();
+      expect(screen.getByTestId('video-clip-tab')).toBeInTheDocument();
+      expect(screen.queryByTestId('ai-analysis-tab')).not.toBeInTheDocument();
+      expect(screen.queryByRole('button', { name: 'AI Audit' })).not.toBeInTheDocument();
+
+      // Header always shows both RiskBadge and VerdictBadge in Easy mode (MO2)
+      expect(screen.getByTestId('risk-badge')).toBeInTheDocument();
+      expect(
+        screen.getByRole('status', { name: /Verification verdict: Confirmed/i })
+      ).toBeInTheDocument();
+
+      // Summary and Status row stay in Easy mode
+      expect(screen.getByTestId('ai-analysis-section')).toBeInTheDocument();
+      expect(screen.getByText('Pending Review')).toBeInTheDocument();
+
+      // Advanced sections are hidden in Easy mode
+      expect(screen.queryByTestId('re-evaluate-button')).not.toBeInTheDocument();
+      expect(screen.queryByTestId('scene-caption-section')).not.toBeInTheDocument();
+      expect(screen.queryByTestId('risk-factors-breakdown')).not.toBeInTheDocument();
+      expect(screen.queryByTestId('verification-section')).not.toBeInTheDocument();
+      expect(screen.queryByTestId('matched-entities-section-mock')).not.toBeInTheDocument();
+      expect(screen.queryByTestId('event-version')).not.toBeInTheDocument();
+      expect(screen.queryByText('Event ID')).not.toBeInTheDocument();
     });
   });
 });
