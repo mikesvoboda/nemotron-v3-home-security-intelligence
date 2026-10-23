@@ -1,10 +1,9 @@
 /**
- * MobileBottomNav - Fixed bottom navigation for mobile devices
+ * MobileBottomNav - Fixed bottom navigation for mobile devices (F4.9).
  *
- * Displays primary navigation icons at bottom of screen for mobile viewports.
- * Includes safe area inset padding for iOS notch/home indicator support.
- * Features a "More" menu to access additional navigation routes not shown
- * in the primary bottom bar.
+ * Keeps Dashboard, Timeline, Alerts, and More in the bottom bar; the More
+ * bottom sheet renders ModeSwitch followed by the remaining hubs for the
+ * active view mode.
  */
 
 import { clsx } from 'clsx';
@@ -12,7 +11,9 @@ import { Home, Clock, Bell, MoreHorizontal, ChevronRight } from 'lucide-react';
 import { useCallback, useState } from 'react';
 import { NavLink, useLocation, useNavigate } from 'react-router-dom';
 
-import { navGroups } from './sidebarNav';
+import ModeSwitch from './ModeSwitch';
+import { ADVANCED_HUBS, EASY_HUBS, hubForPath, type Hub } from '../../config/surfaces';
+import { useViewMode } from '../../contexts/ViewModeContext';
 import BottomSheet from '../common/BottomSheet';
 
 export interface MobileBottomNavProps {
@@ -22,6 +23,7 @@ export interface MobileBottomNavProps {
 
 interface PrimaryNavItem {
   id: string;
+  hubId: string;
   label: string;
   icon: React.ComponentType<{ className?: string }>;
   path: string;
@@ -30,18 +32,31 @@ interface PrimaryNavItem {
 
 /** Primary nav items shown directly in the bottom bar */
 const primaryNavItems: PrimaryNavItem[] = [
-  { id: 'dashboard', label: 'Dashboard', icon: Home, path: '/' },
-  { id: 'timeline', label: 'Timeline', icon: Clock, path: '/timeline' },
-  { id: 'alerts', label: 'Alerts', icon: Bell, path: '/alerts', showBadge: true },
+  { id: 'dashboard', hubId: 'dashboard', label: 'Dashboard', icon: Home, path: '/' },
+  {
+    id: 'timeline',
+    hubId: 'timeline-search',
+    label: 'Timeline',
+    icon: Clock,
+    path: '/timeline',
+  },
+  {
+    id: 'alerts',
+    hubId: 'alerts-rules',
+    label: 'Alerts',
+    icon: Bell,
+    path: '/alerts',
+    showBadge: true,
+  },
 ];
 
-/** IDs of items shown in the primary nav - used to filter out from "More" menu */
-const primaryNavIds = new Set(primaryNavItems.map((item) => item.id));
+const primaryHubIds = new Set(primaryNavItems.map((item) => item.hubId));
 
 export default function MobileBottomNav({ notificationCount = 0 }: MobileBottomNavProps) {
   const [isMoreMenuOpen, setIsMoreMenuOpen] = useState(false);
   const location = useLocation();
   const navigate = useNavigate();
+  const { mode } = useViewMode();
 
   const formatBadgeCount = (count: number): string => {
     return count > 9 ? '9+' : count.toString();
@@ -63,21 +78,13 @@ export default function MobileBottomNav({ notificationCount = 0 }: MobileBottomN
     [navigate]
   );
 
-  /** Check if a path is currently active */
-  const isPathActive = useCallback(
-    (path: string) => {
-      if (path === '/') {
-        return location.pathname === '/';
-      }
-      return location.pathname === path || location.pathname.startsWith(path + '/');
-    },
-    [location.pathname]
-  );
+  const activeHub = hubForPath(location.pathname);
 
-  /** Check if any route in the "More" menu is currently active */
-  const isMoreMenuActive = navGroups.some((group) =>
-    group.items.some((item) => !primaryNavIds.has(item.id) && isPathActive(item.path))
-  );
+  const remainingEasyHubs = EASY_HUBS.filter((hub) => !primaryHubIds.has(hub.id));
+  const remainingAdvancedHubs = mode === 'advanced' ? ADVANCED_HUBS : [];
+  const moreHubs: readonly Hub[] = [...remainingEasyHubs, ...remainingAdvancedHubs];
+
+  const isMoreMenuActive = Boolean(activeHub && moreHubs.some((h) => h.id === activeHub.id));
 
   return (
     <>
@@ -87,7 +94,6 @@ export default function MobileBottomNav({ notificationCount = 0 }: MobileBottomN
         aria-label="Mobile navigation"
       >
         <div className="flex h-full items-center justify-around">
-          {/* Primary navigation items */}
           {primaryNavItems.map((item) => {
             const Icon = item.icon;
             const showBadge = item.showBadge && notificationCount > 0;
@@ -117,7 +123,6 @@ export default function MobileBottomNav({ notificationCount = 0 }: MobileBottomN
             );
           })}
 
-          {/* More menu button */}
           <button
             onClick={handleOpenMoreMenu}
             className={clsx(
@@ -134,7 +139,6 @@ export default function MobileBottomNav({ notificationCount = 0 }: MobileBottomN
         </div>
       </nav>
 
-      {/* More menu bottom sheet */}
       <BottomSheet
         isOpen={isMoreMenuOpen}
         onClose={handleCloseMoreMenu}
@@ -143,60 +147,79 @@ export default function MobileBottomNav({ notificationCount = 0 }: MobileBottomN
         aria-labelledby="more-menu-title"
       >
         <div className="space-y-4" data-testid="mobile-nav-more-menu">
-          {navGroups.map((group) => {
-            // Filter out items already in the primary nav
-            const additionalItems = group.items.filter((item) => !primaryNavIds.has(item.id));
+          <div className="flex items-center justify-between border-b border-gray-800 pb-3">
+            <span className="text-xs font-semibold uppercase tracking-wider text-gray-400">
+              View Mode
+            </span>
+            <ModeSwitch />
+          </div>
 
-            // Skip groups with no additional items
-            if (additionalItems.length === 0) {
-              return null;
-            }
+          <div className="space-y-1">
+            {remainingEasyHubs.map((hub) => {
+              const Icon = hub.icon;
+              const isActive = activeHub?.id === hub.id;
+              const targetPath = hub.tabs[0]?.path ?? '/';
 
-            return (
-              <div key={group.id} data-testid={`mobile-nav-group-${group.id}`}>
-                {/* Group label */}
-                <div className="mb-2 px-1 text-xs font-semibold uppercase tracking-wider text-gray-400">
-                  {group.label}
+              return (
+                <button
+                  key={hub.id}
+                  onClick={() => handleNavigate(targetPath)}
+                  className={clsx(
+                    'flex w-full items-center gap-3 rounded-lg px-3 py-3 transition-colors',
+                    'min-h-[44px]',
+                    isActive
+                      ? 'bg-[#76B900] font-semibold text-black'
+                      : 'text-gray-300 hover:bg-gray-800 hover:text-white'
+                  )}
+                  aria-current={isActive ? 'page' : undefined}
+                  data-testid={`mobile-nav-item-${hub.id}`}
+                >
+                  <Icon className="h-5 w-5 flex-shrink-0" aria-hidden="true" />
+                  <span className="flex-1 text-left">{hub.label}</span>
+                  <ChevronRight
+                    className={clsx('h-4 w-4', isActive ? 'text-black/50' : 'text-gray-500')}
+                    aria-hidden="true"
+                  />
+                </button>
+              );
+            })}
+
+            {remainingAdvancedHubs.length > 0 && (
+              <>
+                <div className="my-2 border-t border-gray-800 px-1 pt-2 text-xs font-semibold uppercase tracking-wider text-gray-500">
+                  AI Blueprint
                 </div>
+                {remainingAdvancedHubs.map((hub) => {
+                  const Icon = hub.icon;
+                  const isActive = activeHub?.id === hub.id;
+                  const targetPath = hub.tabs[0]?.path ?? '/';
 
-                {/* Group items */}
-                <div className="space-y-1">
-                  {additionalItems.map((item) => {
-                    const Icon = item.icon;
-                    const isActive = isPathActive(item.path);
-
-                    return (
-                      <button
-                        key={item.id}
-                        onClick={() => handleNavigate(item.path)}
-                        className={clsx(
-                          'flex w-full items-center gap-3 rounded-lg px-3 py-3 transition-colors',
-                          'min-h-[44px]', // Touch target size
-                          isActive
-                            ? 'bg-[#76B900] font-semibold text-black'
-                            : 'text-gray-300 hover:bg-gray-800 hover:text-white'
-                        )}
-                        aria-current={isActive ? 'page' : undefined}
-                        data-testid={`mobile-nav-item-${item.id}`}
-                      >
-                        <Icon className="h-5 w-5 flex-shrink-0" aria-hidden="true" />
-                        <span className="flex-1 text-left">{item.label}</span>
-                        {item.badge && (
-                          <span className="rounded bg-yellow-500 px-2 py-0.5 text-xs font-medium text-black">
-                            {item.badge}
-                          </span>
-                        )}
-                        <ChevronRight
-                          className={clsx('h-4 w-4', isActive ? 'text-black/50' : 'text-gray-500')}
-                          aria-hidden="true"
-                        />
-                      </button>
-                    );
-                  })}
-                </div>
-              </div>
-            );
-          })}
+                  return (
+                    <button
+                      key={hub.id}
+                      onClick={() => handleNavigate(targetPath)}
+                      className={clsx(
+                        'flex w-full items-center gap-3 rounded-lg px-3 py-3 transition-colors',
+                        'min-h-[44px]',
+                        isActive
+                          ? 'bg-[#76B900] font-semibold text-black'
+                          : 'text-gray-300 hover:bg-gray-800 hover:text-white'
+                      )}
+                      aria-current={isActive ? 'page' : undefined}
+                      data-testid={`mobile-nav-item-${hub.id}`}
+                    >
+                      <Icon className="h-5 w-5 flex-shrink-0" aria-hidden="true" />
+                      <span className="flex-1 text-left">{hub.label}</span>
+                      <ChevronRight
+                        className={clsx('h-4 w-4', isActive ? 'text-black/50' : 'text-gray-500')}
+                        aria-hidden="true"
+                      />
+                    </button>
+                  );
+                })}
+              </>
+            )}
+          </div>
         </div>
       </BottomSheet>
     </>

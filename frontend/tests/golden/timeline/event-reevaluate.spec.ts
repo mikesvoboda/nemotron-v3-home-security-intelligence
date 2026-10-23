@@ -115,6 +115,7 @@ import {
   openTimelineEventModal,
   readAuditLookup,
   readTimelineHarness,
+  setMode,
   type AuditFixture,
   type Session,
   type TimelineHarness,
@@ -150,6 +151,7 @@ test.afterAll(async () => {
  *  row, through the shipped `?event=` door (delegated to `openTimelineEventModal`
  *  in `./harness.ts`, F4.9 consolidation). */
 async function openModal(page: Page, eventId: number): Promise<Session> {
+  await setMode(page, 'advanced');
   return openTimelineEventModal(page, harness, {
     cameraId: fx.cameraId,
     eventId,

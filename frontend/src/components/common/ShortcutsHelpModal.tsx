@@ -1,38 +1,26 @@
 /**
- * ShortcutsHelpModal - Displays keyboard shortcuts reference
+ * ShortcutsHelpModal - Displays keyboard shortcuts reference (F4.9 — docs/uplevel/4n-modes.md).
  *
- * Shows all available keyboard shortcuts when ? is pressed.
- * Organized by category: Global, Navigation, and List Navigation.
- * Uses focus trap for accessibility.
+ * Derives Navigation chords from `config/surfaces.ts` and marks the chords
+ * that open Advanced pages.
  */
 
 import { X } from 'lucide-react';
 
+import { NAVIGATION_CHORDS } from '../../config/surfaces';
 import { useFocusTrap } from '../../hooks/useFocusTrap';
 
-/**
- * Shortcut item definition
- */
 interface ShortcutItem {
-  /** Keyboard key(s) to display */
   keys: string[];
-  /** Description of what the shortcut does */
   description: string;
+  advanced?: boolean;
 }
 
-/**
- * Shortcut group definition
- */
 interface ShortcutGroup {
-  /** Group title */
   title: string;
-  /** Shortcuts in this group */
   items: ShortcutItem[];
 }
 
-/**
- * All available keyboard shortcuts organized by category
- */
 const SHORTCUT_GROUPS: ShortcutGroup[] = [
   {
     title: 'Global',
@@ -44,16 +32,11 @@ const SHORTCUT_GROUPS: ShortcutGroup[] = [
   },
   {
     title: 'Navigation',
-    items: [
-      { keys: ['g', 'd'], description: 'Go to Dashboard' },
-      { keys: ['g', 't'], description: 'Go to Timeline' },
-      { keys: ['g', 'e'], description: 'Go to Entities' },
-      { keys: ['g', 'a'], description: 'Go to Alerts' },
-      { keys: ['g', 's'], description: 'Go to Settings' },
-      { keys: ['g', 'n'], description: 'Go to Analytics' },
-      { keys: ['g', 'o'], description: 'Go to Logs' },
-      { keys: ['g', 'y'], description: 'Go to System' },
-    ],
+    items: NAVIGATION_CHORDS.map((chord) => ({
+      keys: [...chord.keys],
+      description: chord.description,
+      advanced: chord.mode === 'advanced',
+    })),
   },
   {
     title: 'List Navigation',
@@ -69,19 +52,11 @@ const SHORTCUT_GROUPS: ShortcutGroup[] = [
   },
 ];
 
-/**
- * Props for ShortcutsHelpModal component
- */
 export interface ShortcutsHelpModalProps {
-  /** Whether the modal is open */
   open: boolean;
-  /** Callback when modal should close */
   onClose: () => void;
 }
 
-/**
- * Renders a keyboard key
- */
 function KeyBadge({ children }: { children: React.ReactNode }) {
   return (
     <kbd className="inline-flex min-w-[24px] items-center justify-center rounded bg-[#333] px-2 py-1 text-xs font-medium text-[#ccc]">
@@ -90,15 +65,7 @@ function KeyBadge({ children }: { children: React.ReactNode }) {
   );
 }
 
-/**
- * ShortcutsHelpModal component
- *
- * Displays a reference of all available keyboard shortcuts.
- * Uses focus trap for accessibility - focus is trapped within the modal
- * and returns to the trigger element when closed.
- */
 export default function ShortcutsHelpModal({ open, onClose }: ShortcutsHelpModalProps) {
-  // Use focus trap for accessibility
   const { containerRef } = useFocusTrap<HTMLDivElement>({
     isActive: open,
     onEscape: onClose,
@@ -152,7 +119,17 @@ export default function ShortcutsHelpModal({ open, onClose }: ShortcutsHelpModal
                     key={index}
                     className="flex items-center justify-between rounded-lg bg-[#222] px-3 py-2"
                   >
-                    <span className="text-sm text-[#999]">{item.description}</span>
+                    <div className="flex items-center gap-2">
+                      <span className="text-sm text-[#999]">{item.description}</span>
+                      {item.advanced && (
+                        <span
+                          className="rounded border border-gray-700 bg-gray-800 px-1.5 py-0.5 text-[10px] font-medium uppercase tracking-wide text-gray-400"
+                          data-testid="shortcut-advanced-badge"
+                        >
+                          Advanced
+                        </span>
+                      )}
+                    </div>
                     <div className="flex items-center gap-1">
                       {item.keys.map((key, keyIndex) => (
                         <span key={keyIndex} className="flex items-center">

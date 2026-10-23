@@ -70,6 +70,10 @@ async function waitForWSProcessing(page: import('@playwright/test').Page, browse
 }
 
 test.describe('WebSocket Connection Status', () => {
+  test.beforeEach(async ({ page }) => {
+    await page.addInitScript(() => localStorage.setItem('ui-mode', JSON.stringify('advanced')));
+  });
+
   test('dashboard shows WebSocket status indicator', async ({ page }) => {
     const wsMock = await setupMocksWithWebSocket(page);
 
