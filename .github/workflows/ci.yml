@@ -1400,9 +1400,22 @@ jobs:
 
       - name: Install PostgreSQL client tools
         # Required for backup/restore tests (pg_dump, pg_restore)
+        # Ruling 322: pin the client to the server's major. ubuntu-latest
+        # moved to 26.04 and its unpinned `postgresql-client` resolved to PG 18,
+        # whose sessions open with `SET transaction_timeout = 0` — rejected by
+        # the postgres:16-alpine service container, so the restore tests fail
+        # deterministically. 26.04's archive carries only PG 18, so the pinned
+        # client comes from the PostgreSQL apt repository (pgdg).
         run: |
           sudo apt-get update
-          sudo apt-get install -y postgresql-client
+          sudo apt-get install -y curl ca-certificates gnupg
+          . /etc/os-release
+          echo "deb [signed-by=/usr/share/keyrings/postgresql.gpg] http://apt.postgresql.org/pub/repos/apt ${VERSION_CODENAME}-pgdg main" \
+            | sudo tee /etc/apt/sources.list.d/pgdg.list > /dev/null
+          curl -fsSL https://www.postgresql.org/media/keys/ACCC4CF8.asc \
+            | sudo gpg --dearmor -o /usr/share/keyrings/postgresql.gpg
+          sudo apt-get update
+          sudo apt-get install -y postgresql-client-16
 
       - name: Run Services integration tests
         # Service tests: test_*_integration.py, test_batch*.py, test_detector*.py, test_file_watcher*.py, test_circuit*.py
