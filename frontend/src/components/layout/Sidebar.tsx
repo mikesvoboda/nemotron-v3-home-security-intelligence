@@ -49,7 +49,8 @@ function HubItem({ hub, isActive, onNavClick, isCollapsed }: HubItemProps) {
   // shows the open count"); 0 hides the badge. One shared query for every
   // nav surface; wired to the hub table's `badge: 'open_alerts'` marker.
   const openAlertCount = useOpenAlertCount();
-  const badge = hub.badge === 'open_alerts' && openAlertCount > 0 ? String(openAlertCount) : undefined;
+  const badge =
+    hub.badge === 'open_alerts' && openAlertCount > 0 ? String(openAlertCount) : undefined;
 
   if (isCollapsed) {
     return (
