@@ -68,6 +68,10 @@ class AIServiceHealthDetail(BaseModel):
         ...,
         description="Current health status of the service",
     )
+    state: str | None = Field(
+        default=None,
+        description="Granular AI service state (ready, loading, idle, failing, unknown)",
+    )
     circuit_state: AIServiceCircuitState = Field(
         default=AIServiceCircuitState.CLOSED,
         description="Circuit breaker state for this service",

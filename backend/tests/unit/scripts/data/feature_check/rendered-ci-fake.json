@@ -195,6 +195,7 @@
           "USE_AI_GATEWAY": "true",
           "VLM_ENFORCEMENT_PROBE_ENABLED": "true",
           "VLM_REQUIRED_BUILD": "b11819",
+          "VLM_SLEEP_IDLE_SECONDS": "1",
           "YOLO26_URL": "http://ai-gateway:8090/yolo26"
         },
         "healthcheck": {

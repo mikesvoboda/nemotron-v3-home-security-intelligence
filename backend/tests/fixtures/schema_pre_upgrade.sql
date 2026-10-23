@@ -281,3 +281,14 @@ CREATE TABLE outbound_webhooks (
 
 INSERT INTO outbound_webhooks (id, name, url) VALUES
     ('00000000-0000-0000-0000-00000000000a', 'nvr-relay', 'http://nvr.local/hooks/alert');
+
+-- ---------------------------------------------------------------------------------------
+-- 0015 target (B4.11 R2a row 9): prometheus_alerts table (retired with /api/v1/alertmanager/webhook).
+-- ---------------------------------------------------------------------------------------
+CREATE TABLE prometheus_alerts (
+    id          SERIAL PRIMARY KEY,
+    fingerprint VARCHAR(64) NOT NULL,
+    status      VARCHAR(32) NOT NULL DEFAULT 'firing'
+);
+
+INSERT INTO prometheus_alerts (fingerprint, status) VALUES ('fp-legacy-1', 'firing');
