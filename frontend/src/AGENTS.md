@@ -84,6 +84,7 @@ Reusable UI components and utilities:
 **Badges and Indicators:**
 
 - `RiskBadge.tsx` - Displays risk level badges (low/medium/high/critical)
+- `AdvancedOnly.tsx` - Renders children only when `useViewMode().mode === 'advanced'`
 - `ConfidenceBadge.tsx` - Detection confidence score badge with color coding
 - `ObjectTypeBadge.tsx` - Displays object type badges (person/vehicle/animal/package)
 - `WebSocketStatus.tsx` - WebSocket connection status indicator with tooltip
@@ -252,12 +253,14 @@ Note: Tests are co-located with components (e.g., `*.test.tsx`).
 
 Application layout and navigation:
 
-- `Layout.tsx` - Main layout wrapper with header and sidebar
+- `Layout.tsx` - Main layout wrapper with header, sidebar, `HubTabBar`, and `AdvancedBanner`
 - `Header.tsx` - Top navigation bar with branding and system status
-- `Sidebar.tsx` - Left navigation menu with icon buttons
-- `MobileBottomNav.tsx` - Mobile bottom navigation
+- `Sidebar.tsx` - Left navigation menu rendering Easy and Advanced hubs from `config/surfaces.ts`
+- `MobileBottomNav.tsx` - Mobile bottom navigation and More sheet
+- `ModeSwitch.tsx` - Segmented `Easy | Advanced` mode switch (`role="radiogroup"`)
+- `HubTabBar.tsx` - Shared route-driven sub-surface tab bar for multi-tab hubs
+- `AdvancedBanner.tsx` - Banner shown in Easy mode when visiting an Advanced-only URL directly
 - `PageDocsLink.tsx` - Page documentation link
-- `sidebarNav.ts` - Sidebar navigation configuration
 
 Note: Tests are co-located with components (e.g., `*.test.tsx`).
 
@@ -556,21 +559,23 @@ Zone management and visualization:
 
 ### `/config/` - Application Configuration
 
-| File                   | Purpose                                    |
-| ---------------------- | ------------------------------------------ |
-| `env.ts`               | Environment variable validation and access |
-| `pageDocumentation.ts` | Page documentation configuration           |
-| `tourSteps.ts`         | Product tour step definitions              |
+| File                   | Purpose                                                       |
+| ---------------------- | ------------------------------------------------------------- |
+| `env.ts`               | Environment variable validation and access                    |
+| `pageDocumentation.ts` | Page documentation configuration                              |
+| `surfaces.ts`          | Single source of truth for hubs, sub-surface tabs, and chords |
+| `tourSteps.ts`         | Product tour step definitions                                 |
 
 ### `/contexts/` - React Contexts
 
 Global state management via React Context:
 
-| File                      | Purpose              |
-| ------------------------- | -------------------- |
-| `AnnouncementContext.tsx` | System announcements |
-| `DebugModeContext.tsx`    | Debug mode toggle    |
-| `index.ts`                | Barrel export        |
+| File                      | Purpose                             |
+| ------------------------- | ----------------------------------- |
+| `AnnouncementContext.tsx` | System announcements                |
+| `DebugModeContext.tsx`    | Debug mode toggle                   |
+| `ViewModeContext.tsx`     | Easy / Advanced UI mode (`ui-mode`) |
+| `index.ts`                | Barrel export                       |
 
 Each context has a co-located test file (named `*.test.tsx`).
 

@@ -441,17 +441,22 @@ Your dashboard configuration is stored in localStorage. Click **Configure** > **
 
 ## Navigation
 
-The left sidebar (`frontend/src/components/layout/Sidebar.tsx`, items defined in
-`sidebarNav.ts`) groups navigation into four collapsible sections:
+The left sidebar (`frontend/src/components/layout/Sidebar.tsx`, hubs defined in
+`frontend/src/config/surfaces.ts`) lists the five **Easy** hubs by default and adds four **Advanced** hubs when the `Easy | Advanced` switch (`ModeSwitch`) at the bottom of the sidebar is set to **Advanced**:
 
-| Group          | Items                                                                                                                                                                                          |
-| -------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| **Monitoring** | Dashboard, Timeline, Entities, Alerts                                                                                                                                                          |
-| **Analytics**  | Analytics, Video Analytics, AI Audit, AI Performance, AI Services, Profiling, Plate Reads, Face Recognition, Heatmaps, Scene Changes, Object Tracks, Performance, Household, Re-Identification |
-| **Operations** | Jobs, Pipeline, Dashboard (operations dashboard), Notifications, GPU Metrics, Request Profiling, Tracing, Logs                                                                                 |
-| **Admin**      | Zones, Audit Log, Data Management, Scheduled Reports, Webhooks, Trash, GPU Settings, Settings                                                                                                  |
+| Mode         | Hub                         | Tabs                                                                                                                                                                                                                                                                                                                        |
+| ------------ | --------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| **Easy**     | **Dashboard**               | Live (`/`) · Trends (`/analytics`)                                                                                                                                                                                                                                                                                          |
+| **Easy**     | **Timeline & Search**       | Timeline (`/timeline`) · Trash (`/trash`)                                                                                                                                                                                                                                                                                   |
+| **Easy**     | **Alerts & Rules**          | Alerts (`/alerts`) · Rules (`/settings/rules`)                                                                                                                                                                                                                                                                              |
+| **Easy**     | **Household**               | Members & Vehicles (`/household`) · Zones (`/zones`) · Known Persons (`/face-recognition`)                                                                                                                                                                                                                                  |
+| **Easy**     | **Settings**                | Cameras, Processing, Notifications, Ambient, Access, Storage, Data, Webhooks, Audit log, Notification history                                                                                                                                                                                                               |
+| **Advanced** | **Entities & Re-ID**        | Entities (`/entities`) · Re-ID (`/reid`) · Tracks (`/tracks`)                                                                                                                                                                                                                                                               |
+| **Advanced** | **AI Workbench**            | AI Audit (`/ai-audit`) · Prompts (`/settings/prompts`)                                                                                                                                                                                                                                                                      |
+| **Advanced** | **GPU & Models**            | AI Performance (`/ai`) · AI Models (`/settings/ai-models`) · GPU (`/settings/gpu`)                                                                                                                                                                                                                                          |
+| **Advanced** | **Operations & Monitoring** | System (`/operations`) · Jobs (`/jobs`) · Logs (`/logs`) · Analytics (`/video-analytics`) ·Heatmaps (`/heatmaps`) · Scene Changes (`/scene-changes`) · Performance (`/performance`) · Tracing (`/tracing`) · Profiling (`/pyroscope`) · AI Services (`/ai-services`) · Admin (`/settings/admin`) · Dev Tools (`/dev-tools`) |
 
-The Operations and Admin groups start collapsed. The current page is highlighted.
+Sub-surface tabs are rendered at the top of multi-tab hubs by `HubTabBar`. Visiting an Advanced URL directly while in Easy mode renders the page with an `Advanced view · Switch to Advanced` banner at the top.
 
 ### Keyboard Shortcuts
 

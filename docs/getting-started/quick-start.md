@@ -88,42 +88,19 @@ This is your home base. Here's what each part shows you:
 
 ### The Sidebar Menu
 
-On the left side, you'll see navigation options organized into collapsible groups:
+On the left side, you'll see the five everyday **Easy** hubs by default, with an **Easy | Advanced** switch at the bottom of the sidebar:
 
-**MONITORING**
+| Hub                   | What's There                                                                                                  |
+| --------------------- | ------------------------------------------------------------------------------------------------------------- |
+| **Dashboard**         | Live overview (`/`) and Trends (`/analytics`)                                                                 |
+| **Timeline & Search** | History of all events (`/timeline`) and Trash (`/trash`)                                                      |
+| **Alerts & Rules**    | Active alerts (`/alerts`) and alert rules (`/settings/rules`)                                                 |
+| **Household**         | Members & Vehicles (`/household`), Zones (`/zones`), and Known Persons (`/face-recognition`)                  |
+| **Settings**          | Cameras, Processing, Notifications, Ambient, Access, Storage, Data, Webhooks, Audit log, Notification history |
 
-| Menu Item     | What's There                                                          |
-| ------------- | --------------------------------------------------------------------- |
-| **Dashboard** | The main overview (where you start)                                   |
-| **Timeline**  | History of all events - you can filter by camera, date, or risk level |
-| **Entities**  | Recognized people, vehicles, and tracked objects                      |
-| **Alerts**    | Events that need your attention                                       |
-
-**ANALYTICS** (expanded by default)
-
-| Menu Item           | What's There                                |
-| ------------------- | ------------------------------------------- |
-| **Analytics**       | Charts and statistics about security events |
-| **Video Analytics** | Video-based analytics views                 |
-| **AI Audit**        | Review AI decision-making and accuracy      |
-| **AI Performance**  | Monitor AI model performance metrics        |
-| **AI Services**     | Status of each AI service                   |
-| **Profiling**       | System performance profiling tools          |
-| **Heatmaps**        | Where activity happens in each camera view  |
-
-The ANALYTICS group also includes Plate Reads, Face Recognition, Scene Changes, Object Tracks, Performance, Household, and Re-Identification.
-
-**OPERATIONS** (collapsed by default)
-
-| Menu Item             | What's There                            |
-| --------------------- | --------------------------------------- |
-| **Jobs**              | Background job status and management    |
-| **Pipeline**          | AI processing pipeline operations       |
-| **Notifications**     | Notification delivery status            |
-| **GPU Metrics**       | Per-GPU utilization charts              |
-| **Request Profiling** | Per-request timing                      |
-| **Tracing**           | Request tracing for debugging           |
-| **Logs**              | Technical system logs (troubleshooting) |
+Switching to **Advanced** at the bottom of the sidebar adds four operator hubs (**Entities & Re-ID**, **AI Workbench**, **GPU & Models**, and **Operations & Monitoring**) plus operator diagnostics in the header and event modal.
+| **Tracing** | Request tracing for debugging |
+| **Logs** | Technical system logs (troubleshooting) |
 
 **ADMIN** (collapsed by default)
 

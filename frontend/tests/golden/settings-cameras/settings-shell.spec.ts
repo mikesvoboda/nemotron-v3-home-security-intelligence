@@ -37,16 +37,16 @@ test.skip(
 );
 
 const EXPECTED_TABS = [
-  { id: 'cameras', label: 'CAMERAS', path: '/settings/cameras' },
-  { id: 'rules', label: 'RULES', path: '/settings/rules' },
-  { id: 'processing', label: 'PROCESSING', path: '/settings/processing' },
-  { id: 'notifications', label: 'NOTIFICATIONS', path: '/settings/notifications' },
-  { id: 'ambient', label: 'AMBIENT', path: '/settings/ambient' },
-  { id: 'access', label: 'ACCESS', path: '/settings/access' },
-  { id: 'prompts', label: 'PROMPTS', path: '/settings/prompts' },
-  { id: 'storage', label: 'STORAGE', path: '/settings/storage' },
-  { id: 'ai-models', label: 'AI MODELS', path: '/settings/ai-models' },
-  { id: 'admin', label: 'ADMIN', path: '/settings/admin' },
+  { id: 'cameras', label: 'Cameras', path: '/settings/cameras' },
+  { id: 'processing', label: 'Processing', path: '/settings/processing' },
+  { id: 'notifications', label: 'Notifications', path: '/settings/notifications' },
+  { id: 'ambient', label: 'Ambient', path: '/settings/ambient' },
+  { id: 'access', label: 'Access', path: '/settings/access' },
+  { id: 'storage', label: 'Storage', path: '/settings/storage' },
+  { id: 'data', label: 'Data', path: '/data' },
+  { id: 'webhooks', label: 'Webhooks', path: '/webhooks' },
+  { id: 'audit', label: 'Audit log', path: '/audit' },
+  { id: 'notification-history', label: 'Notification history', path: '/notifications' },
 ] as const;
 
 test.describe('FE-4 settings shell golden path (F-198)', () => {
@@ -107,16 +107,19 @@ test.describe('FE-4 settings shell golden path (F-198)', () => {
     await expect(panel).toHaveAttribute('id', 'settings-panel-cameras');
     await expect(panel).toHaveAttribute('aria-labelledby', 'settings-tab-cameras');
 
-    // Switch tab to Rules and verify ARIA + route transition
-    await page.getByTestId('settings-tab-rules').click();
-    await expect(page).toHaveURL(/\/settings\/rules$/);
-    await expect(page.getByTestId('settings-tab-rules')).toHaveAttribute('aria-selected', 'true');
+    // Switch tab to Processing and verify ARIA + route transition (Rules is in Alerts & Rules hub in F4.9)
+    await page.getByTestId('settings-tab-processing').click();
+    await expect(page).toHaveURL(/\/settings\/processing$/);
+    await expect(page.getByTestId('settings-tab-processing')).toHaveAttribute(
+      'aria-selected',
+      'true'
+    );
     await expect(page.getByTestId('settings-tab-cameras')).toHaveAttribute(
       'aria-selected',
       'false'
     );
-    await expect(panel).toHaveAttribute('id', 'settings-panel-rules');
-    await expect(panel).toHaveAttribute('aria-labelledby', 'settings-tab-rules');
+    await expect(panel).toHaveAttribute('id', 'settings-panel-processing');
+    await expect(panel).toHaveAttribute('aria-labelledby', 'settings-tab-processing');
 
     await assertGuardSurvives(page, h);
   });
