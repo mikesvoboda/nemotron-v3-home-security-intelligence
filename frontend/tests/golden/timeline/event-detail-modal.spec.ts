@@ -1696,6 +1696,57 @@ test.describe('F-054 event detail modal — Details tab', () => {
       'and the button still reads the unsnoozed state for the same reason'
     ).toHaveAttribute('aria-label', 'Snooze event');
 
+    // F4.1 ("the timeline's Snooze moves to activity snoozes"):
+    // SIBLING RESOLUTION — the B4.1 sync made the modal's snooze write
+    // house-wide, and the modal spec can now PROVE it on the wire with no new
+    // supply. _sync_event_activity_snooze (events.py:2230, wired into the
+    // snooze PATCH at :2352) writes an ActivitySnooze row per object type, and
+    // the single-event GET resolves a null snooze_until through the newest
+    // active row matching camera + object_type (_resolve_event_snooze_until,
+    // :2201, wired at :2152). The walk seeds are DETECTION-LESS bulk rows, so
+    // _event_object_types (:2176) falls back to ['unknown'] for both — same
+    // camera, same kind of object — which is the design's own household scope
+    // sentence (4n-alerting.md:81) made wire-visible: snoozing seed A must
+    // resolve on seed B while B's own column stays null.
+    const [seedA, seedB] = seededWalkIds;
+    if (seedA === undefined || seedB === undefined) {
+      throw new Error('walk fixture: seed ids missing for the sibling-resolution leg');
+    }
+    const bBefore = await eventRow(session, seedB);
+    expect(bBefore.snooze_until, 'seed B starts with a null own column').toBeNull();
+    await apiWrite<EventRow>(timeline, session, 'PATCH', `/api/events/${seedA}`, {
+      snooze_until: new Date(Date.now() + 30 * 60_000).toISOString(),
+    });
+    const aAfter = await eventRow(session, seedA);
+    expect(aAfter.snooze_until, 'seed A holds its own write directly').not.toBeNull();
+    const bAfter = await eventRow(session, seedB);
+    expect(
+      bAfter.snooze_until,
+      'seed B RESOLVES the sibling activity snooze through the single GET fallback ' +
+        '(same camera, object_types [unknown]) while its own column is null'
+    ).not.toBeNull();
+    expect(
+      bBefore.snooze_until === null && bAfter.snooze_until !== null,
+      'the resolution is new state, not a stale read'
+    ).toBe(true);
+    // Badge-absence control on the RESOLVING row: even a row the wire says is
+    // snoozed stays badge-less in the modal, because getModalEvent
+    // (EventTimeline.tsx:1101-1133) still drops the key — the shipped
+    // absence survives the B4.1 sync and this pin says so.
+    await apiWrite<EventRow>(timeline, session, 'PATCH', `/api/events/${seedA}`, {
+      snooze_until: null,
+    });
+    const [aCleared, bCleared] = await Promise.all([
+      eventRow(session, seedA),
+      eventRow(session, seedB),
+    ]);
+    expect(aCleared.snooze_until, 'seed A is cleared').toBeNull();
+    expect(
+      bCleared.snooze_until,
+      'clearing seed A deleted the activity snooze rows — seed B no longer resolves ' +
+        '(_sync_event_activity_snooze matches source_event_id OR camera+object_types)'
+    ).toBeNull();
+
     // Cleanup in the same session: the UI's own Unsnooze door is unreachable
     // here (same projection cause), so the wire PATCH the client itself makes
     // (api.ts:2514 unsnoozeEvent) restores the row for the next run.

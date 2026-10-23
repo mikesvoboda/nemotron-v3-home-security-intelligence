@@ -536,10 +536,10 @@ PR's base.
 ### [r277b] F-022's stale citations
 
 **Flags:** none. **Assigned:** docs, beside `[r262]`, a one-off UR-52 exception counted toward
-ruling 269's two, like `[r271c]` (ruling 277). **Depends on:** none. **PR:** none yet. (ruling 277,
-record 6291992942; audit items Q-093 and Q-075 of `[r262]`)
+ruling 269's two, like `[r271c]` (ruling 277). **Depends on:** none. **PR:** #7265, beside
+`[r262]`. (ruling 277, record 6291992942; audit items Q-093 and Q-075 of `[r262]`)
 
-- [ ] F-022's row in `docs/reference/feature-inventory.md` carries its five citations re-derived
+- [x] F-022's row in `docs/reference/feature-inventory.md` carries its five citations re-derived
       against `main`'s base, not the audit's pin: `extractRateLimitInfo`, its `update()` call, the
       three-header guard, `fetchWebSocketHealth`'s fetch, and the websocket-health route with its
       `DEFAULT` tier in `backend/api/routes/system.py`. The PR quotes each cited line from its base.
@@ -575,7 +575,7 @@ row is corrected or named as closed, and the UR-89 review approves.
 
 **Flags:** none. **Assigned:** docs, after `W3.2` and `W3.3` (rulings 307, 316). **Depends on:**
 none.
-**PR:** none yet. (ruling 307, record 6323846997)
+**PR:** #7265, as a rider on `[r262]`. (ruling 307, record 6323846997)
 
 `docs/operator/deployment/README.md:164-166` says the backend's OSNet, face and ALPR weights "load
 on the GPU the backend container holds". The backend's torch is CPU-only (`pyproject.toml:984-994`),
@@ -583,7 +583,7 @@ the face leg forces `CPUExecutionProvider` (`backend/services/face_recognizer_lo
 the backend image installs only the `face` extra (`backend/Dockerfile:150`), so fast-alpr is not
 installed.
 
-- [ ] The page states today's truth: OSNet and the face leg run on the CPU inside the backend
+- [x] The page states today's truth: OSNet and the face leg run on the CPU inside the backend
       (CPU-only torch wheels, `CPUExecutionProvider`), loaded at boot only when
       `BACKEND_MODEL_PRELOAD=true`; fast-alpr is not installed; and rulings 306 and 307 move them to
       Triton. Later PRs that move a model update the page (UR-81).
