@@ -207,7 +207,7 @@ UR-147.
 | B4.\*   | backend                 | 4          | Feature track (arming among them, UR-12)       | design: heavy | not started |     |
 | B4.1    | backend                 | 4          | Alert pipeline core                            | heavy         | awaiting real tier | #7335, #7342 |
 | B4.2    | backend                 | 4          | Recipients and delivery                        |               | awaiting real tier | #7339, #7346 |
-| B4.4    | backend                 | 4          | Trash purger                                   | heavy         | awaiting real tier | #7347, #7354 |
+| B4.4    | backend                 | 4          | Trash purger                                   | heavy         | done               | #7347, #7354 |
 | B4.6    | backend                 | 4          | Restore from backup                            | heavy         | awaiting real tier | #7345, #7350, #7358 |
 | B4.7    | backend                 | 4          | Arming core                                    | heavy         | awaiting real tier | #7357, #7361 |
 | B4.11   | backend                 | 4          | System status (expand)                         | heavy · owner | in progress | #7366 |
