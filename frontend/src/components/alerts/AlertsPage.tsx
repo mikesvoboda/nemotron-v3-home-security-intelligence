@@ -1,43 +1,59 @@
-import { AlertTriangle, Bell, Grid, Loader2, Rows3, RefreshCw } from 'lucide-react';
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { AlertTriangle, Bell, Loader2, RefreshCw } from 'lucide-react';
+import { useCallback, useMemo, useState } from 'react';
 
-import AlertCameraGroup from './AlertCameraGroup';
-import BulkActionBar from './BulkActionBar';
-import {
-  useAlertsInfiniteQuery,
-  useInfiniteScroll,
-  useCamerasQuery,
-  useSnoozeEvent,
-} from '../../hooks';
-import { updateEvent } from '../../services/api';
-import { getRiskLevel } from '../../utils/risk';
+import { useAlertsQuery, useCamerasQuery, useSnoozeEvent } from '../../hooks';
+import { acknowledgeAlert, dismissAlert, isConflictError } from '../../services/alertsApi';
+import { SNOOZE_OPTIONS } from '../../utils/snooze';
 import { FeatureErrorBoundary } from '../common/FeatureErrorBoundary';
 import SafeErrorMessage from '../common/SafeErrorMessage';
 import { AlertCardSkeleton } from '../common/skeletons';
-import EventCard from '../events/EventCard';
-import EventDetailModal from '../events/EventDetailModal';
 
-import type { AlertRiskFilter } from '../../hooks';
-import type { Event } from '../../services/api';
-import type { RiskLevel } from '../../utils/risk';
-import type { Event as ModalEvent } from '../events/EventDetailModal';
+import type { AlertStatusFilter } from '../../hooks';
+import type { AlertServiceResponse } from '../../services/alertsApi';
 
-/** Represents a group of alerts for a single camera */
-interface CameraAlertGroup {
-  cameraId: string;
-  cameraName: string;
-  alerts: Event[];
-  highestSeverity: RiskLevel;
+/**
+ * Human-readable verdict badge for a row's verdict_source (F4.1 design):
+ * "verified locally" (the local VLM), "verified in the cloud" (the cloud VLM),
+ * "unverified" (the detector alone matched).
+ */
+function verdictBadge(verdictSource: string | null | undefined): string {
+  if (verdictSource === 'local') return 'verified locally';
+  if (verdictSource === 'cloud') return 'verified in the cloud';
+  return 'unverified';
 }
 
-// Severity ranking for sorting (lower number = higher severity)
-// Defined outside component to avoid unnecessary recreations
-const SEVERITY_RANK: Record<RiskLevel, number> = {
-  critical: 0,
-  high: 1,
-  medium: 2,
-  low: 3,
-};
+/** The rule that fired, from the pipeline's metadata payload. */
+function ruleName(alert: AlertServiceResponse): string {
+  const name = alert.metadata?.rule_name;
+  return typeof name === 'string' ? name : 'Unmatched alert';
+}
+
+/** The recognised subject line, from the pipeline's metadata payload. The
+ * pipeline writes `recognised` as a LIST of subject strings (pipeline.py), so
+ * accept both a bare string and a list — a string-only read would silently
+ * never render for real pipeline rows. */
+function recognisedLine(alert: AlertServiceResponse): string | null {
+  const recognised = alert.metadata?.recognised;
+  if (typeof recognised === 'string' && recognised.length > 0) return recognised;
+  if (Array.isArray(recognised)) {
+    const names = recognised.filter((n): n is string => typeof n === 'string' && n.length > 0);
+    return names.length > 0 ? names.join(', ') : null;
+  }
+  return null;
+}
+
+/** Short user-facing timestamp (household wall clock). */
+function formatTime(iso: string | null | undefined): string {
+  if (!iso) return '—';
+  const date = new Date(iso);
+  if (Number.isNaN(date.getTime())) return '—';
+  return date.toLocaleString(undefined, {
+    month: 'short',
+    day: 'numeric',
+    hour: '2-digit',
+    minute: '2-digit',
+  });
+}
 
 export interface AlertsPageProps {
   onViewEventDetails?: (eventId: number) => void;
@@ -45,61 +61,36 @@ export interface AlertsPageProps {
 }
 
 /**
- * AlertsPage component displays high and critical risk security events
- * These are events that require immediate attention.
+ * AlertsPage — the F4.1 Alerts page over alert rows.
  *
- * Uses cursor-based pagination with infinite scroll for efficient loading
- * of large datasets.
- *
- * Features:
- * - Bulk selection and dismiss functionality
- * - Keyboard shortcuts (Ctrl/Cmd+A to select all, Escape to clear)
+ * Reads `GET /api/alert-service/alerts` (the alerts table B4.1's pipeline
+ * writes) instead of the events feed this page used before F4.1. Open alerts
+ * by default, or all. Each row: rule, severity, camera, verdict badge
+ * (verified locally / verified in the cloud / unverified), who was recognised,
+ * first and last seen, match count, who was told. Actions: Acknowledge,
+ * Dismiss, Snooze (15 min, 1 h, 4 h, until tomorrow), Open event. Live through
+ * the existing `useAlertWebSocket`, which invalidates `alertsQueryKeys.all` on
+ * every alert frame.
  */
 export default function AlertsPage({ onViewEventDetails, className = '' }: AlertsPageProps) {
-  // State for selected risk level filter (high or critical)
-  const [riskFilter, setRiskFilter] = useState<AlertRiskFilter>('all');
+  // Open alerts by default, or all (the page's single status toggle).
+  const [statusFilter, setStatusFilter] = useState<AlertStatusFilter>('open');
+  const [busyAlertId, setBusyAlertId] = useState<string | null>(null);
+  const [actionError, setActionError] = useState<string | null>(null);
 
-  // State for event detail modal
-  const [selectedEventForModal, setSelectedEventForModal] = useState<number | null>(null);
-
-  // State for bulk selection
-  const [selectedAlerts, setSelectedAlerts] = useState<Set<number>>(new Set());
-  const [isBulkProcessing, setIsBulkProcessing] = useState(false);
-
-  // State for view mode (grouped by camera or flat grid)
-  const [viewMode, setViewMode] = useState<'grouped' | 'grid'>('grouped');
-
-  // Fetch cameras for camera name lookup
+  // Fetch cameras for camera name lookup.
   const { cameras } = useCamerasQuery();
 
-  // Snooze mutation
-  const { snooze, unsnooze } = useSnoozeEvent();
+  // Snooze rides the alert's triggering event (the backend syncs event
+  // snooze_until into activity snoozes; see _sync_event_activity_snooze).
+  const { snooze } = useSnoozeEvent();
 
-  // Fetch alerts with infinite scroll support
-  const {
-    alerts,
-    totalCount,
-    isLoading,
-    isFetching,
-    isFetchingNextPage,
-    hasNextPage,
-    fetchNextPage,
-    error,
-    isError,
-    refetch,
-  } = useAlertsInfiniteQuery({
-    riskFilter,
-    limit: 25,
+  const { alerts, totalCount, isLoading, error, isError, refetch } = useAlertsQuery({
+    statusFilter,
+    limit: 50,
   });
 
-  // Set up infinite scroll
-  const { sentinelRef, isLoadingMore } = useInfiniteScroll({
-    onLoadMore: fetchNextPage,
-    hasMore: hasNextPage,
-    isLoading: isFetchingNextPage,
-  });
-
-  // Create a memoized camera name lookup map
+  // Camera name lookup.
   const cameraNameMap = useMemo(() => {
     const map = new Map<string, string>();
     cameras.forEach((camera) => {
@@ -108,394 +99,112 @@ export default function AlertsPage({ onViewEventDetails, className = '' }: Alert
     return map;
   }, [cameras]);
 
-  // Calculate risk level counts from loaded alerts
-  const riskCounts = useMemo(() => {
-    return alerts.reduce(
-      (acc: Record<RiskLevel, number>, event: Event) => {
-        const level = event.risk_level || getRiskLevel(event.risk_score || 0);
-        acc[level as RiskLevel] = (acc[level as RiskLevel] || 0) + 1;
-        return acc;
-      },
-      { critical: 0, high: 0, medium: 0, low: 0 } as Record<RiskLevel, number>
-    );
-  }, [alerts]);
-
-  // Sort alerts by severity (critical first) for grid view
-  const sortedAlerts = useMemo(() => {
-    return [...alerts].sort((a, b) => {
-      const levelA = (a.risk_level as RiskLevel) || getRiskLevel(a.risk_score || 0);
-      const levelB = (b.risk_level as RiskLevel) || getRiskLevel(b.risk_score || 0);
-      const rankDiff = SEVERITY_RANK[levelA] - SEVERITY_RANK[levelB];
-      if (rankDiff !== 0) return rankDiff;
-      // Same severity - sort by timestamp (newest first)
-      return new Date(b.started_at).getTime() - new Date(a.started_at).getTime();
-    });
-  }, [alerts]);
-
-  // Group alerts by camera and sort by highest severity
-  const cameraGroups = useMemo((): CameraAlertGroup[] => {
-    // Group alerts by camera_id
-    const groupMap = new Map<string, Event[]>();
-
-    alerts.forEach((event: Event) => {
-      const existing = groupMap.get(event.camera_id) || [];
-      existing.push(event);
-      groupMap.set(event.camera_id, existing);
-    });
-
-    // Convert to array with metadata
-    const groups: CameraAlertGroup[] = Array.from(groupMap.entries()).map(
-      ([cameraId, cameraAlerts]) => {
-        // Find highest severity in this group
-        let highestSeverity: RiskLevel = 'low';
-        cameraAlerts.forEach((alert) => {
-          const level = (alert.risk_level as RiskLevel) || getRiskLevel(alert.risk_score || 0);
-          if (SEVERITY_RANK[level] < SEVERITY_RANK[highestSeverity]) {
-            highestSeverity = level;
-          }
-        });
-
-        return {
-          cameraId,
-          cameraName: cameraNameMap.get(cameraId) || 'Unknown Camera',
-          alerts: cameraAlerts,
-          highestSeverity,
-        };
+  // Run the alert action, then refetch; the acknowledge/dismiss frames also
+  // land through useAlertWebSocket's alertsQueryKeys.all invalidation.
+  const runAction = useCallback(
+    async (alertId: string, action: (id: string) => Promise<unknown>) => {
+      setBusyAlertId(alertId);
+      setActionError(null);
+      try {
+        await action(alertId);
+        void refetch();
+      } catch (err) {
+        if (isConflictError(err)) {
+          setActionError('This alert was changed elsewhere. The list will refresh.');
+          void refetch();
+        } else {
+          setActionError(err instanceof Error ? err.message : 'Action failed');
+        }
+      } finally {
+        setBusyAlertId(null);
       }
-    );
+    },
+    [refetch]
+  );
 
-    // Sort groups by highest severity (critical first, then high, etc.)
-    groups.sort((a, b) => SEVERITY_RANK[a.highestSeverity] - SEVERITY_RANK[b.highestSeverity]);
+  const handleAcknowledge = useCallback(
+    (alert: AlertServiceResponse) => void runAction(alert.id, acknowledgeAlert),
+    [runAction]
+  );
+  const handleDismiss = useCallback(
+    (alert: AlertServiceResponse) => void runAction(alert.id, dismissAlert),
+    [runAction]
+  );
 
-    return groups;
-  }, [alerts, cameraNameMap]);
+  const handleSnooze = useCallback(
+    (alert: AlertServiceResponse, seconds: number) => {
+      void snooze(alert.event_id, seconds);
+    },
+    [snooze]
+  );
 
-  // Bulk selection handlers
-  const toggleSelection = useCallback((alertId: number) => {
-    setSelectedAlerts((prev) => {
-      const newSet = new Set(prev);
-      if (newSet.has(alertId)) {
-        newSet.delete(alertId);
-      } else {
-        newSet.add(alertId);
-      }
-      return newSet;
-    });
-  }, []);
+  const handleOpenEvent = useCallback(
+    (alert: AlertServiceResponse) => {
+      if (onViewEventDetails) onViewEventDetails(alert.event_id);
+    },
+    [onViewEventDetails]
+  );
 
-  const selectAll = useCallback(() => {
-    const allIds = new Set(alerts.map((event: Event) => event.id));
-    setSelectedAlerts(allIds);
-  }, [alerts]);
-
-  const clearSelection = useCallback(() => {
-    setSelectedAlerts(new Set());
-  }, []);
-
-  const handleBulkDismiss = useCallback(async () => {
-    if (selectedAlerts.size === 0) return;
-
-    setIsBulkProcessing(true);
-    try {
-      // Dismiss all selected alerts by marking them as reviewed
-      const promises = Array.from(selectedAlerts).map((id) => updateEvent(id, { reviewed: true }));
-      await Promise.all(promises);
-
-      // Clear selection and refetch
-      setSelectedAlerts(new Set());
-      void refetch();
-    } catch (err) {
-      console.error('Failed to dismiss selected alerts:', err);
-    } finally {
-      setIsBulkProcessing(false);
-    }
-  }, [selectedAlerts, refetch]);
-
-  // Keyboard shortcuts
-  useEffect(() => {
-    const handleKeyDown = (e: KeyboardEvent) => {
-      const target = e.target as HTMLInputElement;
-
-      // Escape to clear selection - always works (even when focused on checkbox)
-      if (e.key === 'Escape') {
-        clearSelection();
-        return;
-      }
-
-      // Don't trigger other shortcuts if user is typing in an input (except checkboxes)
-      const isTextInput =
-        (target.tagName === 'INPUT' && target.type !== 'checkbox') ||
-        target.tagName === 'TEXTAREA' ||
-        target.isContentEditable;
-      if (isTextInput) {
-        return;
-      }
-
-      // Ctrl/Cmd+A to select all
-      if ((e.ctrlKey || e.metaKey) && e.key === 'a') {
-        e.preventDefault();
-        selectAll();
-      }
-    };
-
-    document.addEventListener('keydown', handleKeyDown);
-    return () => document.removeEventListener('keydown', handleKeyDown);
-  }, [selectAll, clearSelection]);
-
-  // Clear selection when alerts change (e.g., filter change)
-  useEffect(() => {
-    setSelectedAlerts(new Set());
-  }, [riskFilter]);
-
-  // Convert Event to EventCard props
-  const getEventCardProps = (event: Event) => {
-    const camera_name = cameraNameMap.get(event.camera_id) || 'Unknown Camera';
-
-    return {
-      id: String(event.id),
-      timestamp: event.started_at,
-      camera_name,
-      risk_score: event.risk_score || 0,
-      risk_label: event.risk_level || getRiskLevel(event.risk_score || 0),
-      // ISS-001: the decision that made this an alert rides to the card -
-      // the alerts surface is where "why was I not paged?" gets asked.
-      notify: event.notify,
-      summary: event.summary || 'No summary available',
-      started_at: event.started_at,
-      ended_at: event.ended_at,
-      thumbnail_url: event.thumbnail_url ?? undefined,
-      onViewDetails: onViewEventDetails ? () => onViewEventDetails(event.id) : undefined,
-      onClick: (eventId: string) => setSelectedEventForModal(parseInt(eventId, 10)),
-      onSnooze: handleSnooze,
-      hasCheckboxOverlay: true,
-      snooze_until: event.snooze_until,
-    };
-  };
-
-  // Handle modal close
-  const handleModalClose = () => {
-    setSelectedEventForModal(null);
-  };
-
-  // Handle mark as reviewed from modal
-  const handleMarkReviewed = async (eventId: string) => {
-    try {
-      await updateEvent(parseInt(eventId, 10), { reviewed: true });
-      // Refetch to reflect changes
-      void refetch();
-    } catch (err) {
-      console.error('Failed to mark event as reviewed:', err);
-    }
-  };
-
-  // Handle navigation between events in modal
-  const handleNavigate = (direction: 'prev' | 'next') => {
-    if (selectedEventForModal === null) return;
-
-    const currentIndex = alerts.findIndex((e: Event) => e.id === selectedEventForModal);
-    if (currentIndex === -1) return;
-
-    const newIndex = direction === 'prev' ? currentIndex - 1 : currentIndex + 1;
-    if (newIndex >= 0 && newIndex < alerts.length) {
-      setSelectedEventForModal(alerts[newIndex].id);
-    }
-  };
-
-  // Convert API Event to ModalEvent format
-  const getModalEvent = (): ModalEvent | null => {
-    if (selectedEventForModal === null) return null;
-
-    const event = alerts.find((e: Event) => e.id === selectedEventForModal);
-    if (!event) return null;
-
-    const camera_name = cameraNameMap.get(event.camera_id) || 'Unknown Camera';
-
-    return {
-      id: String(event.id),
-      timestamp: event.started_at,
-      camera_name,
-      risk_score: event.risk_score || 0,
-      risk_label: event.risk_level || getRiskLevel(event.risk_score || 0),
-      // ISS-001: persisted notify decision; absent key = no decision.
-      notify: event.notify,
-      summary: event.summary || 'No summary available',
-      started_at: event.started_at,
-      ended_at: event.ended_at,
-      reviewed: event.reviewed,
-      notes: event.notes,
-      snooze_until: event.snooze_until,
-    };
-  };
-
-  // Handle snooze action
-  const handleSnooze = (eventId: string, seconds: number) => {
-    void snooze(parseInt(eventId, 10), seconds);
-  };
-
-  // Handle unsnooze action
-  const handleUnsnooze = (eventId: string) => {
-    void unsnooze(parseInt(eventId, 10));
-  };
-
-  // Handle filter change - resets to first page
-  const handleFilterChange = (newFilter: AlertRiskFilter) => {
-    setRiskFilter(newFilter);
-  };
-
-  // Handle refresh
   const handleRefresh = () => {
     void refetch();
   };
 
-  // Handle checkbox change
-  const handleCheckboxChange = (eventId: number) => {
-    toggleSelection(eventId);
-  };
-
-  // Handle dismiss all for a camera group
-  const handleDismissAllForCamera = useCallback(
-    async (cameraId: string) => {
-      const group = cameraGroups.find((g) => g.cameraId === cameraId);
-      if (!group) return;
-
-      setIsBulkProcessing(true);
-      try {
-        const promises = group.alerts.map((alert) => updateEvent(alert.id, { reviewed: true }));
-        await Promise.all(promises);
-        void refetch();
-      } catch (err) {
-        console.error('Failed to dismiss alerts for camera:', err);
-      } finally {
-        setIsBulkProcessing(false);
-      }
-    },
-    [cameraGroups, refetch]
-  );
-
   return (
     <div data-testid="alerts-page" className={`flex flex-col ${className}`}>
-      {/* Header with Alert Summary */}
+      {/* Header */}
       <div className="mb-6">
         <div className="flex items-center gap-3">
           <AlertTriangle className="h-8 w-8 text-orange-500" />
           <h1 className="text-3xl font-bold text-white">Alerts</h1>
         </div>
-        <p className="mt-2 text-gray-400">High and critical risk events requiring attention</p>
-
-        {/* Prominent Alert Count Summary */}
-        {!isLoading && !isError && alerts.length > 0 && (
-          <div
-            className="mt-4 flex flex-wrap items-center gap-3"
-            data-testid="alert-severity-summary"
-          >
-            {riskCounts.critical > 0 && (
-              <div className="flex items-center gap-2 rounded-lg border border-red-500/50 bg-red-500/10 px-4 py-2">
-                <div className="flex h-8 w-8 items-center justify-center rounded-full bg-red-500/20">
-                  <span className="text-lg font-bold text-red-400">{riskCounts.critical}</span>
-                </div>
-                <span className="text-sm font-medium text-red-300">Critical</span>
-              </div>
-            )}
-            {riskCounts.high > 0 && (
-              <div className="flex items-center gap-2 rounded-lg border border-orange-500/50 bg-orange-500/10 px-4 py-2">
-                <div className="flex h-8 w-8 items-center justify-center rounded-full bg-orange-500/20">
-                  <span className="text-lg font-bold text-orange-400">{riskCounts.high}</span>
-                </div>
-                <span className="text-sm font-medium text-orange-300">High</span>
-              </div>
-            )}
-            {riskCounts.medium > 0 && (
-              <div className="flex items-center gap-2 rounded-lg border border-yellow-500/50 bg-yellow-500/10 px-4 py-2">
-                <div className="flex h-8 w-8 items-center justify-center rounded-full bg-yellow-500/20">
-                  <span className="text-lg font-bold text-yellow-400">{riskCounts.medium}</span>
-                </div>
-                <span className="text-sm font-medium text-yellow-300">Medium</span>
-              </div>
-            )}
-          </div>
-        )}
+        <p className="mt-2 text-gray-400">What the household was alerted about</p>
       </div>
 
-      {/* Filter and Refresh Bar */}
+      {/* Filter and refresh bar */}
       <div className="mb-6 flex flex-col gap-4 rounded-lg border border-gray-800 bg-[#1F1F1F] p-4 sm:flex-row sm:items-center sm:justify-between">
         <div className="flex items-center gap-4">
-          <label htmlFor="risk-filter" className="text-sm font-medium text-gray-300">
-            Filter by severity:
+          <label htmlFor="status-filter" className="text-sm font-medium text-gray-300">
+            Show:
           </label>
           <select
-            id="risk-filter"
-            value={riskFilter}
-            onChange={(e) => handleFilterChange(e.target.value as AlertRiskFilter)}
+            id="status-filter"
+            value={statusFilter}
+            onChange={(e) => setStatusFilter(e.target.value as AlertStatusFilter)}
             className="rounded-md border border-gray-700 bg-[#1A1A1A] px-3 py-2 text-sm text-white focus:border-[#76B900] focus:outline-none focus:ring-1 focus:ring-[#76B900]"
           >
-            <option value="all">All Alerts</option>
-            <option value="critical">Critical Only</option>
-            <option value="high">High Only</option>
+            <option value="open">Open alerts</option>
+            <option value="all">All alerts</option>
           </select>
         </div>
 
-        <div className="flex items-center gap-2">
-          {/* View Mode Toggle */}
-          <div className="flex rounded-md border border-gray-700 bg-[#1A1A1A]">
-            <button
-              onClick={() => setViewMode('grouped')}
-              aria-pressed={viewMode === 'grouped'}
-              aria-label="Group by camera"
-              className={`flex items-center gap-1.5 px-3 py-2 text-sm font-medium transition-colors ${
-                viewMode === 'grouped'
-                  ? 'bg-[#76B900]/20 text-[#76B900]'
-                  : 'text-gray-400 hover:text-gray-300'
-              }`}
-            >
-              <Rows3 className="h-4 w-4" />
-              <span className="hidden sm:inline">Grouped</span>
-            </button>
-            <button
-              onClick={() => setViewMode('grid')}
-              aria-pressed={viewMode === 'grid'}
-              aria-label="Grid view"
-              className={`flex items-center gap-1.5 px-3 py-2 text-sm font-medium transition-colors ${
-                viewMode === 'grid'
-                  ? 'bg-[#76B900]/20 text-[#76B900]'
-                  : 'text-gray-400 hover:text-gray-300'
-              }`}
-            >
-              <Grid className="h-4 w-4" />
-              <span className="hidden sm:inline">Grid</span>
-            </button>
-          </div>
-
-          <button
-            onClick={handleRefresh}
-            disabled={isFetching}
-            aria-label="Refresh alerts"
-            className="flex items-center gap-2 rounded-md bg-[#76B900]/10 px-4 py-2 text-sm font-medium text-[#76B900] transition-colors hover:bg-[#76B900]/20 disabled:cursor-not-allowed disabled:opacity-50"
-          >
-            <RefreshCw className={`h-4 w-4 ${isFetching ? 'animate-spin' : ''}`} />
-            Refresh
-          </button>
-        </div>
+        <button
+          onClick={handleRefresh}
+          aria-label="Refresh alerts"
+          className="flex items-center gap-2 rounded-md bg-[#76B900]/10 px-4 py-2 text-sm font-medium text-[#76B900] transition-colors hover:bg-[#76B900]/20"
+        >
+          <RefreshCw className="h-4 w-4" />
+          Refresh
+        </button>
       </div>
 
-      {/* Results Summary */}
+      {/* Action error (conflict / failure banner) */}
+      {actionError && (
+        <div
+          className="mb-4 rounded-lg border border-yellow-700/50 bg-yellow-950/20 px-4 py-3 text-sm text-yellow-300"
+          data-testid="alerts-action-error"
+        >
+          {actionError}
+        </div>
+      )}
+
+      {/* Results summary */}
       <div className="mb-4">
         <p className="text-sm text-gray-400">
           {isLoading ? 'Loading...' : `${totalCount} alert${totalCount !== 1 ? 's' : ''} found`}
-          {alerts.length < totalCount && ` (showing ${alerts.length})`}
         </p>
       </div>
 
-      {/* Bulk Action Bar */}
-      <BulkActionBar
-        selectedCount={selectedAlerts.size}
-        totalCount={alerts.length}
-        onSelectAll={selectAll}
-        onClearSelection={clearSelection}
-        onDismissSelected={() => void handleBulkDismiss()}
-        isProcessing={isBulkProcessing}
-      />
-
-      {/* Alert List */}
+      {/* Alert rows */}
       {isLoading ? (
         <div className="space-y-4">
           {Array.from({ length: 6 }, (_, i) => (
@@ -519,97 +228,115 @@ export default function AlertsPage({ onViewEventDetails, className = '' }: Alert
             <Bell className="mx-auto mb-4 h-16 w-16 text-gray-600" />
             <p className="mb-2 text-lg font-semibold text-gray-300">No Alerts at This Time</p>
             <p className="text-sm text-gray-500">
-              {riskFilter === 'all'
-                ? 'There are no high or critical risk events to review. Keep up the good work!'
-                : `There are no ${riskFilter} risk events to review.`}
+              {statusFilter === 'open'
+                ? 'There are no open alerts. Keep up the good work!'
+                : 'There are no alerts to show.'}
             </p>
           </div>
         </div>
-      ) : viewMode === 'grouped' ? (
-        <>
-          {/* Grouped View - Alerts grouped by camera */}
-          <div className="flex flex-col gap-4" data-testid="alerts-grouped-view">
-            {cameraGroups.map((group) => (
-              <AlertCameraGroup
-                key={group.cameraId}
-                cameraId={group.cameraId}
-                cameraName={group.cameraName}
-                alerts={group.alerts}
-                onSnooze={handleSnooze}
-                onDismissAll={(cameraId) => void handleDismissAllForCamera(cameraId)}
-                onAlertClick={(eventId) => setSelectedEventForModal(eventId)}
-              />
-            ))}
-          </div>
-
-          {/* Infinite Scroll Sentinel */}
-          <div ref={sentinelRef} className="mt-4 flex justify-center py-4">
-            {(isLoadingMore || isFetchingNextPage) && (
-              <div className="flex items-center gap-2 text-gray-400">
-                <Loader2 className="h-5 w-5 animate-spin" />
-                <span>Loading more alerts...</span>
-              </div>
-            )}
-            {!hasNextPage && alerts.length > 0 && (
-              <p className="text-sm text-gray-500">All alerts loaded</p>
-            )}
-          </div>
-        </>
       ) : (
-        <>
-          {/* Grid View - Flat list of alerts sorted by severity */}
-          <div
-            className="grid grid-cols-1 gap-6 lg:grid-cols-2 xl:grid-cols-3"
-            data-testid="alerts-grid-view"
-          >
-            {sortedAlerts.map((event: Event) => {
-              const isSelected = selectedAlerts.has(event.id);
-              return (
-                <div
-                  key={event.id}
-                  className={`relative ${isSelected ? 'rounded-lg ring-2 ring-[#76B900] ring-offset-2 ring-offset-[#121212]' : ''}`}
-                >
-                  {/* Checkbox overlay */}
-                  <div className="absolute left-3 top-3 z-10">
-                    <input
-                      type="checkbox"
-                      checked={isSelected}
-                      onChange={() => handleCheckboxChange(event.id)}
-                      className="h-5 w-5 cursor-pointer rounded border-gray-600 bg-[#1A1A1A] text-[#76B900] focus:ring-2 focus:ring-[#76B900] focus:ring-offset-0"
-                      aria-label={`Select alert ${event.id}`}
-                    />
-                  </div>
-                  <EventCard {...getEventCardProps(event)} />
+        <div className="flex flex-col gap-4" data-testid="alerts-rows">
+          {alerts.map((alert) => {
+            const cameraName = alert.camera_id
+              ? (cameraNameMap.get(alert.camera_id) ?? alert.camera_id)
+              : 'Unknown camera';
+            const busy = busyAlertId === alert.id;
+            return (
+              <div
+                key={alert.id}
+                data-testid="alert-row"
+                className="rounded-lg border border-gray-800 bg-[#1F1F1F] p-4"
+              >
+                {/* Row header: rule + severity + verdict badge */}
+                <div className="flex flex-wrap items-center gap-3">
+                  <span className="text-base font-semibold text-white">{ruleName(alert)}</span>
+                  <span
+                    data-testid={`alert-severity-${alert.severity}`}
+                    className="rounded-full border border-gray-700 px-2 py-0.5 text-xs font-medium uppercase text-gray-300"
+                  >
+                    {alert.severity}
+                  </span>
+                  <span className="rounded-full bg-[#76B900]/10 px-2 py-0.5 text-xs text-[#76B900]">
+                    {verdictBadge(alert.verdict_source)}
+                  </span>
                 </div>
-              );
-            })}
-          </div>
 
-          {/* Infinite Scroll Sentinel */}
-          <div ref={sentinelRef} className="mt-4 flex justify-center py-4">
-            {(isLoadingMore || isFetchingNextPage) && (
-              <div className="flex items-center gap-2 text-gray-400">
-                <Loader2 className="h-5 w-5 animate-spin" />
-                <span>Loading more alerts...</span>
+                {/* Row body: camera, recognised, first/last seen, matches, told */}
+                <div className="mt-3 grid grid-cols-1 gap-2 text-sm text-gray-400 sm:grid-cols-2">
+                  <div>
+                    Camera: <span className="text-gray-200">{cameraName}</span>
+                  </div>
+                  <div>
+                    First seen:{' '}
+                    <span className="text-gray-200">{formatTime(alert.created_at)}</span>
+                  </div>
+                  <div>
+                    Last seen:{' '}
+                    <span className="text-gray-200">{formatTime(alert.last_seen_at)}</span>
+                  </div>
+                  <div>
+                    Matches: <span className="text-gray-200">{alert.match_count ?? 1}</span>
+                  </div>
+                  {recognisedLine(alert) && (
+                    <div className="sm:col-span-2">
+                      Recognised: <span className="text-gray-200">{recognisedLine(alert)}</span>
+                    </div>
+                  )}
+                  <div className="sm:col-span-2">
+                    Who was told:{' '}
+                    <span className="text-gray-200">
+                      {alert.channels && alert.channels.length > 0
+                        ? alert.channels.join(', ')
+                        : 'nobody yet'}
+                    </span>
+                  </div>
+                </div>
+
+                {/* Actions */}
+                <div className="mt-4 flex flex-wrap items-center gap-2">
+                  <button
+                    onClick={() => handleAcknowledge(alert)}
+                    disabled={busy}
+                    className="rounded-md bg-[#76B900]/10 px-3 py-1.5 text-sm font-medium text-[#76B900] transition-colors hover:bg-[#76B900]/20 disabled:cursor-not-allowed disabled:opacity-50"
+                  >
+                    {busy ? <Loader2 className="inline h-4 w-4 animate-spin" /> : null} Acknowledge
+                  </button>
+                  <button
+                    onClick={() => handleDismiss(alert)}
+                    disabled={busy}
+                    className="rounded-md border border-gray-700 px-3 py-1.5 text-sm font-medium text-gray-300 transition-colors hover:bg-gray-800 disabled:cursor-not-allowed disabled:opacity-50"
+                  >
+                    Dismiss
+                  </button>
+                  <select
+                    aria-label={`Snooze alert ${alert.id}`}
+                    value=""
+                    onChange={(e) => {
+                      const seconds = Number(e.target.value);
+                      if (seconds > 0) handleSnooze(alert, seconds);
+                    }}
+                    className="rounded-md border border-gray-700 bg-[#1A1A1A] px-3 py-1.5 text-sm text-gray-300"
+                  >
+                    <option value="">Snooze…</option>
+                    {SNOOZE_OPTIONS.map((opt) => (
+                      <option key={opt.value} value={opt.value}>
+                        {opt.label}
+                      </option>
+                    ))}
+                  </select>
+                  <button
+                    onClick={() => handleOpenEvent(alert)}
+                    disabled={!onViewEventDetails}
+                    className="ml-auto rounded-md border border-gray-700 px-3 py-1.5 text-sm font-medium text-gray-300 transition-colors hover:bg-gray-800 disabled:cursor-not-allowed disabled:opacity-50"
+                  >
+                    Open event
+                  </button>
+                </div>
               </div>
-            )}
-            {!hasNextPage && alerts.length > 0 && (
-              <p className="text-sm text-gray-500">All alerts loaded</p>
-            )}
-          </div>
-        </>
+            );
+          })}
+        </div>
       )}
-
-      {/* Event Detail Modal */}
-      <EventDetailModal
-        event={getModalEvent()}
-        isOpen={selectedEventForModal !== null}
-        onClose={handleModalClose}
-        onMarkReviewed={(eventId) => void handleMarkReviewed(eventId)}
-        onNavigate={handleNavigate}
-        onSnooze={handleSnooze}
-        onUnsnooze={handleUnsnooze}
-      />
     </div>
   );
 }
@@ -617,7 +344,7 @@ export default function AlertsPage({ onViewEventDetails, className = '' }: Alert
 /**
  * AlertsPage with FeatureErrorBoundary wrapper.
  *
- * Wraps the AlertsContent component in a FeatureErrorBoundary to prevent
+ * Wraps the AlertsPage component in a FeatureErrorBoundary to prevent
  * errors in the Alerts page from crashing the entire application.
  * Other parts of the dashboard will continue to work if this page errors.
  */

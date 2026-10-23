@@ -19,6 +19,7 @@ Endpoints:
 from fastapi import APIRouter, Depends, HTTPException, Query, status
 from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy.orm import selectinload
 
 from backend.api.schemas.alert_service import (
     AcknowledgeRequest,
@@ -68,7 +69,7 @@ async def list_alerts(
     """List all alerts with optional filtering and pagination.
 
     Args:
-        status_filter: Filter by alert status (pending, delivered, acknowledged, dismissed)
+        status_filter: Filter by alert status (open, pending, delivered, acknowledged, dismissed)
         severity_filter: Filter by severity level (low, medium, high, critical)
         event_id: Filter by associated event ID
         rule_id: Filter by alert rule ID
@@ -79,8 +80,9 @@ async def list_alerts(
     Returns:
         AlertServiceListResponse with alerts and pagination info
     """
-    # Build base query
-    query = select(Alert)
+    # Build base query (selectinload: camera_id is read through Alert.event —
+    # see AlertServiceResponse._pull_camera_id; async lazy load would raise)
+    query = select(Alert).options(selectinload(Alert.event))
 
     # Apply filters
     if status_filter is not None:
