@@ -119,7 +119,7 @@ export default function ShortcutsHelpModal({ open, onClose }: ShortcutsHelpModal
                     key={index}
                     className="flex items-center justify-between rounded-lg bg-[#222] px-3 py-2"
                   >
-                    <div className="flex items-center gap-2">
+                    <span className="flex items-center gap-2">
                       <span className="text-sm text-[#999]">{item.description}</span>
                       {item.advanced && (
                         <span
@@ -129,7 +129,7 @@ export default function ShortcutsHelpModal({ open, onClose }: ShortcutsHelpModal
                           Advanced
                         </span>
                       )}
-                    </div>
+                    </span>
                     <div className="flex items-center gap-1">
                       {item.keys.map((key, keyIndex) => (
                         <span key={keyIndex} className="flex items-center">
