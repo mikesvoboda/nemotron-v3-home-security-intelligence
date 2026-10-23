@@ -380,7 +380,7 @@ the fourth boundary, and prettier is clean on both files.
 
 **Flags:** owner (ruling 262: the owner rules on every item). **Assigned:** docs, first on its
 queue. **Depends on:** none.
-**PR:** none yet. (ruling 262, record 6257468143)
+**PR:** #7265. (ruling 262, record 6257468143)
 
 The fast lanes ran Qwen3.8-Flash-Next from #6850 (2026-10-07) until the vLLM crash at about
 2026-10-18T07:36Z, and GLM 5.3 Flash after the restart. The owner session compared the two blind on
