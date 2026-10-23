@@ -330,6 +330,10 @@ package tagged `[rNNN]` is a fix that ruling NNN ordered.
 | 315    | `O2.5` item 2 runs again with its peak sampled, at item 1's pin (record 6345740728)                         |
 | 316    | docs closes `[r262]`; `W3.2` and `W3.3` first on its queue (record 6346660761)                              |
 | 317    | P2 designs (scene changes, exports, status); `B4.9`–`B4.11`, `F4.6`–`F4.8` (record 6347331324)              |
+| 318    | owner-partner: red `main` (real-sleep gate) to backend; fixed by #7368 (record 6349548111)                  |
+| 319    | OD-36 keep, admin-only: every `/api/debug/*` route behind the admin session (record 6349900914)             |
+| 320    | `[r320]`: Q-192 to heavy-a; moot, its spec left `main` in #7311 (records 6354896020, 6355421498)            |
+| 321    | modes and debug tools designs; `F4.9`, `B4.12`, `F4.10`; `F4.8` owner tier (record 6355356496)              |
 
 ## Owner records
 
