@@ -41958,7 +41958,7 @@
     },
     "/api/alert-service/alerts": {
       "get": {
-        "description": "List all alerts with optional filtering and pagination.\n\nArgs:\n    status_filter: Filter by alert status (pending, delivered, acknowledged, dismissed)\n    severity_filter: Filter by severity level (low, medium, high, critical)\n    event_id: Filter by associated event ID\n    rule_id: Filter by alert rule ID\n    limit: Maximum number of results to return\n    offset: Number of results to skip for pagination\n    db: Database session\n\nReturns:\n    AlertServiceListResponse with alerts and pagination info",
+        "description": "List all alerts with optional filtering and pagination.\n\nArgs:\n    status_filter: Filter by alert status (open, pending, delivered, acknowledged, dismissed)\n    severity_filter: Filter by severity level (low, medium, high, critical)\n    event_id: Filter by associated event ID\n    rule_id: Filter by alert rule ID\n    limit: Maximum number of results to return\n    offset: Number of results to skip for pagination\n    db: Database session\n\nReturns:\n    AlertServiceListResponse with alerts and pagination info",
         "operationId": "alert-service_list_alerts",
         "parameters": [
           {
