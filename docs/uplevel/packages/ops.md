@@ -1485,7 +1485,7 @@ The owner's maui discovery for `O2.5` item 2 (attempt 8, `hsi-check-202610202055
 306 item 1), which proves the TensorRT parity path: `[r252]`'s run was spent without one, and
 `[r312a]`'s second run, reading every plan stage at or above 0.999 on all 36 crops on the image
 `main` serves, is O2.4's evidence (ruling 312 point 4).
-**PR:** none yet. (ruling 307, record 6323846997)
+**PR:** #7396. (ruling 307, record 6323846997)
 
 Every small model the product runs on the GPU is served by Triton (UR-86). The face leg runs on the
 CPU today by an earlier choice (`backend/services/face_recognizer_loader.py:19`, `:152`); `[r307b]`
