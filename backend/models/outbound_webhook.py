@@ -118,6 +118,8 @@ class OutboundWebhook(Base):
         event_types: List of event types that trigger this webhook.
         integration_type: Type of integration for payload formatting.
         enabled: Whether the webhook is active.
+        on_local_network: Per-webhook allowance for private/unique-local targets
+            (metadata and link-local addresses stay blocked regardless).
         auth_config: Authentication configuration (JSON).
         custom_headers: Additional HTTP headers (JSON).
         payload_template: Jinja2 template for custom payload.
@@ -160,6 +162,12 @@ class OutboundWebhook(Base):
     )
 
     enabled: Mapped[bool] = mapped_column(Boolean, nullable=False, default=True)
+
+    # B4.2 / ruling 310: per-webhook local-network allowance. When true, the
+    # destination policy (backend/core/url_validation.py) admits private and
+    # unique-local addresses for this webhook's URL; metadata and link-local
+    # addresses stay blocked for every webhook regardless of this flag.
+    on_local_network: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False)
 
     # Auth config stored as JSON
     auth_config: Mapped[dict | None] = mapped_column(JSONB, nullable=True)

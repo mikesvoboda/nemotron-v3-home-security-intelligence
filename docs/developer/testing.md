@@ -772,6 +772,47 @@ summary carries what the operator posts:
   and at the end;
 - each check's result and the exit code.
 
+**The production-shape run (`--prod-shape`) and its VLM relay knob.** With
+`--prod-shape`, the harness renders `docker-compose.prod.yml` + the authored
+override (`scripts/uplevel/docker-compose.prodshape.yml`) instead of the CI
+stack — the production shape, decided at run time (limits from this machine's
+cgroups, the generated env file, the venue's transforms in
+`scripts/feature_check.py`'s `as_prod_shape_deployment`). Two venues exist
+(ruling 256): a run **with** `--real --prod-shape` keeps no GPU consumer
+except the agent-gpu VLM (the prod gateway is swapped for the CI-tier fake);
+a run with `--prod-shape` alone keeps prod's GPU wiring and swaps only the
+in-stack VLM for the fake.
+
+On a rootless engine, a container on the stack's bridge network cannot dial
+the loopback port `agent-gpu` publishes the VLM on, and the engine's gateway
+address exists only inside the engine's own network namespace. The opt-in
+knob `PROD_SHAPE_VLM_RELAY=1` (real-gateway venue only — `--real
+--prod-shape`; refused at parse time on `--fake`/plain `--real` and at render
+time without a lease or run dir) arms a **two-hop relay** so the backend
+reaches the lease without widening any exposure:
+
+1. a compose sidecar `agent-gpu-relay` the run-time transform adds to the
+   prod render — the backend image itself, entrypoint `python3`, running the
+   stdlib relay script vendored into `<run dir>/relay/` in its `tcp2unix`
+   mode: it accepts TCP on `0.0.0.0:8098` **inside the stack's network only**
+   (no published ports), and hands each connection over a Unix socket
+   bind-mounted read-only from the run dir;
+2. a host-namespace half in the harness process (the same script's
+   `unix2tcp` mode): accepts on that run-dir socket and dials
+   `127.0.0.1:<pool port>` — the loopback address the lease published. The
+   VLM keeps publishing loopback-only; the relay adds no new reachable
+   surface beyond what the pool port already exposes.
+
+The backend's `AI_VLM_URL` becomes the compose-internal name
+`http://agent-gpu-relay:8098`, recorded in the summary as
+`vlm_container_url`; the reach check dials that same form, so a boot failure
+names the hop that broke. `prod-rendered.json` carries the sidecar (a reader
+sees the addition without diffing), and the summary's `device_changes` names
+each of the three changes. The relay is torn down with the run: the host half
+joins in the run's `finally` and unlinks the run-dir socket, and the sidecar
+is a project container the normal `down -v` reaps. With the knob unset,
+every render is byte-identical to the knob-off behaviour.
+
 **The golden shards are balanced by measured duration ([r282]).** The four
 `Feature check (fake AI)` shard jobs no longer split the suite by count
 ([r264]'s `--shard=i/N` remains the fallback). `frontend/golden-shards.json`

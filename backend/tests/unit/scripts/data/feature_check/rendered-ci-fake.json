@@ -40,7 +40,7 @@
         },
         "entrypoint": null,
         "environment": {
-          "FAKE_VLM_BUILD_INFO": "b7972-fake-ai"
+          "FAKE_VLM_BUILD_INFO": "b11819-fake-ai"
         },
         "healthcheck": {
           "test": [
@@ -100,7 +100,7 @@
         },
         "entrypoint": null,
         "environment": {
-          "FAKE_VLM_BUILD_INFO": "b7972-fake-ai"
+          "FAKE_VLM_BUILD_INFO": "b11819-fake-ai"
         },
         "healthcheck": {
           "test": [
@@ -194,7 +194,7 @@
           "SMTP_USE_TLS": "false",
           "USE_AI_GATEWAY": "true",
           "VLM_ENFORCEMENT_PROBE_ENABLED": "true",
-          "VLM_REQUIRED_BUILD": "b7972",
+          "VLM_REQUIRED_BUILD": "b11819",
           "YOLO26_URL": "http://ai-gateway:8090/yolo26"
         },
         "healthcheck": {

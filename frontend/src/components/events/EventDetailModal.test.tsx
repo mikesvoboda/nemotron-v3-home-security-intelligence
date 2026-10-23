@@ -1,50 +1,24 @@
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
-import { render, screen, waitFor, act } from '@testing-library/react';
+import { screen, waitFor, act } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { describe, expect, it, vi, beforeEach, afterEach } from 'vitest';
 
 import EventDetailModal, { type Event, type EventDetailModalProps } from './EventDetailModal';
 import * as api from '../../services/api';
 import * as auditApi from '../../services/auditApi';
+import {
+  createEventModalDetections,
+  createEventModalDetectionsResponse,
+  createEventModalFixture,
+  renderWithProviders,
+} from '../../test-utils';
 
 import type { Detection } from '../../types/generated';
 
-// Wire-shape detections the modal's own fetch returns (F4.4): the modal
-// reads its detected-objects list and overlay from GET /api/events/{id}/
-// detections, not from the event prop, so the fixtures ride the fetch mock.
-const mockWireDetections: Detection[] = [
-  {
-    id: 1,
-    camera_id: 'front_door',
-    file_path: '/export/foscam/front_door/20251223_120000.jpg',
-    detected_at: '2024-01-15T10:30:00Z',
-    object_type: 'person',
-    confidence: 0.95,
-    bbox_x: 100,
-    bbox_y: 100,
-    bbox_width: 200,
-    bbox_height: 300,
-    media_type: 'image',
-  },
-  {
-    id: 2,
-    camera_id: 'front_door',
-    file_path: '/export/foscam/front_door/20251223_120001.jpg',
-    detected_at: '2024-01-15T10:30:01Z',
-    object_type: 'package',
-    confidence: 0.87,
-    bbox_x: 400,
-    bbox_y: 200,
-    bbox_width: 150,
-    bbox_height: 100,
-    media_type: 'image',
-  },
-];
-
-const mockDetectionsResponse = {
-  items: mockWireDetections,
-  pagination: { total: 2, limit: 100, offset: 0, has_more: false },
-};
+// Shared event-modal fixture (F4.9 consolidation): wire-shape detections and
+// response from test-utils/factories.ts.
+const mockWireDetections: Detection[] = createEventModalDetections();
+const mockDetectionsResponse = createEventModalDetectionsResponse(mockWireDetections);
 
 // Helper to create a test query client
 function createTestQueryClient() {
@@ -62,11 +36,19 @@ function createTestQueryClient() {
   });
 }
 
-// Helper to wrap component with query provider
+// Helper to wrap component with shared query provider
 function renderWithQueryClient(ui: React.ReactElement) {
   const queryClient = createTestQueryClient();
+  const result = renderWithProviders(
+    <QueryClientProvider client={queryClient}>{ui}</QueryClientProvider>,
+    {
+      withQueryClient: false,
+      withRouter: false,
+      withSidebarContext: false,
+    }
+  );
   return {
-    ...render(<QueryClientProvider client={queryClient}>{ui}</QueryClientProvider>),
+    ...result,
     queryClient,
   };
 }
@@ -213,28 +195,12 @@ vi.mock('../face-recognition/EnrollFaceModal', () => ({
 }));
 
 describe('EventDetailModal', () => {
-  // Mock event data. The id must be a numeric string: the modal's detections
-  // fetch (F4.4) is gated on parseInt(event.id), so a non-numeric id leaves
-  // the modal with no detections at all.
-  const mockEvent: Event = {
-    id: '123',
-    timestamp: '2024-01-15T10:30:00Z',
-    camera_name: 'Front Door',
-    risk_score: 65,
-    risk_label: 'High',
-    summary: 'Person detected approaching the front entrance with a package',
-    reasoning:
-      'The detected person is approaching the entrance during evening hours carrying an unidentified package. This warrants attention.',
-    image_url: 'https://example.com/image.jpg',
-    thumbnail_url: 'https://example.com/thumbnail.jpg',
-    reviewed: false,
-  };
-
-  const mockProps: EventDetailModalProps = {
-    event: mockEvent,
-    isOpen: true,
-    onClose: vi.fn(),
-  };
+  // Shared event-modal fixture (F4.9 consolidation).
+  const baseModalFixture = createEventModalFixture({
+    props: { onClose: vi.fn() },
+  });
+  const mockEvent: Event = baseModalFixture.event;
+  const mockProps: EventDetailModalProps = baseModalFixture.props;
 
   beforeEach(() => {
     vi.clearAllMocks();

@@ -77,27 +77,13 @@
  *   enabled=false gate (:60), pinned from the other side.
  */
 import { GUARD_MESSAGE, expect, test } from '../guard';
-import {
-  closedByGuard,
-  quietBootShell as quietBoot,
-  loginAsAdminShell as loginAsAdmin,
-  readShellHarness,
-  seedTourDismissed,
-  type ShellHarness,
-} from '../harness';
+import { closedByGuard, openShell, readShellHarness, type ShellHarness } from '../harness';
 
 const harness = readShellHarness();
 test.skip(
   !harness.ready,
   `golden path needs the feature-check stack (${harness.ready ? '' : harness.why})`
 );
-
-async function openShell(page: import('@playwright/test').Page, h: ShellHarness) {
-  await seedTourDismissed(page);
-  await loginAsAdmin(page, h);
-  await quietBoot(page, h);
-  await expect(page.getByTestId('header-branding')).toBeVisible({ timeout: 20_000 });
-}
 
 /** Palette locator (the component ships no testids — see docstring). */
 const palette = (page: import('@playwright/test').Page) =>

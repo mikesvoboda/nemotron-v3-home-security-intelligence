@@ -17,7 +17,7 @@ import ssl
 import sys
 import threading
 import traceback
-from collections.abc import AsyncGenerator
+from collections.abc import AsyncGenerator, Awaitable, Callable
 from contextlib import asynccontextmanager
 from functools import lru_cache
 from typing import Any
@@ -49,6 +49,7 @@ from backend.api.routes import (
     alerts,
     analytics,
     analytics_zones,
+    arming,
     audit,
     auth,
     backup,
@@ -780,6 +781,53 @@ async def run_constrained_startup_check(container: Any) -> str:
     return "enforced"
 
 
+# --- B4.2 supervised workers (alert delivery + outbound webhook retry) ------
+#
+# Both workers register with the WorkerSupervisor BEFORE ``start()`` — a worker
+# registered after it never gets a ``_start_worker`` call and sits STOPPED
+# forever (the monitor loop only reacts to CRASHED/RUNNING), which is exactly
+# how the first wiring shipped. The runner closure is the
+# ``PipelineWorkerManager._make_supervised_runner`` pattern (owner ruling 200):
+# the supervisor's factory starts the real worker instance, awaits it under
+# ``asyncio.shield`` so a force-restart cancels the *runner* and not the send
+# mid-flight, and translates a cancelled task into ``worker.stop()``.
+#
+# The workers have no ``running`` property (the pipeline workers' runner keys
+# on one), so the closure keys on the task itself. The workers record
+# heartbeats from their loops (pipeline_workers.py:334-338 shape) — without a
+# heartbeat the supervisor's NEM-4148 check force-restarts a HEALTHY worker
+# once ``heartbeat_timeout`` passes, since ``last_heartbeat_at`` is only
+# stamped at start.
+
+_B42_HEARTBEAT_TIMEOUT = 120.0  # a full cycle is one send (<=30 s) + DB work
+
+_b42_delivery_worker: Any = None
+_b42_retry_worker: Any = None
+
+
+def _make_supervised_b42_runner(worker: Any, supervisor: Any) -> Callable[[], Awaitable[None]]:
+    """Supervise an existing B4.2 worker instance (ruling 200's runner shape)."""
+
+    async def _run_managed_b42_worker() -> None:
+        if worker._task is None or worker._task.done():
+            await worker.start()
+        task = worker._task
+        if task is None:
+            return
+        try:
+            await asyncio.shield(task)
+        except asyncio.CancelledError:
+            if not supervisor.is_running or worker._task is None or worker._task.done():
+                raise
+            # The supervisor cancelled the runner (force-restart), not the
+            # worker task: stop the worker so the inner loop exits, then
+            # re-raise so the supervisor counts the restart.
+            await worker.stop()
+            raise
+
+    return _run_managed_b42_worker
+
+
 @asynccontextmanager
 async def lifespan(_app: FastAPI) -> AsyncGenerator[None]:
     """Manage application lifecycle - startup and shutdown events.
@@ -965,6 +1013,12 @@ async def lifespan(_app: FastAPI) -> AsyncGenerator[None]:
         if recovered > 0:
             lifespan_logger.warning(f"Recovered {recovered} orphaned detections into new batches")
 
+        # Start ArmingScheduler (B4.7 / 4n-arming.md)
+        from backend.services.arming import get_arming_scheduler
+
+        await get_arming_scheduler().start()
+        lifespan_logger.info("Arming scheduler started")
+
         # Initialize WorkerSupervisor for automatic crash recovery (NEM-2460)
         # The supervisor monitors pipeline workers and restarts them if they crash
         async def on_worker_restart(name: str, attempt: int, error: str | None) -> None:
@@ -999,6 +1053,77 @@ async def lifespan(_app: FastAPI) -> AsyncGenerator[None]:
             )
             if asyncio.iscoroutine(maybe_coro):
                 await maybe_coro
+
+        # B4.2: the alert-delivery worker. Claims pending/retrying delivery rows
+        # under a lease and sends through the channel adapters; the pipeline
+        # wakes it after committing new deliveries. The task builder is the
+        # production one (payload.py): loads the alert + channel row, applies
+        # F13 redaction, resolves the channel's target and signing secret.
+        try:
+            from backend.core.database import get_session_factory
+            from backend.services.alerting.channels.browser import BrowserChannel
+            from backend.services.alerting.channels.email import EmailChannel
+            from backend.services.alerting.channels.webhook import WebhookChannel
+            from backend.services.alerting.payload import (
+                build_delivery_task,
+                known_names_loader,
+            )
+            from backend.services.alerting.worker import NotificationDeliveryWorker
+            from backend.services.delivery_worker_registry import set_delivery_worker
+
+            channels: dict[str, Any] = {
+                "browser": BrowserChannel(event_broadcaster),
+            }
+            if settings.smtp_host:
+                channels["email"] = EmailChannel(
+                    smtp_host=settings.smtp_host,
+                    smtp_port=settings.smtp_port,
+                    smtp_from=settings.smtp_from_address or "alerts@nemotron.local",
+                    use_tls=settings.smtp_use_tls,
+                )
+            channels["webhook"] = WebhookChannel()
+            delivery_worker = NotificationDeliveryWorker(
+                get_session_factory(),
+                channels,
+                build_payload=build_delivery_task(get_session_factory()),
+                known_names_loader=known_names_loader(get_session_factory()),
+            )
+            set_delivery_worker(delivery_worker)
+            delivery_worker._supervisor = worker_supervisor
+            global _b42_delivery_worker  # noqa: PLW0603 — shutdown handle
+            _b42_delivery_worker = delivery_worker
+            await worker_supervisor.register_worker(
+                "notification-delivery-worker",
+                _make_supervised_b42_runner(delivery_worker, worker_supervisor),
+                heartbeat_timeout=_B42_HEARTBEAT_TIMEOUT,
+            )
+            lifespan_logger.info("Alert delivery worker registered (B4.2)")
+        except Exception as e:
+            lifespan_logger.error(f"Alert delivery worker startup failed: {e}")
+            lifespan_logger.warning("Continuing without the delivery worker")
+
+        # Outbound webhook retry worker (B4.2, ruling 310): resends
+        # webhook_deliveries whose next_retry_at has passed, until
+        # max_retries. Independent of Redis — it only needs the database.
+        try:
+            from backend.services.webhook_retry_worker import WebhookRetryWorker
+            from backend.services.webhook_service import WebhookService
+
+            webhook_retry_worker = WebhookRetryWorker(
+                get_session_factory(), service=WebhookService()
+            )
+            webhook_retry_worker._supervisor = worker_supervisor
+            global _b42_retry_worker  # noqa: PLW0603 — shutdown handle
+            _b42_retry_worker = webhook_retry_worker
+            await worker_supervisor.register_worker(
+                "webhook-retry-worker",
+                _make_supervised_b42_runner(webhook_retry_worker, worker_supervisor),
+                heartbeat_timeout=_B42_HEARTBEAT_TIMEOUT,
+            )
+            lifespan_logger.info("Outbound webhook retry worker registered (B4.2)")
+        except Exception as e:
+            lifespan_logger.error(f"Outbound webhook retry worker startup failed: {e}")
+            lifespan_logger.warning("Continuing without the webhook retry worker")
 
         await worker_supervisor.start()
         lifespan_logger.info(
@@ -1304,6 +1429,18 @@ async def lifespan(_app: FastAPI) -> AsyncGenerator[None]:
     await gpu_monitor.stop()
     lifespan_logger.info("GPU monitor stopped")
 
+    # B4.2 workers stop before the supervisor: ``worker_supervisor.stop()``
+    # clears ``_running`` first, so the supervised runner's cancelled-runner
+    # branch would leave the inner worker task orphaned (its ``worker.stop()``
+    # never fires) — the explicit stops own the inner loop, the supervisor's
+    # stop owns its own bookkeeping.
+    if _b42_delivery_worker is not None:
+        await _b42_delivery_worker.stop()
+        lifespan_logger.info("Alert delivery worker stopped")
+    if _b42_retry_worker is not None:
+        await _b42_retry_worker.stop()
+        lifespan_logger.info("Outbound webhook retry worker stopped")
+
     # Stop WorkerSupervisor first to prevent restart attempts during shutdown (NEM-2460)
     worker_supervisor = get_worker_supervisor()
     await worker_supervisor.stop()
@@ -1321,6 +1458,11 @@ async def lifespan(_app: FastAPI) -> AsyncGenerator[None]:
     # Stop pipeline workers (after queue draining)
     await stop_pipeline_manager()
     lifespan_logger.info("Pipeline workers stopped")
+
+    from backend.services.arming import get_arming_scheduler
+
+    await get_arming_scheduler().stop()
+    lifespan_logger.info("Arming scheduler stopped")
 
     # Stop file watcher
     if file_watcher:
@@ -1565,6 +1707,7 @@ app.include_router(alerts.router)
 app.include_router(alerts.alerts_instance_router)
 app.include_router(analytics.router)
 app.include_router(analytics_zones.router)
+app.include_router(arming.router)
 app.include_router(audit.router)
 app.include_router(auth.router)
 # Ruling F4 (2026-09-13): backup.router was implemented in f79f066e and called by the frontend

@@ -136,6 +136,10 @@ class Alert(Base):
     last_event_id: Mapped[int | None] = mapped_column(
         Integer, ForeignKey("events.id", ondelete="SET NULL"), nullable=True
     )
+    # Arming core column (B4.7 / 4n-arming.md): true when a critical alert was raised on an unarmed camera
+    raised_while_unarmed: Mapped[bool] = mapped_column(
+        Boolean, nullable=False, default=False, server_default="false"
+    )
 
     # Relationships
     event: Mapped[Event] = relationship("Event", back_populates="alerts", foreign_keys=[event_id])
@@ -175,6 +179,7 @@ class Alert(Base):
         # Apply defaults for boolean fields that should default to False
         kwargs.setdefault("is_high_priority", False)
         kwargs.setdefault("match_count", 1)
+        kwargs.setdefault("raised_while_unarmed", False)
 
         super().__init__(**kwargs)
 
@@ -222,6 +227,7 @@ class Alert(Base):
                 "match_count": self.match_count,
                 "last_seen_at": self.last_seen_at.isoformat() if self.last_seen_at else None,
                 "last_event_id": self.last_event_id,
+                "raised_while_unarmed": bool(self.raised_while_unarmed),
                 "created_at": self.created_at.isoformat() if self.created_at else None,
                 "updated_at": self.updated_at.isoformat() if self.updated_at else None,
             }
@@ -237,6 +243,7 @@ class Alert(Base):
             "match_count": self.match_count,
             "last_seen_at": self.last_seen_at,
             "last_event_id": self.last_event_id,
+            "raised_while_unarmed": bool(self.raised_while_unarmed),
             "created_at": self.created_at,
             "updated_at": self.updated_at,
             "delivered_at": self.delivered_at,
@@ -304,6 +311,15 @@ class AlertRule(Base):
     # Override: Alert even if the AI says no threat (B4.1 / 4n-alerting.md)
     alert_on_rejected: Mapped[bool] = mapped_column(
         Boolean, default=False, server_default="false", nullable=False
+    )
+    # Mode-scoped override for rejected verdicts (B4.7 / 4n-arming.md): null means every mode
+    alert_on_rejected_modes: Mapped[list[str] | None] = mapped_column(JSONB, nullable=True)
+    # Event sources this rule applies to (B4.7 / 4n-arming.md): ["camera"], ["external"], or both
+    sources: Mapped[list[str]] = mapped_column(
+        JSONB,
+        nullable=False,
+        default=lambda: ["camera"],
+        server_default='["camera"]',
     )
 
     # Condition: Zone IDs to match (JSONB array)
@@ -411,6 +427,7 @@ class AlertRule(Base):
         kwargs.setdefault("exclude_household_members", False)
         kwargs.setdefault("threat_detection_enabled", False)
         kwargs.setdefault("alert_on_rejected", False)
+        kwargs.setdefault("sources", ["camera"])
 
         super().__init__(**kwargs)
 
