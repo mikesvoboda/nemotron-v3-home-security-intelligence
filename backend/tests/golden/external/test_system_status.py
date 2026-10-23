@@ -6,7 +6,7 @@ Covers inventory rows:
   and `/api/system/performance`).
 - F-037, F-126, F-139, F-140: Admin-session-guarded container and worker restart with
   two-step `AuditLog` recording and `RESTARTABLE_SERVICES` allowlist.
-- F-009, F-292, F-293: Infrastructure alerts webhook (`POST /api/webhooks/alerts`),
+- F-009, F-292: Infrastructure alerts webhook (`POST /api/webhooks/alerts`),
   active alerts proxy (`GET /api/system/infrastructure-alerts`), and retirement of
   `/api/v1/alertmanager/webhook` (404).
 - F-019, F-168, F-193: Mode-aware `POST /api/admin/maintenance/flush-queues`.
@@ -164,11 +164,11 @@ def test_f037_f126_f139_f140_service_and_worker_restart_auth_and_audit(
         ), audit_items
 
 
-def test_f009_f292_f293_infrastructure_alerts_webhook_and_retired_alertmanager(
+def test_f009_f292_infrastructure_alerts_webhook_and_retired_alertmanager(
     logged_in_api: httpx.Client,
 ) -> None:
     """POST /api/webhooks/alerts records firing alerts visible on GET /api/system/infrastructure-alerts; /api/v1/alertmanager/webhook is 404."""
-    # F-293 retired route answers 404
+    # Retired route answers 404
     retired = logged_in_api.post("/api/v1/alertmanager/webhook", json={})
     assert retired.status_code == 404, retired.text
 
