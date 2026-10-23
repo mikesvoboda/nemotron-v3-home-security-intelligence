@@ -340,6 +340,17 @@ test.describe('F4.1 golden: /alerts lists alert rows and the design verbs work (
       status: 'open',
     });
     await page.locator('#status-filter').selectOption('open');
+    // The restore PUT is out-of-band and the page cannot know it happened:
+    // the alert-service PUT route broadcasts no WebSocket frame (update_alert
+    // emits nothing) and no page mutation fired, so flipping the filter back
+    // serves the 'open' key's cached page — fetched seconds earlier, inside
+    // the 30 s staleTime (run 39879199969's trace: after the restore, the
+    // page's status=open&limit=50 query never refetched; the open row sat in
+    // the store, the sidebar badge saw it, the list showed "0 alerts found").
+    // The shipped control for "the data moved behind the page" is Refresh —
+    // handleRefresh is void refetch(), which bypasses staleTime — so click it
+    // and let the row arrive on the refetched list.
+    await page.getByRole('button', { name: 'Refresh alerts' }).click();
     await expect(row, 'the restored row is back on the open page').toBeVisible({
       timeout: 15_000,
     });
