@@ -353,23 +353,131 @@ def _build_zip_with_baseline(base_zip_bytes: bytes, camera_id: str) -> bytes:
     return out.getvalue()
 
 
+def _ensure_f101_event_camera(logged_in_api: httpx.Client) -> str:
+    """Get or create the camera the F-101 preserved-event row posts to.
+
+    Same shape as the B4.7 leg's camera: the leg owns its rows, so a stack
+    that refuses the POST falls back to an existing camera only because the
+    events the leg creates there are still its own (unique ``batch_id``).
+    """
+    cams_res = logged_in_api.get("/api/cameras")
+    assert cams_res.status_code == 200, cams_res.text[:500]
+    items = cams_res.json()
+    if isinstance(items, dict):
+        items = items.get("items") or items.get("cameras") or []
+    for cam in items:
+        if isinstance(cam, dict) and cam.get("name") == "Restore (F-101 golden)":
+            return str(cam["id"])
+
+    cam_create = logged_in_api.post(
+        "/api/cameras",
+        json={
+            "name": "Restore (F-101 golden)",
+            "folder_path": "/cameras/f101_golden_restore",
+            "status": "online",
+        },
+    )
+    if cam_create.status_code == 201:
+        return str(cam_create.json()["id"])
+    cams_retry = logged_in_api.get("/api/cameras")
+    assert cams_retry.status_code == 200, cams_retry.text[:500]
+    retry_items = cams_retry.json()
+    if isinstance(retry_items, dict):
+        retry_items = retry_items.get("items") or retry_items.get("cameras") or []
+    for cam in retry_items:
+        if isinstance(cam, dict) and cam.get("name") == "Restore (F-101 golden)":
+            return str(cam["id"])
+    pytest.fail("could not create or find the F-101 golden event camera")
+
+
 def test_f101_restore_reverts_camera_and_baseline_preserves_events_and_lists_safety_backup(
     logged_in_api: httpx.Client,
 ) -> None:
     """F-101 golden path: create a backup; rename a camera and change a baseline;
-    restore; the name and the baseline come back, every event is still present,
-    and a 'before restore' safety backup is listed."""
+    restore; the name and the baseline come back, events the test owns are still
+    present, and a 'before restore' safety backup is listed.
+
+    The preserved events are rows the test creates itself through
+    ``POST /api/events/bulk`` under a unique ``batch_id``, and their ids come
+    from the 207 response. A raw ``GET /api/events?limit=20`` window is NOT
+    test-owned: another leg's disposable rows (B4.4 trash-purge soft-deletes and
+    then Empty-Trashes two 2020-dated events on its own camera) can enter the
+    window between this leg's before-read and its after-read, and their purge
+    then fails this leg's "every event is still present" assert — the 2026-10-23
+    08:47Z red ("event 4 lost during restore; assert 4 in {1, 2}") whose compose
+    log put B4.4's perm-delete at 08:47:30.7 and its Empty-Trash 404 check at
+    08:47:31.8, exactly astride this leg's before-read. Restore provably deletes
+    no events (``events`` is outside ``SHARED_BACKUP_TABLES`` and no restore
+    path deletes cameras), so the property the row names is what this spec now
+    asserts on rows it owns.
+    """
     with _backup_golden_lock():
-        # Ensure at least one event exists on the stack so we can prove events survive restore
-        events_resp = logged_in_api.get("/api/events?limit=20")
-        assert events_resp.status_code == 200, events_resp.text[:300]
-        events_before = events_resp.json().get("items", [])
-        if not events_before:
-            seed_resp = logged_in_api.post("/api/admin/seed/events", json={"count": 3})
-            assert seed_resp.status_code in (200, 201), seed_resp.text[:300]
-            events_before = logged_in_api.get("/api/events?limit=20").json().get("items", [])
-        event_ids_before = sorted(e["id"] for e in events_before)
-        assert event_ids_before, "expected at least one event before restore"
+        # The events this test owns: bulk-created with a unique batch_id so a
+        # re-run (or a concurrent worker) re-reads the same rows rather than
+        # inventing new ones, and the 207 result carries their ids directly —
+        # no window read between create and assert.
+        cam_id_for_event = _ensure_f101_event_camera(logged_in_api)
+        bulk_res = logged_in_api.post(
+            "/api/events/bulk",
+            json={
+                "events": [
+                    {
+                        "batch_id": "f101-golden-preserved-1",
+                        "camera_id": cam_id_for_event,
+                        "started_at": "2026-01-02T00:00:00Z",
+                        "ended_at": "2026-01-02T00:01:00Z",
+                        "risk_score": 20,
+                        "risk_level": "low",
+                        "summary": "F-101 golden preserved event 1",
+                    },
+                    {
+                        "batch_id": "f101-golden-preserved-2",
+                        "camera_id": cam_id_for_event,
+                        "started_at": "2026-01-02T00:10:00Z",
+                        "ended_at": "2026-01-02T00:11:00Z",
+                        "risk_score": 30,
+                        "risk_level": "low",
+                        "summary": "F-101 golden preserved event 2",
+                    },
+                ]
+            },
+        )
+        assert bulk_res.status_code == 207, bulk_res.text[:500]
+        bulk_items = bulk_res.json()["results"]
+        assert bulk_items and all(i["status"] == "success" for i in bulk_items), bulk_items
+        owned_ids = {int(i["id"]) for i in bulk_items}
+        assert len(owned_ids) == len(bulk_items), bulk_items
+
+        # The stack also holds the harness smoke event; prove the merge keeps
+        # it too, picked by the property smoke() guarantees — a verification
+        # verdict — rather than by position (the household-embeddings fixture's
+        # rule). Its camera is untouched by restore, so the id stands.
+        smoke_cam = None
+        cams_now = logged_in_api.get("/api/cameras")
+        assert cams_now.status_code == 200, cams_now.text[:300]
+        cam_items = cams_now.json()
+        if isinstance(cam_items, dict):
+            cam_items = cam_items.get("items") or cam_items.get("cameras") or []
+        for cam in cam_items:
+            if isinstance(cam, dict) and cam.get("id") == "harness_smoke":
+                smoke_cam = cam["id"]
+                break
+        smoke_event_id = None
+        if smoke_cam is not None:
+            smoke_resp = logged_in_api.get(
+                "/api/events", params={"camera_id": smoke_cam, "limit": 10}
+            )
+            assert smoke_resp.status_code == 200, smoke_resp.text[:300]
+            smoke_event = next(
+                (
+                    e
+                    for e in smoke_resp.json().get("items", [])
+                    if (e.get("verification") or {}).get("verdict")
+                ),
+                None,
+            )
+            if smoke_event is not None:
+                smoke_event_id = smoke_event["id"]
 
         cameras_resp = logged_in_api.get("/api/cameras")
         assert cameras_resp.status_code == 200, cameras_resp.text[:300]
@@ -433,11 +541,31 @@ def test_f101_restore_reverts_camera_and_baseline_preserves_events_and_lists_saf
         finally:
             logged_in_api.patch(f"/api/cameras/{cam_id}", json={"name": original_name})
 
-        # Every event is still present
+        # Events the test owns are still present after restore
         events_after = logged_in_api.get("/api/events?limit=20").json().get("items", [])
         event_ids_after = {e["id"] for e in events_after}
-        for eid in event_ids_before:
-            assert eid in event_ids_after, f"event {eid} lost during restore"
+        # The 20-row window can hold only the newest rows; the owned rows were
+        # created moments before the restore, but the smoke event and other
+        # legs' rows could push them past the page — so verify owned rows by
+        # their own reads, and the smoke event through the window-or-camera
+        # read it cannot outlive.
+        for eid in sorted(owned_ids):
+            if eid not in event_ids_after:
+                one = logged_in_api.get(f"/api/events/{eid}")
+                assert one.status_code == 200, (
+                    f"event {eid} (f101-golden-preserved) lost during restore: "
+                    f"{one.status_code} {one.text[:200]}"
+                )
+
+        # The harness smoke event survives the restore too — the harness
+        # guarantees a verified event exists before golden paths run.
+        if smoke_event_id is not None:
+            if smoke_event_id not in event_ids_after:
+                one = logged_in_api.get(f"/api/events/{smoke_event_id}")
+                assert one.status_code == 200, (
+                    f"smoke event {smoke_event_id} lost during restore: "
+                    f"{one.status_code} {one.text[:200]}"
+                )
 
         # The automatic "before restore" safety backup is listed
         listing = logged_in_api.get("/api/backup").json()
