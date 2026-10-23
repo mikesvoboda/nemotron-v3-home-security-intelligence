@@ -172,7 +172,10 @@ model takes to answer.
   and `constants.py`'s helper; `docs/openapi.json` and the generated types are regenerated (UR-83).
 - **frontend (`F4.8`, contract):** `useAIServiceStatus`, `AIServiceStatus`, `useAIMetrics`,
   `AIPerformanceSummaryRow`, `AIModelsSettings`, `ModelStatusCards`, `ServicesPanel` (Restart
-  only, the sign-in prompt, Postgres no longer blocked), `PerformanceCharts`,
+  only, the sign-in prompt, Postgres no longer blocked), the shared `useIsAdmin` (it loads
+  `/api/auth/me` whether or not the backend requires auth, and reads 401 as "not signed in"
+  without redirecting) and `AdminSignInPrompt`, which `F4.10` reuses (`4n-debug-tools.md`, DT5),
+  `PerformanceCharts`,
   `usePerformanceMetrics`, `PerformanceDashboard`, `useFullHealthQuery`, `metricsParser`,
   `useServiceStatus` (`ai-vlm`), `usePrometheusAlertWebSocket` (events socket, shape, page-open
   load), `CommandPalette`, `useKeyboardShortcuts`, `TracingPage`; test fixtures
@@ -207,8 +210,8 @@ model takes to answer.
     `ready`;
   - every route returns `snapshot()`'s shape, and a state change publishes `ai_service_status`;
   - the orchestrator's health loop never requests `ai-vlm`;
-  - restart, with a fake engine: refused with 401 without a session, 403 for a non-admin and for
-    any API key; done and audited with the admin's name, the "requested" row committed first; 503
+  - restart, with a fake engine: refused with 401 without a session or with an API key alone, and
+    403 for a non-admin (`4n-debug-tools.md`, DT6); done and audited with the admin's name, the "requested" row committed first; 503
     without an engine; a name outside the four is refused; a once-disabled service restarts;
   - the retired routes answer 404;
   - the proxy's mapping;
@@ -219,7 +222,7 @@ model takes to answer.
 
 - **Spec, backend** (`backend/tests/golden/external/test_system_status.py`): every health route
   returns the snapshot's shape with `yolo26` ready and `ai_vlm` idle on the fake stack; restart
-  answers 401 without a session, 403 for a non-admin and for an API key, and 503 "engine not
+  answers 401 without a session or with an API key alone, 403 for a non-admin, and 503 "engine not
   available" for an admin (UR-134); the old receiver answers 404.
 - **Spec, UI** (Playwright):
   - the header badge, the dashboard row and the model cards show the fake stack's `yolo26` ready
