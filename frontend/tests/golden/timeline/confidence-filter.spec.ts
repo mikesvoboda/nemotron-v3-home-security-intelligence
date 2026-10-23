@@ -52,14 +52,51 @@
  * .spec.ts:640-760, proven at this head) reuses a previous run's VERIFIED row
  * rather than demanding a fresh one.
  *
+ * TIER ROBUSTNESS (UR-140 revision, T252 routed to frontend 2026-10-23). The
+ * operator ran the row's posted real-tier command (--real --playwright-grep
+ * "F-044" at 553dfd137, run hsi-check-20261023015333-560b8f): the stack legs
+ * were all green and the smoke leg produced a REAL verdict
+ * (`uncertain`, risk 0, model Qwen3VL-8B-Instruct-Q4_K_M), but the fixture poll
+ * burned its 180 s and threw — its predicate demanded
+ * `row.summary === scenario.verdict.summary`, the scenario book's canned
+ * fake-AI string, which the real VLM never produces (it writes its own
+ * summary/verdict/risk). 1 failed at the fixture, 4 did not run. UR-140: the
+ * lane revises; the fix mirrors the harness's own smoke check (scripts/
+ * feature_check.py:1739 smoke_problems) by branching on the row's OWN
+ * provenance:
+ *   - the fake gateway always writes `model_id: "fake-ai-vlm"` (a constant
+ *     stem of MODEL_PATH, ai_contract/fake/app.py:87,:164);
+ *   - a real VLM writes the served model's stem (its own provenance;
+ *     services/vlm_analyzer.py:695), which is never the fake's constant.
+ *   So `verification.model_id === 'fake-ai-vlm'` IS the tier marker, read
+ *   from the row itself — no env plumbing, and the [r282] whitelist
+ *   (feature_check.py:2041-2052, ten names, deliberately without
+ *   FEATURE_CHECK_MODE so the option's existence cannot change an unused
+ *   leg's argv) stays untouched. The list payload carries it: the events
+ *   list route embeds `verification` via verification_payload()
+ *   (api/routes/events.py:643), whose model_id is REQUIRED
+ *   (schemas/event_verification.py:63).
+ *   Anchors that stay pinned on BOTH tiers (tier-invariant, ruling 207 /
+ *   UR-136: --real is the fake stack minus ai-vlm — the DETECTOR stays
+ *   fake, so detection count, classes, confidences, bboxes and media_type
+ *   are the fake detector's own on both tiers): all of them. Only the
+ *   VLM-written verdict/risk_score/summary pins are fake-tier-only now.
+ *   UR-128 deviations recorded below at each branch.
+ *
  * NOT asserted here, with reasons (UR-128): the select's own click-drive leg
  * (a deep link exercises the same server filter end-to-end, and the unit tests
  * already pin CONFIDENCE_THRESHOLD's mapping); ?min_confidence deep-link
- * select-sync beyond the canonical values (unit-pinned); the real-tier check
- * ("the operator opens a real event and confirms the boxes sit on the
- * objects" — a human's, by the doc's own words); a video detection in the
- * modal (the book ships only stills; download-media.spec.ts owns the video
- * branch's 500-envelope witness).
+ * select-sync beyond the canonical values (unit-pinned); a video detection in
+ * the modal (the book ships only stills; download-media.spec.ts owns the video
+ * branch's 500-envelope witness). The real tier IS exercised: the fixture
+ * converges on any verified row and pins only tier-invariant facts on it
+ * (detections), branching the VLM-written pins on the row's own model_id —
+ * on the real tier the model's own verdict/risk/summary are what the rows
+ * carry, and this file asserts the shipped UI against whatever the tier's
+ * verifier wrote rather than demanding the book's strings. What is still NOT
+ * asserted on the real tier: the book's exact verdict/risk/summary values
+ * (fake-only by definition), and leg 3's seed-match guarantee — see the
+ * deviation note at that leg.
  */
 import { execFileSync } from 'node:child_process';
 import { existsSync, readFileSync } from 'node:fs';
@@ -126,6 +163,27 @@ type FilterState = FilterHarness | { ready: false; why: string };
  *  non-harness-smoke row") still resolves to person-at-door. */
 const HIGH_SCENARIO = 'f4.4-gold-high';
 const REJECTED_SCENARIO = 'f4.4-gold-rejected';
+
+/** The tier marker, read from the row itself: the fake gateway writes this
+ *  exact model_id on EVERY verification it produces — a constant stem of its
+ *  MODEL_PATH (ai_contract/fake/app.py:87 MODEL_PATH "/models/fake-ai-vlm.gguf",
+ *  :164 provenance = {"engine": build_info, "model_id": stem}). A real VLM
+ *  writes the served model's stem (services/vlm_analyzer.py:695 takes the
+ *  verdict's own provenance), which is never this constant. So
+ *  `verification.model_id === 'fake-ai-vlm'` classifies the row's tier with
+ *  no env plumbing — FEATURE_CHECK_MODE is deliberately absent from the [r282]
+ *  container whitelist (scripts/feature_check.py:2041-2052) so a leg's argv
+ *  cannot depend on the mode. The list payload carries the field: the events
+ *  list route embeds `verification` via verification_payload()
+ *  (api/routes/events.py:643) whose model_id is REQUIRED
+ *  (api/schemas/event_verification.py:63). */
+const FAKE_VLM_MODEL_ID = 'fake-ai-vlm';
+
+/** The verdict vocabulary a MODEL may write (scripts/feature_check.py:206
+ *  MODEL_VERDICTS — the same set smoke_problems demands on --real). A
+ *  `verification_failed` row is the analyzer failing closed, not a model
+ *  verdict; step 5 rejects it by name on the real tier. */
+const MODEL_VERDICTS = ['confirmed', 'rejected', 'uncertain'] as const;
 
 /** Collection-time and defensive, like readDropHarness() in
  *  event-detail-modal.spec.ts: any missing piece is a skip reason, never a
@@ -224,7 +282,7 @@ interface EventRow {
   risk_level: string | null;
   summary: string | null;
   detection_ids: number[];
-  verification?: { verdict: string } | null;
+  verification?: { verdict: string; model_id?: string } | null;
 }
 
 interface DetectionItem {
@@ -248,6 +306,21 @@ const detectionItems = (session: Session, id: number) =>
     session,
     `/api/events/${id}/detections?limit=100`
   );
+
+/** The scenario's DETECTOR-written identity: same count, same class@confidence
+ *  multiset. This is the tier-invariant anchor — the detector is the fake
+ *  stack's own on BOTH tiers (ruling 207 / UR-136: --real is the fake stack
+ *  minus ai-vlm), so the set identifies the scenario's row regardless of which
+ *  tier's VLM verified it. Bboxes are leg 5's business; identity needs the
+ *  set only. */
+function detectionsMatchBook(items: DetectionItem[], scenario: BookScenario): boolean {
+  if (items.length !== scenario.detections.length) return false;
+  const key = (objectType: string | null, confidence: number | null) =>
+    `${objectType}@${confidence}`;
+  const book = scenario.detections.map((d) => key(d.class, d.confidence)).sort();
+  const row = items.map((d) => key(d.object_type, d.confidence)).sort();
+  return book.every((k, i) => k === row[i]);
+}
 
 /* scripts/feature-check.sh lives at the repo root: FOUR up from
  * frontend/tests/golden/timeline (the event-detail-modal.spec.ts precedent). */
@@ -278,12 +351,12 @@ async function dropAndConverge(
   cameraId: string,
   imagePath: string
 ): Promise<number> {
-  // 1. Read this camera's rows BEFORE the drop: a verified row whose summary
-  //    matches the book is the reuse candidate (the poll below finds it even
-  //    when the dedupe suppressed this drop); everything else on the camera is
-  //    residue this run owns and step 4 collects for afterAll. Nothing is
-  //    deleted here — deleting before the drop would destroy the very row a
-  //    suppressed run needs to reuse.
+  // 1. Read this camera's rows BEFORE the drop: a verified row the book's
+  //    DETECTIONS identify is the reuse candidate (the poll below finds it
+  //    even when the dedupe suppressed this drop); everything else on the
+  //    camera is residue this run owns and step 4 collects for afterAll.
+  //    Nothing is deleted here — deleting before the drop would destroy the
+  //    very row a suppressed run needs to reuse.
   await api<{ items: EventRow[] }>(
     timeline,
     session,
@@ -304,6 +377,24 @@ async function dropAndConverge(
 
   // 3. Poll for the verified row (the keeper path returns instantly when the
   //    dedupe suppressed this drop).
+  //
+  //    TIER-ROBUST predicate (the UR-140 revision): candidates are VERIFIED
+  //    rows on this camera — `row.verification?.verdict` truthy, newest
+  //    first. Identity is decided by the row's OWN provenance:
+  //      - fake-tier row (model_id === FAKE_VLM_MODEL_ID): must name the
+  //        book's canned summary, as before — the fake echoes the book
+  //        verbatim, so a fake row whose summary differs is a DIFFERENT
+  //        scenario's row, not this one;
+  //      - real-tier row (any other model_id): identified by the
+  //        DETECTOR-written facts instead (detectionsMatchBook) — the
+  //        scenario's exact detection set is the fake detector's own on BOTH
+  //        tiers (ruling 207 / UR-136), and the verifier is per-event, so
+  //        verified-row + this-detection-set IS this scenario. Its
+  //        verdict/summary are the model's own and are not demanded to match
+  //        anything here.
+  //    A fake candidate that fails the summary equality is still reported to
+  //    the log (the 2026-10-23 run could not distinguish "no row" from
+  //    "unmatched rows"; this poll can, at the last tick).
   const deadline = Date.now() + 180_000;
   let chosen: EventRow | undefined;
   while (Date.now() < deadline) {
@@ -312,10 +403,56 @@ async function dropAndConverge(
       session,
       `/api/events?camera_id=${encodeURIComponent(cameraId)}&limit=100`
     );
-    chosen = [...list.items]
-      .filter((row) => row.verification?.verdict && row.summary === scenario.verdict.summary)
-      .sort((a, b) => new Date(b.started_at).getTime() - new Date(a.started_at).getTime())[0];
-    if (chosen) break;
+    const verified = [...list.items]
+      .filter((row) => row.verification?.verdict)
+      .sort((a, b) => new Date(b.started_at).getTime() - new Date(a.started_at).getTime());
+    // Pass 1 — rows this poll can classify from the LIST payload alone: fake
+    // rows by their summary, real rows by their detections (one fetch per
+    // real candidate, bounded by the camera's purge-kept row count). A
+    // detections fetch that answers non-200 (a row deleted mid-poll, a
+    // transient 500) is NOT a fixture failure — api() throws on non-200 and
+    // the next 5 s tick re-reads the list, so such a row is skipped this
+    // tick and re-examined on the next one.
+    const classified: EventRow[] = [];
+    for (const row of verified) {
+      if (row.verification?.model_id === FAKE_VLM_MODEL_ID) {
+        if (row.summary === scenario.verdict.summary) classified.push(row);
+      } else {
+        let dets: { items: DetectionItem[] } | undefined;
+        try {
+          dets = await detectionItems(session, row.id);
+        } catch {
+          continue; // re-examined next tick; the list read below is the loop
+        }
+        if (dets && detectionsMatchBook(dets.items, scenario)) classified.push(row);
+      }
+    }
+    if (classified.length > 0) {
+      // A MODEL verdict outranks a fail-closed row regardless of recency: a
+      // re-drop after the dedupe window can land a new verification_failed
+      // row ON TOP of the previous run's good keeper — the good row must
+      // still win. When ONLY fail-closed rows exist, waiting longer is
+      // pointless (one drop = one event = one verification attempt), so the
+      // loop exits and step 5 rejects the row by name.
+      const good = classified.filter((r) =>
+        MODEL_VERDICTS.includes(r.verification?.verdict as (typeof MODEL_VERDICTS)[number])
+      );
+      chosen = good[0] ?? classified[0];
+      break;
+    }
+    if (verified.length > 0) {
+      // Log-only diagnostic, never a throw: an unmatched verified row is
+      // stack state this file must not own (it may be another scenario's).
+      console.warn(
+        `golden fixture: verified row(s) on ${cameraId} unmatched — ` +
+          verified
+            .map(
+              (r) =>
+                `id ${r.id} verdict=${r.verification?.verdict} model=${r.verification?.model_id ?? '?'} summary=${JSON.stringify(r.summary)}`
+            )
+            .join('; ')
+      );
+    }
     await new Promise((resolve) => setTimeout(resolve, 5_000));
   }
   if (!chosen) {
@@ -338,24 +475,57 @@ async function dropAndConverge(
 
   // 5. The server's own truth, asserted HERE so every leg mirrors pixels
   //    against a row this fixture knows is what the book says.
+  //
+  //    TIER BRANCH (UR-140, mirroring smoke_problems scripts/feature_check.py
+  //    :1739-1777): on the FAKE tier the fake echoed the book, so the book's
+  //    verdict/risk/summary are pinned as before. On the REAL tier the VLM
+  //    wrote its own verdict/risk/summary — pinning the book's strings there
+  //    is exactly the failure that burned the 2026-10-23 run — so the row's
+  //    identity rests on the detector-written facts (the poll above) and this
+  //    step asserts only what any tier's verifier owes: a MODEL verdict
+  //    (scripts/feature_check.py:206 MODEL_VERDICTS). `verification_failed`
+  //    is the analyzer failing closed, not a model verdict — named here
+  //    because a real-tier row CAN carry it and, within the 300 s dedupe
+  //    window, a retried run would otherwise reuse that row silently.
   const row = await eventRow(session, chosen.id);
-  if (row.risk_score !== scenario.verdict.risk_score) {
-    throw new Error(
-      `golden fixture: dropped event risk_score=${String(row.risk_score)}, book says ` +
-        scenario.verdict.risk_score
-    );
-  }
-  if (row.verification?.verdict !== scenario.verdict.verdict) {
-    throw new Error(
-      `golden fixture: dropped event verdict=${String(row.verification?.verdict)}, book says ` +
-        scenario.verdict.verdict
-    );
-  }
-  if (row.summary !== scenario.verdict.summary) {
-    throw new Error(
-      `golden fixture: row summary ${JSON.stringify(row.summary)} is not the book's ` +
-        `${JSON.stringify(scenario.verdict.summary)} — the row is not ${scenario.name}'s`
-    );
+  const isFake = row.verification?.model_id === FAKE_VLM_MODEL_ID;
+  if (isFake) {
+    if (row.risk_score !== scenario.verdict.risk_score) {
+      throw new Error(
+        `golden fixture: dropped event risk_score=${String(row.risk_score)}, book says ` +
+          scenario.verdict.risk_score
+      );
+    }
+    if (row.verification?.verdict !== scenario.verdict.verdict) {
+      throw new Error(
+        `golden fixture: dropped event verdict=${String(row.verification?.verdict)}, book says ` +
+          scenario.verdict.verdict
+      );
+    }
+    if (row.summary !== scenario.verdict.summary) {
+      throw new Error(
+        `golden fixture: row summary ${JSON.stringify(row.summary)} is not the book's ` +
+          `${JSON.stringify(scenario.verdict.summary)} — the row is not ${scenario.name}'s`
+      );
+    }
+  } else {
+    const verdict = row.verification?.verdict;
+    if (
+      verdict === undefined ||
+      !MODEL_VERDICTS.includes(verdict as (typeof MODEL_VERDICTS)[number])
+    ) {
+      throw new Error(
+        `golden fixture: real-tier row ${chosen.id} carries verdict ` +
+          `${JSON.stringify(verdict)} — a model's verdict is one of ` +
+          `${MODEL_VERDICTS.join(', ')}; 'verification_failed' is the analyzer failing closed, ` +
+          'not a model verdict (re-drop after the 300 s dedupe window retries it)'
+      );
+    }
+    // UR-128 deviation, recorded: on the real tier this file does NOT pin
+    // risk_score or summary — they are the served model's own output (the
+    // 2026-10-23 run's smoke event: verdict uncertain, risk 0, the model's
+    // own summary). The fake tier's pins above remain the book's exact
+    // values. Detection pins below run on BOTH tiers (tier-invariant).
   }
   const dets = await detectionItems(session, chosen.id);
   if (dets.items.length !== scenario.detections.length) {
@@ -374,7 +544,7 @@ async function dropAndConverge(
 }
 
 test.beforeAll(async () => {
-  // Two drops + fake VLM replies + possible dedupe waits: the HOOK's timeout.
+  // Two drops + verifier replies + possible dedupe waits: the HOOK's timeout.
   // Each test body also calls test.setTimeout(90_000) — inside a test,
   // test.setTimeout moves THAT test's clock, not the hook's.
   test.setTimeout(480_000);
@@ -538,15 +708,34 @@ test.describe('F4.4 confidence filter (F-044) + detected objects (F-055) — the
   }) => {
     test.setTimeout(90_000);
     const session = await adminSession(timeline);
+    // TIER-AWARE truth (UR-140): the doc's "'Rejected' shows the rejected
+    // seed" names the FAKE tier's behavior — the fake echoes the book's
+    // rejected verdict, so the camera's only row IS the match. On the real
+    // tier the verdict is the served model's own judgement of the cat image,
+    // which this file does not control — so the pinned EXPECTATION is what
+    // the server answers for this camera, and the UI's job is to mirror it.
+    // UR-128 deviation, recorded: on the real tier this leg proves the
+    // verdict filter's end-to-end mirror (the deep link's answer renders
+    // exactly), not the seed-match guarantee, which is fake-tier-only.
     const truth = await api<{ items: EventRow[] }>(
       timeline,
       session,
       `/api/events?limit=100&camera_id=${encodeURIComponent(harness.rejectedCameraId)}&verdict=rejected`
     );
-    expect(
-      truth.items.map((r) => r.id),
-      'the rejected camera holds exactly the rejected seed under this filter'
-    ).toEqual([rejectedEventId]);
+    const rejectedRow = truth.items.find((r) => r.id === rejectedEventId);
+    if (rejectedRow) {
+      // Either tier: the seed matched the filter. The camera holds it alone
+      // (one event per drop, one camera per scenario) — the doc's clause.
+      expect(
+        truth.items.map((r) => r.id),
+        'the rejected camera holds exactly the rejected seed under this filter'
+      ).toEqual([rejectedEventId]);
+    }
+    // When the seed did NOT match (reachable only on the real tier — the fake
+    // echoes the book's rejected verdict, so its row always matches), there is
+    // no seed-side API fact to pin: the answer is whatever this camera's
+    // remaining rows match, and the DOM mirror below is the assertion. That
+    // branch is the recorded UR-128 deviation.
 
     await bootTimeline(
       page,
@@ -556,10 +745,28 @@ test.describe('F4.4 confidence filter (F-044) + detected objects (F-055) — the
       page.locator('#verification-filter'),
       'the verdict select holds the deep-linked value'
     ).toHaveValue('rejected');
-    await expect(
-      page.getByTestId(`event-card-${rejectedEventId}`),
-      "'Rejected' shows the rejected seed — the doc's clause, end to end"
-    ).toBeVisible();
+    if (rejectedRow) {
+      await expect(
+        page.getByTestId(`event-card-${rejectedEventId}`),
+        "'Rejected' shows the rejected seed — the doc's clause, end to end"
+      ).toBeVisible();
+    } else {
+      // The model did not reject this image, so the filter answers without
+      // it — the mirror IS the assertion, exactly as leg 2's mirror is: the
+      // camera-scoped verdict=rejected answer (limit=20, the UI's page,
+      // guarded by has_more like leg 2) mirrored as DOM card count.
+      const mirror = await api<{ items: EventRow[]; pagination?: { has_more?: boolean } }>(
+        timeline,
+        session,
+        `/api/events?limit=20&camera_id=${encodeURIComponent(harness.rejectedCameraId)}&verdict=rejected`
+      );
+      if (!mirror.pagination?.has_more) {
+        await expect(
+          page.getByTestId(/^event-card-\d+$/),
+          `DOM mirrors the verdict=rejected answer (${mirror.items.length}) — on the real tier the seed's verdict is the model's own`
+        ).toHaveCount(mirror.items.length);
+      }
+    }
     expect(() => closedByGuard(page)).toThrow(GUARD_MESSAGE);
   });
 
