@@ -380,6 +380,68 @@ def test_a_golden_env_with_no_rendered_stack_refuses_the_webhook_host(
         run.golden()
 
 
+def test_the_backend_leg_env_carries_the_sink_urls_in_real_mode_too(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """B4.2's real-tier line (4n-alerting.md): the sink env is not fake-gated.
+
+    The gate is prod-shape, not mode: `render()` composes the sinks overlay for
+    EVERY non-prod-shape mode, so --real boots the sinks, and the gate that
+    withheld `FEATURE_CHECK_SINK_*` from the golden env on --real made
+    `test_the_webhook_sink_receives_the_acknowledgement_payload` skip on exactly
+    the tier the design's "runs a real verdict through to the webhook sink and
+    records the latency from commit to delivery" clause names (the previous
+    command's read of the real-tier run — UR-140 run result 6343504705's B4.1
+    sibling — could not witness the sink receipt at all).
+    """
+    calls: list[tuple[list[str], dict[str, Any]]] = []
+    run = _golden_only_run(tmp_path, monkeypatch, True, calls, mode="real")
+    monkeypatch.setattr(fc, "REPO_ROOT", tmp_path)
+    golden = tmp_path / "no-backend-golden"
+    golden.mkdir()
+    (golden / "test_one.py").write_text("def test_one():\n", encoding="utf-8")
+    run.golden()
+    _, kwargs = _backend_leg(calls)
+    env = kwargs["env"]
+    # The same four URL exports the fake-mode pins hold, derived the same way.
+    for service, target, name in (
+        ("mail-sink", 8025, "FEATURE_CHECK_SINK_SMTP_URL"),
+        ("mail-sink", 8026, "FEATURE_CHECK_SINK_MAIL_HTTP_URL"),
+        ("webhook-sink", 8091, "FEATURE_CHECK_SINK_WEBHOOK_URL"),
+        ("push-sink", 8092, "FEATURE_CHECK_SINK_PUSH_URL"),
+    ):
+        want = fc.Run._address(run, service, target)  # type: ignore[arg-type]
+        assert env.get(name) == want, (name, env.get(name), want)
+    assert env["FEATURE_CHECK_SINKS_MODE"] == "on-this-network"
+    assert env["FEATURE_CHECK_SINK_WEBHOOK_HOST"] == "webhook-sink:8091", env
+    assert env["FEATURE_CHECK_MODE"] == "real", env
+
+
+def test_the_prod_shape_still_withholds_the_sink_env(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """The other half of the gate: prod-shape exports nothing of the sinks.
+
+    The prod-shape render does not go through `as_test_deployment` and does not
+    stand the sinks up, so exporting their env there would name services the
+    stack never starts — the same naming-what-is-not-running hazard the gate
+    was first written against, now pinned on the prod side after the gate's
+    scope narrowed to prod-shape.
+    """
+    calls: list[tuple[list[str], dict[str, Any]]] = []
+    run = _golden_only_run(tmp_path, monkeypatch, True, calls, prod_shape=True)
+    monkeypatch.setattr(fc, "REPO_ROOT", tmp_path)
+    golden = tmp_path / "no-backend-golden"
+    golden.mkdir()
+    (golden / "test_one.py").write_text("def test_one():\n", encoding="utf-8")
+    run.golden()
+    _, kwargs = _backend_leg(calls)
+    env = kwargs["env"]
+    sink_names = [name for name in env if name.startswith("FEATURE_CHECK_SINK")]
+    assert sink_names == [], sink_names
+    assert env["FEATURE_CHECK_PROD_SHAPE"] == "1"
+
+
 # ---------------------------------------------------------------------------
 # Preflight: each overlap or reach refuses the run
 # ---------------------------------------------------------------------------
@@ -2126,6 +2188,7 @@ def _golden_only_run(
     prod_shape: bool = False,
     golden_specs: tuple[str, ...] | None = None,
     rendered: bool = True,
+    mode: str = "fake",
 ) -> Any:
     """A Run whose golden() reaches the Playwright branch with every filesystem
     fact pointed at tmp_path, and whose ``_run`` is recorded, not executed.
@@ -2144,7 +2207,7 @@ def _golden_only_run(
     from the repo, so a pin can bump it) and whether the engine already HAS that
     image — ``image_present`` and ``pull_rc`` are the new firewall question.
     """
-    run = _run(tmp_path, mode="fake")
+    run = _run(tmp_path, mode=mode)
     # [r308a] The golden env's in-network sink export reads the rendered
     # compose.json (run_check renders before golden); a golden() fixture never
     # renders, so the helper writes the document — off (`rendered=False`) for
