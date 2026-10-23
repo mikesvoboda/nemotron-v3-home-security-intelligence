@@ -195,7 +195,10 @@ def _raw_scrfd_has_face(raw_scrfd: Any, img: Image.Image, threshold: float = 0.6
 
 
 def _trt_infer_dict(plan_path: Path, feed: dict[str, np.ndarray]) -> dict[str, np.ndarray]:
-    import tensorrt as trt
+    try:
+        import tensorrt as trt
+    except ModuleNotFoundError:
+        import tensorrt_bindings as trt  # type: ignore[no-redef]
     import torch
 
     key = str(plan_path)
@@ -344,7 +347,8 @@ podman run --rm --device "nvidia.com/gpu=${GPU}" \
       python3 /src/ai/gateway/export/export_face.py --role \"\$role\" --model-path \"\$src\" --output-path \"/run-dir/cache_fp32/\$role/1/model.plan\" --precision fp32 --plan-timeout ${PLAN_TIMEOUT}
       python3 /src/ai/gateway/export/export_face.py --role \"\$role\" --model-path \"\$src\" --output-path \"/run-dir/cache/\$role/1/model.plan\" --precision fp16 --plan-timeout ${PLAN_TIMEOUT}
     done
-    pip install --no-cache-dir --quiet tensorrt-cu13-bindings==11.3.0.99 2>/dev/null || true
+    pip install --no-cache-dir --quiet tensorrt==11.3.0.99
+    python3 -c 'import tensorrt as trt; print("tensorrt", trt.__version__)'
     python3 /run-dir/stage_probe_face.py /run-dir /images
   "
 

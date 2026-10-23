@@ -639,6 +639,10 @@ class TestFaceParityCheckAndCli:
 
         runner_path = Path(__file__).resolve().parents[3] / "scripts/uplevel/face_real_tier.sh"
         script_text = runner_path.read_text()
+        assert "tensorrt==11.3.0.99" in script_text, (
+            "face_real_tier.sh must install the tensorrt==11.3.0.99 metapackage so "
+            "import tensorrt succeeds inside nvcr.io/nvidia/tritonserver:26.09-py3"
+        )
         marker = "cat > \"$RUN/stage_probe_face.py\" <<'PROBE'\n"
         assert marker in script_text, "stage_probe_face.py heredoc not found in face_real_tier.sh"
         probe_src = script_text.split(marker, 1)[1].split("\nPROBE\n", 1)[0]
