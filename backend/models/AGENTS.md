@@ -46,7 +46,6 @@ backend/models/
 ├── job_transition.py        # Job state transition model (NEM-2396)
 ├── log.py                   # Structured application log model
 ├── notification_preferences.py  # Notification settings models
-├── prometheus_alert.py      # Prometheus alerting rules model
 ├── prompt_config.py         # Current AI prompt configuration (user-editable)
 ├── prompt_version.py        # AI prompt configuration version tracking (historical)
 ├── property.py              # Property/location model for multi-site support

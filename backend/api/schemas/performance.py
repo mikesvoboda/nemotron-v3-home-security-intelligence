@@ -8,7 +8,7 @@ from datetime import UTC, datetime
 from enum import Enum
 from functools import cached_property
 
-from pydantic import BaseModel, ConfigDict, Field, computed_field
+from pydantic import BaseModel, ConfigDict, Field, computed_field, model_validator
 
 
 class TimeRange(str, Enum):
@@ -106,8 +106,14 @@ class InferenceMetrics(BaseModel):
     yolo26_latency_ms: dict[str, float] = Field(
         ..., description="YOLO26v2 latency stats (avg, p95, p99)"
     )
+    rtdetr_latency_ms: dict[str, float] | None = Field(
+        default=None, description="Legacy detector latency stats alias (avg, p95, p99)"
+    )
     nemotron_latency_ms: dict[str, float] = Field(
         ..., description="Nemotron latency stats (avg, p95, p99)"
+    )
+    ai_vlm_latency_ms: dict[str, float] | None = Field(
+        default=None, description="AI VLM latency stats (avg, p95, p99)"
     )
     pipeline_latency_ms: dict[str, float] = Field(
         ..., description="Full pipeline latency stats (avg, p95)"
@@ -117,11 +123,21 @@ class InferenceMetrics(BaseModel):
     )
     queues: dict[str, int] = Field(..., description="Queue depths (detection, analysis)")
 
+    @model_validator(mode="after")
+    def _populate_expand_latency_aliases(self) -> InferenceMetrics:
+        if self.rtdetr_latency_ms is None:
+            self.rtdetr_latency_ms = dict(self.yolo26_latency_ms)
+        if self.ai_vlm_latency_ms is None:
+            self.ai_vlm_latency_ms = dict(self.nemotron_latency_ms)
+        return self
+
     model_config = ConfigDict(
         json_schema_extra={
             "example": {
                 "yolo26_latency_ms": {"avg": 45, "p95": 82, "p99": 120},
+                "rtdetr_latency_ms": {"avg": 45, "p95": 82, "p99": 120},
                 "nemotron_latency_ms": {"avg": 2100, "p95": 4800, "p99": 8200},
+                "ai_vlm_latency_ms": {"avg": 2100, "p95": 4800, "p99": 8200},
                 "pipeline_latency_ms": {"avg": 3200, "p95": 6100},
                 "throughput": {"images_per_min": 12.4, "events_per_min": 2.1},
                 "queues": {"detection": 0, "analysis": 0},
@@ -288,6 +304,9 @@ class PerformanceUpdate(BaseModel):
         default_factory=dict, description="AI model metrics keyed by model name"
     )
     nemotron: NemotronMetrics | None = Field(None, description="Nemotron-specific metrics")
+    ai_vlm: NemotronMetrics | None = Field(None, description="AI VLM metrics")
+    yolo26: AiModelMetrics | None = Field(None, description="YOLO26 detector metrics")
+    rtdetr: AiModelMetrics | None = Field(None, description="Legacy detector metrics alias")
     inference: InferenceMetrics | None = Field(
         None, description="AI inference latency and throughput"
     )
@@ -301,6 +320,20 @@ class PerformanceUpdate(BaseModel):
     alerts: list[PerformanceAlert] = Field(
         default_factory=list, description="Active performance alerts"
     )
+
+    @model_validator(mode="after")
+    def _populate_expand_model_aliases(self) -> PerformanceUpdate:
+        if self.ai_vlm is None:
+            vlm_candidate = self.nemotron or self.ai_models.get("nemotron")
+            if isinstance(vlm_candidate, NemotronMetrics):
+                self.ai_vlm = vlm_candidate
+        if self.yolo26 is None:
+            yolo_candidate = self.ai_models.get("yolo26")
+            if isinstance(yolo_candidate, AiModelMetrics):
+                self.yolo26 = yolo_candidate
+        if self.rtdetr is None and self.yolo26 is not None:
+            self.rtdetr = self.yolo26
+        return self
 
     model_config = ConfigDict(
         json_encoders={datetime: lambda v: v.isoformat()},

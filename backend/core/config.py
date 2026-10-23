@@ -203,6 +203,11 @@ class OrchestratorSettings(BaseSettings):
         validation_alias="ALERTMANAGER_PORT",
         description="Alertmanager container service port for health checks.",
     )
+    alertmanager_url: str = Field(
+        default="http://alertmanager:9093",
+        validation_alias="ALERTMANAGER_URL",
+        description="Alertmanager base URL for proxying active infrastructure alerts (B4.11).",
+    )
     blackbox_exporter_port: int = Field(
         9115,
         ge=1,
@@ -1097,6 +1102,14 @@ class Settings(BaseSettings):
         validation_alias="VLM_PARALLEL",
         description="llama.cpp --parallel slots on the ai-vlm service "
         "(VLM_PARALLEL). Default 2 matches the shipped ai-vlm service.",
+    )
+    vlm_sleep_idle_seconds: int = Field(
+        default=300,
+        ge=0,
+        validation_alias="VLM_SLEEP_IDLE_SECONDS",
+        description="Idle seconds before ai-vlm unloads weights to CPU RAM and "
+        "enters the 'idle' (asleep) state (VLM_SLEEP_IDLE_SECONDS). Default 300 "
+        "matches the shipped ai-vlm service; 0 disables idle transition.",
     )
     vlm_context_window: int = Field(
         # Declared in llama.cpp's UNITS (the total pool) so the default

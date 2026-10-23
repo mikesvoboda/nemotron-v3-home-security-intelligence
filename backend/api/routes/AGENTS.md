@@ -1303,24 +1303,6 @@ async def list_items(db: DbSession, redis: RedisDep): ...
 
 - `_get_target_queue(dlq_name)` - Get target queue for requeuing
 
-### `alertmanager.py`
-
-Prometheus Alertmanager webhook receiver for real-time alert integration (NEM-3122).
-
-**Router prefix:** `/api/v1/alertmanager`
-
-**Endpoints:**
-
-| Method | Path                           | Purpose                                     |
-| ------ | ------------------------------ | ------------------------------------------- |
-| POST   | `/api/v1/alertmanager/webhook` | Receive alerts from Prometheus Alertmanager |
-
-**Key Features:**
-
-- Stores Prometheus alerts in database for history tracking
-- Broadcasts alerts via WebSocket for real-time frontend updates
-- Handles Alertmanager webhook payload format
-
 ### `hierarchy.py`
 
 Household organizational hierarchy management endpoints (NEM-3131, NEM-3132, NEM-3133).

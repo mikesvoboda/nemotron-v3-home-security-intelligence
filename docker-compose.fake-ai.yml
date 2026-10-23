@@ -110,6 +110,7 @@ services:
       - AI_VLM_URL=http://ai-vlm:8098
       - VLM_ENFORCEMENT_PROBE_ENABLED=true
       - VLM_REQUIRED_BUILD=${VLM_REQUIRED_BUILD:-b11819}
+      - VLM_SLEEP_IDLE_SECONDS=${VLM_SLEEP_IDLE_SECONDS:-1}
       - USE_AI_GATEWAY=true
       - AI_GATEWAY_URL=http://ai-gateway:8090
       - YOLO26_URL=http://ai-gateway:8090/yolo26
