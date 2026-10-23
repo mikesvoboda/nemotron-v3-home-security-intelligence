@@ -64,7 +64,7 @@ reported the files and lines it removed.
 
 **Flags:** none. **Assigned:** docs, first once `[r262]` merges: backend's, then frontend's, one PR
 per lane (ruling 316). **Depends on:** `R2`; the target lane's Phase 3 `done`.
-**PR:** none yet. (ruling 241)
+**PR:** none yet — backend's in progress. (ruling 241)
 
 One PR per lane's boundary files.
 
