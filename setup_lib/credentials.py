@@ -350,6 +350,21 @@ class CredentialsManager:
         self.credentials["api_key"] = generate_api_key(prefix=self.config.api_key_prefix)
         self._notify_generated("api_key")
 
+        # Web Push (B4.3): the VAPID private key stays out of the database
+        # (4n-alerting.md:186) — setup writes it to .env alongside the other
+        # credentials. The public key rides along (browsers need it as the
+        # pushManager.subscribe applicationServerKey).
+        try:
+            from backend.services.alerting.channels.webpush import generate_vapid_keypair
+
+            private_key, public_key = generate_vapid_keypair()
+            self.credentials["vapid_private_key"] = private_key
+            self._notify_generated("vapid_private_key")
+            self.credentials["vapid_public_key"] = public_key
+            self._notify_generated("vapid_public_key")
+        except ImportError:  # pragma: no cover - backend not importable in bare setups
+            pass
+
         return self.credentials
 
     def _notify_generated(self, name: str) -> None:
@@ -424,6 +439,8 @@ class CredentialsManager:
             "redis_password": "REDIS_PASSWORD",  # pragma: allowlist secret
             "mqtt_password": "MQTT_PASSWORD",  # pragma: allowlist secret
             "api_key": "API_KEY",  # pragma: allowlist secret
+            "vapid_private_key": "VAPID_PRIVATE_KEY",
+            "vapid_public_key": "VAPID_PUBLIC_KEY",
         }
         return mapping.get(name, name.upper())
 

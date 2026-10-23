@@ -240,9 +240,28 @@ class NotificationDeliveryWorker:
                 now=now,
             )
         else:
+            if outcome.meta and outcome.meta.get("expired"):
+                # A push subscription the service has retired (410/404) never
+                # recovers by retrying: switch the channel off so the
+                # recipient's settings show it (4n-alerting.md:236), on top of
+                # recording the delivery failure.
+                await self._disable_channel(row["channel_id"])
             await self._record_failure(row, now, outcome.error or "send_failed")
 
     # -- record ------------------------------------------------------------
+
+    async def _disable_channel(self, channel_id: str) -> None:
+        """Set ``recipient_channels.enabled = false`` for a dead subscription."""
+        async with self._session_factory() as session:
+            await session.execute(
+                text(  # nosemgrep: python.sqlalchemy.security.audit.avoid-sqlalchemy-text.avoid-sqlalchemy-text
+                    "UPDATE recipient_channels SET enabled = false, "
+                    "last_error = 'subscription_expired', "
+                    "updated_at = timezone('utc', now()) WHERE id = :cid"
+                ),
+                {"cid": channel_id},
+            )
+            await session.commit()
 
     async def _record_success(self, row: dict[str, Any], kind: str) -> None:
         status = (

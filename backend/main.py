@@ -1063,6 +1063,7 @@ async def lifespan(_app: FastAPI) -> AsyncGenerator[None]:
             from backend.services.alerting.channels.browser import BrowserChannel
             from backend.services.alerting.channels.email import EmailChannel
             from backend.services.alerting.channels.webhook import WebhookChannel
+            from backend.services.alerting.channels.webpush import WebPushChannel
             from backend.services.alerting.payload import (
                 build_delivery_task,
                 known_names_loader,
@@ -1081,6 +1082,9 @@ async def lifespan(_app: FastAPI) -> AsyncGenerator[None]:
                     use_tls=settings.smtp_use_tls,
                 )
             channels["webhook"] = WebhookChannel()
+            # Web Push delivers only when a VAPID key is configured; without
+            # one the adapter fails closed per send (webpush_not_configured).
+            channels["webpush"] = WebPushChannel()
             delivery_worker = NotificationDeliveryWorker(
                 get_session_factory(),
                 channels,

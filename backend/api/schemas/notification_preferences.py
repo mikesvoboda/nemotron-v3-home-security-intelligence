@@ -231,3 +231,65 @@ class QuietHoursPeriodsListResponse(BaseModel):
 
     items: list[QuietHoursPeriodResponse] = Field(..., description="List of quiet hours periods")
     pagination: PaginationMeta = Field(..., description="Pagination metadata")
+
+
+class PushSubscriptionKeys(BaseModel):
+    """Browser-supplied Web Push encryption keys (PushSubscriptionJSON.keys)."""
+
+    p256dh: str = Field(..., min_length=1, description="Client public key (P-256, urlsafe base64)")
+    auth: str = Field(..., min_length=1, description="Authentication secret (urlsafe base64)")
+
+
+class PushSubscriptionRegister(BaseModel):
+    """Body for registering/rotating This-browser's Web Push subscription.
+
+    Mirrors the browser's ``PushSubscriptionJSON``: endpoint plus keys, with an
+    optional device id so multiple browsers can each hold their own channel row.
+    """
+
+    endpoint: str = Field(..., min_length=1, description="Push service endpoint URL")
+    keys: PushSubscriptionKeys = Field(..., description="p256dh + auth encryption keys")
+    device_id: str | None = Field(
+        default=None, description="Stable browser identifier; used to match the channel row"
+    )
+
+
+class PushSubscriptionState(BaseModel):
+    """This-browser subscription state for the settings page (masked).
+
+    The privacy row (4n-alerting.md "Privacy"): the API never returns secrets
+    or push keys in full — key material is masked to a fingerprint.
+    """
+
+    model_config = ConfigDict(
+        json_schema_extra={
+            "example": {
+                "registered": True,
+                "enabled": True,
+                "endpoint": "https://fcm.googleapis.com/fcm/send/…",
+                "push_subscription": {
+                    "endpoint": "https://fcm.googleapis.com/fcm/send/…",
+                    "keys": {"p256dh": "p256dh:bf31…", "auth": "auth:9d20…"},
+                },
+                "last_error": None,
+            }
+        }
+    )
+
+    registered: bool = Field(..., description="Whether a subscription exists for this browser")
+    enabled: bool = Field(default=False, description="Whether the channel row is enabled")
+    endpoint: str | None = Field(default=None, description="Push service endpoint (host truncated)")
+    push_subscription: dict | None = Field(
+        default=None, description="Masked subscription: endpoint + fingerprinted keys"
+    )
+    last_error: str | None = Field(
+        default=None, description="Last delivery error, e.g. subscription_expired"
+    )
+
+
+class PushSubscriptionRegisterResponse(BaseModel):
+    """Answer to a successful registration/rotation."""
+
+    status: str = Field(..., description="registered")
+    push_subscription: dict = Field(..., description="Masked subscription echo")
+    enabled: bool = Field(default=True, description="Channel state after registration")

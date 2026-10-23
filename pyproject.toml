@@ -28,6 +28,8 @@ dependencies = [
     "pympler>=1.1",
     # HTTP client (for AI services)
     "httpx>=0.28.0",
+    # Web Push (B4.3): RFC 8291 payload encryption + RFC 8292 VAPID auth
+    "pywebpush>=2.5.0",
     # Utilities
     "python-dotenv>=1.0.1",
     "pydantic>=2.10.0",
