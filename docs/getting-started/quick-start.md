@@ -88,32 +88,17 @@ This is your home base. Here's what each part shows you:
 
 ### The Sidebar Menu
 
-On the left side, you'll see the five everyday **Easy** hubs by default, with an **Easy | Advanced** switch at the bottom of the sidebar:
+On the left side, you'll see the five everyday **Easy** hubs by default, with an **Easy | Advanced** switch in the header (and in the mobile menu / More sheet):
 
-| Hub                   | What's There                                                                                                  |
-| --------------------- | ------------------------------------------------------------------------------------------------------------- |
-| **Dashboard**         | Live overview (`/`) and Trends (`/analytics`)                                                                 |
-| **Timeline & Search** | History of all events (`/timeline`) and Trash (`/trash`)                                                      |
-| **Alerts & Rules**    | Active alerts (`/alerts`) and alert rules (`/settings/rules`)                                                 |
-| **Household**         | Members & Vehicles (`/household`), Zones (`/zones`), and Known Persons (`/face-recognition`)                  |
-| **Settings**          | Cameras, Processing, Notifications, Ambient, Access, Storage, Data, Webhooks, Audit log, Notification history |
+| Hub                   | What's There                                                                                                           |
+| --------------------- | ---------------------------------------------------------------------------------------------------------------------- |
+| **Dashboard**         | Overview (`/`) and Trends (`/analytics`)                                                                               |
+| **Timeline & Search** | History of all events (`/timeline`) and Trash (`/trash`)                                                               |
+| **Alerts & Rules**    | Active alerts (`/alerts`), Scene changes (`/scene-changes`), and alert rules (`/settings/rules`)                       |
+| **Household**         | Members (`/household`), People & faces (`/face-recognition`), Vehicles & plates (`/plate-reads`), and Zones (`/zones`) |
+| **Settings**          | Cameras, Processing, Notifications, Ambient, Access, Storage, Data, Webhooks, Audit log, Notification history          |
 
-Switching to **Advanced** at the bottom of the sidebar adds four operator hubs (**Entities & Re-ID**, **AI Workbench**, **GPU & Models**, and **Operations & Monitoring**) plus operator diagnostics in the header and event modal.
-| **Tracing** | Request tracing for debugging |
-| **Logs** | Technical system logs (troubleshooting) |
-
-**ADMIN** (collapsed by default)
-
-| Menu Item             | What's There                                        |
-| --------------------- | --------------------------------------------------- |
-| **Zones**             | Detection zones per camera                          |
-| **Audit Log**         | Security audit trail                                |
-| **Data Management**   | Data import/export operations                       |
-| **Scheduled Reports** | Configure automated report generation               |
-| **Webhooks**          | Manage webhook integrations                         |
-| **Trash**             | Recover deleted events                              |
-| **GPU Settings**      | Configure GPU allocation for AI processing          |
-| **Settings**          | Batch window, retention, alerts, and other settings |
+Switching to **Advanced** adds an **AI Blueprint** section with four operator hubs (**AI Workbench**, **GPU & Models**, **Entities & Re-ID**, and **Operations & Monitoring**) plus operator diagnostics in the header and event modal.
 
 ---
 

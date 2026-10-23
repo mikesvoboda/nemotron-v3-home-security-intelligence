@@ -16,18 +16,20 @@ Layout
 ├── Header
 │   ├── Branding (NVIDIA logo) + mobile hamburger
 │   ├── Command palette trigger (search box)
-│   ├── ThemeToggle
-│   ├── WebSocketStatus
-│   └── GPU stats / service-status indicators
-├── Sidebar (hidden on mobile viewports)
-│   ├── Navigation groups (sidebarNav.ts)
+│   ├── ThemeToggle + ModeSwitch (Easy | Advanced)
+│   ├── WebSocketStatus (Advanced only)
+│   └── GPU stats (Advanced only) / service-status indicators
+├── Sidebar (drawer on mobile viewports, rail on desktop/tablet)
+│   ├── Flat hub navigation (surfaces.ts: 5 Easy hubs + 4 Advanced hubs)
 │   ├── Active route indicator
 │   └── Collapse toggle
 ├── Main content area
+│   ├── AdvancedBanner (when visiting an Advanced URL in Easy mode)
+│   ├── HubTabBar (sub-surface tabs for multi-tab hubs)
 │   └── Page components (via React Router)
 ├── ConnectionStatusBanner / ServiceStatusAlert (common/)
 ├── CommandPalette + ShortcutsHelpModal
-└── MobileBottomNav (mobile viewport only)
+└── MobileBottomNav (mobile viewport only; More sheet includes ModeSwitch)
 ```
 
 Note: the detailed service status UI lives in `Layout` (via `ServiceStatusAlert` from `components/common/ServiceStatusAlert.tsx`); `Header` carries the connection status (`WebSocketStatus`) and a compact AI-service badge.
@@ -114,14 +116,19 @@ Left navigation menu with grouped route links.
 | -------------- | --------- | ------- | --------------------------------------------------------- |
 | forceCollapsed | `boolean` | -       | Force collapsed mode (overrides auto-collapse for tablet) |
 
-Navigation structure is defined in `frontend/src/components/layout/sidebarNav.ts` as expandable groups (`navGroups`):
+Navigation structure is defined in `frontend/src/config/surfaces.ts` as flat hubs (`HUBS`, `EASY_HUBS`, `ADVANCED_HUBS`), with five Easy hubs shown in both modes and four Advanced hubs shown below an `"AI Blueprint"` divider in Advanced mode:
 
-| Group (label)          | Items (label - path)                                                                                                                                                                                                                                                                                                                                                                                                   |
-| ---------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| MONITORING (expanded)  | Dashboard - `/`, Timeline - `/timeline`, Entities - `/entities`, Alerts - `/alerts`                                                                                                                                                                                                                                                                                                                                    |
-| ANALYTICS (expanded)   | Analytics - `/analytics`, Video Analytics - `/video-analytics`, AI Audit - `/ai-audit`, AI Performance - `/ai`, AI Services - `/ai-services`, Profiling - `/pyroscope`, Plate Reads - `/plate-reads`, Face Recognition - `/face-recognition`, Heatmaps - `/heatmaps`, Scene Changes - `/scene-changes`, Object Tracks - `/tracks`, Performance - `/performance`, Household - `/household`, Re-Identification - `/reid` |
-| OPERATIONS (collapsed) | Jobs - `/jobs`, Pipeline - `/operations`, Dashboard - `/operations-dashboard`, Notifications - `/notifications`, GPU Metrics - `/gpu-metrics`, Request Profiling - `/request-profiling`, Tracing - `/tracing`, Logs - `/logs`                                                                                                                                                                                          |
-| ADMIN (collapsed)      | Zones - `/zones`, Audit Log - `/audit`, Data Management - `/data`, Scheduled Reports - `/scheduled-reports`, Webhooks - `/webhooks`, Trash - `/trash`, GPU Settings - `/settings/gpu`, Settings - `/settings`                                                                                                                                                                                                          |
+| Mode     | Hub (label)             | Tabs (label - path)                                                                                                                                                                                                                                                                                                                                             |
+| -------- | ----------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Easy     | Dashboard               | Overview - `/`, Trends - `/analytics`                                                                                                                                                                                                                                                                                                                           |
+| Easy     | Timeline & Search       | Timeline - `/timeline`, Trash - `/trash`                                                                                                                                                                                                                                                                                                                        |
+| Easy     | Alerts & Rules          | Alerts - `/alerts`, Scene changes - `/scene-changes`, Rules - `/settings/rules`                                                                                                                                                                                                                                                                                 |
+| Easy     | Household               | Members - `/household`, People & faces - `/face-recognition`, Vehicles & plates - `/plate-reads`, Zones - `/zones`                                                                                                                                                                                                                                              |
+| Easy     | Settings                | Cameras - `/settings/cameras`, Processing - `/settings/processing`, Notifications - `/settings/notifications`, Ambient - `/settings/ambient`, Access - `/settings/access`, Storage - `/settings/storage`, Data - `/data`, Webhooks - `/webhooks`, Audit log - `/audit`, Notification history - `/notifications`                                                 |
+| Advanced | AI Workbench            | AI Audit - `/ai-audit`, Prompts - `/settings/prompts`                                                                                                                                                                                                                                                                                                           |
+| Advanced | GPU & Models            | AI Performance - `/ai`, AI Models - `/settings/ai-models`, GPU - `/settings/gpu`                                                                                                                                                                                                                                                                                |
+| Advanced | Entities & Re-ID        | Entities - `/entities`, Re-ID - `/reid`, Heatmaps - `/heatmaps`, Object tracks - `/tracks`                                                                                                                                                                                                                                                                      |
+| Advanced | Operations & Monitoring | Operations - `/operations`, Admin - `/settings/admin`, Jobs - `/jobs`, Performance - `/performance`, Logs - `/logs`, AI Services - `/ai-services`, Video Analytics - `/video-analytics`, Profiling - `/pyroscope`, Operations Dashboard - `/operations-dashboard`, GPU Metrics - `/gpu-metrics`, Request Profiling - `/request-profiling`, Tracing - `/tracing` |
 
 **Features:**
 

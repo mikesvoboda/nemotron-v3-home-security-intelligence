@@ -386,7 +386,7 @@ F-099 with `B4.10`.
 
 **Flags:** `heavy`. **Assigned:** heavy-a, now (ruling 321; `[r320]` closed moot, ruling 320's
 correction); it follows this block (UR-59). **Depends on:** none.
-**PR:** #7376 (test consolidation), #7380 · **Status:** in-review (ruling 321, record 6355356496)
+**PR:** #7376, #7380. (ruling 321, record 6355356496)
 
 Design: [`../4n-modes.md`](../4n-modes.md), "Packages" row `F4.9`. Covers F-299 (new) and the rows
 the design re-cites.

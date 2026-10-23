@@ -152,11 +152,17 @@ test.describe('golden path: command palette + keyboard shortcuts @critical', () 
     // Typing alone navigates nothing.
     await expect(page).toHaveURL(`${h.ui}/`);
 
-    // --- keywords-only match ("hist" is in NO name — keywords arm) -------
+    // --- keywords/word-start match ("hist" matches Timeline + Audit log via
+    // keywords and Notification history by label word-start) ----------------
     await paletteInput(page).fill('hist');
     await assertListed(page, 'Timeline'); // keyword "history"
     await assertListed(page, 'Audit log'); // keyword "history"
-    await expect(page.locator('[cmdk-root] [cmdk-item]')).toHaveText([/Timeline/, /Audit log/]);
+    await assertListed(page, 'Notification history'); // label "Notification history"
+    await expect(page.locator('[cmdk-root] [cmdk-item]')).toHaveText([
+      /Timeline/,
+      /Audit log/,
+      /Notification history/,
+    ]);
 
     // --- case-insensitivity (both sides lowercased) ----------------------
     await paletteInput(page).fill('ANALYT');

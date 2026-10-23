@@ -257,7 +257,7 @@ Application layout and navigation:
 - `Header.tsx` - Top navigation bar with branding and system status
 - `Sidebar.tsx` - Left navigation menu rendering Easy and Advanced hubs from `config/surfaces.ts`
 - `MobileBottomNav.tsx` - Mobile bottom navigation and More sheet
-- `ModeSwitch.tsx` - Segmented `Easy | Advanced` mode switch (`role="radiogroup"`)
+- `ModeSwitch.tsx` - Segmented `Easy | Advanced` mode switch (`role="group"`, `aria-label="View mode"`)
 - `HubTabBar.tsx` - Shared route-driven sub-surface tab bar for multi-tab hubs
 - `AdvancedBanner.tsx` - Banner shown in Easy mode when visiting an Advanced-only URL directly
 - `PageDocsLink.tsx` - Page documentation link
