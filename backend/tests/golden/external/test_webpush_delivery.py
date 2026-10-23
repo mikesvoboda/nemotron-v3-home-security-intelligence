@@ -401,17 +401,47 @@ def delivered(
         # nosemgrep: ssrf-requests - the push fake's harness env URL, the leg's subject
         listed = httpx.get(f"{reader}/requests", timeout=10.0)  # real
         assert listed.status_code == 200, listed.text[:300]
-        records = [
-            r for r in listed.json().get("requests", []) if r["path"] == subscription["push_path"]
+        # The endpoint is RECIPIENT-scoped (planner.py plans every enabled
+        # channel of the recipient for every alert), so sibling legs' pushes
+        # also land on this path — encrypted to THIS subscription's keys but
+        # titled by THEIR rule (run 39968364788 shard 1: gw0's record carried
+        # gw6's title). A path-only filter cannot tell the legs apart; the
+        # decrypt can: this leg's record is the one whose plaintext names
+        # this leg's rule. Wrong-key records raise here — a decrypt failure
+        # is a wrong-subscription record, skip it, keep polling.
+        ours = [
+            r
+            for r in listed.json().get("requests", [])
+            if r["path"] == subscription["push_path"]
+            and _decrypts_to(r, subscription, _leg()["rule"])
         ]
-        if records:
+        if ours:
+            records = ours
             break
         time.sleep(5.0)  # real - the poll loop IS the delivery wait
     assert records, (
-        "no push delivery reached the sink within 120 s: the event, rule and "
-        "subscription fixtures all exist, so check the worker and the planner"
+        "no push delivery naming this leg's rule reached the sink within 120 s: "
+        "the event, rule and subscription fixtures all exist, so check the "
+        "worker and the planner"
     )
     return records
+
+
+def _decrypts_to(record: dict[str, Any], subscription: dict[str, Any], rule: str) -> bool:
+    """Does this record decrypt, with THIS subscription's keys, to our title?
+
+    The recipient-scoped fanout (planner.py plans every enabled channel for
+    every alert) puts sibling legs' payloads on this leg's endpoint; this
+    leg's record is the one whose plaintext names this leg's rule. A record
+    that fails to decrypt here was encrypted to different keys (a rotated or
+    sibling row) — it is not ours, and swallowing the error keeps the poll
+    loop alive for the real one.
+    """
+    try:
+        payload = json.loads(_decrypt_payload(record, subscription))
+    except Exception:  # any decrypt failure means "not our record"
+        return False
+    return payload == {"title": rule}
 
 
 def _decrypt_payload(record: dict[str, Any], subscription: dict[str, Any]) -> bytes:
@@ -489,10 +519,23 @@ class TestThePushDelivery:
         """
         alerts = logged_in_api.get("/api/alert-service/alerts", params={"limit": 50})
         assert alerts.status_code == 200, alerts.text[:300]
-        mine = [a for a in alerts.json().get("items", []) if a.get("event_id") == b43_event["id"]]
+        # The event carries other legs' alerts too: the webhook-deliveries leg
+        # files its own rule-less alert (rule_id None) on the stack's freshest
+        # event and acknowledges it by design (test_webhook_deliveries.py:169),
+        # and rule-less alerts on THIS event match an event_id-only filter —
+        # run 39968364788 shard 1: gw0's mine[0] was the webhook leg's acked
+        # row. Match the custom rule's OWN row by its metadata name; the
+        # default rule's row for this event (if any) is not this leg's.
+        mine = [
+            a
+            for a in alerts.json().get("items", [])
+            if a.get("event_id") == b43_event["id"]
+            and (a.get("metadata") or {}).get("rule_name") == _leg()["rule"]
+        ]
         assert mine, (
-            f"no alert row for the b43 event {b43_event['id']}: the custom rule "
-            "(threshold 30) should have raised one"
+            f"no alert row naming {_leg()['rule']} for the b43 event "
+            f"{b43_event['id']}: the custom rule (threshold 30) should have "
+            "raised one"
         )
         alert = mine[0]
         assert alert["status"] == "open", alert
