@@ -30,16 +30,15 @@
  *     match_count 1, channels [], metadata {rule_name 'default',
  *     matched_conditions, recognised}.
  *
- * Cross-run safety, the reason the run ENDS dismissed: the pipeline folds a
- * new match into an alert only while its status is OPEN and its last_seen_at
- * sits within the 300 s cooldown of the new event (pipeline.py
- * _find_open_alert_in_memory). Folding never changes alert.event_id, so a run
- * that left the alert OPEN would let the NEXT run's smoke event (inside the
- * cooldown) fold silently into the old row — and this spec's poll would then
- * wait forever for a row naming the new event. A DISMISSED row is
- * un-foldable, so every run creates a fresh alert carrying its own event_id.
- * The pre-flight sweep below dismisses any OPEN smoke-camera row a dead
- * earlier run may have left, and the final cleanup PUT pins the end state
+ * Cross-run safety: smoke() drops the smoke fixture and awaits its verdict
+ * BEFORE golden starts, so the pipeline has already created this run's alert
+ * row by the time the spec runs — the poll keys on THAT row, by its event_id
+ * (the smoke camera's newest event, read from the store). Rows left OPEN by a
+ * dead earlier run name that run's own smoke event, an identity this run can
+ * never re-derive (the fold never rewrites event_id), so the pre-flight sweep
+ * dismisses every OPEN smoke-camera row EXCEPT one naming this run's event —
+ * clearing the fold risk without touching the row this run polls for. A
+ * DISMISSED row is un-foldable, and the final cleanup PUT pins the end state
  * unconditionally.
  *
  * The medium drop's absence moves to the alert-table level:
@@ -157,15 +156,31 @@ test.describe('F4.1 golden: /alerts lists alert rows and the design verbs work (
     const session = await adminSession(h);
     const api = authedFetch(h, session);
 
+    // THIS run's smoke event, by identity: smoke() dropped it and awaited its
+    // verdict BEFORE golden started, so the pipeline has almost certainly
+    // already created the row the poll below wants. The list is newest-first,
+    // so limit=1 on the smoke camera names that event — the identity every
+    // sweep and poll below keys on.
+    const smokeEventPage = await api.getJson(`/api/events?camera_id=${h.smokeCameraId}&limit=1`);
+    expect(smokeEventPage.status, 'the smoke camera answers an events read').toBe(200);
+    const smokeEventId = ((smokeEventPage.body?.items ?? []) as Record<string, unknown>[])[0]?.id;
+    expect(smokeEventId, 'the smoke event exists — smoke() ran before golden').toBeDefined();
+
     // PRE-FLIGHT SWEEP (cross-run safety, this header's contract): a run that
-    // died between its verbs leaves OPEN smoke-camera rows whose event_id can
-    // never be re-derived (the fold never rewrites event_id). Left open, the
-    // next smoke event inside the cooldown folds silently into such a row and
-    // starves this run's poll — so sweep them dismissed FIRST. Only rows for
-    // THIS fixture's camera are touched; other cameras' alerts are not ours.
+    // died between its verbs leaves OPEN smoke-camera rows naming ITS OWN
+    // (long-gone) smoke event. Left open, the next smoke event inside the
+    // cooldown folds silently into such a row — so sweep them dismissed. The
+    // sweep must NOT touch rows naming THIS run's smoke event: smoke() ran
+    // before golden, the pipeline already created that row, and dismissing it
+    // would starve the poll below (the event alerts once, not twice). Only
+    // rows for THIS fixture's camera are touched; other cameras' alerts are
+    // not ours.
     {
       const { rows: openRows } = await listAlerts(api, 'status=open&limit=100');
-      for (const stale of openRows.filter((r) => r.camera_id === h.smokeCameraId)) {
+      const staleRows = openRows.filter(
+        (r) => r.camera_id === h.smokeCameraId && String(r.event_id) !== String(smokeEventId)
+      );
+      for (const stale of staleRows) {
         await apiWrite(h, session, 'PUT', `/api/alert-service/alerts/${stale.id}`, {
           status: 'dismissed',
         });
@@ -186,27 +201,31 @@ test.describe('F4.1 golden: /alerts lists alert rows and the design verbs work (
     expect(tierIds, 'the drop is listed by its own tier — the pipeline ran').toContain(dropEventId);
 
     // 3. THE ALERT APPEARS LIVE. Poll the page's own endpoint for an OPEN row
-    //    naming this run's smoke camera. The smoke event may still be inside
-    //    the pipeline when the drive starts (smoke() drops ~40 s before
-    //    golden, but "appears live" is the design's own claim, so the poll is
-    //    part of the pin). Only fresh rows can carry the camera + open
-    //    pairing at this point: the sweep above cleared older ones, and the
-    //    fold cannot resurrect a dismissed row.
+    //    naming THIS run's smoke event (not just the camera: on a persistent
+    //    stack an older run's OPEN row could still be for the same camera).
+    //    The smoke event may still be inside the pipeline when the drive
+    //    starts (smoke() drops ~40 s before golden, but "appears live" is the
+    //    design's own claim, so the poll is part of the pin). The fold cannot
+    //    resurrect a dismissed row, and the sweep above left this run's row —
+    //    if there is one — standing.
     const smokePollDeadline = Date.now() + 60_000;
     let smokeAlert: AlertRow | undefined;
     let dropAlertCount = 0;
     while (Date.now() < smokePollDeadline) {
       const { rows } = await listAlerts(api, 'status=open&limit=100');
       dropAlertCount = rows.filter((r) => String(r.event_id) === String(dropEventId)).length;
-      smokeAlert = rows.find((r) => r.camera_id === h.smokeCameraId);
+      smokeAlert = rows.find(
+        (r) => r.camera_id === h.smokeCameraId && String(r.event_id) === String(smokeEventId)
+      );
       if (smokeAlert && dropAlertCount === 0) break;
       await new Promise((resolve) => setTimeout(resolve, 3_000));
     }
     expect(
       smokeAlert,
-      'no open alert for the smoke camera within 60 s: the pipeline did not alert the ' +
-        'smoke drop (threshold 60 / risk_filters) or an OPEN row survived the sweep and ' +
-        'folded this one away — see this file header, cross-run safety'
+      "no open alert for this run's smoke event within 60 s: the pipeline did not alert " +
+        "the smoke drop (threshold 60 / risk_filters), the sweep dismissed this run's own " +
+        'row (the sweep spares rows naming the smoke event), or an older row folded this ' +
+        'smoke event away inside the cooldown — see this file header, cross-run safety'
     ).toBeDefined();
     expect(
       dropAlertCount,
