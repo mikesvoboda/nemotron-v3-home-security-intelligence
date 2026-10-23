@@ -260,7 +260,6 @@ import {
   quietBoot,
   readTimelineHarness,
   settledReload,
-  waitForEventCards,
   type Session,
   type TimelineHarness,
 } from '../harness';

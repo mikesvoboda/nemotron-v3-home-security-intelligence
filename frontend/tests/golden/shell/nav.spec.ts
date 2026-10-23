@@ -82,13 +82,7 @@
  *   way, see the F-018 row; the drawer also has no Escape-to-close at all).
  */
 import { GUARD_MESSAGE, expect, test } from '../guard';
-import {
-  BOOT_QUIET_MS,
-  closedByGuard,
-  openShell,
-  readShellHarness,
-  type ShellHarness,
-} from '../harness';
+import { BOOT_QUIET_MS, closedByGuard, openShell, readShellHarness } from '../harness';
 
 const harness = readShellHarness();
 test.skip(

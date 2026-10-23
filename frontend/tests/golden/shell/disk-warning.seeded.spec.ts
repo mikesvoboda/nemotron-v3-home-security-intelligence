@@ -46,7 +46,6 @@ import {
   openShell,
   quietBootShell as quietBoot,
   readShellHarness,
-  type ShellHarness,
 } from '../harness';
 
 const harness = readShellHarness();

@@ -42,13 +42,7 @@
  *   backend state involved.
  */
 import { GUARD_MESSAGE, expect, test } from '../guard';
-import {
-  BOOT_QUIET_MS,
-  closedByGuard,
-  openShell,
-  readShellHarness,
-  type ShellHarness,
-} from '../harness';
+import { BOOT_QUIET_MS, closedByGuard, openShell, readShellHarness } from '../harness';
 
 const harness = readShellHarness();
 test.skip(

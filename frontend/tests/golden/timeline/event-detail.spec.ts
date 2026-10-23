@@ -109,7 +109,7 @@ import {
   openTimelineEventModal,
   readTimelineHarness,
   settledReload,
-  waitForEventCards,
+  // waitForEventCards is called inside openTimelineEventModal (F4.9).
   type DetailFixture,
   type Session,
   type TimelineHarness,
