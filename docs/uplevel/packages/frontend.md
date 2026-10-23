@@ -256,16 +256,18 @@ Design: [`../4n-timeline.md`](../4n-timeline.md). Covers F-044, F-055.
 ### F4.1 The Alerts page
 
 **Flags:** none. **Assigned:** frontend, after `F4.4` (ruling 308). **Depends on:** `B4.1`
-merged; it runs beside `B4.2`. **PR:** #7367. (ruling 308, record 6326364266)
+merged; it runs beside `B4.2`. **PR:** #7367, #7370. (ruling 308, record 6326364266)
 
 Design: [`../4n-alerting.md`](../4n-alerting.md), "Packages" row 2, beside `B4.2`. Covers F-078,
 F-079.
 
 - [x] The test-only PR (step 2).
-- [ ] The build PR: alert rows; Acknowledge, Dismiss, Snooze; the timeline's Snooze moves to
+- [x] The build PR: alert rows; Acknowledge, Dismiss, Snooze; the timeline's Snooze moves to
       activity snoozes; `alerts.spec.ts` and the snooze steps of `event-detail-modal.spec.ts`
       rewritten.
-- [ ] Golden path (Playwright): the alert appears live, then acknowledge, dismiss, snooze.
+- [x] Golden path (Playwright): the alert appears live, then acknowledge, dismiss, snooze —
+      `frontend/tests/golden/analytics-alerts/alerts.spec.ts`, witnessed green by this PR's CI
+      `Feature check (fake AI)` run.
 
 **Done when:** steps 4–6 hold for its rows.
 
