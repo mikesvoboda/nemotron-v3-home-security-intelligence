@@ -7,7 +7,7 @@ pipeline and its Redis queues, the VLM path (client, analyzer, verdict,
 specialists), alerting and delivery, camera/media machinery, entity
 resolution and the operational workers. `backend/core/` is the foundation
 these build on; this directory is where behaviour lives. Most modules expose
-`reset_*()` singletons for tests (52 functions across 49 files — call them,
+`reset_*()` singletons for tests (53 functions across 50 files — call them,
 or a test inherits the previous test's state).
 
 ## Entry Points
@@ -105,7 +105,7 @@ FileWatcher → detection_queue → DetectionQueueWorker (DetectorClient.detect_
 
 ## Patterns
 
-- **Singleton reset for tests.** 52 `reset_*()` functions across 49 files
+- **Singleton reset for tests.** 53 `reset_*()` functions across 50 files
   (`severity.reset_severity_service()`,
   `circuit_breaker.reset_circuit_breaker_registry()`, ...). The Model Zoo
   needs TWO: `model_zoo.reset_model_zoo()` AND `model_zoo.reset_model_manager()`.
@@ -150,7 +150,7 @@ uv run pytest backend/tests/unit/services/test_pipeline_factory.py --timeout=60
 uv run pytest backend/tests/unit/services/test_vlm_analyzer.py --timeout=60
 ```
 
-283 test files mirror the services: the analyzer suite pins the invariant table
+284 test files mirror the services: the analyzer suite pins the invariant table
 line-by-line (`test_vlm_analyzer.py`, 114 tests), the client suite pins the
 failure ladder (`test_vlm_client.py`, 86), the single-owner suite pins worker
 counts, restart-on-death and clean shutdown (`test_pipeline_worker_single_owner.py`).

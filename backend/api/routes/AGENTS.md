@@ -2,7 +2,7 @@
 
 ## Purpose
 
-`backend/api/routes/` holds the FastAPI router modules — 56 files, one
+`backend/api/routes/` holds the FastAPI router modules — 55 files, one
 resource family each (cameras, events, detections, media, websocket,
 system, …). Routes are thin: take dependencies, validate through
 `backend/api/schemas/`, call a service or repository, return a schema.
@@ -13,7 +13,7 @@ branching logic is a refactor signal, not a pattern to extend.
 
 | File           | Role                                                                                       |
 | -------------- | ------------------------------------------------------------------------------------------ |
-| `__init__.py`  | Re-exports the routers `backend/main.py` registers (`app.include_router(...)` — 60 calls)  |
+| `__init__.py`  | Re-exports the routers `backend/main.py` registers (`app.include_router(...)` — 59 calls)  |
 | `cameras.py`   | Camera CRUD, snapshots (`FileResponse` + path-traversal check), baseline config (NEM-4921) |
 | `events.py`    | Event search/export/streaming; the optimistic-locking 409 contract                         |
 | `system.py`    | System status + the worker registration `register_workers()` main.py calls at boot         |
@@ -25,7 +25,7 @@ branching logic is a refactor signal, not a pattern to extend.
 - **Register in `backend/main.py`, in its include block.** The import
   block (`from backend.api.routes import (...)`) and the `include_router`
   calls are the registration record; a router file added without both is
-  dead surface. 55 of the 56 modules declare `prefix="/api/..."` — the
+  dead surface. 54 of the 55 modules declare `prefix="/api/..."` — the
   prefix lives on the `APIRouter(...)`, and the OpenAPI snapshot +
   compatibility gate see the result.
 - **Auth is two layers, and the route layer never replaces the gate.**
@@ -96,7 +96,7 @@ Depends(RateLimiter(tier=RateLimitTier.DEFAULT))`. Media/export/search
 uv run pytest backend/tests/unit/api/routes/ -n auto --dist=worksteal --timeout=60
 ```
 
-102 test files mirror the modules (one or more per route file, plus the
+101 test files mirror the modules (one or more per route file, plus the
 field-selection and pagination slices). Route tests drive the app or
 router directly; middleware behaviour lives under
 `backend/tests/unit/api/middleware/`.

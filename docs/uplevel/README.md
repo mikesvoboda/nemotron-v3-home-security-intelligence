@@ -187,7 +187,7 @@ UR-147.
 | O2.2    | ops                     | 2          | Feature-check harness (fake and real)          | heavy · owner | done        | #6961 |
 | O2.3    | ops                     | 2          | Reachability check (`01` M1)                   |               | done        | #6954 |
 | O2.3b   | ops                     | 2          | Reachability: ancestor packages ship           |               | done        | #6973 |
-| O2.4    | ops                     | 2          | Re-ID on the GB300 GPU via TensorRT            |               | in progress | #7002 |
+| O2.4    | ops                     | 2          | Re-ID on the GB300 GPU via TensorRT            |               | done        | #7002 |
 | O2.5    | ops                     | 2          | Production-shape real tier                     |               | awaiting real tier | #7037 |
 | R2a     | owner; frontend records | 2          | Phase 2 RULING session, part 1 (as it stood)   | owner         | done        | #6980 |
 | R2b     | owner; frontend records | 2          | Phase 2 RULING session, part 2 (after `F2.3`)  | owner         | done        | #7030 |
@@ -207,7 +207,7 @@ UR-147.
 | B4.\*   | backend                 | 4          | Feature track (arming among them, UR-12)       | design: heavy | not started |     |
 | B4.1    | backend                 | 4          | Alert pipeline core                            | heavy         | awaiting real tier | #7335, #7342 |
 | B4.2    | backend                 | 4          | Recipients and delivery                        |               | awaiting real tier | #7339, #7346 |
-| B4.4    | backend                 | 4          | Trash purger                                   | heavy         | awaiting real tier | #7347, #7354 |
+| B4.4    | backend                 | 4          | Trash purger                                   | heavy         | done               | #7347, #7354 |
 | B4.6    | backend                 | 4          | Restore from backup                            | heavy         | awaiting real tier | #7345, #7350, #7358 |
 | B4.7    | backend                 | 4          | Arming core                                    | heavy         | awaiting real tier | #7357, #7361 |
 | B4.11   | backend                 | 4          | System status (expand)                         | heavy · owner | in progress | #7366 |

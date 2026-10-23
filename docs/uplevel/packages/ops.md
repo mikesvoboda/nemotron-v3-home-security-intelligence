@@ -1397,7 +1397,7 @@ package gives them `[r291]`'s design, and follows it where the two meet: the coo
 the routing (UR-185). Until it merges, Trivy stays in the gate as it is, and a Trivy finding turns
 `main` red.
 
-- [ ] **The gate mode** for both vulnerability scans in `trivy.yml`, with `ci.yml`'s
+- [x] **The gate mode** for both vulnerability scans in `trivy.yml`, with `ci.yml`'s
       `security-trivy` call job selecting it (UR-122: ruling 294 orders the edit). The head and the
       base are scanned in the same job, against the same Trivy database; for the image, the base
       side is the base commit's backend image (built in the job, or taken from where `main`
@@ -1407,17 +1407,17 @@ the routing (UR-185). Until it merges, Trivy stays in the gate as it is, and a T
       counts as adding that finding. A scan error on either side fails closed. The filesystem scan
       may skip when `[r291]`'s skip applies and the change does not touch `.trivyignore`; the image
       scan always runs.
-- [ ] **The full scans:** today's two scans run unchanged, with `check-trivyignore-expiry.sh`'s
+- [x] **The full scans:** today's two scans run unchanged, with `check-trivyignore-expiry.sh`'s
       dates, as `trivy.yml`'s own run on every push to `main`, daily (the Monday cron becomes daily)
       and on `workflow_dispatch`. They are not a job in `CI`, because a red job in `CI` reads as red
       `main` (`[r291]`'s notes), and `CI Gate (Required Checks)` does not read them (UR-119).
       `Config/IaC Security Scan` is unchanged: it checks the repository's own configuration.
-- [ ] **Tests, red first (UR-69),** on recorded Trivy JSON: a finding in both base and head passes
+- [x] **Tests, red first (UR-69),** on recorded Trivy JSON: a finding in both base and head passes
       the gate (one case built from run `39528289094`'s `certifi` finding); a head-only finding
       fails; removing a `.trivyignore` entry whose finding remains fails; an added entry with a past
       or missing review date fails; a scan error on either side fails; and the full mode gives
       today's results.
-- [ ] **Proof in the PR body:** one CI run of the gate mode on this PR and one `workflow_dispatch`
+- [x] **Proof in the PR body:** one CI run of the gate mode on this PR and one `workflow_dispatch`
       run of the full scans on its branch, both green, with the run links.
 
 **Done when:** the tests pass in CI at a ready head, the PR body shows the proof, and the gate reads
@@ -1655,19 +1655,19 @@ green, the review approves, and the delegated approval is posted. CI run 3972464
 **Flags:** `heavy`, `owner` (it changes what ships, UR-98); label `cell:heavy-b`. **Assigned:**
 heavy-b, after `B4.6`'s real-tier revision (ruling 314). **Depends on:** none to build; it merges
 only after both `O2.5` runs are posted.
-**PR:** none yet. (ruling 314, record 6342032031)
+**PR:** #7360. (ruling 314, record 6342032031)
 
 UR-187's first follow-up, named in #7343's inventory. `ai/vlm/Dockerfile` builds on
 `docker.io/nvidia/cuda:13.3.1-devel-ubuntu22.04` and `13.3.1-runtime-ubuntu22.04` (`:19`, `:86`)
 with `llama.cpp` at `b7972` (`:46`); the inventory found `13.4.3` and `b11803`. #7343 held it out
 because `O2.5`'s runs use the retained `ai-vlm:c61a573d1` image, which `ai/vlm`'s tree tags.
 
-- [ ] The builder and runtime bases move to the latest `nvidia/cuda` release that runs on the GB300
+- [x] The builder and runtime bases move to the latest `nvidia/cuda` release that runs on the GB300
       on the host's driver: Ubuntu 24.04 if it runs, 22.04 if not, and the PR says which and why.
       If the release needs a newer host driver, the PR stops there and puts the driver step to the
       owner; changing the host is the owner's act.
-- [ ] `LLAMA_CPP_REF` moves to the latest release tag at build time, still built for `sm_103`.
-- [ ] Tests and docs that pin the old tags or ref follow, the docs lane's files in the same PR, as
+- [x] `LLAMA_CPP_REF` moves to the latest release tag at build time, still built for `sm_103`.
+- [x] Tests and docs that pin the old tags or ref follow, the docs lane's files in the same PR, as
       #7343's were (UR-9, UR-81).
 - [ ] It merges only after both `O2.5` runs are posted, unless the owner lifts the hold. Building,
       the review and the operator's run do not wait on it.
@@ -1682,14 +1682,14 @@ the two); and the delegated approval (ruling 281) is posted.
 
 **Flags:** `heavy`; label `cell:heavy-b`. **Assigned:** heavy-b, after `[r314a]` (ruling 314); a
 gated item that becomes claimable goes ahead of it. **Depends on:** none.
-**PR:** none yet. (ruling 314, record 6342032031)
+**PR:** #7363. (ruling 314, record 6342032031)
 
 UR-187's second follow-up, named in #7343's inventory. It is lane tier: synthbench does not ship.
 
-- [ ] `synthbench/generate/comfy/Containerfile:3` moves from `nvcr.io/nvidia/pytorch:26.08-py3` to
+- [x] `synthbench/generate/comfy/Containerfile:3` moves from `nvcr.io/nvidia/pytorch:26.08-py3` to
       the latest supported release (the inventory found `26.09-py3`), and `COMFYUI_REF` and
       `TORCHAUDIO_REF` move to the latest releases that build on it.
-- [ ] Renders already made stay as they are; the change affects only later renders.
+- [x] Renders already made stay as they are; the change affects only later renders.
 
 **Done when:** CI is green, the UR-89 review approves, and the operator's GB300 run builds the image
 `--no-cache` and renders one frame of an existing scene.

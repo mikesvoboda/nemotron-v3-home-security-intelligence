@@ -54,6 +54,7 @@ import base64
 import json
 import logging
 import math
+import time
 from pathlib import Path
 from typing import Any, TypeGuard
 
@@ -63,11 +64,16 @@ from pydantic import ValidationError
 
 from backend.core.config import Settings, get_settings
 from backend.core.metrics import (
+    observe_ai_request_duration,
     record_model_cold_start,
     record_pipeline_error,
     record_prompt_truncated,
 )
 from backend.core.mime_types import IMAGE_MIME_TYPES, VIDEO_MIME_TYPES
+from backend.services.ai_health import (
+    record_vlm_call_and_notify,
+    record_vlm_latency_ms,
+)
 from backend.services.capture_time import render_prompt_time
 from backend.services.circuit_breaker import (
     CircuitBreaker,
@@ -970,6 +976,7 @@ class VlmClient:
                 # explicit so changing the first-attempt temperature cannot
                 # silently change the retry.
                 body["temperature"] = temperature
+            req_start = time.monotonic()
             try:
                 http = await self._http()
                 resp = await http.post(CHAT_PATH, json=body)
@@ -1026,8 +1033,14 @@ class VlmClient:
                 )
             if resp.status_code != 200:
                 last_error = VlmTransportError(f"vlm HTTP {resp.status_code}: {resp.text[:200]}")
-                await self._note_failure("vlm_http_error")
+                await self._note_failure(
+                    "vlm_http_error",
+                    outcome="loading" if resp.status_code == 503 else "failing",
+                )
                 continue
+            vlm_duration = max(0.0, time.monotonic() - req_start)
+            observe_ai_request_duration("ai_vlm", vlm_duration)
+            record_vlm_latency_ms(vlm_duration * 1000.0)
             content = _content_of(resp)
             try:
                 verdict = VlmVerdict.model_validate_json(content)
@@ -1080,7 +1093,12 @@ class VlmClient:
     # Breaker/degradation wiring (spec §6 step 4; machinery choice ledgered)
     # ------------------------------------------------------------------
 
-    async def _note_failure(self, reason: str) -> None:
+    async def _note_failure(
+        self,
+        reason: str,
+        *,
+        outcome: str = "failing",
+    ) -> None:
         """Feed the breaker; if this failure OPENED it, push ai-vlm UNHEALTHY
         to DegradationManager once (the open transition is the edge worth
         announcing - per-failure pushes would thrash the status endpoint).
@@ -1090,6 +1108,11 @@ class VlmClient:
         house clients rely on)."""
         await self._breaker.record_failure_async()
         record_pipeline_error(reason)
+        if self._transport is None:
+            if outcome == "loading":
+                await record_vlm_call_and_notify("loading", reason, settings=self._settings)
+            else:
+                await record_vlm_call_and_notify("failing", reason, settings=self._settings)
         if self._breaker.is_open:
             await self._push_unhealthy(reason)
 
@@ -1130,6 +1153,8 @@ class VlmClient:
     async def _push_healthy(self) -> None:
         """Clear the unhealthy flag only once the breaker is truly CLOSED
         (a HALF_OPEN trial success must not prematurely read healthy)."""
+        if self._transport is None:
+            await record_vlm_call_and_notify("ready", None, settings=self._settings)
         if not self._breaker.is_closed:
             return
         from backend.core.metrics import set_ai_service_degraded

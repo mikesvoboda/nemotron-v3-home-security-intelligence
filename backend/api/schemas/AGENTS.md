@@ -2,7 +2,7 @@
 
 ## Purpose
 
-`backend/api/schemas/` holds the Pydantic request/response models — 73
+`backend/api/schemas/` holds the Pydantic request/response models — 72
 modules, re-exported through `__init__.py`, consumed by the route modules
 and rendered into the OpenAPI document FastAPI serves. Schemas are the
 API's contract surface: what a client may send, what it will see back,

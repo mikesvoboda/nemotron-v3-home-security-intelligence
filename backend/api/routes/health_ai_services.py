@@ -185,6 +185,7 @@ async def _check_ai_service_health(  # noqa: PLR0911
     if not service_url:
         return AIServiceHealthDetail(
             status=AIServiceStatus.UNKNOWN,
+            state="unknown",
             circuit_state=circuit_state,
             last_health_check=datetime.now(UTC),
             error_rate_1h=error_rate,
@@ -197,12 +198,35 @@ async def _check_ai_service_health(  # noqa: PLR0911
     if circuit_state == AIServiceCircuitState.OPEN:
         return AIServiceHealthDetail(
             status=AIServiceStatus.UNHEALTHY,
+            state="failing",
             circuit_state=circuit_state,
             last_health_check=datetime.now(UTC),
             error_rate_1h=error_rate,
             latency_p99_ms=None,
             url=service_url,
             error="Circuit breaker is open - service unreachable",
+        )
+
+    # ai-vlm is never HTTP-probed (probing resets llama.cpp --sleep-idle-seconds, B4.11 T4)
+    if name in ("ai-vlm", "ai_vlm"):
+        from backend.services import ai_health
+
+        vlm_state = await ai_health.state("ai_vlm", settings=settings)
+        if vlm_state.state == "failing":
+            mapped_status = AIServiceStatus.UNHEALTHY
+        elif vlm_state.state == "loading":
+            mapped_status = AIServiceStatus.DEGRADED
+        else:
+            mapped_status = AIServiceStatus.HEALTHY
+        return AIServiceHealthDetail(
+            status=mapped_status,
+            state=vlm_state.state,
+            circuit_state=circuit_state,
+            last_health_check=vlm_state.since or datetime.now(UTC),
+            error_rate_1h=error_rate,
+            latency_p99_ms=None,
+            url=service_url,
+            error=vlm_state.detail if mapped_status != AIServiceStatus.HEALTHY else None,
         )
 
     # Perform health check
@@ -213,8 +237,38 @@ async def _check_ai_service_health(  # noqa: PLR0911
             latency_ms = (time.time() - start_time) * 1000
 
             if response.status_code == 200:
+                payload: dict[str, Any] = {}
+                try:
+                    body = response.json()
+                    if isinstance(body, dict):
+                        payload = body
+                except Exception:
+                    payload = {}
+                if payload.get("model_loaded") is False:
+                    return AIServiceHealthDetail(
+                        status=AIServiceStatus.DEGRADED,
+                        state="loading",
+                        circuit_state=circuit_state,
+                        last_health_check=datetime.now(UTC),
+                        error_rate_1h=error_rate,
+                        latency_p99_ms=round(latency_ms, 2),
+                        url=service_url,
+                        error="model_loaded is false",
+                    )
+                if payload.get("status") not in (None, "healthy", "ok"):
+                    return AIServiceHealthDetail(
+                        status=AIServiceStatus.UNHEALTHY,
+                        state="failing",
+                        circuit_state=circuit_state,
+                        last_health_check=datetime.now(UTC),
+                        error_rate_1h=error_rate,
+                        latency_p99_ms=round(latency_ms, 2),
+                        url=service_url,
+                        error=f"status={payload.get('status')}",
+                    )
                 return AIServiceHealthDetail(
                     status=AIServiceStatus.HEALTHY,
+                    state="ready",
                     circuit_state=circuit_state,
                     last_health_check=datetime.now(UTC),
                     error_rate_1h=error_rate,
@@ -224,6 +278,7 @@ async def _check_ai_service_health(  # noqa: PLR0911
                 )
             return AIServiceHealthDetail(
                 status=AIServiceStatus.UNHEALTHY,
+                state="failing",
                 circuit_state=circuit_state,
                 last_health_check=datetime.now(UTC),
                 error_rate_1h=error_rate,
@@ -234,6 +289,7 @@ async def _check_ai_service_health(  # noqa: PLR0911
     except httpx.ConnectError:
         return AIServiceHealthDetail(
             status=AIServiceStatus.UNHEALTHY,
+            state="failing",
             circuit_state=circuit_state,
             last_health_check=datetime.now(UTC),
             error_rate_1h=error_rate,
@@ -244,6 +300,7 @@ async def _check_ai_service_health(  # noqa: PLR0911
     except httpx.TimeoutException:
         return AIServiceHealthDetail(
             status=AIServiceStatus.UNHEALTHY,
+            state="failing",
             circuit_state=circuit_state,
             last_health_check=datetime.now(UTC),
             error_rate_1h=error_rate,
@@ -255,6 +312,7 @@ async def _check_ai_service_health(  # noqa: PLR0911
         logger.warning(f"Health check error for {name}: {e}")
         return AIServiceHealthDetail(
             status=AIServiceStatus.UNHEALTHY,
+            state="failing",
             circuit_state=circuit_state,
             last_health_check=datetime.now(UTC),
             error_rate_1h=error_rate,

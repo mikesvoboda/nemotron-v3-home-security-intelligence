@@ -670,9 +670,16 @@ class TestFullHealthRetiredLlmRow:
 
     @pytest.mark.asyncio
     async def test_ai_vlm_down_is_degraded(self) -> None:
-        result, http_status, _ = await self._full_health(down={"ai_vlm_url"})
+        from backend.services import ai_health
 
-        assert result.status == ServiceHealthState.DEGRADED
-        assert result.ready is True
-        assert result.message == "Degraded: ai-vlm unavailable"
-        assert http_status == 200
+        ai_health.record_vlm_call("failing", "Connection refused")
+        try:
+            result, http_status, probed = await self._full_health(down={"ai_vlm_url"})
+
+            assert result.status == ServiceHealthState.DEGRADED
+            assert result.ready is True
+            assert result.message == "Degraded: ai-vlm unavailable"
+            assert http_status == 200
+            assert not [u for u in probed if u.startswith(self.URLS["ai_vlm_url"])], probed
+        finally:
+            ai_health.reset_ai_health_state()

@@ -1000,81 +1000,89 @@ class TestCollectNemotronMetrics:
 
     @pytest.mark.asyncio
     async def test_collect_nemotron_metrics_healthy(self) -> None:
-        """Test successful Nemotron metrics collection."""
+        """Test successful Nemotron metrics collection via ai_health (no HTTP probe)."""
+        from backend.services import ai_health
+
         with patch(
             "backend.services.performance_collector.get_settings", autospec=True
         ) as mock_settings:
-            mock_settings.return_value = MagicMock(ai_vlm_url="http://ai-vlm:8098")
+            mock_settings.return_value = MagicMock(
+                ai_vlm_url="http://ai-vlm:8098",
+                vlm_slot_count=3,
+                vlm_context_window=24576,
+                vlm_sleep_idle_seconds=300,
+            )
 
             collector = PerformanceCollector()
+            ai_health.record_vlm_call("ready")
 
-            mock_response = MagicMock()
-            mock_response.status_code = 200
-            mock_response.json.return_value = [
-                {"state": 1, "n_ctx": 8192},  # Active slot
-                {"state": 0, "n_ctx": 8192},  # Idle slot
-                {"state": 0, "n_ctx": 8192},  # Idle slot
-            ]
+            try:
+                with patch.object(collector, "_get_http_client", autospec=True) as mock_get_client:
+                    mock_client = AsyncMock()
+                    mock_get_client.return_value = mock_client
 
-            with patch.object(collector, "_get_http_client", autospec=True) as mock_get_client:
-                mock_client = AsyncMock()
-                mock_client.get.return_value = mock_response
-                mock_get_client.return_value = mock_client
+                    result = await collector.collect_nemotron_metrics()
 
-                result = await collector.collect_nemotron_metrics()
-
-                assert result is not None
-                assert result.status == "healthy"
-                assert result.slots_active == 1
-                assert result.slots_total == 3
-                assert result.context_size == 8192
+                    assert result is not None
+                    assert result.status == "healthy"
+                    assert result.slots_active == 0
+                    assert result.slots_total == 3
+                    assert result.context_size == 8192
+                    assert mock_client.get.call_count == 0
+            finally:
+                ai_health.reset_ai_health_state()
 
     @pytest.mark.asyncio
     async def test_collect_nemotron_metrics_all_active(self) -> None:
-        """Test Nemotron metrics when all slots are active."""
+        """Test Nemotron metrics when VLM is loading."""
+        from backend.services import ai_health
+
         with patch(
             "backend.services.performance_collector.get_settings", autospec=True
         ) as mock_settings:
-            mock_settings.return_value = MagicMock(ai_vlm_url="http://ai-vlm:8098")
+            mock_settings.return_value = MagicMock(
+                ai_vlm_url="http://ai-vlm:8098",
+                vlm_slot_count=2,
+                vlm_context_window=8192,
+                vlm_sleep_idle_seconds=300,
+            )
 
             collector = PerformanceCollector()
+            ai_health.record_vlm_call("loading", "HTTP 503")
 
-            mock_response = MagicMock()
-            mock_response.status_code = 200
-            mock_response.json.return_value = [
-                {"state": 1, "n_ctx": 4096},
-                {"state": 2, "n_ctx": 4096},
-            ]
+            try:
+                with patch.object(collector, "_get_http_client", autospec=True) as mock_get_client:
+                    mock_client = AsyncMock()
+                    mock_get_client.return_value = mock_client
 
-            with patch.object(collector, "_get_http_client", autospec=True) as mock_get_client:
-                mock_client = AsyncMock()
-                mock_client.get.return_value = mock_response
-                mock_get_client.return_value = mock_client
+                    result = await collector.collect_nemotron_metrics()
 
-                result = await collector.collect_nemotron_metrics()
-
-                assert result is not None
-                assert result.status == "healthy"
-                assert result.slots_active == 2
-                assert result.slots_total == 2
+                    assert result is not None
+                    assert result.status == "loading"
+                    assert result.slots_active == 0
+                    assert result.slots_total == 2
+                    assert result.context_size == 4096
+                    assert mock_client.get.call_count == 0
+            finally:
+                ai_health.reset_ai_health_state()
 
     @pytest.mark.asyncio
     async def test_collect_nemotron_metrics_empty_slots(self) -> None:
-        """Test Nemotron metrics with empty slots array."""
+        """Test Nemotron metrics with default ai_health state."""
         with patch(
             "backend.services.performance_collector.get_settings", autospec=True
         ) as mock_settings:
-            mock_settings.return_value = MagicMock(ai_vlm_url="http://ai-vlm:8098")
+            mock_settings.return_value = MagicMock(
+                ai_vlm_url="http://ai-vlm:8098",
+                vlm_slot_count=2,
+                vlm_context_window=8192,
+                vlm_sleep_idle_seconds=300,
+            )
 
             collector = PerformanceCollector()
 
-            mock_response = MagicMock()
-            mock_response.status_code = 200
-            mock_response.json.return_value = []
-
             with patch.object(collector, "_get_http_client", autospec=True) as mock_get_client:
                 mock_client = AsyncMock()
-                mock_client.get.return_value = mock_response
                 mock_get_client.return_value = mock_client
 
                 result = await collector.collect_nemotron_metrics()
@@ -1082,30 +1090,42 @@ class TestCollectNemotronMetrics:
                 assert result is not None
                 assert result.status == "healthy"
                 assert result.slots_active == 0
-                assert result.slots_total == 0
-                assert result.context_size == 4096  # Default value
+                assert result.slots_total == 2
+                assert result.context_size == 4096
+                assert mock_client.get.call_count == 0
 
     @pytest.mark.asyncio
     async def test_collect_nemotron_metrics_connection_error(self) -> None:
-        """Test Nemotron metrics returns unreachable on connection error."""
+        """Test Nemotron metrics returns unreachable when ai_health records failing."""
+        from backend.services import ai_health
+
         with patch(
             "backend.services.performance_collector.get_settings", autospec=True
         ) as mock_settings:
-            mock_settings.return_value = MagicMock(ai_vlm_url="http://ai-vlm:8098")
+            mock_settings.return_value = MagicMock(
+                ai_vlm_url="http://ai-vlm:8098",
+                vlm_slot_count=2,
+                vlm_context_window=8192,
+                vlm_sleep_idle_seconds=300,
+            )
 
             collector = PerformanceCollector()
+            ai_health.record_vlm_call("failing", "Connection refused")
 
-            with patch.object(collector, "_get_http_client", autospec=True) as mock_get_client:
-                mock_client = AsyncMock()
-                mock_client.get.side_effect = Exception("Connection refused")
-                mock_get_client.return_value = mock_client
+            try:
+                with patch.object(collector, "_get_http_client", autospec=True) as mock_get_client:
+                    mock_client = AsyncMock()
+                    mock_get_client.return_value = mock_client
 
-                result = await collector.collect_nemotron_metrics()
+                    result = await collector.collect_nemotron_metrics()
 
-                assert result is not None
-                assert result.status == "unreachable"
-                assert result.slots_active == 0
-                assert result.slots_total == 0
+                    assert result is not None
+                    assert result.status == "unreachable"
+                    assert result.slots_active == 0
+                    assert result.slots_total == 0
+                    assert mock_client.get.call_count == 0
+            finally:
+                ai_health.reset_ai_health_state()
 
 
 # =============================================================================
@@ -3066,80 +3086,71 @@ class TestAiModelMetricShapes:
             }
 
     async def test_nemotron_slot_state_semantics(self) -> None:
-        # R8 S2: the method name stayed, the probe moved to settings.ai_vlm_url.
-        collector = _collector(ai_vlm_url="http://ai-vlm:8098")
-        # A slot with no "state" key counts as idle; the *first* slot supplies
-        # context_size (4096 default when it carries no "n_ctx").
+        from backend.services import ai_health
+
+        collector = _collector(
+            ai_vlm_url="http://ai-vlm:8098",
+            vlm_slot_count=2,
+            vlm_context_window=16384,
+            vlm_sleep_idle_seconds=300,
+        )
         client = _http_client([{"n_ctx": 8192}, {"state": 0, "n_ctx": 4096}])
-        with patch.object(collector, "_get_http_client", autospec=True) as get_client:
-            get_client.return_value = client
-            result = await collector.collect_nemotron_metrics()
-        assert client.get.call_args == (("http://ai-vlm:8098/slots",), {})
-        assert result.model_dump() == {
-            "status": "healthy",
-            "slots_active": 0,
-            "slots_total": 2,
-            "context_size": 8192,
-        }
-
-        active = _http_client([{"state": 1}, {"state": 2, "n_ctx": 2048}])
-        with patch.object(collector, "_get_http_client", autospec=True) as get_client:
-            get_client.return_value = active
-            result = await collector.collect_nemotron_metrics()
-        assert result.model_dump() == {
-            "status": "healthy",
-            "slots_active": 2,
-            "slots_total": 2,
-            "context_size": 4096,
-        }
-
-        explicit_none = _http_client([{"state": None}])
-        with patch.object(collector, "_get_http_client", autospec=True) as get_client:
-            get_client.return_value = explicit_none
-            result = await collector.collect_nemotron_metrics()
-        assert result.model_dump() == {
-            "status": "healthy",
-            "slots_active": 1,
-            "slots_total": 1,
-            "context_size": 4096,
-        }
-
-    async def test_nemotron_empty_and_mixed_slots(self) -> None:
-        collector = _collector(ai_vlm_url="http://ai-vlm:8098")
-        empty = _http_client([])
-        with patch.object(collector, "_get_http_client", autospec=True) as get_client:
-            get_client.return_value = empty
-            result = await collector.collect_nemotron_metrics()
-        assert result.model_dump() == {
-            "status": "healthy",
-            "slots_active": 0,
-            "slots_total": 0,
-            "context_size": 4096,
-        }
-
-        mixed = _http_client([{"state": 1, "n_ctx": 4096}, {"state": 0}])
-        with patch.object(collector, "_get_http_client", autospec=True) as get_client:
-            get_client.return_value = mixed
-            result = await collector.collect_nemotron_metrics()
-        assert result.model_dump() == {
-            "status": "healthy",
-            "slots_active": 1,
-            "slots_total": 2,
-            "context_size": 4096,
-        }
-
-    async def test_nemotron_unreachable_literal(self) -> None:
-        collector = _collector(ai_vlm_url="http://ai-vlm:8098")
-        for client in (_http_client([], status=503), _http_client(exc=Exception("refused"))):
+        ai_health.record_vlm_call("ready")
+        try:
             with patch.object(collector, "_get_http_client", autospec=True) as get_client:
                 get_client.return_value = client
                 result = await collector.collect_nemotron_metrics()
+            assert client.get.call_count == 0
+            assert result.model_dump() == {
+                "status": "healthy",
+                "slots_active": 0,
+                "slots_total": 2,
+                "context_size": 8192,
+            }
+        finally:
+            ai_health.reset_ai_health_state()
+
+    async def test_nemotron_empty_and_mixed_slots(self) -> None:
+        from backend.services import ai_health
+
+        collector = _collector(
+            ai_vlm_url="http://ai-vlm:8098",
+            vlm_slot_count=2,
+            vlm_context_window=8192,
+            vlm_sleep_idle_seconds=300,
+        )
+        ai_health.record_vlm_call("loading", "HTTP 503")
+        try:
+            result = await collector.collect_nemotron_metrics()
+            assert result.model_dump() == {
+                "status": "loading",
+                "slots_active": 0,
+                "slots_total": 2,
+                "context_size": 4096,
+            }
+        finally:
+            ai_health.reset_ai_health_state()
+
+    async def test_nemotron_unreachable_literal(self) -> None:
+        from backend.services import ai_health
+
+        collector = _collector(
+            ai_vlm_url="http://ai-vlm:8098",
+            vlm_slot_count=2,
+            vlm_context_window=8192,
+            vlm_sleep_idle_seconds=300,
+        )
+        ai_health.record_vlm_call("failing", "refused")
+        try:
+            result = await collector.collect_nemotron_metrics()
             assert result.model_dump() == {
                 "status": "unreachable",
                 "slots_active": 0,
                 "slots_total": 0,
                 "context_size": 0,
             }
+        finally:
+            ai_health.reset_ai_health_state()
 
 
 # =============================================================================
@@ -3239,15 +3250,12 @@ class TestContainerHealthWiring:
             )
             result = await collector.collect_container_health()
 
-        assert service.call_count == 3
+        assert service.call_count == 2
         assert [call.args for call in service.call_args_list] == [
             (sentinel, "frontend", "http://frontend:8080/health"),
             (sentinel, "ai-yolo26", "http://ai-yolo26:8095/health"),
-            # R8 S2: the LLM health row re-homed to the shipped engine — the
-            # label is "ai-vlm" and the url attr is ai_vlm_url.
-            (sentinel, "ai-vlm", "http://ai-vlm:8098/health"),
         ]
-        assert [call.kwargs for call in service.call_args_list] == [{}, {}, {}]
+        assert [call.kwargs for call in service.call_args_list] == [{}, {}]
         assert postgres.call_count == 1
         assert redis.call_count == 1
         assert [c.model_dump() for c in result] == [
@@ -3256,7 +3264,7 @@ class TestContainerHealthWiring:
             {"name": "postgres", "status": "unknown", "health": "unhealthy"},
             {"name": "redis", "status": "unknown", "health": "unhealthy"},
             {"name": "x", "status": "unknown", "health": "unhealthy"},
-            {"name": "x", "status": "unknown", "health": "unhealthy"},
+            {"name": "ai-vlm", "status": "running", "health": "healthy"},
         ]
 
     async def test_check_service_health_request_contract(self) -> None:
@@ -3736,7 +3744,9 @@ class TestInferenceMetricsContract:
         assert events.call_args.args[-1] is session
         assert result.model_dump() == {
             "yolo26_latency_ms": {"avg": 11.5, "p95": 12.25, "p99": 13.125},
+            "rtdetr_latency_ms": {"avg": 11.5, "p95": 12.25, "p99": 13.125},
             "nemotron_latency_ms": {"avg": 21.5, "p95": 22.25, "p99": 23.125},
+            "ai_vlm_latency_ms": {"avg": 21.5, "p95": 22.25, "p99": 23.125},
             "pipeline_latency_ms": {"avg": 31.5, "p95": 32.25},
             "throughput": {"images_per_min": 30.2, "events_per_min": 5.2},
             "queues": {"detection": 0, "analysis": 0},
@@ -3782,7 +3792,9 @@ class TestInferenceMetricsContract:
 
         assert result.model_dump() == {
             "yolo26_latency_ms": {"avg": 5.5, "p95": 0.0, "p99": 0.0},
+            "rtdetr_latency_ms": {"avg": 5.5, "p95": 0.0, "p99": 0.0},
             "nemotron_latency_ms": {"avg": 0.0, "p95": 6.5, "p99": 0.0},
+            "ai_vlm_latency_ms": {"avg": 0.0, "p95": 6.5, "p99": 0.0},
             "pipeline_latency_ms": {"avg": 0.0, "p95": 0.0},
             "throughput": {"images_per_min": 0.0, "events_per_min": 0.0},
             "queues": {"detection": 0, "analysis": 0},
@@ -3806,7 +3818,9 @@ class TestInferenceMetricsContract:
         assert result is not None
         assert result.model_dump() == {
             "yolo26_latency_ms": {"avg": 0.0, "p95": 0.0, "p99": 0.0},
+            "rtdetr_latency_ms": {"avg": 0.0, "p95": 0.0, "p99": 0.0},
             "nemotron_latency_ms": {"avg": 0.0, "p95": 0.0, "p99": 0.0},
+            "ai_vlm_latency_ms": {"avg": 0.0, "p95": 0.0, "p99": 0.0},
             "pipeline_latency_ms": {"avg": 0.0, "p95": 0.0},
             "throughput": {"images_per_min": 0.0, "events_per_min": 0.0},
             "queues": {"detection": 0, "analysis": 0},
@@ -3851,6 +3865,9 @@ class TestCollectAllContract:
             "gpu": None,
             "ai_models": {},
             "nemotron": None,
+            "ai_vlm": None,
+            "yolo26": None,
+            "rtdetr": None,
             "inference": None,
             "databases": {},
             "host": None,
