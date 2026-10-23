@@ -383,8 +383,8 @@ F-099 with `B4.10`.
 
 ### F4.9 Easy and Advanced modes
 
-**Flags:** `heavy`. **Assigned:** heavy-a, after `[r320]` (ruling 321); it follows this block
-(UR-59). **Depends on:** none.
+**Flags:** `heavy`. **Assigned:** heavy-a, now (ruling 321; `[r320]` closed moot, ruling 320's
+correction); it follows this block (UR-59). **Depends on:** none.
 **PR:** none yet. (ruling 321, record 6355356496)
 
 Design: [`../4n-modes.md`](../4n-modes.md), "Packages" row `F4.9`. Covers F-299 (new) and the rows
@@ -1014,21 +1014,3 @@ skip themselves under CI.
       A file the setup rewrites on every run may leave the tree (ignored instead).
 
 **Done when:** the test passes in CI at a ready head and the UR-89 review approves.
-
-### [r320] Q-192: the scheduled-reports delete spec's header after the harness fold
-
-**Flags:** none. **Assigned:** heavy-a, now, ahead of `F4.9` (ruling 320). **Depends on:** none.
-**PR:** none yet. (ruling 320, record 6354896020; audit item Q-192 of `[r262]`)
-
-`frontend/tests/golden/webhooks/scheduled-reports-delete.spec.ts` tells the story of a harness
-layout the `[r148a]` fold deleted (`10d00a96e`): its header (`:13-15`) and three cites (`:43`,
-`:163`, `:251`) name `webhooks/harness.ts` and `scheduled-reports-harness.ts`, which no longer
-exist. The spec still runs on the folded `frontend/tests/golden/harness.ts`.
-
-- [ ] The header describes the folded layout and names where the folded harness keeps the
-      scheduled-report helpers.
-- [ ] The three cites point at the folded harness's `apiPath` note, its absence-witness note and
-      `guard.ts`'s method list and throw, or go; "the twin" names the right twin. Line numbers are
-      re-read at `main`, not taken from the audit pin.
-
-**Done when:** the PR merges with the spec green on its gate.
