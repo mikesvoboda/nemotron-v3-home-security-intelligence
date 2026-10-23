@@ -12,21 +12,10 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 
+import { CHORD_ROUTES } from '../config/surfaces';
+
 /** Chord timeout in milliseconds */
 const CHORD_TIMEOUT = 1000;
-
-/** Map of chord second keys to routes */
-const CHORD_ROUTES: Record<string, string> = {
-  d: '/', // Dashboard
-  t: '/timeline', // Timeline
-  e: '/entities', // Entities
-  a: '/alerts', // Alerts
-  s: '/settings', // Settings
-  // Additional navigation shortcuts
-  n: '/analytics', // Analytics (aNalytics)
-  o: '/logs', // Logs (lOgs)
-  y: '/system', // System/Operations (sYstem)
-};
 
 /**
  * Options for the useKeyboardShortcuts hook

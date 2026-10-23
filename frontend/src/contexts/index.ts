@@ -48,3 +48,13 @@ export type {
   LoginRequest,
   RegisterRequest,
 } from './AuthContext';
+
+// View mode context for Easy / Advanced mode (F4.9)
+export {
+  ViewModeContext,
+  ViewModeProvider,
+  useViewMode,
+  UI_MODE_STORAGE_KEY,
+} from './ViewModeContext';
+
+export type { ViewModeContextValue, ViewModeProviderProps } from './ViewModeContext';

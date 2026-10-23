@@ -44,6 +44,7 @@ async function waitForModalContent(page: import('@playwright/test').Page) {
 
 test.describe('Detection to Alert Journey (NEM-1664)', () => {
   test.beforeEach(async ({ page, browserName }) => {
+    await page.addInitScript(() => localStorage.setItem('ui-mode', JSON.stringify('advanced')));
     // Navigate to dashboard before each test
     await page.goto('/');
 

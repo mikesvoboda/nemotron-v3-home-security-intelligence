@@ -54,8 +54,8 @@ vi.mock('framer-motion', async () => {
 });
 
 describe('MobileBottomNav', () => {
-  const renderWithRouter = (ui: React.ReactElement) => {
-    return renderWithNavigation(ui, { useMemoryRouter: false });
+  const renderWithRouter = (ui: React.ReactElement, mode: 'easy' | 'advanced' = 'easy') => {
+    return renderWithNavigation(ui, { useMemoryRouter: false, mode });
   };
 
   describe('Primary Navigation', () => {
@@ -177,20 +177,19 @@ describe('MobileBottomNav', () => {
       });
     });
 
-    it('shows navigation groups in More menu', async () => {
+    it('shows ModeSwitch and remaining Easy hubs (Household, Settings) in More menu by default', async () => {
       const user = userEvent.setup();
-      renderWithRouter(<MobileBottomNav />);
+      renderWithRouter(<MobileBottomNav />, 'easy');
 
       const moreButton = screen.getByTestId('mobile-nav-more-button');
       await user.click(moreButton);
 
       await waitFor(() => {
-        // Check for navigation groups (Monitoring may not have items if all are in primary)
-        // Analytics, Operations, and Admin should have items
-        expect(screen.getByTestId('mobile-nav-group-analytics')).toBeInTheDocument();
-        expect(screen.getByTestId('mobile-nav-group-operations')).toBeInTheDocument();
-        expect(screen.getByTestId('mobile-nav-group-admin')).toBeInTheDocument();
+        expect(screen.getByTestId('mode-switch')).toBeInTheDocument();
+        expect(screen.getByTestId('mobile-nav-item-household')).toBeInTheDocument();
+        expect(screen.getByTestId('mobile-nav-item-settings')).toBeInTheDocument();
       });
+      expect(screen.queryByTestId('mobile-nav-item-ai-workbench')).not.toBeInTheDocument();
     });
 
     it('shows Settings in More menu', async () => {
@@ -205,42 +204,40 @@ describe('MobileBottomNav', () => {
       });
     });
 
-    it('shows Entities in More menu (from Monitoring group)', async () => {
+    it('shows Entities & Re-ID in More menu in Advanced mode', async () => {
       const user = userEvent.setup();
-      renderWithRouter(<MobileBottomNav />);
+      renderWithRouter(<MobileBottomNav />, 'advanced');
 
       const moreButton = screen.getByTestId('mobile-nav-more-button');
       await user.click(moreButton);
 
       await waitFor(() => {
-        expect(screen.getByTestId('mobile-nav-item-entities')).toBeInTheDocument();
+        expect(screen.getByTestId('mobile-nav-item-entities-reid')).toBeInTheDocument();
       });
     });
 
-    it('shows Analytics items in More menu', async () => {
+    it('shows AI Workbench and GPU & Models hubs in More menu in Advanced mode', async () => {
       const user = userEvent.setup();
-      renderWithRouter(<MobileBottomNav />);
+      renderWithRouter(<MobileBottomNav />, 'advanced');
 
       const moreButton = screen.getByTestId('mobile-nav-more-button');
       await user.click(moreButton);
 
       await waitFor(() => {
-        expect(screen.getByTestId('mobile-nav-item-analytics')).toBeInTheDocument();
-        expect(screen.getByTestId('mobile-nav-item-ai')).toBeInTheDocument();
+        expect(screen.getByTestId('mobile-nav-item-ai-workbench')).toBeInTheDocument();
+        expect(screen.getByTestId('mobile-nav-item-gpu-models')).toBeInTheDocument();
       });
     });
 
-    it('shows Operations items in More menu', async () => {
+    it('shows Operations & Monitoring hub in More menu in Advanced mode', async () => {
       const user = userEvent.setup();
-      renderWithRouter(<MobileBottomNav />);
+      renderWithRouter(<MobileBottomNav />, 'advanced');
 
       const moreButton = screen.getByTestId('mobile-nav-more-button');
       await user.click(moreButton);
 
       await waitFor(() => {
-        expect(screen.getByTestId('mobile-nav-item-jobs')).toBeInTheDocument();
-        expect(screen.getByTestId('mobile-nav-item-operations')).toBeInTheDocument();
-        expect(screen.getByTestId('mobile-nav-item-logs')).toBeInTheDocument();
+        expect(screen.getByTestId('mobile-nav-item-operations-monitoring')).toBeInTheDocument();
       });
     });
 
