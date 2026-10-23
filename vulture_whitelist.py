@@ -182,3 +182,12 @@ _.session_arg
 # false positive on a signature-required parameter).
 _.backlog
 _.address
+
+# B4.3 golden webpush leg (PR #7372): the module-scoped b43_rule fixture is
+# requested by b43_event and delivered PURELY to pin fixture ORDER — the rule
+# must exist before the fixture image drops (the pipeline evaluates rules
+# when the verdict lands; the planner needs the channel row). The test bodies
+# never name the parameter; vulture cannot model pytest's side-effect-only
+# DI (measured 2026-10-23, CI run 39889480516 Dead Code job 120205992140:
+# 100%-confidence false positives on both requesting sites).
+_.b43_rule
