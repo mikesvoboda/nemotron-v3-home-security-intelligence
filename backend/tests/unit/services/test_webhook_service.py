@@ -676,6 +676,73 @@ async def test_trigger_webhooks_no_subscribers(webhook_service, mock_db_session)
     assert len(deliveries) == 0
 
 
+@pytest.mark.asyncio
+async def test_trigger_webhooks_isolates_a_failed_webhook(
+    webhook_service, mock_db_session, sample_webhook
+):
+    """One webhook's failure must not take the other webhooks' deliveries down.
+
+    The fanout wraps each deliver_webhook in its own SAVEPOINT: a webhook
+    deleted between the fanout's SELECT and its delivery INSERT trips
+    webhook_deliveries_webhook_id_fkey and, without the savepoint, poisons
+    the shared session (PendingRollbackError) — rolling back every sibling
+    delivery already flushed in the same transaction, including rows whose
+    HTTP attempt had completed (CI run 40002172540: the F-250 golden leg's
+    terminal FAILED row vanished this way and the history poll saw zero rows
+    for 90s). The pin: the failing webhook is skipped with a warning, the
+    loop continues, and the surviving webhooks' deliveries are returned.
+    """
+    # Arrange - two subscribed webhooks; the first one's delivery raises (the
+    # FK failure a concurrent webhook deletion produces), the second succeeds.
+    first = sample_webhook
+    second = MagicMock(spec=OutboundWebhook)
+    second.id = str(uuid4())
+    second.name = "survivor"
+    second.url = "http://127.0.0.1:1/hook"
+    second.event_types = ["alert_fired"]
+    second.enabled = True
+    second.max_retries = 0
+    second.retry_delay_seconds = 1
+
+    mock_scalars = MagicMock()
+    mock_scalars.all.return_value = [first, second]
+    mock_result = MagicMock()
+    mock_result.scalars.return_value = mock_scalars
+    mock_db_session.execute = AsyncMock(return_value=mock_result)
+    mock_db_session.flush = AsyncMock()
+    mock_db_session.refresh = AsyncMock()
+
+    with patch.object(webhook_service, "deliver_webhook", new_callable=AsyncMock) as mock_deliver:
+        mock_deliver.side_effect = [
+            Exception(
+                "(sqlalchemy.dialects.postgresql.asyncpg.ForeignKeyViolationError) insert or "
+                'update on table "webhook_deliveries" violates foreign key constraint '
+                '"webhook_deliveries_webhook_id_fkey"'
+            ),
+            WebhookDelivery(
+                webhook_id=second.id,
+                event_type="alert_fired",
+                status=WebhookDeliveryStatus.PENDING,
+                attempt_count=1,
+            ),
+        ]
+
+        # Act
+        deliveries = await webhook_service.trigger_webhooks_for_event(
+            mock_db_session,
+            WebhookEventType.ALERT_FIRED,
+            {"alert_id": "test-123"},
+            event_id="evt-123",
+        )
+
+    # Assert - the survivor's delivery came back; the failed webhook's slot
+    # did not abort the fanout. Each delivery rode its own savepoint.
+    assert len(deliveries) == 1
+    assert deliveries[0].webhook_id == second.id
+    assert mock_deliver.await_count == 2
+    assert mock_db_session.begin_nested.call_count == 2
+
+
 # =============================================================================
 # Test Webhook Tests
 # =============================================================================
@@ -3631,6 +3698,21 @@ class _Scripted:
         return _Res(self._results[pos])
 
 
+class _Nested:
+    """SAVEPOINT stand-in: records enter/exit, lets exceptions propagate
+    (a real savepoint's ``__aexit__`` returns None and does not swallow)."""
+
+    def __init__(self, db: _DB) -> None:
+        self._db = db
+
+    async def __aenter__(self) -> _Nested:
+        self._db.nested_enters += 1
+        return self
+
+    async def __aexit__(self, *exc: Any) -> None:
+        self._db.nested_exits += 1
+
+
 class _DB:
     def __init__(self, results: list[Any]) -> None:
         self.executed: list[str] = []
@@ -3638,7 +3720,12 @@ class _DB:
         self.deleted: list[Any] = []
         self.flushes = 0
         self.refreshed: list[Any] = []
+        self.nested_enters = 0
+        self.nested_exits = 0
         self._script = _Scripted(results)
+
+    def begin_nested(self) -> _Nested:
+        return _Nested(self)
 
     async def execute(self, statement: Any, *args: Any, **kw: Any) -> Any:
         self.executed.append(_rendered(statement))
