@@ -43,11 +43,9 @@ import {
   apiShell as api,
   BOOT_QUIET_MS,
   closedByGuard,
+  openShell,
   quietBootShell as quietBoot,
-  loginAsAdminShell as loginAsAdmin,
   readShellHarness,
-  seedTourDismissed,
-  type ShellHarness,
 } from '../harness';
 
 const harness = readShellHarness();
@@ -55,13 +53,6 @@ test.skip(
   !harness.ready,
   `golden path needs the feature-check stack (${harness.ready ? '' : harness.why})`
 );
-
-async function openShell(page: import('@playwright/test').Page, h: ShellHarness) {
-  await seedTourDismissed(page);
-  await loginAsAdmin(page, h);
-  await quietBoot(page, h);
-  await expect(page.getByTestId('header-branding')).toBeVisible({ timeout: 20_000 });
-}
 
 interface StorageStats {
   disk_usage_percent: number;

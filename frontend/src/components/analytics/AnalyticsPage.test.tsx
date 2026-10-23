@@ -3,13 +3,13 @@
  * Tests the Grafana iframe embed implementation
  */
 
-import { render, screen, waitFor, act } from '@testing-library/react';
+import { screen, waitFor, act } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
-import { MemoryRouter } from 'react-router-dom';
 import { describe, expect, it, vi, beforeEach, afterEach } from 'vitest';
 
 import AnalyticsPage from './AnalyticsPage';
 import * as api from '../../services/api';
+import { renderWithNavigation } from '../../test-utils';
 
 // Mock the fetchConfig API
 vi.mock('../../services/api', () => ({
@@ -129,11 +129,7 @@ vi.mock('./WeekOverWeekCard', () => ({
 }));
 
 const renderWithRouter = () => {
-  return render(
-    <MemoryRouter>
-      <AnalyticsPage />
-    </MemoryRouter>
-  );
+  return renderWithNavigation(<AnalyticsPage />);
 };
 
 describe('AnalyticsPage', () => {
