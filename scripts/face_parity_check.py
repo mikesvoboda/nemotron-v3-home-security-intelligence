@@ -237,7 +237,18 @@ async def _run_gateway_parity(args: argparse.Namespace) -> int:
     gw_rec_ids: set[str] = set()
 
     base = args.gateway_url.rstrip("/")
-    async with httpx.AsyncClient(timeout=10.0) as client:
+    async with httpx.AsyncClient(timeout=60.0) as client:
+        # Warm up both gateway routes before timing so GPU latency reflects
+        # steady-state inference rather than first-request plan initialization.
+        warm_img = Image.open(paths[0]).convert("RGB")
+        await client.post(
+            f"{base}/face-detect",
+            json={"image": _encode_png_b64(warm_img), "threshold": args.threshold},
+        )
+        await client.post(
+            f"{base}/face-recognize",
+            json={"image": _encode_png_b64(warm_img.resize((112, 112), Image.Resampling.BILINEAR))},
+        )
         for path in paths:
             img = Image.open(path).convert("RGB")
 

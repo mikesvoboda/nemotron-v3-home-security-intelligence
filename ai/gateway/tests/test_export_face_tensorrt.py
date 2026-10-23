@@ -627,3 +627,63 @@ class TestFaceParityCheckAndCli:
         )
         assert out_onnx.is_file()
         assert (out_onnx.parent / "provenance.json").is_file()
+
+    def test_stage_probe_face_has_no_backend_imports_and_matches_loader_alignment(
+        self, tmp_path: Path
+    ) -> None:
+        import ast
+        import importlib.util
+        import sys
+
+        from backend.services import face_recognizer_loader as frl
+
+        runner_path = Path(__file__).resolve().parents[3] / "scripts/uplevel/face_real_tier.sh"
+        script_text = runner_path.read_text()
+        marker = "cat > \"$RUN/stage_probe_face.py\" <<'PROBE'\n"
+        assert marker in script_text, "stage_probe_face.py heredoc not found in face_real_tier.sh"
+        probe_src = script_text.split(marker, 1)[1].split("\nPROBE\n", 1)[0]
+
+        tree = ast.parse(probe_src, filename="stage_probe_face.py")
+        for node in ast.walk(tree):
+            if isinstance(node, ast.Import):
+                for alias in node.names:
+                    assert not alias.name.startswith("backend"), (
+                        f"stage_probe_face.py must not import backend inside the Python 3.12 "
+                        f"Triton container: found import {alias.name}"
+                    )
+            elif isinstance(node, ast.ImportFrom):
+                mod = node.module or ""
+                assert not mod.startswith("backend"), (
+                    f"stage_probe_face.py must not import from backend inside the Python 3.12 "
+                    f"Triton container: found from {mod} import ..."
+                )
+
+        probe_file = tmp_path / "stage_probe_face.py"
+        probe_file.write_text(probe_src)
+        old_argv = sys.argv[:]
+        try:
+            sys.argv = ["stage_probe_face.py", str(tmp_path), str(tmp_path)]
+            spec = importlib.util.spec_from_file_location("_stage_probe_face_test", probe_file)
+            assert spec is not None and spec.loader is not None
+            probe_mod = importlib.util.module_from_spec(spec)
+            spec.loader.exec_module(probe_mod)
+        finally:
+            sys.argv = old_argv
+
+        rng = np.random.default_rng(42)
+        img_arr = rng.integers(0, 256, size=(240, 320, 3), dtype=np.uint8)
+        img = Image.fromarray(img_arr, mode="RGB")
+        landmarks = [
+            [110.5, 95.2],
+            [155.3, 94.8],
+            [132.1, 122.4],
+            [115.0, 148.7],
+            [150.2, 149.1],
+        ]
+        ref_crop = frl.align_face_crop(img, landmarks)
+        cand_crop = probe_mod._align_face_crop(img, landmarks)
+        np.testing.assert_array_equal(np.asarray(ref_crop), np.asarray(cand_crop))
+
+        ref_blob = frl.preprocess_face_crop(ref_crop)
+        cand_blob = probe_mod._preprocess_face_crop(cand_crop)
+        np.testing.assert_allclose(ref_blob, cand_blob, rtol=0.0, atol=0.0)

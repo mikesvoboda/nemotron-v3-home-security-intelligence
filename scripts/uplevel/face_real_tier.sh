@@ -149,42 +149,88 @@ from ai.gateway.adapters.enrichment_light import (
     _decode_scrfd_outputs,
     _scrfd_blob,
 )
-from backend.services import face_recognizer_loader as frl
 
 RUN = Path(sys.argv[1])
 IMAGES_DIR = Path(sys.argv[2])
 SUFFIX = {".jpg", ".jpeg", ".png", ".bmp", ".webp"}
+_FACE_INPUT_SIZE = (112, 112)
+_ARCFACE_TEMPLATE = (
+    (38.2946, 51.6963),
+    (73.5318, 51.5014),
+    (56.0252, 68.4922),
+    (41.5493, 92.2507),
+    (70.7299, 92.4101),
+)
+_TRT_CACHE: dict[str, tuple[Any, Any]] = {}
+
+
+def _align_face_crop(image: Image.Image, landmarks: Any) -> Image.Image:
+    """5-point similarity warp onto ARCFACE_TEMPLATE (mirrors face_recognizer_loader.align_face_crop)."""
+    src = np.asarray(_ARCFACE_TEMPLATE, dtype=np.float64).reshape(-1, 2)
+    dst = np.asarray(landmarks, dtype=np.float64).reshape(-1, 2)
+    n = src.shape[0]
+    design = np.zeros((2 * n, 4), dtype=np.float64)
+    design[0::2] = np.column_stack([src[:, 0], -src[:, 1], np.ones(n), np.zeros(n)])
+    design[1::2] = np.column_stack([src[:, 1], src[:, 0], np.zeros(n), np.ones(n)])
+    (a, b, tx, ty), *_ = np.linalg.lstsq(design, dst.reshape(-1), rcond=None)
+    coeffs = (float(a), float(-b), float(tx), float(b), float(a), float(ty))
+    pil = Image.fromarray(np.ascontiguousarray(np.asarray(image.convert("RGB"), dtype=np.uint8)))
+    return pil.transform(
+        _FACE_INPUT_SIZE, Image.Transform.AFFINE, coeffs, resample=Image.Resampling.BILINEAR
+    )
+
+
+def _preprocess_face_crop(crop: Image.Image) -> np.ndarray:
+    """(1, 3, 112, 112) float32 NCHW RGB arr / 127.5 - 1.0 (mirrors face_recognizer_loader.preprocess_face_crop)."""
+    resized = crop.convert("RGB").resize(_FACE_INPUT_SIZE, Image.Resampling.BILINEAR)
+    arr = np.asarray(resized, dtype=np.float32) / 127.5 - 1.0
+    return np.ascontiguousarray(arr.transpose(2, 0, 1)[np.newaxis, ...], dtype=np.float32)
+
+
+def _raw_scrfd_has_face(raw_scrfd: Any, img: Image.Image, threshold: float = 0.6) -> bool:
+    blob, scale = _scrfd_blob(np.asarray(img))
+    outs = raw_scrfd.run(_SCRFD_OUTPUT_NAMES, {"input.1": blob})
+    raw_det = dict(zip(_SCRFD_OUTPUT_NAMES, outs, strict=True))
+    return bool(_decode_scrfd_outputs(raw_det, scale=scale, threshold=threshold, nms_iou=0.4))
 
 
 def _trt_infer_dict(plan_path: Path, feed: dict[str, np.ndarray]) -> dict[str, np.ndarray]:
     import tensorrt as trt
     import torch
 
-    logger = trt.Logger(trt.Logger.WARNING)
-    with open(plan_path, "rb") as fh:
-        engine = trt.Runtime(logger).deserialize_cuda_engine(fh.read())
-    if engine is None:
-        raise RuntimeError(f"could not deserialize {plan_path}")
-    context = engine.create_execution_context()
+    key = str(plan_path)
+    if key not in _TRT_CACHE:
+        logger = trt.Logger(trt.Logger.WARNING)
+        with open(plan_path, "rb") as fh:
+            engine = trt.Runtime(logger).deserialize_cuda_engine(fh.read())
+        if engine is None:
+            raise RuntimeError(f"could not deserialize {plan_path}")
+        _TRT_CACHE[key] = (engine, engine.create_execution_context())
+    engine, context = _TRT_CACHE[key]
     stream = torch.cuda.current_stream().cuda_stream
     dev_tensors: dict[str, torch.Tensor] = {}
     out_names: list[str] = []
+    batch_dim = 1
     for i in range(engine.num_io_tensors):
         name = engine.get_tensor_name(i)
-        mode = engine.get_tensor_mode(name)
-        if mode == trt.TensorIOMode.INPUT:
+        if engine.get_tensor_mode(name) == trt.TensorIOMode.INPUT:
             arr = np.ascontiguousarray(feed[name], dtype=np.float32)
+            batch_dim = int(arr.shape[0])
             context.set_input_shape(name, arr.shape)
             t = torch.from_numpy(arr).cuda().contiguous()
             dev_tensors[name] = t
             context.set_tensor_address(name, t.data_ptr())
-        else:
-            shape = tuple(int(d) for d in context.get_tensor_shape(name))
+    for i in range(engine.num_io_tensors):
+        name = engine.get_tensor_name(i)
+        if engine.get_tensor_mode(name) != trt.TensorIOMode.INPUT:
+            shape = tuple(
+                batch_dim if int(d) <= 0 else int(d) for d in context.get_tensor_shape(name)
+            )
             t = torch.empty(shape, dtype=torch.float32, device="cuda")
             dev_tensors[name] = t
             out_names.append(name)
             context.set_tensor_address(name, t.data_ptr())
-    if not context.execute_async_v3(stream_handle=stream):
+    if not context.execute_async_v3(stream):
         raise RuntimeError(f"execute_async_v3 failed for {plan_path}")
     torch.cuda.synchronize()
     return {name: dev_tensors[name].cpu().numpy() for name in out_names}
@@ -208,8 +254,8 @@ def _eval_stage(
             faces,
             key=lambda f: (float(f.confidence), (f.bbox[2] - f.bbox[0]) * (f.bbox[3] - f.bbox[1])),
         )
-        crop = frl.align_face_crop(img, best.landmarks)
-        crop_blob = frl.preprocess_face_crop(crop)
+        crop = _align_face_crop(img, best.landmarks)
+        crop_blob = _preprocess_face_crop(crop)
         vec = np.asarray(arcface_fn(crop_blob), dtype=np.float32).reshape(-1)
         norm = float(np.linalg.norm(vec))
         vec_list = [float(v) for v in (vec / norm)] if norm > 0 else [0.0] * 512
@@ -235,7 +281,7 @@ def main() -> None:
     face_paths = [
         p
         for p in all_paths
-        if frl.detect_faces(raw_scrfd, Image.open(p).convert("RGB"), threshold=0.6)
+        if _raw_scrfd_has_face(raw_scrfd, Image.open(p).convert("RGB"), threshold=0.6)
     ]
 
     prep_scrfd = ort.InferenceSession(
@@ -313,10 +359,11 @@ podman run -d --name "$CTR" --device "nvidia.com/gpu=${GPU}" \
 OWN_CTR=1
 
 for _ in $(seq 1 60); do
-  if curl -sf "http://127.0.0.1:${PORT}/enrich-lt/health" >/dev/null 2>&1; then
+  if curl -sf "http://127.0.0.1:${PORT}/enrich-lt/health" > "$RUN/health.json" 2>/dev/null \
+    && python3 -I -c 'import json,sys; m=json.load(open(sys.argv[1])).get("models",{}); sys.exit(0 if m.get("scrfd") and m.get("arcface") else 1)' "$RUN/health.json"; then
     break
   fi
-  sleep 2
+  sleep 5
 done
 
 VRAM_LOADED="$(nvidia-smi --id="$GPU" --query-gpu=memory.used --format=csv,noheader,nounits | tr -d '[:space:]')"
