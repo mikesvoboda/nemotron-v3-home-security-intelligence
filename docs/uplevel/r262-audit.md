@@ -5430,5 +5430,5 @@ Each of the 60: **no code on main**. 52 production + 109 test + 6 tooling + 60 n
   the folded harness's apiPath note :100-105; :163 → the folded absence-witness note
   :3563-3568; :251 → guard.ts:46/:51-53), and re-check whether "the twin" still names the right
   twin. Owning lane: frontend.
-- Owner: fix now, by heavy-a, as package `[r320]` (ruling 320, comment 6354896020 on #6854,
-  2026-10-23) — answers the ask on #7265 (6348293202); the Fix above names [r320]'s scope.
+- Owner: moot: the spec and its helpers left `main` with #7311 (`58326dcac`), after the audit
+  pin (ruling 320, correction) — replaces the "fix now" wording asked for in 6354898204.
