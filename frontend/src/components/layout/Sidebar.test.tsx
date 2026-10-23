@@ -112,7 +112,6 @@ describe('Sidebar', () => {
     // No count-only badge spans; the static "!" badges (if any) stay theirs.
     expect(screen.queryByText('0')).not.toBeInTheDocument();
   });
-  });
 
   it('highlights the owning hub for secondary tabs (e.g. /settings/rules -> Alerts & Rules)', () => {
     renderWithRouter(['/settings/rules'], 'easy');
