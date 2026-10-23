@@ -132,8 +132,9 @@ cumulative_seconds}] | null`, the top functions of the last stopped profile.
     stale docstring, the 404 responses and `backend/api/routes/AGENTS.md` (`:679`, `:691`, `:738`)
     are corrected (UR-81).
 - **Docs:** F-145, F-151–F-159 and F-195 re-cite; F-133 is unchanged (it follows `DEBUG`).
-  `docs/vss-integration/17-action-plan.md:613` and `packages/backend.md:320` stop calling OD-36
-  open, in the plan PR.
+  `packages/backend.md:320` stops calling OD-36 open, in the plan PR;
+  `docs/vss-integration/17-action-plan.md:613` gains a pointer to ruling 319 in docs' next register
+  PR (ruling 321).
 
 ## Failure handling
 

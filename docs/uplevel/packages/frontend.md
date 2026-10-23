@@ -318,15 +318,18 @@ Design: [`../4n-arming.md`](../4n-arming.md), "Packages" row `F4.5`. Covers F-29
 
 ### F4.8 System status in the UI (contract)
 
-**Flags:** none. **Assigned:** frontend, after `F4.5` (ruling 317). **Depends on:** `B4.11` merged.
-**PR:** none yet. (ruling 317, record 6347331324)
+**Flags:** `owner` (it retires control routes, re-enables host-privileged self-healing and builds
+the shared admin check, UR-98; ruling 321). **Assigned:** frontend, after `F4.5` (ruling 317).
+**Depends on:** `B4.11` merged.
+**PR:** none yet. (ruling 317, record 6347331324; ruling 321, record 6355356496)
 
 Design: [`../4n-status.md`](../4n-status.md), "Packages" row `F4.8`. Covers the status rows with
 `B4.11`.
 
 - [ ] The test-only PR (step 2): the hooks and components the design names, with their fixtures.
 - [ ] The build PR: the header badge on `ai_service_status`; the dashboard row, the model cards and
-      the services panel (Restart only, the sign-in prompt, Postgres no longer blocked); the
+      the services panel (Restart only, the sign-in prompt, Postgres no longer blocked); the shared
+      `useIsAdmin` and `AdminSignInPrompt` that `F4.10` reuses (`4n-debug-tools.md`, DT5); the
       per-model latency chart; the banner's `ai-vlm`; the alert badge on the events socket with its
       page-open load; the palette and `g y`; Tracing's Tempo link. Its cross-lane part (UR-9):
       removes the old `nemotron` and `rtdetr` fields, moves the `ai_models` key, regenerates the
@@ -334,7 +337,8 @@ Design: [`../4n-status.md`](../4n-status.md), "Packages" row `F4.8`. Covers the 
       the enable, disable and `/start` service routes and the worker stop and start routes with
       their callers (the start, stop, enable and disable mutations in `useServiceMutations` and
       `useWorkerActions`, their clients and the panels' buttons), each pinned by a 404 test, and
-      clears every persisted `enabled=false` once.
+      clears every persisted `enabled=false` once. It edits
+      `operations/worker-management.spec.ts:88-113` (F-143's golden path) and F-143's row.
 - [ ] Golden path (Playwright) as the design gives it.
 
 **Done when:** steps 4–6 hold for its rows.
@@ -376,6 +380,53 @@ F-099 with `B4.10`.
 - [ ] Golden path (Playwright) as the design gives it.
 
 **Done when:** steps 4–6 hold for its rows.
+
+### F4.9 Easy and Advanced modes
+
+**Flags:** `heavy`. **Assigned:** heavy-a, after `[r320]` (ruling 321); it follows this block
+(UR-59). **Depends on:** none.
+**PR:** none yet. (ruling 321, record 6355356496)
+
+Design: [`../4n-modes.md`](../4n-modes.md), "Packages" row `F4.9`. Covers F-299 (new) and the rows
+the design re-cites.
+
+- [ ] The test-only PR (step 2): one navigation fixture and one event-modal fixture for the tests of
+      every file the build edits (the design's "Consolidation scope").
+- [ ] The build PR: `config/surfaces.ts` and `ViewModeContext`; `ModeSwitch`, `AdvancedOnly`,
+      `HubTabBar` and `AdvancedBanner`; the sidebar, phone bar, palette, chords and help modal read
+      the registry; the header, the event modal and Trends gate on the view mode; `SettingsPage`
+      takes its heading and tab bar from the hub; `sidebarNav.ts` and `settingsTabsConfig.ts` go;
+      every spec and unit test the design lists moves, with the `setMode` harness helper; the
+      glossary, the inventory (F-299 and the re-cites) and the docs the design names (UR-81).
+- [ ] Golden path (Playwright, `shell/modes.spec.ts`) as the design gives it.
+
+**Done when:** steps 4–6 hold for F-299, and the design's re-cited rows pass
+`feature-inventory.test.ts`.
+
+### F4.10 Debug tools in the UI (contract)
+
+**Flags:** `owner` (ruling 89; it closes routes behind an auth check, UR-98). **Assigned:**
+frontend, after `F4.7` (ruling 321). **Depends on:** `B4.12` and `F4.8` merged.
+**PR:** none yet. (ruling 321, record 6355356496)
+
+Design: [`../4n-debug-tools.md`](../4n-debug-tools.md), "Packages" row `F4.10`. Covers F-145,
+F-151–F-159 and F-195 with `B4.12`.
+
+- [ ] The test-only PR (step 2): the Developer Tools, Logging Settings and Databases panel tests.
+- [ ] The build PR: the Developer Tools section, Logging Settings and the Redis INFO block render
+      for an admin and show `F4.8`'s `AdminSignInPrompt` otherwise; the profiling client on
+      `/profile/stats` and its `results`, Download on `B4.12`'s route, Clear all per recording;
+      a new `operations/profiling.spec.ts`; every spec the design lists signs in as admin,
+      `shell/rate-limit` always. Its cross-lane part (UR-9): `require_debug_mode` goes and the
+      22 routes take `get_current_admin_user`; `scripts/feature_check.py` sends the harness
+      admin's cookie, with `test_feature_check.py`; `scripts/load_test.py`; the backend tests
+      the design names; the refusal leg of
+      `backend/tests/golden/external/test_debug_access.py`; the contract's known-missing debug
+      entries; the regenerated contract and types; the stale docstring, 404 responses and
+      `backend/api/routes/AGENTS.md`.
+- [ ] Golden path (Playwright and pytest) as the design gives it.
+
+**Done when:** steps 4–6 hold for its rows, and the known-missing list holds no debug entry.
 
 ### FB.\* Background track
 
@@ -963,3 +1014,21 @@ skip themselves under CI.
       A file the setup rewrites on every run may leave the tree (ignored instead).
 
 **Done when:** the test passes in CI at a ready head and the UR-89 review approves.
+
+### [r320] Q-192: the scheduled-reports delete spec's header after the harness fold
+
+**Flags:** none. **Assigned:** heavy-a, now, ahead of `F4.9` (ruling 320). **Depends on:** none.
+**PR:** none yet. (ruling 320, record 6354896020; audit item Q-192 of `[r262]`)
+
+`frontend/tests/golden/webhooks/scheduled-reports-delete.spec.ts` tells the story of a harness
+layout the `[r148a]` fold deleted (`10d00a96e`): its header (`:13-15`) and three cites (`:43`,
+`:163`, `:251`) name `webhooks/harness.ts` and `scheduled-reports-harness.ts`, which no longer
+exist. The spec still runs on the folded `frontend/tests/golden/harness.ts`.
+
+- [ ] The header describes the folded layout and names where the folded harness keeps the
+      scheduled-report helpers.
+- [ ] The three cites point at the folded harness's `apiPath` note, its absence-witness note and
+      `guard.ts`'s method list and throw, or go; "the twin" names the right twin. Line numbers are
+      re-read at `main`, not taken from the audit pin.
+
+**Done when:** the PR merges with the spec green on its gate.

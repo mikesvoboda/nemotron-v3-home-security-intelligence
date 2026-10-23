@@ -343,7 +343,7 @@ debug order in `4n-debug-tools.md`):
 
 ## Done when
 
-The golden path is green on the fake stack and its real-tier check is posted; F-299 reads
-**works**; F-017, F-018, F-019, F-021, F-054, F-056, F-061, F-062, F-063, F-187 and F-198 cite the
-registry or the moved specs, and `feature-inventory.test.ts` passes; and #7130 is closed as
-consumed, pointing here.
+The golden path is green on the fake stack and its real-tier check is posted; F-299 reads **works**;
+F-017, F-018, F-019, F-021, F-054, F-056, F-061, F-062, F-063, F-187 and F-198 cite the registry or
+the moved specs, and `feature-inventory.test.ts` passes. (#7130 closes as consumed when the plan PR
+carrying this design merges, ruling 321.)

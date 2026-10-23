@@ -214,6 +214,8 @@ model takes to answer.
     403 for a non-admin (`4n-debug-tools.md`, DT6); done and audited with the admin's name, the "requested" row committed first; 503
     without an engine; a name outside the four is refused; a once-disabled service restarts;
   - the retired routes answer 404;
+  - the interim guard on the five control routes (`B4.11`) refuses as restart does, and the
+    one-time flag clear (`F4.8`) leaves no service disabled (ruling 321);
   - the proxy's mapping;
   - flush in streams mode trims, acknowledges and keeps the consumer group, and in list mode
     deletes the lists.
@@ -235,7 +237,8 @@ model takes to answer.
 
   The edits to `dashboard/ai-summary-row.spec.ts`, `operations/performance.spec.ts`,
   `operations/grafana-embeds.spec.ts` and `shell/palette.spec.ts` follow the new keys and links,
-  in the PR that changes each.
+  in the PR that changes each. `F4.8` also edits `operations/worker-management.spec.ts:88-113`,
+  F-143's golden path, which clicks the worker stop and start it retires (ruling 321).
 
 - **Fake-stack scenario:** the fake gateway reports its model loaded; the fake VLM answers one call
   and then idles.
@@ -262,10 +265,10 @@ upgrades stay.
 
 ## Packages
 
-| package | lane (ruling 317) | depends on | contents                                                                                                                                                                                                                                            | its own golden path       |
-| ------- | ----------------- | ---------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------- |
-| `B4.11` | heavy-b           | none       | Expand: the health module and its readers, the new fields beside the old, the latency histograms, restart only under the admin session with its audit, the never-probed VLM, the alerts proxy, the receiver's retirement, the mode-aware flush.     | Backend pytest of routes. |
-| `F4.8`  | frontend          | `B4.11`    | Contract: the badge, row, cards, panel with its sign-in prompt, chart, banner, the alert badge's socket and load, the palette, Tracing; removes the old fields, retires the control routes with their callers and clears the disabled flags (UR-9). | Playwright above.         |
+| package | lane (ruling 317)                 | depends on | contents                                                                                                                                                                                                                                            | its own golden path       |
+| ------- | --------------------------------- | ---------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------- |
+| `B4.11` | heavy-b                           | none       | Expand: the health module and its readers, the new fields beside the old, the latency histograms, restart only under the admin session with its audit, the never-probed VLM, the alerts proxy, the receiver's retirement, the mode-aware flush.     | Backend pytest of routes. |
+| `F4.8`  | frontend (owner tier, ruling 321) | `B4.11`    | Contract: the badge, row, cards, panel with its sign-in prompt, chart, banner, the alert badge's socket and load, the palette, Tracing; removes the old fields, retires the control routes with their callers and clears the disabled flags (UR-9). | Playwright above.         |
 
 Each runs the six steps as two PRs: a test-only consolidation PR, then the build.
 
@@ -291,4 +294,4 @@ confirmed every review finding and found more; the plan PR's review added one (T
 Each package: its golden path green on the fake stack and its real-tier check posted, and for F-140
 the owner's witnessed restart on the live install. F-293's row reads **retired** (R2a row 9 deletes
 its receiver); the other twelve rows read **works** once both packages have merged and their checks
-are posted.
+are posted. F-143's row re-cites its edited spec: worker restart stays, stop and start retire.
