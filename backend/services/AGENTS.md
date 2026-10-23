@@ -97,24 +97,26 @@ FileWatcher → detection_queue → DetectionQueueWorker (DetectorClient.detect_
   not know channel adapters).
 - The outbound webhook retry worker (`webhook_retry_worker.py`) is
   independent of Redis; it needs only the database.
+- The WS event channel is `security_events` — `get_event_channel()` and the
+  backward-compat `EventBroadcaster.CHANNEL_NAME` read
+  `settings.redis_event_channel` (default in `backend/core/config.py`), not a
+  literal; the message is `"type": "event"`, payload under `data`, pinned by
+  `TestChannelDocumentation` in `test_websocket.py`.
 
 ## Patterns
 
 - **Singleton reset for tests.** 52 `reset_*()` functions across 49 files
   (`severity.reset_severity_service()`,
   `circuit_breaker.reset_circuit_breaker_registry()`, ...). The Model Zoo
-  needs TWO: `model_zoo.reset_model_zoo()` AND
-  `model_zoo.reset_model_manager()`. Miss one and the next test inherits
-  state that looks like flakiness.
+  needs TWO: `model_zoo.reset_model_zoo()` AND `model_zoo.reset_model_manager()`.
+  Miss one and the next test inherits state that looks like flakiness.
 - **Shared inference semaphore** (`inference_semaphore.py`,
-  `get_inference_semaphore()`): all AI inference (detection, analysis)
-  shares one asyncio semaphore so concurrent services cannot overload the
-  AI tier. Acquire it around any new direct inference call.
+  `get_inference_semaphore()`): all AI inference (detection, analysis) shares
+  one asyncio semaphore; acquire it around any new direct inference call.
 - **Circuit breakers**: `circuit_breaker.py` holds the AI-provider
   resilience registry (pre-registered at startup so the monitoring UI shows
   them before first use); `websocket_circuit_breaker.py` is the
-  WebSocket-connection-specific one. Do not move AI resilience back into
-  core.
+  WebSocket-connection-specific one. Do not move AI resilience back into core.
 - **Batch coalescing** (`batch_coalescer.py`): compatible detections (same
   camera, same primary class, similar confidence, under max batch size)
   merge into one inference call. New stages must respect its priority
@@ -129,17 +131,16 @@ FileWatcher → detection_queue → DetectionQueueWorker (DetectorClient.detect_
   generator imports it at generation time); it deliberately re-states
   `VlmAssessContext`'s fields instead of importing `AssessInput`, and a
   test pins the two field sets together. Do not "deduplicate" the import.
-- The workers run as a separate process (`python -m
-backend.services.pipeline_workers`) in CI/shards — a test that assumes
-  the API process spawns them lies to itself.
+- The workers run as a separate process (`python -m backend.services.pipeline_workers`)
+  in CI/shards — a test that assumes the API process spawns them lies to itself.
 - Retired services (`enrichment_pipeline`, `yolo_world_service`, the
   `nemotron_analyzer` name) are gone; the container registers
   `context_enricher` and `vlm_analyzer` instead. Old references to them in
-  docs are drift — the retired-name ratchet
-  (`.agents-md-validator.yml`) keeps counts falling.
+  docs are drift — the retired-name ratchet (`.agents-md-validator.yml`)
+  keeps counts falling.
 - The REID gateway path (`reid_gateway.py` + `osnet_loader.py`) builds its
-  URL from `settings.enrichment_light_url` → `{base}/person-reid`; do not
-  hardcode the port.
+  URL from `settings.enrichment_light_url` → `{base}/person-reid` — never hardcode
+  the port.
 
 ## How to Test
 
@@ -149,11 +150,10 @@ uv run pytest backend/tests/unit/services/test_pipeline_factory.py --timeout=60
 uv run pytest backend/tests/unit/services/test_vlm_analyzer.py --timeout=60
 ```
 
-283 test files mirror the services. The analyzer suite pins the invariant
-table line-by-line (`test_vlm_analyzer.py`, 114 tests); the client suite
-pins the failure ladder (`test_vlm_client.py`, 86); the single-owner suite
-pins worker counts, restart-on-death and clean shutdown
-(`test_pipeline_worker_single_owner.py`).
+283 test files mirror the services: the analyzer suite pins the invariant table
+line-by-line (`test_vlm_analyzer.py`, 114 tests), the client suite pins the
+failure ladder (`test_vlm_client.py`, 86), the single-owner suite pins worker
+counts, restart-on-death and clean shutdown (`test_pipeline_worker_single_owner.py`).
 
 ## Related
 
