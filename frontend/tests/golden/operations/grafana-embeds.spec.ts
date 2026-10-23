@@ -19,7 +19,10 @@
  * iframe URL contract all execute against the real backend. On the `O2.5`
  * production-shape real tier (`feature_check.py --real --prod-shape`, ruling
  * 144), Grafana runs behind `/grafana/` and the same spec also asserts the
- * live Grafana health and provisioned dashboard UID over the stack's proxy.
+ * live Grafana health and provisioned dashboard UID over the stack's proxy —
+ * required, not soft, since r323a: the run's harness env names that tier
+ * (`FEATURE_CHECK_PROD_SHAPE=1`, the name r287 pinned into the harness
+ * contract), and the spec branches on it.
  */
 import { GUARD_MESSAGE, expect, test } from '../guard';
 import { api, apiCookie, closedByGuard, loginAsAdmin, readOpsHarness } from '../harness';
@@ -144,11 +147,12 @@ test.describe('golden path: operations grafana embed pages (F-164..F-167, F-169,
 
       // Probe whether Grafana is mounted behind nginx on this stack (502 on CI
       // --fake where grafana is absent; 200 on a --prod-shape run). The run's
-      // harness file names the shape itself (FEATURE_CHECK_PROD_SHAPE=1, a
-      // r323a-pinned env name), so the spec can branch on it: a prod-shape run
-      // REQUIRES Grafana's health to answer 200 and each dashboard's uid to
-      // come back — the two asserts a pass alone never showed — while the CI
-      // fake tier keeps its 502 soft branch (no grafana service runs there).
+      // harness env names the shape itself (FEATURE_CHECK_PROD_SHAPE, the name
+      // r287 pinned into the harness contract), so the spec can branch on it —
+      // the branch this file lacked until r323a: a prod-shape run REQUIRES
+      // Grafana's health to answer 200 and each dashboard's uid to come back —
+      // the two asserts a pass alone never showed — while the CI fake tier
+      // keeps its 502 soft branch (no grafana service runs there).
       const prodShape = process.env.FEATURE_CHECK_PROD_SHAPE === '1';
       const grafanaHealth = await fetch(`${h.ui}/grafana/api/health`, {
         headers: apiCookie(session),
