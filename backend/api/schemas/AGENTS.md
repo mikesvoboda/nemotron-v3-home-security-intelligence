@@ -1647,22 +1647,6 @@ Pydantic schemas for queue status monitoring API.
 
 ---
 
-### Alertmanager Schemas (`alertmanager.py`)
-
-Pydantic schemas for Prometheus Alertmanager webhook integration (NEM-3122).
-
-**Schemas:**
-
-| Schema                         | Purpose                                  |
-| ------------------------------ | ---------------------------------------- |
-| `AlertmanagerWebhook`          | Incoming Alertmanager webhook payload    |
-| `AlertmanagerWebhookResponse`  | Response for webhook acknowledgement     |
-| `AlertmanagerAlert`            | Individual alert from Alertmanager       |
-| `AlertmanagerAlertLabels`      | Alert labels (alertname, severity, etc.) |
-| `AlertmanagerAlertAnnotations` | Alert annotations (summary, description) |
-
----
-
 ### Hierarchy Schemas (`hierarchy.py`)
 
 Pydantic schemas for household organizational hierarchy (NEM-3131, NEM-3132, NEM-3133).

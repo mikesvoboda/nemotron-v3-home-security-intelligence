@@ -52,8 +52,8 @@ feature has triggered. Seams are designed when reached.
   rulings, split by ruling 86; `R2a` recorded 2026-10-10 in #6980).
 - `O2.3` → `O2.3b` → `F2.2`'s module list and `R2`'s §3.
 - `O2.4` → `B2.3` (TensorRT re-ID, then the bake-off; ruling 107).
-- `O2.5` → ruling 127's 12 real-tier rows, F-295 (ruling 219) and F-296 (ruling 222) in `F2.3`
-  (ruling 144).
+- `O2.5` → the GPU rows and six Grafana rows of ruling 127's 12 in `F2.3` (rulings 144, 323);
+  F-102, F-115 and F-117 wait on the Monitoring package, and F-295 and F-296 on `[r323b]`.
 - `B3.1` and `F3.1` land each R2a row's retire-ruled features in one PR (ruling 255).
 - Each lane's Phase 3 → the docs lane's Phase 3 on that lane's directories (UR-68).
 
@@ -187,7 +187,7 @@ UR-147.
 | O2.2    | ops                     | 2          | Feature-check harness (fake and real)          | heavy · owner | done        | #6961 |
 | O2.3    | ops                     | 2          | Reachability check (`01` M1)                   |               | done        | #6954 |
 | O2.3b   | ops                     | 2          | Reachability: ancestor packages ship           |               | done        | #6973 |
-| O2.4    | ops                     | 2          | Re-ID on the GB300 GPU via TensorRT            |               | in progress | #7002 |
+| O2.4    | ops                     | 2          | Re-ID on the GB300 GPU via TensorRT            |               | done        | #7002 |
 | O2.5    | ops                     | 2          | Production-shape real tier                     |               | awaiting real tier | #7037 |
 | R2a     | owner; frontend records | 2          | Phase 2 RULING session, part 1 (as it stood)   | owner         | done        | #6980 |
 | R2b     | owner; frontend records | 2          | Phase 2 RULING session, part 2 (after `F2.3`)  | owner         | done        | #7030 |
@@ -207,14 +207,14 @@ UR-147.
 | B4.\*   | backend                 | 4          | Feature track (arming among them, UR-12)       | design: heavy | not started |     |
 | B4.1    | backend                 | 4          | Alert pipeline core                            | heavy         | awaiting real tier | #7335, #7342 |
 | B4.2    | backend                 | 4          | Recipients and delivery                        |               | awaiting real tier | #7339, #7346 |
-| B4.4    | backend                 | 4          | Trash purger                                   | heavy         | awaiting real tier | #7347, #7354 |
+| B4.4    | backend                 | 4          | Trash purger                                   | heavy         | done               | #7347, #7354 |
 | B4.6    | backend                 | 4          | Restore from backup                            | heavy         | awaiting real tier | #7345, #7350, #7358 |
-| B4.7    | backend                 | 4          | Arming core                                    | heavy         | awaiting real tier | #7357, #7361 |
+| B4.7    | backend                 | 4          | Arming core                                    | heavy         | done               | #7357, #7361 |
 | B4.11   | backend                 | 4          | System status (expand)                         | heavy · owner | in progress | #7366 |
 | BB.\*   | backend                 | 4          | Background track                               |               | not started |     |
 | F4.\*   | frontend                | 4          | Feature track, frontend parts                  | design: heavy | not started |     |
 | F4.4    | frontend                | 4          | Timeline filters and detections                |               | awaiting real tier | #7352, #7362 |
-| F4.1    | frontend                | 4          | The Alerts page                                |               | in progress | #7367 |
+| F4.1    | frontend                | 4          | The Alerts page                                |               | in progress | #7367, #7370 |
 | F4.9    | frontend                | 4          | Easy and Advanced modes                        | heavy         | awaiting real tier | #7376, #7380 |
 | FB.\*   | frontend                | 4          | Background track                               |               | not started |     |
 | OB.2    | ops                     | after 1    | CI dedupe                                      |               | done        | #6963 |

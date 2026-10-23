@@ -299,6 +299,7 @@ CHECKS: dict[str, Check] = {
     "0014-arming-core": all_present(
         [column_present(table, column) for table, column in _B47_ARMING_CORE_COLUMNS]
     ),
+    "0015-retire-prometheus-alerts-table": table_absent("prometheus_alerts"),
 }
 
 

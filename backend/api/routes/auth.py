@@ -23,7 +23,7 @@ Endpoints:
 from datetime import UTC, datetime, timedelta
 from typing import Annotated, Literal
 
-from fastapi import APIRouter, Cookie, Depends, HTTPException, Response, status
+from fastapi import APIRouter, Cookie, Depends, HTTPException, Request, Response, status
 from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -482,7 +482,29 @@ async def get_current_user(
     return user
 
 
+async def _reject_api_key_for_admin_session(
+    request: Request,
+    session_id: Annotated[str | None, Cookie(alias=SESSION_COOKIE_NAME)] = None,
+) -> None:
+    """Refuse API-key-only requests with 403 and unauthenticated requests with 401 (4n-status.md T1)."""
+    if get_current_user in request.app.dependency_overrides:
+        return
+    if not session_id:
+        api_key = request.headers.get("X-API-Key") or request.query_params.get("api_key")
+        path = request.url.path
+        if api_key and (path.startswith("/api/system/") or path.startswith("/api/debug")):
+            raise HTTPException(
+                status_code=status.HTTP_403_FORBIDDEN,
+                detail="Admin session required; API keys are not permitted",
+            )
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Not authenticated",
+        )
+
+
 async def get_current_admin_user(
+    _no_api_key: None = Depends(_reject_api_key_for_admin_session),
     user: User = Depends(get_current_user),
 ) -> User:
     """Dependency to get the current authenticated admin user.
@@ -494,7 +516,7 @@ async def get_current_admin_user(
         The authenticated admin User object.
 
     Raises:
-        HTTPException: 403 if user is not an admin.
+        HTTPException: 403 if user is not an admin or if an API key was used without a session.
     """
     if not user.is_admin:
         raise HTTPException(
