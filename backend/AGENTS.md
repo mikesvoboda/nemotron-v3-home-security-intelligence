@@ -146,5 +146,5 @@ integration in `backend/tests/integration/` (sharded), contracts in
 | `/AGENTS.md`                    | project-wide instructions                                        |
 
 Directories without an `AGENTS.md` on purpose: `backend/repositories/`,
-`backend/evaluation/`, `backend/jobs/`, `backend/config/`, `backend/scripts/`,
+`backend/evaluation/`, `backend/jobs/`, `backend/scripts/`,
 `backend/data/` (runtime), `backend/tests/` (tests index themselves).
