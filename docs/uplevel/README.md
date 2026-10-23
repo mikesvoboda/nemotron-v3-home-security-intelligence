@@ -52,8 +52,8 @@ feature has triggered. Seams are designed when reached.
   rulings, split by ruling 86; `R2a` recorded 2026-10-10 in #6980).
 - `O2.3` → `O2.3b` → `F2.2`'s module list and `R2`'s §3.
 - `O2.4` → `B2.3` (TensorRT re-ID, then the bake-off; ruling 107).
-- `O2.5` → ruling 127's 12 real-tier rows, F-295 (ruling 219) and F-296 (ruling 222) in `F2.3`
-  (ruling 144).
+- `O2.5` → the GPU rows and six Grafana rows of ruling 127's 12 in `F2.3` (rulings 144, 323);
+  F-102, F-115 and F-117 wait on the Monitoring package, and F-295 and F-296 on `[r323b]`.
 - `B3.1` and `F3.1` land each R2a row's retire-ruled features in one PR (ruling 255).
 - Each lane's Phase 3 → the docs lane's Phase 3 on that lane's directories (UR-68).
 

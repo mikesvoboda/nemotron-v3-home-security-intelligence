@@ -334,6 +334,11 @@ package tagged `[rNNN]` is a fix that ruling NNN ordered.
 | 319    | OD-36 keep, admin-only: every `/api/debug/*` route behind the admin session (record 6349900914)             |
 | 320    | `[r320]`: Q-192 to heavy-a; moot, its spec left `main` in #7311 (records 6354896020, 6355421498)            |
 | 321    | modes and debug tools designs; `F4.9`, `B4.12`, `F4.10`; `F4.8` owner tier (record 6355356496)              |
+| 322    | owner-partner: red `main` (PG 18 client vs PG 16) to ops-a; fixed by #7379 (record 6356617873)              |
+| 323    | `O2.5` is item 2 alone; item 1 and its VLM relay dropped; `[r323a]`, `[r323b]` (record 6356971214)          |
+| 324    | owner-partner: the nightly's PG client drift to ops-a; fixed by #7389 (record 6362943411)                   |
+| 325    | Q-193: `O2.4` done on `[r312a]`'s Run 2; `[r325a]` (record 6364638047)                                      |
+| 326    | one-off: the operator stages B4.4's store in its workspace for the owner (UR-142; record 6372335619)        |
 
 ## Owner records
 
