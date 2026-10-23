@@ -195,8 +195,15 @@ test.describe('F4.9 Easy and Advanced view modes golden path (F-299) @critical',
     // 1. A fresh browser shows the five Easy items and no GPU pill.
     await assertEasySidebarHubs(page);
     await expect(page.getByText('GPU:', { exact: true })).toHaveCount(0);
-    await expect(page.getByTestId('mode-switch-easy')).toHaveAttribute('aria-pressed', 'true');
-    await expect(page.getByTestId('mode-switch-advanced')).toHaveAttribute('aria-pressed', 'false');
+    const headerSwitch = page.getByTestId('header-mode-switch-container');
+    await expect(headerSwitch.getByTestId('mode-switch-easy')).toHaveAttribute(
+      'aria-pressed',
+      'true'
+    );
+    await expect(headerSwitch.getByTestId('mode-switch-advanced')).toHaveAttribute(
+      'aria-pressed',
+      'false'
+    );
 
     // 2. An event's modal shows Details and Video Clip, the verdict badge and the
     //    detected objects, and no AI Analysis tab.
@@ -234,7 +241,7 @@ test.describe('F4.9 Easy and Advanced view modes golden path (F-299) @critical',
     }
 
     // 4. Switching to Advanced shows nine items, the GPU pill and the AI Analysis tab.
-    await page.getByTestId('mode-switch-advanced').click();
+    await headerSwitch.getByTestId('mode-switch-advanced').click();
     await expect(banner).toHaveCount(0);
     await assertAllNineSidebarHubs(page);
     await expect(page.getByText('GPU:', { exact: true })).toBeVisible();
@@ -256,7 +263,7 @@ test.describe('F4.9 Easy and Advanced view modes golden path (F-299) @critical',
     await expect(page.getByText('GPU:', { exact: true })).toBeVisible();
 
     // 6. Switching back returns the five items.
-    await page.getByTestId('mode-switch-easy').click();
+    await headerSwitch.getByTestId('mode-switch-easy').click();
     await assertEasySidebarHubs(page);
     await expect(page.getByText('GPU:', { exact: true })).toHaveCount(0);
 
