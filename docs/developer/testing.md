@@ -697,6 +697,7 @@ environment variables:
 | `FEATURE_CHECK_ADMIN_USERNAME`, `FEATURE_CHECK_ADMIN_PASSWORD` | the first admin the harness registered        |
 | `FEATURE_CHECK_MODE`                                           | `fake` or `real`                              |
 | `FEATURE_CHECK_RUN_DIR`                                        | the run's directory                           |
+| `FEATURE_CHECK_PROD_SHAPE`                                     | `1` on a `--prod-shape` run, `0` otherwise    |
 
 To drop a fixture image into a camera folder, run
 `scripts/feature-check.sh drop <image> <camera>`, or copy the image into
