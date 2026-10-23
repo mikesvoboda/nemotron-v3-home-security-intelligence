@@ -22,8 +22,8 @@ afterAll(() => {
 });
 
 // Wrapper component with shared navigation fixture
-function renderWithRouter(ui: React.ReactElement) {
-  return renderWithNavigation(ui, { useMemoryRouter: false });
+function renderWithRouter(ui: React.ReactElement, mode: 'easy' | 'advanced' = 'easy') {
+  return renderWithNavigation(ui, { useMemoryRouter: false, mode });
 }
 
 describe('CommandPalette', () => {
@@ -182,6 +182,25 @@ describe('CommandPalette', () => {
 
       // Check for shortcut indicators (e.g., "g d" for dashboard)
       expect(screen.getByText('g d')).toBeInTheDocument();
+    });
+  });
+
+  describe('Easy vs Advanced mode items (F4.9)', () => {
+    it('shows Easy hubs/tabs and Switch to Advanced in Easy mode, and includes Advanced hubs/tabs and Switch to Easy in Advanced mode', () => {
+      const { unmount } = renderWithRouter(
+        <CommandPalette open={true} onOpenChange={() => {}} />,
+        'easy'
+      );
+      expect(screen.getByText('Switch to Advanced')).toBeInTheDocument();
+      expect(screen.queryByText('AI Audit')).not.toBeInTheDocument();
+      expect(screen.queryByText('Entities')).not.toBeInTheDocument();
+      unmount();
+
+      renderWithRouter(<CommandPalette open={true} onOpenChange={() => {}} />, 'advanced');
+      expect(screen.getByText('Switch to Easy')).toBeInTheDocument();
+      expect(screen.getByText('AI Audit')).toBeInTheDocument();
+      expect(screen.getByText('Entities')).toBeInTheDocument();
+      expect(screen.getByText('Operations')).toBeInTheDocument();
     });
   });
 });

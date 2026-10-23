@@ -206,7 +206,7 @@ describe('useKeyboardShortcuts', () => {
         simulateKeyPress('y');
       });
 
-      expect(mockNavigate).toHaveBeenCalledWith('/system');
+      expect(mockNavigate).toHaveBeenCalledWith('/operations');
     });
 
     it('resets chord after timeout', () => {

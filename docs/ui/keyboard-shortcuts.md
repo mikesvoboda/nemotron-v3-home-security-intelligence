@@ -35,24 +35,22 @@ The command palette searches both page names and keywords. For example:
 
 ### Available Commands
 
-| Destination    | Icon           | Search Keywords                         |
-| -------------- | -------------- | --------------------------------------- |
-| Dashboard      | Layout icon    | home, main, overview                    |
-| Timeline       | Clock icon     | events, history, time                   |
-| Analytics      | Chart icon     | charts, graphs, statistics, stats       |
-| Alerts         | Bell icon      | notifications, warnings                 |
-| Entities       | Users icon     | people, objects, detection              |
-| Logs           | File icon      | system, debug, output                   |
-| System         | Activity icon  | monitoring, health, status, performance |
-| AI Performance | Brain icon     | model, inference, gpu, nemotron, rtdetr |
-| Audit Log      | Clipboard icon | history, changes, tracking              |
-| Settings       | Gear icon      | preferences, configuration, options     |
+The command palette (`frontend/src/components/common/CommandPalette.tsx`) builds its navigation list from `frontend/src/config/surfaces.ts` for the current view mode (`Easy` or `Advanced`) and includes a **Switch to Advanced** / **Switch to Easy** action:
 
-> **Known issue:** the "System" entry (and the `g y` chord) navigates to
-> `/system`, which is not a route in `frontend/src/App.tsx` — it currently lands
-> on the Not Found page. The operations dashboards live at `/operations` and
-> `/operations-dashboard`; open those from the sidebar until the palette target
-> is fixed.
+| Destination             | Mode     | Path          | Search Keywords                         |
+| ----------------------- | -------- | ------------- | --------------------------------------- |
+| Dashboard               | Easy     | `/`           | home, main, overview, live              |
+| Trends                  | Easy     | `/analytics`  | charts, graphs, statistics, analytics   |
+| Timeline                | Easy     | `/timeline`   | events, history, feed, stream, activity |
+| Alerts                  | Easy     | `/alerts`     | notifications, warnings, alarms         |
+| Household               | Easy     | `/household`  | members, family, residents              |
+| Settings                | Easy     | `/settings`   | preferences, configuration, options     |
+| Audit log               | Easy     | `/audit`      | security, changes, admin, history       |
+| AI Workbench            | Advanced | `/ai-audit`   | evaluation, critique, quality, prompts  |
+| GPU & Models            | Advanced | `/ai`         | model, inference, gpu, vlm, latency     |
+| Entities                | Advanced | `/entities`   | people, objects, detection, re-id       |
+| Operations & Monitoring | Advanced | `/operations` | monitoring, health, status, performance |
+| Logs                    | Advanced | `/logs`       | system, debug, output, loki             |
 
 ---
 
@@ -80,16 +78,18 @@ These shortcuts work anywhere in the application (except when typing in text fie
 
 Navigation uses "chord" shortcuts - press `g` followed by another key within 1 second to navigate.
 
-| Chord | Destination |
-| ----- | ----------- |
-| `g d` | Dashboard   |
-| `g t` | Timeline    |
-| `g n` | Analytics   |
-| `g a` | Alerts      |
-| `g e` | Entities    |
-| `g o` | Logs        |
-| `g y` | System      |
-| `g s` | Settings    |
+| Chord | Destination                  | Mode     |
+| ----- | ---------------------------- | -------- |
+| `g d` | Go to Dashboard (`/`)        | Easy     |
+| `g t` | Go to Timeline (`/timeline`) | Easy     |
+| `g n` | Go to Trends (`/analytics`)  | Easy     |
+| `g a` | Go to Alerts (`/alerts`)     | Easy     |
+| `g s` | Go to Settings (`/settings`) | Easy     |
+| `g e` | Go to Entities (`/entities`) | Advanced |
+| `g y` | Go to System (`/operations`) | Advanced |
+| `g o` | Go to Logs (`/logs`)         | Advanced |
+
+All `g` chords work in both Easy and Advanced modes; in the `?` shortcuts help modal, chords that open Advanced pages carry an `Advanced` badge.
 
 **How to use:** Press `g`, release it, then press the second key. Both keys must be pressed within 1 second.
 

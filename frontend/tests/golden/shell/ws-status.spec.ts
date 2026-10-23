@@ -152,7 +152,7 @@
 import type { Response } from '@playwright/test';
 
 import { GUARD_MESSAGE, expect, test } from '../guard';
-import { BOOT_QUIET_MS, closedByGuard, openShell, readShellHarness } from '../harness';
+import { BOOT_QUIET_MS, closedByGuard, openShell, readShellHarness, setMode } from '../harness';
 
 const harness = readShellHarness();
 test.skip(
@@ -259,6 +259,7 @@ test.describe('golden path: WebSocket status and disconnect banner @critical', (
     // 30 s (it covers the SECOND hook instance — see comment) + tooltip/feed
     // ~35 s ≈ 117 s of poll ceilings ⇒ 150 s wall.
     test.setTimeout(150_000);
+    await setMode(page, 'advanced');
     await openShell(page, h);
     await expectBothChannelsConnected(page);
 
@@ -344,6 +345,7 @@ test.describe('golden path: WebSocket status and disconnect banner @critical', (
     test.setTimeout(300_000);
 
     // --- ONLINE: boot connected, and witness the negative control first. ---
+    await setMode(page, 'advanced');
     await openShell(page, h);
     await expectBothChannelsConnected(page);
     // Bounded, not the 3 s default: the chip is HEADER's hook instance, the

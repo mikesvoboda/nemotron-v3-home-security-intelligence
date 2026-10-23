@@ -29,8 +29,11 @@ import { BrowserRouter, MemoryRouter } from 'react-router-dom';
 
 import { ThemeProvider } from '../contexts';
 import { AnnouncementProvider } from '../contexts/AnnouncementContext';
+import { UI_MODE_STORAGE_KEY, ViewModeProvider } from '../contexts/ViewModeContext';
 import { SidebarContext, SidebarContextType } from '../hooks/useSidebarContext';
 import { createQueryClient } from '../services/queryClient';
+
+import type { ViewMode } from '../config/surfaces';
 
 /**
  * Default sidebar context values for testing.
@@ -108,6 +111,11 @@ export interface RenderWithProvidersOptions extends Omit<RenderOptions, 'wrapper
    * @default false
    */
   withAnnouncementProvider?: boolean;
+
+  /**
+   * Initial Easy / Advanced view mode for tests (F4.9).
+   */
+  mode?: ViewMode;
 }
 
 /**
@@ -137,8 +145,17 @@ function createWrapper(
     withQueryClient = true,
     withThemeProvider = false,
     withAnnouncementProvider = false,
+    mode,
     queryClient,
   } = options;
+
+  if (mode && typeof window !== 'undefined') {
+    try {
+      window.localStorage.setItem(UI_MODE_STORAGE_KEY, JSON.stringify(mode));
+    } catch {
+      // Ignore storage errors in restricted environments
+    }
+  }
 
   // Create a test QueryClient if not provided
   // Uses fresh instance per test to avoid cross-test contamination
@@ -177,6 +194,10 @@ function createWrapper(
 
     if (withThemeProvider) {
       wrapped = <ThemeProvider defaultMode="dark">{wrapped}</ThemeProvider>;
+    }
+
+    if (mode !== undefined) {
+      wrapped = <ViewModeProvider defaultMode={mode}>{wrapped}</ViewModeProvider>;
     }
 
     // Wrap with QueryClientProvider if needed (outermost provider)
@@ -232,6 +253,7 @@ export function renderWithProviders(
     withQueryClient: _withQueryClient,
     withThemeProvider: _withThemeProvider,
     withAnnouncementProvider: _withAnnouncementProvider,
+    mode: _mode,
     queryClient: _queryClient,
     ...restOptions
   } = options;
