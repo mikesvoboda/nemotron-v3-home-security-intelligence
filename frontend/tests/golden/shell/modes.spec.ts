@@ -254,6 +254,8 @@ test.describe('F4.9 Easy and Advanced view modes golden path (F-299) @critical',
     await expect(modal).toBeVisible();
     await expect(modal.getByTestId('ai-analysis-tab')).toBeVisible();
     await modal.getByTestId('close-modal-button').click();
+    await expect(modal).toHaveCount(0);
+    await page.evaluate(() => window.history.replaceState(null, '', '/timeline'));
 
     // 5. A reload keeps Advanced.
     await page.waitForTimeout(BOOT_QUIET_MS);
