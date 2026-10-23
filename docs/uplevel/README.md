@@ -207,7 +207,7 @@ UR-147.
 | B4.\*   | backend                 | 4          | Feature track (arming among them, UR-12)       | design: heavy | not started |     |
 | B4.1    | backend                 | 4          | Alert pipeline core                            | heavy         | awaiting real tier | #7335, #7342 |
 | B4.2    | backend                 | 4          | Recipients and delivery                        |               | awaiting real tier | #7339, #7346 |
-| B4.4    | backend                 | 4          | Trash purger                                   | heavy         | awaiting real tier | #7347, #7354 |
+| B4.4    | backend                 | 4          | Trash purger                                   | heavy         | done               | #7347, #7354 |
 | B4.6    | backend                 | 4          | Restore from backup                            | heavy         | awaiting real tier | #7345, #7350, #7358 |
 | B4.7    | backend                 | 4          | Arming core                                    | heavy         | awaiting real tier | #7357, #7361 |
 | B4.11   | backend                 | 4          | System status (expand)                         | heavy · owner | in progress | #7366 |
@@ -244,6 +244,8 @@ UR-147.
   and owner PRs.
 - [`packages/backend.md`](packages/backend.md), [`frontend.md`](packages/frontend.md),
   [`ops.md`](packages/ops.md), [`docs.md`](packages/docs.md): each lane's scope and open packages.
+- [`r262-audit.md`](r262-audit.md): the Qwen-era merge audit's to-do sheet (ruling 262) — every
+  census PR with its verified items, for the owner to rule on.
 - [`history/packages-done.md`](history/packages-done.md): finished packages, verbatim, by lane.
 - [`history/ruling-map.md`](history/ruling-map.md): where each owner ruling 1–146 went.
 - History, kept at these paths because code reads them: [`00-audit.md`](00-audit.md) (the evidence
