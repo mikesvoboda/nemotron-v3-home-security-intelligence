@@ -408,14 +408,23 @@ async function dropAndConverge(
       .sort((a, b) => new Date(b.started_at).getTime() - new Date(a.started_at).getTime());
     // Pass 1 — rows this poll can classify from the LIST payload alone: fake
     // rows by their summary, real rows by their detections (one fetch per
-    // real candidate, bounded by the camera's purge-kept row count).
+    // real candidate, bounded by the camera's purge-kept row count). A
+    // detections fetch that answers non-200 (a row deleted mid-poll, a
+    // transient 500) is NOT a fixture failure — api() throws on non-200 and
+    // the next 5 s tick re-reads the list, so such a row is skipped this
+    // tick and re-examined on the next one.
     const classified: EventRow[] = [];
     for (const row of verified) {
       if (row.verification?.model_id === FAKE_VLM_MODEL_ID) {
         if (row.summary === scenario.verdict.summary) classified.push(row);
       } else {
-        const dets = await detectionItems(session, row.id);
-        if (detectionsMatchBook(dets.items, scenario)) classified.push(row);
+        let dets: { items: DetectionItem[] } | undefined;
+        try {
+          dets = await detectionItems(session, row.id);
+        } catch {
+          continue; // re-examined next tick; the list read below is the loop
+        }
+        if (dets && detectionsMatchBook(dets.items, scenario)) classified.push(row);
       }
     }
     if (classified.length > 0) {
