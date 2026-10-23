@@ -134,28 +134,15 @@ test.describe('golden path: command palette + keyboard shortcuts @critical', () 
     // that a page-level locator could collide with shell chrome text.
     await expect(palette(page).getByText('Navigation', { exact: true })).toBeVisible(); // :242
 
-    // The FULL table lists when unfiltered, in NAVIGATION_ITEMS registration
-    // order (:48-119) — the "fuzzy-searches pages" clause needs a list to be
-    // fuzzy over. data-value in DOM order pins the table and the order at
-    // once (cmdk only re-sorts once a search exists).
-    await expect(page.locator('[cmdk-root] [cmdk-item]')).toHaveText([
-      /Dashboard/,
-      /Timeline/,
-      /Analytics/,
-      /Alerts/,
-      /Entities/,
-      /Logs/,
-      /System/,
-      /AI Performance/,
-      /Audit Log/,
-      /Settings/,
-    ]);
-    // The row's note says every entry EXCEPT System resolves to a route —
-    // read-verified this session: App.tsx registers /, /timeline, /analytics,
-    // /alerts, /entities, /logs, /settings, /ai, /audit and has NO /system
-    // (only /operations; SystemMonitoringPage mounts there). g y today lands
-    // the catch-all 404; that is F-019's row, so this spec presses nothing
-    // that targets /system.
+    // Easy mode lists the Easy hubs and tabs + Switch to Advanced (F4.9).
+    await expect(page.locator('[cmdk-root] [cmdk-item]').first()).toContainText(/Dashboard/);
+    await assertListed(page, 'Dashboard');
+    await assertListed(page, 'Trends');
+    await assertListed(page, 'Timeline');
+    await assertListed(page, 'Alerts');
+    await assertListed(page, 'Settings');
+    await assertListed(page, 'Audit log');
+    await assertListed(page, 'Switch to Advanced');
 
     // --- name match ("tim" is word-startsWith on "timeline", unique) -----
     await paletteInput(page).fill('tim');
@@ -165,25 +152,27 @@ test.describe('golden path: command palette + keyboard shortcuts @critical', () 
     // Typing alone navigates nothing.
     await expect(page).toHaveURL(`${h.ui}/`);
 
-    // --- keywords-only match ("hist" is in NO name — keywords arm) -------
+    // --- keywords/word-start match ("hist" matches Timeline + Audit log via
+    // keywords and Notification history by label word-start) ----------------
     await paletteInput(page).fill('hist');
     await assertListed(page, 'Timeline'); // keyword "history"
-    await assertListed(page, 'Audit Log'); // keyword "history"
-    // Equal scores keep registration order; Timeline precedes Audit Log in
-    // NAVIGATION_ITEMS (:56-66 before :105-111), and cmdk's re-sort is a
-    // descending stable pass, so the tie holds.
-    await expect(page.locator('[cmdk-root] [cmdk-item]')).toHaveText([/Timeline/, /Audit Log/]);
+    await assertListed(page, 'Audit log'); // keyword "history"
+    await assertListed(page, 'Notification history'); // label "Notification history"
+    await expect(page.locator('[cmdk-root] [cmdk-item]')).toHaveText([
+      /Timeline/,
+      /Audit log/,
+      /Notification history/,
+    ]);
 
-    // --- case-insensitivity (both sides lowercased, :195-196) ------------
+    // --- case-insensitivity (both sides lowercased) ----------------------
     await paletteInput(page).fill('ANALYT');
-    await assertListed(page, 'Analytics');
+    await assertListed(page, 'Trends');
     await assertNotListed(page, 'Alerts');
 
-    // --- substring-only branch ("atus" starts no word; "status" contains
-    // it — System's keyword, filter returns 0.5) --------------------------
-    await paletteInput(page).fill('atus');
-    await assertListed(page, 'System');
-    await assertNotListed(page, 'Dashboard');
+    // --- substring-only branch ("vervi" starts no word; "overview" contains
+    // it — Dashboard's keyword, filter returns 0.5) -----------------------
+    await paletteInput(page).fill('vervi');
+    await assertListed(page, 'Dashboard');
     await assertNotListed(page, 'Timeline');
 
     // --- zero-match lands the Command.Empty copy --------------------------
@@ -198,23 +187,14 @@ test.describe('golden path: command palette + keyboard shortcuts @critical', () 
     await expect(palette(page)).toHaveCount(0);
 
     // --- open by the Search… click; keyboard-select an ArrowDown move ----
-    // The toBeFocused waits after EVERY reopen are load-bearing twice over:
-    // the component focuses its input via setTimeout(0) (:141-148), which can
-    // land after the next Playwright round-trip, AND an Escape pressed while
-    // activeElement is still <body> is a SILENT no-op — the palette's
-    // onKeyDown is a React delegated handler at the #root container, so a
-    // body-targeted keydown never bubbles to it (body is ABOVE the root),
-    // and Layout's global hook is disabled while a modal is open (:60).
-    // Measured: the first draft pressed Escape straight after a reopen and
-    // the dialog stayed open for the full 3 s assert window.
     await page.getByTestId('search-trigger').click();
     await expect(palette(page)).toBeVisible();
     await expect(paletteInput(page)).toBeFocused({ timeout: 5_000 });
     await expect(paletteItem(page, 'Dashboard')).toHaveAttribute('aria-selected', 'true');
     await page.keyboard.press('ArrowDown');
-    await expect(paletteItem(page, 'Timeline')).toHaveAttribute('aria-selected', 'true');
+    await expect(paletteItem(page, 'Trends')).toHaveAttribute('aria-selected', 'true');
     await page.keyboard.press('Enter');
-    await assertOnRoute(page, h, '/timeline');
+    await assertOnRoute(page, h, '/analytics');
     await expect(palette(page)).toHaveCount(0);
 
     // --- Escape closes (the palette's OWN handler; Layout's hook is

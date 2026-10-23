@@ -3708,6 +3708,23 @@ export async function openAdminSection(
 
 // ══ F4.9 modes consolidation (navigation & event-modal fixtures) ══ ══════════
 /**
+ * Set the browser's initial Easy / Advanced view mode (`ui-mode` in localStorage,
+ * stored as JSON). Writes only when the key is absent so a reload or an in-test
+ * switch keeps the browser's choice (docs/uplevel/4n-modes.md MO10).
+ */
+export async function setMode(page: Page, mode: 'easy' | 'advanced'): Promise<void> {
+  await page.addInitScript((m: string) => {
+    try {
+      if (localStorage.getItem('ui-mode') === null) {
+        localStorage.setItem('ui-mode', JSON.stringify(m));
+      }
+    } catch {
+      // Ignore storage errors
+    }
+  }, mode);
+}
+
+/**
  * Shared golden navigation fixture for shell/header/navigation specs (F4.9):
  * dismisses the product tour, logs in as admin, drains the boot wave via
  * `quietBootShell`, and waits for the header branding to paint.

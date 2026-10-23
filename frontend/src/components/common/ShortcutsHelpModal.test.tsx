@@ -85,6 +85,10 @@ describe('ShortcutsHelpModal', () => {
       expect(gKeys.length).toBeGreaterThan(0);
       expect(screen.getByText('d')).toBeInTheDocument();
       expect(screen.getByText('t')).toBeInTheDocument();
+
+      // Advanced chords (g e, g y, g o) are marked with the Advanced badge (F4.9)
+      const advancedBadges = screen.getAllByTestId('shortcut-advanced-badge');
+      expect(advancedBadges).toHaveLength(3);
     });
 
     it('displays j/k navigation shortcuts', () => {
