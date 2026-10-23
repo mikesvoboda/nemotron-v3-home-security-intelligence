@@ -584,7 +584,8 @@ with `F4.10`.
 - [ ] Golden path (pytest, `backend/tests/golden/external/test_debug_access.py`, its profiling
       leg).
 
-**Done when:** its golden path is green and `F4.10` can call both additions.
+**Done when:** its golden path is green on the fake stack, its real-tier check is posted, and
+`F4.10` can call both additions.
 
 ### BB.\* Background track
 

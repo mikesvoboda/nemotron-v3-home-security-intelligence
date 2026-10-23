@@ -232,7 +232,8 @@ paths; the inventory row reads **works** once the operator records the real-tier
 
 **The P1 packages' frontend parts** (ruling 308, record 6326364266), each with its design as step 1.
 **The P2 packages' frontend parts** (ruling 317, record 6347331324) follow them: `F4.8`, `F4.6` and
-`F4.7`.
+`F4.7`. **The modes and debug tools packages** (ruling 321, record 6355356496): `F4.9` (heavy-a,
+now) and `F4.10` (frontend, after `F4.7`).
 
 ### F4.4 Timeline filters and detections
 

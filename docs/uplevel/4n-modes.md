@@ -5,7 +5,8 @@
 
 **Package:** `F4.9` · **Inventory rows:** F-299 (new: Header › Easy/Advanced view mode); F-017,
 F-018, F-019, F-021, F-198 (the navigation, palette, tour and settings shell it reshapes); F-006,
-F-007, F-061, F-062, F-063, F-187 (surfaces it shows only in Advanced) · **R2 ruling:** none of its
+F-007, F-061, F-062, F-063, F-187 (surfaces it shows only in Advanced); F-054, F-056 (event-modal
+rows whose specs move) · **R2 ruling:** none of its
 own; ruling 182 (UR-182) rules the switch and each mode's scope, and F-063 (complete, P2) waits on
 this design (ruling 317), so it takes priority 2 · **Designed:** 2026-10-22, with the owner
 
@@ -310,9 +311,9 @@ One build PR switches it on; every browser starts in Easy. A revert backs it out
 
 ## Packages
 
-| package | lane            | depends on | contents                                                                                                                                                                                                | its own golden path |
-| ------- | --------------- | ---------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------- |
-| `F4.9`  | heavy-a (owner) | none       | The registry, the view mode, the switch, the hubs and tab bars, the banner, the header, event-modal and Trends gating, the phone bar, palette, chords and help modal, and every spec and doc they move. | Playwright above.   |
+| package | lane                     | depends on | contents                                                                                                                                                                                                | its own golden path |
+| ------- | ------------------------ | ---------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------- |
+| `F4.9`  | heavy-a (owner's choice) | none       | The registry, the view mode, the switch, the hubs and tab bars, the banner, the header, event-modal and Trends gating, the phone bar, palette, chords and help modal, and every spec and doc they move. | Playwright above.   |
 
 It runs the six steps as two PRs: a test-only consolidation PR, then the build. It is lane tier.
 heavy-a follows `packages/frontend.md`'s block for it (UR-59). F-063's AI X-Ray is its own design
@@ -339,11 +340,11 @@ debug order in `4n-debug-tools.md`):
 | MO11 | About 30 specs and unit ranges were missing, and the consolidation scope named only the nav tests   | The full list above; the test-only PR consolidates every edited file's tests                                                                  |
 | MO12 | Overlaps with `F4.1`, `F4.2`, `F4.3`, `F4.5`, `F4.8` and `F4.10` were unstated                      | One "whichever merges second carries" line each                                                                                               |
 | MO13 | A debug mode already exists, and "mode" also names the arming and degradation modes                 | "Where it starts" names it; the glossary term is **view mode**                                                                                |
-| MO14 | The inventory and doc re-cites were incomplete                                                      | F-017, F-018, F-019, F-021, F-054, F-056, F-061, F-062, F-063, F-187 and F-198 re-cite; the UR-81 docs are listed                             |
+| MO14 | The inventory and doc re-cites were incomplete                                                      | F-006, F-007, F-017, F-018, F-019, F-021, F-054, F-056, F-061–F-063, F-187 and F-198 re-cite; the UR-81 docs are listed                       |
 
 ## Done when
 
 The golden path is green on the fake stack and its real-tier check is posted; F-299 reads **works**;
-F-017, F-018, F-019, F-021, F-054, F-056, F-061, F-062, F-063, F-187 and F-198 cite the registry or
-the moved specs, and `feature-inventory.test.ts` passes. (#7130 closes as consumed when the plan PR
-carrying this design merges, ruling 321.)
+F-006, F-007, F-017, F-018, F-019, F-021, F-054, F-056, F-061, F-062, F-063, F-187 and F-198 cite
+the registry or the moved specs, and `feature-inventory.test.ts` passes. (#7130 closes as consumed
+when the plan PR carrying this design merges, ruling 321.)

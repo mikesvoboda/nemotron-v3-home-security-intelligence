@@ -95,7 +95,7 @@ model takes to answer.
 | question                                   | decision                                                                                                                                                                                                                                                                                                         | why                                                                                                  |
 | ------------------------------------------ | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------- |
 | What can the services panel do?            | Restart only, for `ai-gateway`, `ai-vlm`, `redis` and `postgres`; worker cards use the worker restart. Enable, disable, `/start` and the worker stop and start routes retire (owner, ST-1; T6).                                                                                                                  | One real action, guarded; the others never stopped anything, or bypass the guard.                    |
-| Who may restart?                           | An admin with a session, through `get_current_admin_user`, in every setup; API keys never. With LAN exposure off, Restart asks for an admin sign-in, or offers to create the first admin account. The audit names the person (owner, review T1).                                                                 | `require_admin_access` does not check who calls; a restart of Postgres is the household admin's act. |
+| Who may restart?                           | An admin with a session, through `get_current_admin_user`, in every setup; API keys never. With LAN exposure off, Restart asks for an admin sign-in; with no account at all the app is already on `/setup` (`4n-debug-tools.md`, DT11). The audit names the person (owner, review T1).                           | `require_admin_access` does not check who calls; a restart of Postgres is the household admin's act. |
 | Where is a real restart witnessed?         | The owner, on the live install after these packages deploy: sign in as admin, restart `ai-gateway` from Operations, read the audit row and the badge going loading → ready. Pytest with a fake engine proves the rest (owner, review T5).                                                                        | UR-134 keeps every test deployment away from the container engine.                                   |
 | What does "AI service healthy" mean?       | One backend health module behind every badge and card. The detector is ready when the gateway reports its model loaded; the VLM is ready when its last call succeeded and its breaker is closed. A sleeping VLM is "Idle (asleep)", neutral, never probed awake; loading is amber; failing is red (owner, ST-2). | The case people need to see, a model that is not loaded, shows; a quiet night does not look broken.  |
 | Are the API names renamed?                 | Yes, by expand then contract (T3): `B4.11` adds `ai_vlm` and `yolo26` beside `nemotron` and `rtdetr`; `F4.8` moves every consumer and removes the old names in the same PR (UR-9). Branding and prompt management keep their names.                                                                              | R2 ruled the re-key; each package stays green on its own.                                            |
@@ -171,22 +171,21 @@ model takes to answer.
   and the `prometheus_alerts` table retire with a recorded upgrade; `admin.py`'s mode-aware flush
   and `constants.py`'s helper; `docs/openapi.json` and the generated types are regenerated (UR-83).
 - **frontend (`F4.8`, contract):** `useAIServiceStatus`, `AIServiceStatus`, `useAIMetrics`,
-  `AIPerformanceSummaryRow`, `AIModelsSettings`, `ModelStatusCards`, `ServicesPanel` (Restart
-  only, the sign-in prompt, Postgres no longer blocked), the shared `useIsAdmin` (it loads
-  `/api/auth/me` whether or not the backend requires auth, and reads 401 as "not signed in"
-  without redirecting) and `AdminSignInPrompt`, which `F4.10` reuses (`4n-debug-tools.md`, DT5),
-  `PerformanceCharts`,
+  `AIPerformanceSummaryRow`, `AIModelsSettings`, `ModelStatusCards`, `ServicesPanel` (Restart only,
+  the sign-in prompt, Postgres no longer blocked), the shared `useIsAdmin` (it loads `/api/auth/me`
+  whether or not the backend requires auth, and reads 401 as "not signed in" without redirecting)
+  and `AdminSignInPrompt`, which `F4.10` reuses (`4n-debug-tools.md`, DT5), `PerformanceCharts`,
   `usePerformanceMetrics`, `PerformanceDashboard`, `useFullHealthQuery`, `metricsParser`,
   `useServiceStatus` (`ai-vlm`), `usePrometheusAlertWebSocket` (events socket, shape, page-open
   load), `CommandPalette`, `useKeyboardShortcuts`, `TracingPage`; test fixtures
   (`test-utils/factories.ts`, `services/__mocks__/api.ts`). **Its cross-lane part** (UR-9, T3): the
-  same PR removes the old `nemotron` and `rtdetr` fields, moves the `ai_models` key, regenerates
-  the contract and types, and edits `operations/performance.spec.ts:55` and `:66`; and it retires
-  the enable, disable and `/start` service routes and the worker stop and start routes
-  (`services.py`, `system.py`) together with their callers (the start, stop, enable and disable
-  mutations in `useServiceMutations` and `useWorkerActions`; `api.ts`'s `/start`, `/disable` and
-  `/enable` clients and `supervisorApi.ts`'s worker start and stop; the panels' buttons), with a
-  404 test for each, and clears every persisted `enabled=false` once (T7, T8).
+  same PR removes the old `nemotron` and `rtdetr` fields, moves the `ai_models` key, regenerates the
+  contract and types, and edits `operations/performance.spec.ts:55` and `:66`; and it retires the
+  enable, disable and `/start` service routes and the worker stop and start routes (`services.py`,
+  `system.py`) together with their callers (the start, stop, enable and disable mutations in
+  `useServiceMutations` and `useWorkerActions`; `api.ts`'s `/start`, `/disable` and `/enable`
+  clients and `supervisorApi.ts`'s worker start and stop; the panels' buttons), with a 404 test for
+  each, and clears every persisted `enabled=false` once (T7, T8).
 - **monitoring:** none; the Tempo data source and Alertmanager's sink stay.
 
 ## Failure handling
@@ -211,11 +210,12 @@ model takes to answer.
   - every route returns `snapshot()`'s shape, and a state change publishes `ai_service_status`;
   - the orchestrator's health loop never requests `ai-vlm`;
   - restart, with a fake engine: refused with 401 without a session or with an API key alone, and
-    403 for a non-admin (`4n-debug-tools.md`, DT6); done and audited with the admin's name, the "requested" row committed first; 503
-    without an engine; a name outside the four is refused; a once-disabled service restarts;
+    403 for a non-admin (`4n-debug-tools.md`, DT6); done and audited with the admin's name, the
+    "requested" row committed first; 503 without an engine; a name outside the four is refused; a
+    once-disabled service restarts;
   - the retired routes answer 404;
   - the interim guard on the five control routes (`B4.11`) refuses as restart does, and the
-    one-time flag clear (`F4.8`) leaves no service disabled (ruling 321);
+    one-time flag clear (`F4.8`) leaves no service disabled (#7365's round-3 review);
   - the proxy's mapping;
   - flush in streams mode trims, acknowledges and keeps the consumer group, and in list mode
     deletes the lists.
