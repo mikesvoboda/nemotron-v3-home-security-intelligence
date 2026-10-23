@@ -1,11 +1,24 @@
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
-import { render, screen, waitFor, act } from '@testing-library/react';
+import { screen, waitFor, act } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { describe, expect, it, vi, beforeEach, afterEach } from 'vitest';
 
 import EventDetailModal, { type Event, type EventDetailModalProps } from './EventDetailModal';
 import * as api from '../../services/api';
 import * as auditApi from '../../services/auditApi';
+import {
+  createEventModalDetections,
+  createEventModalDetectionsResponse,
+  createEventModalFixture,
+  renderWithProviders,
+} from '../../test-utils';
+
+import type { Detection } from '../../types/generated';
+
+// Shared event-modal fixture (F4.9 consolidation): wire-shape detections and
+// response from test-utils/factories.ts.
+const mockWireDetections: Detection[] = createEventModalDetections();
+const mockDetectionsResponse = createEventModalDetectionsResponse(mockWireDetections);
 
 // Helper to create a test query client
 function createTestQueryClient() {
@@ -23,11 +36,19 @@ function createTestQueryClient() {
   });
 }
 
-// Helper to wrap component with query provider
+// Helper to wrap component with shared query provider
 function renderWithQueryClient(ui: React.ReactElement) {
   const queryClient = createTestQueryClient();
+  const result = renderWithProviders(
+    <QueryClientProvider client={queryClient}>{ui}</QueryClientProvider>,
+    {
+      withQueryClient: false,
+      withRouter: false,
+      withSidebarContext: false,
+    }
+  );
   return {
-    ...render(<QueryClientProvider client={queryClient}>{ui}</QueryClientProvider>),
+    ...result,
     queryClient,
   };
 }
@@ -50,10 +71,10 @@ vi.mock('../../services/api', async () => {
   const actual = await vi.importActual<typeof api>('../../services/api');
   return {
     ...actual,
-    fetchEventDetections: vi.fn().mockResolvedValue({
-      items: [],
-      pagination: { total: 0, limit: 100, offset: 0, has_more: false },
-    }),
+    // Default fetch resolution set per-test in the top-level beforeEach
+    // (the factory is hoisted above the fixture consts, so it cannot
+    // reference them).
+    fetchEventDetections: vi.fn(),
     fetchEventEntityMatches: vi.fn().mockResolvedValue({
       event_id: 123,
       person_matches: [],
@@ -174,42 +195,19 @@ vi.mock('../face-recognition/EnrollFaceModal', () => ({
 }));
 
 describe('EventDetailModal', () => {
-  // Mock event data
-  const mockEvent: Event = {
-    id: 'event-123',
-    timestamp: '2024-01-15T10:30:00Z',
-    camera_name: 'Front Door',
-    risk_score: 65,
-    risk_label: 'High',
-    summary: 'Person detected approaching the front entrance with a package',
-    reasoning:
-      'The detected person is approaching the entrance during evening hours carrying an unidentified package. This warrants attention.',
-    image_url: 'https://example.com/image.jpg',
-    thumbnail_url: 'https://example.com/thumbnail.jpg',
-    detections: [
-      {
-        label: 'person',
-        confidence: 0.95,
-        bbox: { x: 100, y: 100, width: 200, height: 300 },
-      },
-      {
-        label: 'package',
-        confidence: 0.87,
-        bbox: { x: 400, y: 200, width: 150, height: 100 },
-      },
-    ],
-    reviewed: false,
-  };
-
-  const mockProps: EventDetailModalProps = {
-    event: mockEvent,
-    isOpen: true,
-    onClose: vi.fn(),
-  };
+  // Shared event-modal fixture (F4.9 consolidation).
+  const baseModalFixture = createEventModalFixture({
+    props: { onClose: vi.fn() },
+  });
+  const mockEvent: Event = baseModalFixture.event;
+  const mockProps: EventDetailModalProps = baseModalFixture.props;
 
   beforeEach(() => {
     vi.clearAllMocks();
     vi.useFakeTimers({ shouldAdvanceTime: true });
+    // Default detections the modal's own fetch returns (F4.4): the two wire
+    // detections behind the "Detected Objects (2)" assertions.
+    vi.mocked(api.fetchEventDetections).mockResolvedValue(mockDetectionsResponse);
   });
 
   afterEach(() => {
@@ -264,10 +262,12 @@ describe('EventDetailModal', () => {
   });
 
   describe('image display', () => {
+    // The fallback image branch's alt text (F4.4: the event-thumbnail
+    // fallback never gets boxes, so there is one branch now, not two).
     it('renders full-size image when image_url is provided', async () => {
       renderWithQueryClient(<EventDetailModal {...mockProps} />);
       await waitFor(() => {
-        const image = screen.getByAltText(/Front Door detection at/);
+        const image = screen.getByAltText(/Front Door at/);
         expect(image).toBeInTheDocument();
       });
     });
@@ -276,7 +276,7 @@ describe('EventDetailModal', () => {
       renderWithQueryClient(<EventDetailModal {...mockProps} />);
       await waitFor(() => {
         // Verify image is rendered
-        const image = screen.getByAltText(/Front Door detection at/);
+        const image = screen.getByAltText(/Front Door at/);
         expect(image).toBeInTheDocument();
         expect(image.getAttribute('src')).toBe('https://example.com/image.jpg');
       });
@@ -287,41 +287,51 @@ describe('EventDetailModal', () => {
       renderWithQueryClient(<EventDetailModal {...mockProps} event={eventNoFullImage} />);
       await waitFor(() => {
         // Verify image is rendered with thumbnail
-        const image = screen.getByAltText(/Front Door detection at/);
+        const image = screen.getByAltText(/Front Door at/);
         expect(image).toBeInTheDocument();
         expect(image.getAttribute('src')).toBe('https://example.com/thumbnail.jpg');
       });
     });
 
-    it('renders DetectionImage when detections have bounding boxes', async () => {
+    it('renders the selected-detection still when a detection is auto-selected', async () => {
+      // The detections fetch resolves and the first detection is selected;
+      // the still branch's alt text names the detection's object and time.
       renderWithQueryClient(<EventDetailModal {...mockProps} />);
       await waitFor(() => {
-        expect(screen.getByAltText(/Front Door detection at/)).toBeInTheDocument();
+        expect(screen.getByAltText(/person at January 15, 2024/)).toBeInTheDocument();
       });
     });
 
     it('renders plain img when detections have no bounding boxes', async () => {
-      const eventNoBbox = {
-        ...mockEvent,
-        detections: [
-          { label: 'person', confidence: 0.95 },
-          { label: 'car', confidence: 0.87 },
-        ],
-      };
-      renderWithQueryClient(<EventDetailModal {...mockProps} event={eventNoBbox} />);
+      vi.mocked(api.fetchEventDetections).mockResolvedValue({
+        items: mockWireDetections.map((d) => ({
+          ...d,
+          bbox_x: null,
+          bbox_y: null,
+          bbox_width: null,
+          bbox_height: null,
+        })),
+        pagination: { total: 2, limit: 100, offset: 0, has_more: false },
+      });
+      renderWithQueryClient(<EventDetailModal {...mockProps} />);
       await waitFor(() => {
         expect(screen.getByAltText(/Front Door at/)).toBeInTheDocument();
       });
     });
 
-    it('does not render image section when no image_url or thumbnail_url', async () => {
+    it('renders only the detection still when no event image_url or thumbnail_url', async () => {
+      // F4.4: with the event's own images gone the modal still auto-selects
+      // the first fetched detection and shows its still, so the invariant is
+      // "no event-thumbnail fallback", not "no <img> at all".
       const eventNoImage = { ...mockEvent, image_url: undefined, thumbnail_url: undefined };
       renderWithQueryClient(<EventDetailModal {...mockProps} event={eventNoImage} />);
       await waitFor(() => {
         expect(screen.getByRole('dialog')).toBeInTheDocument();
+        expect(screen.getByAltText(/person at January 15, 2024/)).toBeInTheDocument();
       });
-      const images = screen.queryAllByRole('img');
-      expect(images.length).toBe(0);
+      // The fallback alt text ("Front Door at ...") must be absent - only the
+      // detection still renders.
+      expect(screen.queryByAltText(/Front Door at/)).not.toBeInTheDocument();
     });
   });
 
@@ -403,23 +413,26 @@ describe('EventDetailModal', () => {
     });
 
     it('formats confidence as percentage with rounding', async () => {
-      const eventWithRounding = {
-        ...mockEvent,
-        detections: [
-          { label: 'person', confidence: 0.956 },
-          { label: 'car', confidence: 0.874 },
+      vi.mocked(api.fetchEventDetections).mockResolvedValue({
+        items: [
+          { ...mockWireDetections[0], object_type: 'person', confidence: 0.956 },
+          { ...mockWireDetections[1], object_type: 'car', confidence: 0.874 },
         ],
-      };
-      renderWithQueryClient(<EventDetailModal {...mockProps} event={eventWithRounding} />);
+        pagination: { total: 2, limit: 100, offset: 0, has_more: false },
+      });
+      renderWithQueryClient(<EventDetailModal {...mockProps} />);
       await waitFor(() => {
         expect(screen.getAllByText('96%').length).toBeGreaterThanOrEqual(1);
         expect(screen.getAllByText('87%').length).toBeGreaterThanOrEqual(1);
       });
     });
 
-    it('does not render detections section when detections array is empty', async () => {
-      const eventNoDetections = { ...mockEvent, detections: [] };
-      renderWithQueryClient(<EventDetailModal {...mockProps} event={eventNoDetections} />);
+    it('does not render detections section when the fetch returns none', async () => {
+      vi.mocked(api.fetchEventDetections).mockResolvedValue({
+        items: [],
+        pagination: { total: 0, limit: 100, offset: 0, has_more: false },
+      });
+      renderWithQueryClient(<EventDetailModal {...mockProps} />);
       await waitFor(() => {
         expect(screen.getByRole('dialog')).toBeInTheDocument();
       });
@@ -427,11 +440,11 @@ describe('EventDetailModal', () => {
     });
 
     it('renders single detection correctly', async () => {
-      const eventOneDetection = {
-        ...mockEvent,
-        detections: [{ label: 'person', confidence: 0.95 }],
-      };
-      renderWithQueryClient(<EventDetailModal {...mockProps} event={eventOneDetection} />);
+      vi.mocked(api.fetchEventDetections).mockResolvedValue({
+        items: [mockWireDetections[0]],
+        pagination: { total: 1, limit: 100, offset: 0, has_more: false },
+      });
+      renderWithQueryClient(<EventDetailModal {...mockProps} />);
       await waitFor(() => {
         expect(screen.getByText('Detected Objects (1)')).toBeInTheDocument();
       });
@@ -487,7 +500,7 @@ describe('EventDetailModal', () => {
       renderWithQueryClient(<EventDetailModal {...mockProps} />);
       await waitFor(() => {
         expect(screen.getByText('Event ID')).toBeInTheDocument();
-        expect(screen.getByText('event-123')).toBeInTheDocument();
+        expect(screen.getByText('123')).toBeInTheDocument();
       });
     });
 
@@ -891,7 +904,7 @@ describe('EventDetailModal', () => {
       const reviewButton = screen.getByRole('button', { name: 'Mark event as reviewed' });
       await user.click(reviewButton);
 
-      expect(onMarkReviewed).toHaveBeenCalledWith('event-123');
+      expect(onMarkReviewed).toHaveBeenCalledWith('123');
       expect(onMarkReviewed).toHaveBeenCalledTimes(1);
     });
   });
@@ -1048,22 +1061,22 @@ describe('EventDetailModal', () => {
     });
 
     it('handles detection with 100% confidence', async () => {
-      const eventPerfectConfidence = {
-        ...mockEvent,
-        detections: [{ label: 'person', confidence: 1.0 }],
-      };
-      renderWithQueryClient(<EventDetailModal {...mockProps} event={eventPerfectConfidence} />);
+      vi.mocked(api.fetchEventDetections).mockResolvedValue({
+        items: [{ ...mockWireDetections[0], confidence: 1.0 }],
+        pagination: { total: 1, limit: 100, offset: 0, has_more: false },
+      });
+      renderWithQueryClient(<EventDetailModal {...mockProps} />);
       await waitFor(() => {
         expect(screen.getAllByText('100%').length).toBeGreaterThanOrEqual(1);
       });
     });
 
     it('handles detection with 0% confidence', async () => {
-      const eventZeroConfidence = {
-        ...mockEvent,
-        detections: [{ label: 'person', confidence: 0.0 }],
-      };
-      renderWithQueryClient(<EventDetailModal {...mockProps} event={eventZeroConfidence} />);
+      vi.mocked(api.fetchEventDetections).mockResolvedValue({
+        items: [{ ...mockWireDetections[0], confidence: 0.0 }],
+        pagination: { total: 1, limit: 100, offset: 0, has_more: false },
+      });
+      renderWithQueryClient(<EventDetailModal {...mockProps} />);
       await waitFor(() => {
         expect(screen.getAllByText('0%').length).toBeGreaterThanOrEqual(1);
       });
@@ -1103,11 +1116,16 @@ describe('EventDetailModal', () => {
 
     it('handles many detections', async () => {
       const manyDetections = Array.from({ length: 20 }, (_, i) => ({
-        label: `object-${i}`,
+        ...mockWireDetections[0],
+        id: i + 1,
+        object_type: `object-${i}`,
         confidence: 0.5 + i * 0.02,
       }));
-      const eventManyDetections = { ...mockEvent, detections: manyDetections };
-      renderWithQueryClient(<EventDetailModal {...mockProps} event={eventManyDetections} />);
+      vi.mocked(api.fetchEventDetections).mockResolvedValue({
+        items: manyDetections,
+        pagination: { total: 20, limit: 100, offset: 0, has_more: false },
+      });
+      renderWithQueryClient(<EventDetailModal {...mockProps} />);
       await waitFor(() => {
         expect(screen.getByText('Detected Objects (20)')).toBeInTheDocument();
       });
@@ -1217,7 +1235,7 @@ describe('EventDetailModal', () => {
       await user.click(saveButton);
 
       await waitFor(() => {
-        expect(onSaveNotes).toHaveBeenCalledWith('event-123', 'New note');
+        expect(onSaveNotes).toHaveBeenCalledWith('123', 'New note');
       });
     });
 
@@ -1398,7 +1416,7 @@ describe('EventDetailModal', () => {
       await user.click(saveButton);
 
       await waitFor(() => {
-        expect(onSaveNotes).toHaveBeenCalledWith('event-123', '');
+        expect(onSaveNotes).toHaveBeenCalledWith('123', '');
       });
     });
   });
@@ -1447,7 +1465,7 @@ describe('EventDetailModal', () => {
       await user.click(downloadButton);
 
       await waitFor(() => {
-        expect(onDownloadMedia).toHaveBeenCalledWith('event-123');
+        expect(onDownloadMedia).toHaveBeenCalledWith('123');
       });
     });
 
@@ -1616,7 +1634,7 @@ describe('EventDetailModal', () => {
       const downloadButton = await screen.findByRole('button', { name: 'Download media' });
       await user.click(downloadButton);
       await waitFor(() => {
-        expect(onDownloadMedia).toHaveBeenCalledWith('event-123');
+        expect(onDownloadMedia).toHaveBeenCalledWith('123');
       });
 
       // Type in notes
@@ -1627,13 +1645,13 @@ describe('EventDetailModal', () => {
       const saveButton = await screen.findByRole('button', { name: 'Save notes' });
       await user.click(saveButton);
       await waitFor(() => {
-        expect(onSaveNotes).toHaveBeenCalledWith('event-123', 'Test note');
+        expect(onSaveNotes).toHaveBeenCalledWith('123', 'Test note');
       });
 
       // Mark as reviewed
       const reviewButton = await screen.findByRole('button', { name: 'Mark event as reviewed' });
       await user.click(reviewButton);
-      expect(onMarkReviewed).toHaveBeenCalledWith('event-123');
+      expect(onMarkReviewed).toHaveBeenCalledWith('123');
 
       // All interactions should work without errors
       expect(onNavigate).toHaveBeenCalledTimes(2);
@@ -1731,11 +1749,43 @@ describe('EventDetailModal', () => {
 
       renderWithQueryClient(<EventDetailModal {...mockVideoProps} />);
 
+      // Wait for the still itself, not merely for the video player's absence:
+      // the player is absent from the first paint (the fetch has not resolved
+      // yet), so an absence-only waitFor passes before the image exists.
       await waitFor(() => {
+        expect(screen.getByAltText(/car at January 15, 2024/)).toBeInTheDocument();
         expect(screen.queryByTestId('video-player')).not.toBeInTheDocument();
       });
-      // The image display should still work (from event.image_url)
-      expect(screen.getByAltText(/Front Door detection at/)).toBeInTheDocument();
+    });
+
+    it('draws no box for a video detection even when it carries bbox fields', async () => {
+      // F4.4: a box lives in the pixels of the file it was drawn on. The
+      // video branch plays the clip with no still to overlay, so despite the
+      // wire DetectionResponse carrying bbox_* values for this detection the
+      // modal must render no SVG overlay anywhere.
+      vi.mocked(api.fetchEventDetections).mockResolvedValue({
+        items: [mockVideoDetection],
+        pagination: { total: 1, limit: 100, offset: 0, has_more: false },
+      });
+
+      renderWithQueryClient(<EventDetailModal {...mockVideoProps} />);
+
+      await waitFor(() => {
+        expect(screen.getByTestId('video-player')).toBeInTheDocument();
+      });
+
+      // No box overlay: BoundingBoxOverlay's SVG carries the overlay class
+      // string and the image's viewBox. Other SVGs on the page (lucide
+      // icons, the QR code) are irrelevant here, so scope the query to
+      // that signature rather than asserting "no svg element at all".
+      expect(
+        document.querySelector(
+          'svg.pointer-events-none.absolute.inset-0[class*="z-"], svg[viewBox]:not([viewBox="0 0 24 24"])'
+        )
+      ).toBeNull();
+      // Belt and suspenders: no SVG at all carries the overlay's exact
+      // className.
+      expect(document.querySelector('svg.pointer-events-none.absolute')).toBeNull();
     });
 
     it('displays video metadata badge for video detections', async () => {
@@ -2428,7 +2478,6 @@ describe('EventDetailModal', () => {
       summary: 'Person detected at entrance',
       image_url: 'https://example.com/image.jpg',
       thumbnail_url: 'https://example.com/thumbnail.jpg',
-      detections: [{ label: 'person', confidence: 0.95 }],
       reviewed: false,
     };
 

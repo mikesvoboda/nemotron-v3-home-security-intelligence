@@ -27,7 +27,30 @@ Integration Types:
 from datetime import datetime
 from enum import StrEnum, auto
 
-from pydantic import BaseModel, ConfigDict, Field, HttpUrl
+from pydantic import BaseModel, ConfigDict, Field, HttpUrl, model_validator
+
+from backend.core.url_validation import SSRFValidationError, validate_webhook_url
+
+
+def _validate_url_str(url: str, *, on_local_network: bool) -> str:
+    """Run the F12 destination policy on a URL string (shared by both schemas).
+
+    Schema-time validation does NOT resolve DNS (the send-time check does that,
+    with the connection pinned to the validated address). ``on_local_network``
+    relaxes RFC1918/unique-local, internal suffixes and plain HTTP for this
+    webhook only; loopback, metadata and link-local stay blocked either way.
+
+    ``allow_dev_http`` stays False for outbound webhooks — unlike the
+    notification schemas, there is no dev-only localhost escape here: a
+    loopback URL is a 422 without the on-this-network flag, per #7336.
+    """
+    try:
+        return validate_webhook_url(
+            url, allow_dev_http=False, resolve_dns=False, allow_local_network=on_local_network
+        )
+    except SSRFValidationError as e:
+        raise ValueError(str(e)) from None
+
 
 # =============================================================================
 # Enums
@@ -142,6 +165,14 @@ class WebhookCreate(BaseModel):
         IntegrationType.GENERIC, description="Integration type"
     )
     enabled: bool = Field(True, description="Whether webhook is active")
+    on_local_network: bool = Field(
+        False,
+        description=(
+            "Allow private/unique-local targets and plain HTTP for this webhook "
+            "(the household's own network). Loopback, link-local and metadata "
+            "addresses stay blocked either way."
+        ),
+    )
     auth: WebhookAuthConfig | None = Field(None, description="Authentication config")
     custom_headers: dict[str, str] = Field(default_factory=dict, description="Custom HTTP headers")
     payload_template: str | None = Field(None, description="Custom payload template (Jinja2)")
@@ -149,6 +180,20 @@ class WebhookCreate(BaseModel):
     # Retry configuration
     max_retries: int = Field(4, ge=0, le=10, description="Max retry attempts")
     retry_delay_seconds: int = Field(10, ge=1, le=3600, description="Initial retry delay")
+
+    @model_validator(mode="after")
+    def _validate_url_policy(self) -> WebhookCreate:
+        """The F12 destination policy applies at create (ruling 310).
+
+        Checked here under the REQUEST's own flag (a field validator cannot
+        see sibling fields, and the flag must be effective or it could never
+        be used) without DNS resolution — resolving is the send-time check,
+        where the connection is pinned to the validated address. The service
+        re-checks with the same flag; metadata and link-local are refused
+        here exactly as they are there.
+        """
+        _validate_url_str(str(self.url), on_local_network=self.on_local_network)
+        return self
 
 
 class WebhookUpdate(BaseModel):
@@ -174,11 +219,30 @@ class WebhookUpdate(BaseModel):
     event_types: list[WebhookEventType] | None = None
     integration_type: IntegrationType | None = None
     enabled: bool | None = None
+    on_local_network: bool | None = Field(
+        None,
+        description="Set true to allow private/unique-local targets and plain HTTP for this webhook",
+    )
     auth: WebhookAuthConfig | None = None
     custom_headers: dict[str, str] | None = None
     payload_template: str | None = None
     max_retries: int | None = Field(None, ge=0, le=10)
     retry_delay_seconds: int | None = Field(None, ge=1, le=3600)
+
+    @model_validator(mode="after")
+    def _validate_url_policy(self) -> WebhookUpdate:
+        """Cheap policy shape-check at update, under the REQUEST's own flag
+        when the update sets it: a request that both grants the flag and
+        names a LAN host must pass here, and a request that keeps the flag
+        off must not smuggle a private URL past this layer. When the update
+        does not touch the flag the stored flag is unknowable here — the
+        service's check under the webhook's effective ``on_local_network``
+        is the authoritative one, so this pass validates without the
+        allowance in that case (the service re-admits if the stored flag is
+        set; its 422 is the one the client sees for that path)."""
+        if self.url is not None:
+            _validate_url_str(str(self.url), on_local_network=self.on_local_network is True)
+        return self
 
 
 class WebhookResponse(BaseModel):
@@ -214,6 +278,9 @@ class WebhookResponse(BaseModel):
     event_types: list[WebhookEventType] = Field(..., description="Subscribed events")
     integration_type: IntegrationType = Field(..., description="Integration type")
     enabled: bool = Field(..., description="Whether active")
+    on_local_network: bool = Field(
+        False, description="Whether private/unique-local targets are allowed for this webhook"
+    )
     custom_headers: dict[str, str] = Field(default_factory=dict)
     payload_template: str | None = Field(None)
     max_retries: int = Field(...)

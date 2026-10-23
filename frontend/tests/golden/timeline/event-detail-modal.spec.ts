@@ -201,9 +201,12 @@
  *   already driven (analytics-alerts/alerts.spec.ts opens this same modal from an
  *   alert card). Nothing here duplicates or claims it.
  *
- * WHAT THE DETAILS TAB STRUCTURALLY CANNOT SHOW, asserted as absences. The modal
- * gets a PROJECTION of the list row (EventTimeline.tsx:1060-1090):
- *   `detections: []` :1081 → the "Detected Objects" block (:948) never renders
+ * WHAT THE DETAILS TAB SHOWS, and what it structurally cannot. The modal gets
+ * a PROJECTION of the list row (EventTimeline.tsx:1101-1129):
+ *   no `detections` key → the "Detected Objects" block (:893) is driven by the
+ *     modal's OWN fetch (useEventDetectionsQuery, EventDetailModal.tsx:212) since
+ *     F4.4 — it renders for events with server detections (asserted below), not
+ *     from the projection
  *   no `image_url`/`thumbnail_url` → `imageUrl` :751 is empty and the
  *     event-level fallback branch :774+ is dead; the media is the selected
  *     DETECTION's (:755-772)
@@ -253,13 +256,10 @@ import {
   apiWrite,
   closedByGuard,
   hardDeleteFixtureRows,
-  loginAsAdminShell as loginAsAdmin,
+  openTimelineEventModal,
   quietBoot,
   readTimelineHarness,
-  seedDefaultViewMode,
-  seedTourDismissed,
   settledReload,
-  waitForEventCards,
   type Session,
   type TimelineHarness,
 } from '../harness';
@@ -942,21 +942,10 @@ test.afterAll(async () => {
  * UNFILTERED because that is the only list with more than one row in it.
  */
 async function bootModal(page: Page, eventId: number, cameraFilter = true): Promise<Session> {
-  const session = await adminSession(timeline);
-  await seedTourDismissed(page);
-  await seedDefaultViewMode(page);
-  await loginAsAdmin(page, timeline);
-  const query = cameraFilter
-    ? `?camera=${encodeURIComponent(harness.cameraId)}&event=${eventId}`
-    : `?event=${eventId}`;
-  await quietBoot(page, timeline, `/timeline${query}`);
-  await expect(page.getByTestId('timeline-page')).toBeVisible();
-  await waitForEventCards(page);
-  await expect(
-    page.getByTestId('event-detail-modal'),
-    'the `?event=` deep link opens the modal'
-  ).toBeVisible();
-  return session;
+  return openTimelineEventModal(page, timeline, {
+    cameraId: cameraFilter ? harness.cameraId : undefined,
+    eventId,
+  });
 }
 
 /** The modal, scoped. Two reasons, both measured: `risk-badge` is 1 inside the
@@ -1185,12 +1174,21 @@ test.describe('F-054 event detail modal — Details tab', () => {
     expect(() => closedByGuard(page)).toThrow(GUARD_MESSAGE);
   });
 
-  test('the details tab structurally cannot show the sections the list projection cannot fill', async ({
+  test('the details tab fills scene-caption and risk-factors with nothing, and sources Detected Objects from its own fetch (F4.4)', async ({
     page,
   }) => {
     test.info().skip(!h.ready, h.ready ? '' : h.why);
     if (!h.ready) return;
     test.setTimeout(150_000);
+    // Ground truth first: what the modal's own fetch (useEventDetectionsQuery,
+    // EventDetailModal.tsx:212) will receive for this event.
+    const session = await adminSession(timeline);
+    const stored = await detectionItems(session, dropEventId);
+    expect(
+      stored.items.length > 0,
+      `the drop carries ${stored.items.length} server detections — with none, ` +
+        'the presence assert below would pass an empty block as rendering'
+    ).toBe(true);
     await bootModal(page, dropEventId);
     const panel = modal(page);
     // A media element IS on screen (this waits for the async detections query,
@@ -1203,11 +1201,18 @@ test.describe('F-054 event detail modal — Details tab', () => {
       'event.scene_caption is not in getModalEvent, so the Florence-2 block is ' +
         'absent even though the scene description renders in the verification section'
     ).toHaveCount(0);
+    // F4.4 flipped the objects block's source: it renders from the modal's OWN
+    // fetch (EventDetailModal.tsx:894), not from getModalEvent's projection —
+    // which still passes no detections. Presence, with the count the fetch returns.
     await expect(
       panel.getByTestId('detection-objects'),
-      'getModalEvent passes detections: [] (EventTimeline.tsx:1081), so the ' +
-        'NEM-3603 objects block never renders on /timeline'
-    ).toHaveCount(0);
+      'the modal fetches detections itself since F4.4, so the NEM-3603 block ' +
+        'renders on /timeline for an event with server detections'
+    ).toBeVisible();
+    await expect(
+      panel.getByTestId('detection-objects').getByText('cat', { exact: true }).first(),
+      'the block is populated, not an empty shell (the book declares a cat detection)'
+    ).toBeVisible();
     await expect(
       panel.getByTestId('risk-factors-section'),
       'event.risk_factors is not in getModalEvent either, though the LIST ROUTE ' +

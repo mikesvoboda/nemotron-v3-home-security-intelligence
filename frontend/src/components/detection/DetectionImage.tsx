@@ -98,7 +98,7 @@ const DetectionImage: React.FC<DetectionImageProps> = ({
               minConfidence={minConfidence}
               onClick={onClick}
             />
-            {/* Additional overlay content (e.g., ThreatBoundingBox) */}
+            {/* Additional overlay content layered on the image */}
             {overlayContent}
           </>
         )}

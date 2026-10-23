@@ -25,6 +25,7 @@
 // Render utilities
 export {
   renderWithProviders,
+  renderWithNavigation,
   createQueryWrapper,
   screen,
   within,
@@ -70,6 +71,12 @@ export {
   createEventResponse,
   // Pagination helpers
   createPaginationMeta,
+  // Navigation & Event-Modal fixtures (F4.9)
+  createNavigationFixture,
+  createEventModalDetections,
+  createEventModalDetectionsResponse,
+  createEventModalEvent,
+  createEventModalFixture,
 } from './factories';
 
 export type {
@@ -91,4 +98,6 @@ export type {
   GPUStatsResponse,
   ErrorResponse,
   PaginationMeta,
+  NavigationFixture,
+  EventModalFixture,
 } from './factories';

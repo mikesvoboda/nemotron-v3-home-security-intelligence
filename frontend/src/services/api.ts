@@ -332,11 +332,26 @@ export type EventVerdictFilter = NonNullable<
   NonNullable<operations['events_list_events']['parameters']['query']>['verdict']
 >;
 
+/**
+ * Minimum detector confidence across an event's detections, derived from the
+ * generated OpenAPI type (F4.4): 0..1, where 0 means "has at least one
+ * detection". A bounds change server-side fails a typecheck here instead of
+ * silently filtering nothing.
+ */
+export type EventMinConfidenceFilter = NonNullable<
+  NonNullable<operations['events_list_events']['parameters']['query']>['min_confidence']
+>;
+
 export interface EventsQueryParams {
   camera_id?: string;
   risk_level?: string;
   /** VLM verdict filter - see {@link EventVerdictFilter}. */
   verdict?: EventVerdictFilter;
+  /**
+   * Minimum detector-confidence floor (F4.4) - see
+   * {@link EventMinConfidenceFilter}. 0 means "has at least one detection".
+   */
+  min_confidence?: EventMinConfidenceFilter;
   start_date?: string;
   end_date?: string;
   reviewed?: boolean;
@@ -2208,6 +2223,12 @@ export async function fetchEvents(
     // Every verdict value is a non-empty string - 'none' included - so a
     // truthy guard cannot drop a real filter.
     if (params.verdict) queryParams.append('verdict', params.verdict);
+    // 0 is a real filter (means "has at least one detection"), so the guard is
+    // !== undefined, not truthiness - 0 is falsy and a truthy guard would
+    // silently drop the F4.4 "any detection" choice.
+    if (params.min_confidence !== undefined) {
+      queryParams.append('min_confidence', String(params.min_confidence));
+    }
     if (params.start_date) queryParams.append('start_date', params.start_date);
     if (params.end_date) queryParams.append('end_date', params.end_date);
     if (params.reviewed !== undefined) queryParams.append('reviewed', String(params.reviewed));

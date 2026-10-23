@@ -9,7 +9,7 @@ from __future__ import annotations
 
 import logging
 from collections.abc import Mapping, Sequence
-from dataclasses import dataclass
+from dataclasses import dataclass, replace
 from datetime import UTC, datetime
 from types import SimpleNamespace
 from typing import Any
@@ -76,6 +76,10 @@ class PolicyContext:
     threats: Sequence[Any] = ()
     rules: Sequence[Any] = ()
     snoozes: Sequence[SnoozeEntry] = ()
+    mode: str = "home"
+    armed: bool = True
+    camera_name: str | None = None
+    external_source: str | None = None
 
 
 @dataclass(frozen=True, slots=True)
@@ -90,6 +94,7 @@ class RuleMatch:
     dedup_key: str
     matched_conditions: tuple[str, ...]
     cooldown_seconds: int = 300
+    raised_while_unarmed: bool = False
 
 
 def default_rule_from_settings(
@@ -114,6 +119,8 @@ def default_rule_from_settings(
         min_confidence=None,
         schedule=None,
         alert_on_rejected=False,
+        alert_on_rejected_modes=None,
+        sources=("camera",),
         threat_detection_enabled=False,
         threat_types=None,
         threat_min_severity=None,
@@ -285,6 +292,14 @@ def _is_snoozed(
     return False
 
 
+def _rejected_override_covers_mode(rule: Any, mode: str) -> bool:
+    """Return whether `rule`'s rejected-verdict override covers `mode` (4n-arming.md)."""
+    modes = getattr(rule, "alert_on_rejected_modes", None)
+    if modes is not None:
+        return len(modes) > 0 and str(mode).lower() in {str(m).lower() for m in modes}
+    return bool(getattr(rule, "alert_on_rejected", False))
+
+
 def _check_verdict_and_severity(
     rule: Any,
     ctx: PolicyContext,
@@ -294,7 +309,7 @@ def _check_verdict_and_severity(
     is_default: bool,
 ) -> AlertSeverityEnum | None:
     if ctx.resolved.suppressed_by is not None or (
-        ctx.resolved.verdict == "rejected" and not getattr(rule, "alert_on_rejected", False)
+        ctx.resolved.verdict == "rejected" and not _rejected_override_covers_mode(rule, ctx.mode)
     ):
         return None
 
@@ -387,6 +402,16 @@ def evaluate_rule(
     if not getattr(rule, "enabled", True) or (is_default and not ctx.camera_enabled):
         return (False, [], AlertSeverityEnum.LOW)
 
+    event_source = "external" if ctx.resolved.source == "external" else "camera"
+    raw_sources = getattr(rule, "sources", None) or ["camera"]
+    rule_sources = {str(s).lower() for s in raw_sources}
+    object_types = getattr(rule, "object_types", None)
+    if event_source not in rule_sources or (
+        event_source == "external"
+        and (bool(object_types) or getattr(rule, "min_confidence", None) is not None)
+    ):
+        return (False, [], AlertSeverityEnum.LOW)
+
     excluded = getattr(rule, "excluded_camera_ids", None)
     camera_ids = getattr(rule, "camera_ids", None)
     if (excluded and ctx.camera_id in excluded) or (
@@ -431,7 +456,19 @@ def evaluate(ctx: PolicyContext) -> list[RuleMatch]:
         if not matched:
             continue
 
-        obj_type = _primary_object_type(ctx.detections, getattr(rule, "object_types", None))
+        # Arming gate (B4.7 / 4n-arming.md): a rule match on an unarmed camera survives
+        # only when its effective severity is critical, and the alert is marked raised_while_unarmed.
+        raised_while_unarmed = False
+        if not ctx.armed:
+            if effective_severity != AlertSeverityEnum.CRITICAL:
+                continue
+            raised_while_unarmed = True
+
+        if ctx.resolved.source == "external":
+            ext_src = str(ctx.external_source or "external").strip() or "external"
+            obj_type = f"external:{ext_src}"
+        else:
+            obj_type = _primary_object_type(ctx.detections, getattr(rule, "object_types", None))
         activity_key = (ctx.camera_id, obj_type)
 
         # Snooze check: critical effective severity skips snooze (break-through)
@@ -456,6 +493,7 @@ def evaluate(ctx: PolicyContext) -> list[RuleMatch]:
                 dedup_key=dedup_key,
                 matched_conditions=tuple(conditions),
                 cooldown_seconds=cooldown_seconds,
+                raised_while_unarmed=raised_while_unarmed,
             )
         )
 
@@ -464,3 +502,15 @@ def evaluate(ctx: PolicyContext) -> list[RuleMatch]:
         reverse=True,
     )
     return matches
+
+
+def arming_suppression_reason(ctx: PolicyContext) -> str | None:
+    """Return the arming suppression explanation when arming is the reason no alert was created."""
+    if ctx.armed or not ctx.master_enabled or ctx.resolved.suppressed_by is not None:
+        return None
+    would_match = evaluate(replace(ctx, armed=True, snoozes=()))
+    if not would_match:
+        return None
+    mode_label = (ctx.mode or "home").capitalize()
+    cam_label = ctx.camera_name or ctx.camera_id
+    return f"{mode_label} leaves out {cam_label} (arming)"

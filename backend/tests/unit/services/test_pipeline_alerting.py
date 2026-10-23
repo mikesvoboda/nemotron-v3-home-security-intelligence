@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 from datetime import UTC, datetime, timedelta
+from typing import Any
 from unittest.mock import AsyncMock
 
 import pytest
@@ -20,7 +21,7 @@ from backend.models.detection import Detection
 from backend.models.event import Event
 from backend.models.event_notify import EventNotifyDecision
 from backend.models.event_verification import EventVerification
-from backend.services.alerting.pipeline import AlertPipeline
+from backend.services.alerting.pipeline import AlertPipeline, _normalise_planned
 from backend.services.alerting.verdict import FaceCandidate, SpecialistEvidence
 
 
@@ -44,6 +45,8 @@ class _InMemoryPipelineDB:
         self.master_enabled: bool = True
         self.risk_filters: tuple[str, ...] = ("critical", "high", "medium")
         self.household_tz: str = "UTC"
+        # B4.2: recorded planned deliveries (planner output, normalised dicts).
+        self.deliveries: list[dict[str, Any]] = []
 
     def add_event(
         self,
@@ -362,3 +365,460 @@ async def test_pipeline_sweep_processes_missing_decisions_and_marks_stale_events
     assert planner_calls == [(10, True), (11, False)]
     assert results[0].planned_deliveries == ({"status": "expired"},)
     assert results[1].planned_deliveries == ({"status": "pending"},)
+
+
+# -- B4.2: delivery-row recording (planner output lands as rows) -------------
+
+
+class TestPlannedDeliveryRecording:
+    async def test_memory_path_records_planned_deliveries_in_store(self) -> None:
+        """The store records the planner's output so history reads see it."""
+        store = _InMemoryPipelineDB()
+        store.add_event(1, "front_door", risk_score=75, verdict="confirmed")
+        now = datetime(2026, 10, 22, 2, 0, tzinfo=UTC)  # not stale (within 1h cutoff)
+
+        def fake_planner(
+            alert: Alert, *, stale: bool = False, **kw: object
+        ) -> list[dict[str, str]]:
+            return [
+                {
+                    "status": "expired" if stale else "pending",
+                    "recipient_id": "r1",
+                    "channel_id": "c1",
+                    "channel_kind": "email",
+                    "alert_id": alert.id,
+                }
+            ]
+
+        pipeline = AlertPipeline.from_memory_store(store, planner=fake_planner)
+        result = await pipeline.process(1, now=now)
+
+        assert result.notify is True
+        assert len(store.deliveries) == 1
+        rec = store.deliveries[0]
+        assert rec["alert_id"] == store.alerts[0].id
+        assert rec["status"] == "pending"
+        assert rec["recipient_id"] == "r1"
+        assert rec["channel_id"] == "c1"
+
+    async def test_writer_hook_persists_records_in_one_transaction(self) -> None:
+        """The writer hook receives the session and the planned records.
+
+        DB-path shape is proven end-to-end in the DB-gated suite
+        (test_delivery_pipeline_db.py): the hook runs inside the caller's
+        transaction, so a rollback removes alert AND delivery rows together.
+        """
+        pipeline = AlertPipeline()
+
+        async def fake_writer(session: object, records: list[dict[str, str]]) -> None:
+            written.extend(records)
+
+        pipeline._delivery_writer = fake_writer
+        written: list[dict[str, str]] = []
+        await pipeline._write_deliveries_in_session(
+            session=None,  # type: ignore[arg-type]
+            planned_deliveries=[{"status": "pending", "recipient_id": "r1", "channel_id": "c1"}],
+        )
+        assert written == [{"status": "pending", "recipient_id": "r1", "channel_id": "c1"}]
+
+    async def test_no_writer_is_noop(self) -> None:
+        """Without a writer (B4.1 default), planning alone changes nothing."""
+        pipeline = AlertPipeline()
+        # _write_deliveries_in_session with writer None and records present: no-op.
+        await pipeline._write_deliveries_in_session(
+            session=None,  # type: ignore[arg-type]
+            planned_deliveries=[{"status": "pending"}],
+        )
+
+    async def test_normalise_planned_accepts_dataclass_and_dict(self) -> None:
+        from backend.models.alert_delivery import DeliveryChannelKind, DeliveryStatus
+        from backend.services.alerting.planner import PlannedDelivery
+
+        now = datetime(2026, 10, 22, 3, 0, tzinfo=UTC)
+        dc = PlannedDelivery(
+            alert_id="a1",
+            recipient_id="r1",
+            channel_id="c1",
+            channel_kind=DeliveryChannelKind.EMAIL,
+            status=DeliveryStatus.SUPPRESSED,
+            include_names=False,
+        )
+        rec = _normalise_planned(dc, now)
+        assert rec == {
+            "alert_id": "a1",
+            "recipient_id": "r1",
+            "channel_id": "c1",
+            "channel_kind": "email",
+            "status": "suppressed",
+            "include_names": False,
+            "planned_at": now,
+        }
+        assert _normalise_planned({"status": "pending"}, now)["planned_at"] == now
+
+
+@pytest.mark.asyncio
+async def test_pipeline_sqlalchemy_session_path_process_and_sweep(tmp_path) -> None:
+    """Exercise AlertPipeline's SQLAlchemy session path (`_process_in_session`,
+    `_find_open_alert`, `_link_alert_event`, `_upsert_decision`, and `sweep_unprocessed`).
+    """
+    import contextlib
+
+    from sqlalchemy import create_engine
+    from sqlalchemy.dialects.postgresql import ARRAY, JSONB, TSVECTOR, UUID
+    from sqlalchemy.ext.compiler import compiles
+    from sqlalchemy.orm import Session, sessionmaker
+
+    from backend.models.arming import (
+        EXTERNAL_ALERTS_RULE_ID,
+        ArmingChange,
+        ArmingModeExclusion,
+        ArmingScheduleEntry,
+        ArmingState,
+    )
+    from backend.models.camera import Camera
+    from backend.models.enrichment import ThreatDetection
+    from backend.models.event_detection import EventDetection
+    from backend.models.face_identity import (
+        EnrollmentCandidate,
+        FaceDetectionEvent,
+        KnownPerson,
+    )
+    from backend.models.household_org import Household
+    from backend.models.notification_preferences import (
+        CameraNotificationSetting,
+        NotificationPreferences,
+    )
+    from backend.models.property import Property
+
+    @compiles(JSONB, "sqlite")
+    def _c_jsonb(_t: Any, _c: Any, **_kw: Any) -> str:
+        return "JSON"
+
+    @compiles(UUID, "sqlite")
+    def _c_uuid(_t: Any, _c: Any, **_kw: Any) -> str:
+        return "VARCHAR(36)"
+
+    @compiles(TSVECTOR, "sqlite")
+    def _c_tsv(_t: Any, _c: Any, **_kw: Any) -> str:
+        return "TEXT"
+
+    @compiles(ARRAY, "sqlite")
+    def _c_arr(_t: Any, _c: Any, **_kw: Any) -> str:
+        return "JSON"
+
+    class _SQLiteAsyncSession:
+        def __init__(self, s: Session) -> None:
+            self._s = s
+
+        def add(self, obj: Any) -> None:
+            self._s.add(obj)
+
+        def get_bind(self) -> Any:
+            return self._s.get_bind()
+
+        async def execute(self, stmt: Any, params: Any = None, **kw: Any) -> Any:
+            if hasattr(stmt, "text") and "pg_advisory_xact_lock" in str(stmt.text):
+                return None
+            return self._s.execute(stmt, params=params, **kw)
+
+        async def scalars(self, stmt: Any, params: Any = None, **kw: Any) -> Any:
+            return self._s.scalars(stmt, params=params, **kw)
+
+        async def get(self, entity: Any, ident: Any, **kw: Any) -> Any:
+            return self._s.get(entity, ident, **kw)
+
+        async def flush(self) -> None:
+            self._s.flush()
+
+        async def commit(self) -> None:
+            self._s.commit()
+
+    engine = create_engine(f"sqlite:///{tmp_path / 'pipeline_sa.db'}", future=True)
+    for tbl in (
+        Household.__table__,
+        Property.__table__,
+        Camera.__table__,
+        Event.__table__,
+        EventVerification.__table__,
+        EventNotifyDecision.__table__,
+        Detection.__table__,
+        ThreatDetection.__table__,
+        EventDetection.__table__,
+        KnownPerson.__table__,
+        FaceDetectionEvent.__table__,
+        EnrollmentCandidate.__table__,
+        NotificationPreferences.__table__,
+        CameraNotificationSetting.__table__,
+        AlertRule.__table__,
+        Alert.__table__,
+        AlertEvent.__table__,
+        ActivitySnooze.__table__,
+        ArmingState.__table__,
+        ArmingModeExclusion.__table__,
+        ArmingScheduleEntry.__table__,
+        ArmingChange.__table__,
+    ):
+        with engine.begin() as conn:
+            tbl.create(conn, checkfirst=True)
+
+    maker = sessionmaker(engine, expire_on_commit=False)
+
+    @contextlib.asynccontextmanager
+    async def session_factory():
+        with maker() as sync_s:
+            yield _SQLiteAsyncSession(sync_s)
+
+    t0 = datetime(2026, 10, 22, 2, 0, tzinfo=UTC)
+    t1 = t0 + timedelta(seconds=60)
+    with maker() as s:
+        s.add(
+            Camera(
+                id="front_door",
+                name="Front Door",
+                folder_path="/export/foscam/front_door",
+                status="online",
+            )
+        )
+        ev1 = Event(
+            id=1,
+            batch_id="b-sa-1",
+            camera_id="front_door",
+            started_at=t0,
+            risk_score=75,
+            risk_level="high",
+            summary="SA event 1",
+        )
+        ev2 = Event(
+            id=2,
+            batch_id="b-sa-2",
+            camera_id="front_door",
+            started_at=t1,
+            risk_score=80,
+            risk_level="high",
+            summary="SA event 2",
+        )
+        s.add_all([ev1, ev2])
+        s.flush()
+        det1 = Detection(
+            id=10,
+            camera_id="front_door",
+            file_path="/cameras/sa1.jpg",
+            detected_at=t0,
+            object_type="person",
+            confidence=0.92,
+            enrichment_data={
+                "threats": [{"type": "weapon", "severity": "high", "confidence": 0.9}]
+            },
+        )
+        det2 = Detection(
+            id=11,
+            camera_id="front_door",
+            file_path="/cameras/sa2.jpg",
+            detected_at=t1,
+            object_type="person",
+            confidence=0.93,
+        )
+        s.add_all([det1, det2])
+        s.flush()
+        s.add_all(
+            [
+                EventDetection(event_id=1, detection_id=10),
+                EventDetection(event_id=2, detection_id=11),
+                EventVerification(
+                    event_id=1,
+                    verdict="confirmed",
+                    engine="ai-vlm",
+                    model_id="qwen",
+                    created_at=t0,
+                ),
+                EventVerification(
+                    event_id=2,
+                    verdict="confirmed",
+                    engine="ai-vlm",
+                    model_id="qwen",
+                    created_at=t1,
+                ),
+            ]
+        )
+        s.commit()
+
+    broadcaster = AsyncMock()
+    pipeline = AlertPipeline(session_factory=session_factory, broadcaster=broadcaster)
+    r1 = await pipeline.process(1, now=t0)
+    assert r1.notify is True
+    assert len(r1.created_alerts) == 1
+
+    # Sweep processes undecided event 2 and folds it into the open alert from event 1
+    swept = await pipeline.sweep_unprocessed(now=t1, upgrade_applied_at=t0 - timedelta(hours=1))
+    assert [r.event_id for r in swept] == [2]
+    assert len(swept[0].updated_alerts) == 1
+
+    # B4.6 + B4.7 restore interaction: restoring an archive holding the seeded
+    # "External alerts" rule (fixed UUID EXTERNAL_ALERTS_RULE_ID) into an install
+    # that already has it merges by id and leaves exactly one rule.
+    from sqlalchemy import select
+
+    from backend.services.arming import (
+        ensure_external_alerts_rule,
+        list_changes,
+        set_mode,
+        set_mode_exclusions,
+    )
+
+    async with session_factory() as sess:
+        await ensure_external_alerts_rule(sess)  # type: ignore[arg-type]
+        await sess.commit()
+        # Simulate restore upserting the same fixed-UUID rule
+        existing = await sess.get(AlertRule, EXTERNAL_ALERTS_RULE_ID)
+        assert existing is not None
+        existing.description = "Restored External alerts rule"
+        await sess.commit()
+        all_ext_rules = (
+            (await sess.execute(select(AlertRule).where(AlertRule.id == EXTERNAL_ALERTS_RULE_ID)))
+            .scalars()
+            .all()
+        )
+        assert len(all_ext_rules) == 1
+
+    # 4n-arming.md §Tests: a camera left out of Away between an event's start and its decision:
+    # the normal path and the sweep both alert, a later event does not, and the history lists the edit.
+    t_away_start = datetime(2026, 10, 22, 13, 0, tzinfo=UTC)
+    t_pre_edit_1 = datetime(2026, 10, 22, 13, 1, tzinfo=UTC)
+    t_pre_edit_2 = datetime(2026, 10, 22, 13, 8, tzinfo=UTC)
+    t_cam_edit = datetime(2026, 10, 22, 13, 9, tzinfo=UTC)
+    t_decision = datetime(2026, 10, 22, 13, 10, tzinfo=UTC)
+    t_post_edit = datetime(2026, 10, 22, 13, 15, tzinfo=UTC)
+
+    async with session_factory() as sess:
+        await set_mode(sess, "away", now=t_away_start)  # type: ignore[arg-type]
+        await sess.commit()
+
+    with maker() as s:
+        s.add(
+            Camera(
+                id="living_room",
+                name="Living room",
+                folder_path="/cameras/living_room",
+                status="online",
+            )
+        )
+        ev_pre_1 = Event(
+            id=101,
+            batch_id="b-pre-1",
+            camera_id="living_room",
+            started_at=t_pre_edit_1,
+            risk_score=78,
+            risk_level="high",
+            summary="Pre-edit event 1 (normal path)",
+        )
+        ev_pre_2 = Event(
+            id=102,
+            batch_id="b-pre-2",
+            camera_id="living_room",
+            started_at=t_pre_edit_2,
+            risk_score=78,
+            risk_level="high",
+            summary="Pre-edit event 2 (sweep path)",
+        )
+        ev_post = Event(
+            id=103,
+            batch_id="b-post-1",
+            camera_id="living_room",
+            started_at=t_post_edit,
+            risk_score=78,
+            risk_level="high",
+            summary="Post-edit event",
+        )
+        s.add_all([ev_pre_1, ev_pre_2, ev_post])
+        s.flush()
+        d101 = Detection(
+            id=101,
+            camera_id="living_room",
+            file_path="/cameras/lr101.jpg",
+            detected_at=t_pre_edit_1,
+            object_type="person",
+            confidence=0.92,
+        )
+        d102 = Detection(
+            id=102,
+            camera_id="living_room",
+            file_path="/cameras/lr102.jpg",
+            detected_at=t_pre_edit_2,
+            object_type="car",
+            confidence=0.92,
+        )
+        d103 = Detection(
+            id=103,
+            camera_id="living_room",
+            file_path="/cameras/lr103.jpg",
+            detected_at=t_post_edit,
+            object_type="person",
+            confidence=0.92,
+        )
+        s.add_all([d101, d102, d103])
+        s.flush()
+        s.add_all(
+            [
+                EventDetection(event_id=101, detection_id=101),
+                EventDetection(event_id=102, detection_id=102),
+                EventDetection(event_id=103, detection_id=103),
+                EventVerification(
+                    event_id=101,
+                    verdict="confirmed",
+                    engine="ai-vlm",
+                    model_id="qwen",
+                    created_at=t_pre_edit_1,
+                ),
+                EventVerification(
+                    event_id=102,
+                    verdict="confirmed",
+                    engine="ai-vlm",
+                    model_id="qwen",
+                    created_at=t_pre_edit_2,
+                ),
+                EventVerification(
+                    event_id=103,
+                    verdict="confirmed",
+                    engine="ai-vlm",
+                    model_id="qwen",
+                    created_at=t_post_edit,
+                ),
+            ]
+        )
+        s.commit()
+
+    # Exclude living_room from Away at t_cam_edit (after ev_pre_1 and ev_pre_2 started)
+    async with session_factory() as sess:
+        await set_mode_exclusions(
+            sess,  # type: ignore[arg-type]
+            "away",
+            ["living_room"],
+            now=t_cam_edit,
+        )
+        await sess.commit()
+
+    # Normal path at t_decision (> t_cam_edit) alerts on ev_pre_1 (started at t_pre_edit_1 < t_cam_edit)
+    res_pre_1 = await pipeline.process(101, now=t_decision)
+    assert res_pre_1.notify is True
+    assert len(res_pre_1.created_alerts) == 1
+
+    # Sweep at t_decision (> t_cam_edit) also alerts on ev_pre_2 (started at t_pre_edit_2 < t_cam_edit)
+    # and suppresses ev_post (started at t_post_edit > t_cam_edit)
+    swept_cam = await pipeline.sweep_unprocessed(
+        now=t_post_edit + timedelta(seconds=10),
+        upgrade_applied_at=t0 - timedelta(hours=1),
+    )
+    by_eid = {r.event_id: r for r in swept_cam}
+    assert by_eid[102].notify is True
+    assert len(by_eid[102].created_alerts) == 1
+    assert by_eid[103].notify is False
+    assert "Away leaves out Living room (arming)" in by_eid[103].decided_by
+
+    async with session_factory() as sess:
+        history = await list_changes(sess)  # type: ignore[arg-type]
+        assert any(
+            c.kind == "cameras"
+            and c.to_value == {"mode": "away", "excluded_camera_ids": ["living_room"]}
+            for c in history
+        )
+    engine.dispose()

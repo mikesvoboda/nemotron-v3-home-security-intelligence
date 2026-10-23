@@ -346,6 +346,15 @@ async def list_events(
         "verification_failed) or 'none' for events never verified. Anything else is a 422, "
         "never an empty list - a typo'd verdict must not read as a false all-clear.",
     ),
+    min_confidence: float | None = Query(
+        None,
+        ge=0.0,
+        le=1.0,
+        description="Minimum detector confidence across the event's detections "
+        "(0.0-1.0). An event matches when ANY of its detections is at or above "
+        "the threshold. 0 means the event has at least one detection. Values "
+        "outside 0 to 1 are a 422.",
+    ),
     start_date: datetime | None = Query(None, description="Filter by start date (ISO format)"),
     end_date: datetime | None = Query(None, description="Filter by end date (ISO format)"),
     reviewed: bool | None = Query(None, description="Filter by reviewed status"),
@@ -383,6 +392,10 @@ async def list_events(
             verification_failed, or 'none' for never-verified events). An
             unrecognised value is a 422 from the Literal-typed param - never
             an empty list, which would read as a false all-clear.
+        min_confidence: Optional detector-confidence floor (0.0-1.0): the
+            event matches when any of its detections is at or above it; 0
+            means the event has at least one detection. Outside 0 to 1 is
+            a 422 from the Query bounds.
         start_date: Optional start date for date range filter
         end_date: Optional end date for date range filter
         reviewed: Optional filter by reviewed status
@@ -483,6 +496,25 @@ async def list_events(
     # list would make the UI's count lie).
     if verdict:
         query = query.where(verdict_filter_condition(verdict))
+    # F4.4: EXISTS through the event_detections junction - an event matches
+    # when ANY of its detections is at or above the threshold. The detector's
+    # confidence is the only percentage the system produces; the VLM's risk
+    # score has its own filter. Applied to the BASE query beside verdict for
+    # the same reason: the count_query built from its subquery is filtered
+    # too, and a JOIN would repeat an event once per detection. min_confidence
+    # arrives already validated (Query(ge=0.0, le=1.0) -> 422 outside 0..1);
+    # min_confidence=0 means "has at least one detection" (every writer sets
+    # confidence, but a 0 floor matches regardless of its value).
+    if min_confidence is not None:
+        query = query.where(
+            select(EventDetection.detection_id)
+            .join(Detection, Detection.id == EventDetection.detection_id)
+            .where(
+                EventDetection.event_id == Event.id,
+                Detection.confidence >= min_confidence,
+            )
+            .exists()
+        )
     if start_date:
         query = query.where(Event.started_at >= start_date)
     if normalized_end_date:
@@ -1683,6 +1715,7 @@ async def bulk_create_events(
     camera_query = select(Camera.id).where(Camera.id.in_(camera_ids))
     camera_result = await db.execute(camera_query)
     valid_camera_ids = {row[0] for row in camera_result.all()}
+    verdict_events: list[tuple[Event, str]] = []
 
     for idx, item in enumerate(request.events):
         try:
@@ -1717,6 +1750,20 @@ async def bulk_create_events(
                 db.add(EventDetection(event_id=event.id, detection_id=det_id))
             if item.detection_ids:
                 await db.flush()
+            if item.verdict is not None:
+                from backend.models.event_verification import EventVerification
+
+                db.add(
+                    EventVerification(
+                        event_id=event.id,
+                        verdict=item.verdict,
+                        engine="ai-vlm",
+                        model_id="qwen",
+                        created_at=item.started_at,
+                    )
+                )
+                await db.flush()
+                verdict_events.append((event, item.verdict))
 
             results.append(
                 {
@@ -1744,6 +1791,13 @@ async def bulk_create_events(
     if succeeded > 0:
         try:
             await db.commit()
+            if verdict_events:
+                from backend.services.alerting.pipeline import AlertPipeline
+
+                pipeline = AlertPipeline()
+                for ver_ev, _ in verdict_events:
+                    await pipeline.process(ver_ev.id, session=db, now=ver_ev.started_at)
+                await db.commit()
             # Invalidate event-related caches after successful bulk create (NEM-1950)
             try:
                 await cache.invalidate_events(reason="event_created")

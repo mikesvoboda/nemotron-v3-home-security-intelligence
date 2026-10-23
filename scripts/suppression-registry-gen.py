@@ -119,14 +119,14 @@ HOST_JUSTIFIED: dict[str, str] = {
     # is a comprehension over os.environ reads one statement up, invisible to
     # the site-line probe) — the conftest.py:61/:70 local-alias shape. :171
     # needs a real events.id (Alert.event_id is a non-nullable FK) and the
-    # guard is the stack's data state — the test_webhook_deliveries.py:154
+    # guard is the stack's data state — the test_webhook_deliveries.py:165
     # data-chain shape.
-    "backend/tests/golden/external/test_notification_sinks.py:74": "missing is a comprehension over os.environ reads — FEATURE_CHECK_SINK_* env absent, host state behind a local alias",
-    "backend/tests/golden/external/test_notification_sinks.py:172": "no events rows on the live stack — DB data chain, not repo content",
+    "backend/tests/golden/external/test_notification_sinks.py:75": "missing is a comprehension over os.environ reads — FEATURE_CHECK_SINK_* env absent, host state behind a local alias",
+    "backend/tests/golden/external/test_notification_sinks.py:177": "no events rows on the live stack — DB data chain, not repo content",
     # The golden webhook spec needs a real events.id (Alert.event_id is a
     # non-nullable FK); an empty events table is the stack's data state, the
     # same data-chain shape as test_risk_score_validation.py:199 above.
-    "backend/tests/golden/external/test_webhook_deliveries.py:154": "no events rows on the live stack — DB data chain, not repo content",
+    "backend/tests/golden/external/test_webhook_deliveries.py:165": "no events rows on the live stack — DB data chain, not repo content",
     # Compose binary availability, resolved inside a helper the probe can't see.
     "backend/tests/unit/core/test_compose_render_lists_ai_vlm.py:67": "argv is None when no compose binary (podman/docker) resolves via shutil.which — host-executable guard, not repo content",
     # O1.11's prometheus boot pin: same docker-availability shape, resolved two

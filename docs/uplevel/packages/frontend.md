@@ -231,32 +231,37 @@ paths; the inventory row reads **works** once the operator records the real-tier
   with a writer, and until then no PR adds a writer for `hsi_zone*` (ruling 301).
 
 **The P1 packages' frontend parts** (ruling 308, record 6326364266), each with its design as step 1.
+**The P2 packages' frontend parts** (ruling 317, record 6347331324) follow them: `F4.8`, `F4.6` and
+`F4.7`. **The modes and debug tools packages** (ruling 321, record 6355356496): `F4.9` (heavy-a,
+now) and `F4.10` (frontend, after `F4.7`).
 
 ### F4.4 Timeline filters and detections
 
 **Flags:** none. **Assigned:** frontend, after `[r299]` (ruling 308). **Depends on:** none; its
 small backend part (`min_confidence`) rides in the same PR (UR-9).
-**PR:** #7352. (ruling 308, record 6326364266)
+**PR:** #7352, #7362. (ruling 308, record 6326364266)
 
 Design: [`../4n-timeline.md`](../4n-timeline.md). Covers F-044, F-055.
 
 - [x] The test-only PR (step 2).
-- [ ] The build PR: `min_confidence` as a correlated `EXISTS`; the Verification select; the
+- [x] The build PR: `min_confidence` as a correlated `EXISTS`; the Verification select; the
       modal's detections from its own fetch; boxes on still images through `BoundingBoxOverlay`;
-      `ThreatBoundingBox` retired.
-- [ ] Golden path (Playwright) as the design gives it.
+      `ThreatBoundingBox` retired. — #7362, gate green at `69e41badb` (CI run 39819713638).
+- [x] Golden path (Playwright) as the design gives it. — #7362:
+      `frontend/tests/golden/timeline/confidence-filter.spec.ts` (5 tests), witnessed green by
+      the `Feature check (fake AI)` run above.
 
 **Done when:** steps 4–6 hold for its rows.
 
 ### F4.1 The Alerts page
 
 **Flags:** none. **Assigned:** frontend, after `F4.4` (ruling 308). **Depends on:** `B4.1`
-merged; it runs beside `B4.2`. **PR:** none yet. (ruling 308, record 6326364266)
+merged; it runs beside `B4.2`. **PR:** #7367. (ruling 308, record 6326364266)
 
 Design: [`../4n-alerting.md`](../4n-alerting.md), "Packages" row 2, beside `B4.2`. Covers F-078,
 F-079.
 
-- [ ] The test-only PR (step 2).
+- [x] The test-only PR (step 2).
 - [ ] The build PR: alert rows; Acknowledge, Dismiss, Snooze; the timeline's Snooze moves to
       activity snoozes; `alerts.spec.ts` and the snooze steps of `event-detail-modal.spec.ts`
       rewritten.
@@ -311,6 +316,118 @@ Design: [`../4n-arming.md`](../4n-arming.md), "Packages" row `F4.5`. Covers F-29
 - [ ] Golden path (Playwright) as the design gives it.
 
 **Done when:** steps 4–6 hold for its rows.
+
+### F4.8 System status in the UI (contract)
+
+**Flags:** `owner` (it retires control routes, re-enables host-privileged self-healing and builds
+the shared admin check, UR-98; ruling 321). **Assigned:** frontend, after `F4.5` (ruling 317).
+**Depends on:** `B4.11` merged.
+**PR:** none yet. (ruling 317, record 6347331324; ruling 321, record 6355356496)
+
+Design: [`../4n-status.md`](../4n-status.md), "Packages" row `F4.8`. Covers the status rows with
+`B4.11`.
+
+- [ ] The test-only PR (step 2): the hooks and components the design names, with their fixtures.
+- [ ] The build PR: the header badge on `ai_service_status`; the dashboard row, the model cards and
+      the services panel (Restart only, the sign-in prompt, Postgres no longer blocked); the shared
+      `useIsAdmin` and `AdminSignInPrompt` that `F4.10` reuses (`4n-debug-tools.md`, DT5); the
+      per-model latency chart; the banner's `ai-vlm`; the alert badge on the events socket with its
+      page-open load; the palette and `g y`; Tracing's Tempo link. Its cross-lane part (UR-9):
+      removes the old `nemotron` and `rtdetr` fields, moves the `ai_models` key, regenerates the
+      contract and types, and edits `operations/performance.spec.ts:55` and `:66`; and it retires
+      the enable, disable and `/start` service routes and the worker stop and start routes with
+      their callers (the start, stop, enable and disable mutations in `useServiceMutations` and
+      `useWorkerActions`, their clients and the panels' buttons), each pinned by a 404 test, and
+      clears every persisted `enabled=false` once. It edits
+      `operations/worker-management.spec.ts:88-113` (F-143's golden path) and F-143's row.
+- [ ] Golden path (Playwright) as the design gives it.
+
+**Done when:** steps 4–6 hold for its rows.
+
+### F4.6 Scene changes in the UI
+
+**Flags:** none. **Assigned:** frontend, after `F4.8` (ruling 317). **Depends on:** `B4.9` and
+`F4.1` merged. **PR:** none yet. (ruling 317, record 6347331324)
+
+Design: [`../4n-scene-changes.md`](../4n-scene-changes.md), "Packages" row `F4.6`. Covers F-008,
+F-030 and F-288, and F-208 and F-287 with `B4.9`.
+
+- [ ] The test-only PR (step 2): `useSceneChangeAlerts`, `useSceneChangeEvents`,
+      `useSceneChangesQuery`, `SceneChangePanel`, `SceneChangesPage` and `SceneChangeIndicator`.
+- [ ] The build PR: the header badge, the dashboard indicator and toasts on open and cleared; the
+      camera modal's incidents with their pictures and "Set as normal"; the Scene changes page on
+      `GET /api/scene-changes` with its filters and state; Acknowledge with "This is the new
+      normal"; the drifted incident's text.
+- [ ] Golden path (Playwright) as the design gives it.
+
+**Done when:** steps 4–6 hold for its rows.
+
+### F4.7 Exports in the UI
+
+**Flags:** none. **Assigned:** frontend, after `F4.6` (ruling 317). **Depends on:** `B4.10` merged.
+**PR:** none yet. (ruling 317, record 6347331324)
+
+Design: [`../4n-exports.md`](../4n-exports.md), "Packages" row `F4.7`. Covers F-051, F-098 and
+F-099 with `B4.10`.
+
+- [ ] The test-only PR (step 2): `ExportButton`, `ExportModal`, `ExportProgress`, `useExportJobs`
+      and Data › Export; the e2e spec that mocks a missing route.
+- [ ] The build PR: the button on `POST /api/exports` and `/download`, with every timeline filter;
+      Events and Alerts in the modal and Data › Export, and the Backups link; Cancel through
+      `DELETE` everywhere; the cancelled and expired states; the two old clients go. Its cross-lane
+      part (UR-9): retires `POST /api/events/export` with its tracker job and
+      `GET /api/events/export`, with their tests, a 404 test, the regenerated contract and types,
+      and the docs that name them.
+- [ ] Golden path (Playwright) as the design gives it.
+
+**Done when:** steps 4–6 hold for its rows.
+
+### F4.9 Easy and Advanced modes
+
+**Flags:** `heavy`. **Assigned:** heavy-a, now (ruling 321; `[r320]` closed moot, ruling 320's
+correction); it follows this block (UR-59). **Depends on:** none.
+**PR:** #7376. (ruling 321, record 6355356496)
+
+Design: [`../4n-modes.md`](../4n-modes.md), "Packages" row `F4.9`. Covers F-299 (new) and the rows
+the design re-cites.
+
+- [x] The test-only PR (step 2): one navigation fixture and one event-modal fixture for the tests of
+      every file the build edits (the design's "Consolidation scope").
+- [ ] The build PR: `config/surfaces.ts` and `ViewModeContext`; `ModeSwitch`, `AdvancedOnly`,
+      `HubTabBar` and `AdvancedBanner`; the sidebar, phone bar, palette, chords and help modal read
+      the registry; the header, the event modal and Trends gate on the view mode; `SettingsPage`
+      takes its heading and tab bar from the hub; `sidebarNav.ts` and `settingsTabsConfig.ts` go;
+      every spec and unit test the design lists moves, with the `setMode` harness helper; the
+      glossary, the inventory (F-299 and the re-cites) and the docs the design names (UR-81).
+- [ ] Golden path (Playwright, `shell/modes.spec.ts`) as the design gives it.
+
+**Done when:** steps 4–6 hold for F-299, and the design's re-cited rows pass
+`feature-inventory.test.ts`.
+
+### F4.10 Debug tools in the UI (contract)
+
+**Flags:** `owner` (ruling 89; it closes routes behind an auth check, UR-98). **Assigned:**
+frontend, after `F4.7` (ruling 321). **Depends on:** `B4.12` and `F4.8` merged.
+**PR:** none yet. (ruling 321, record 6355356496)
+
+Design: [`../4n-debug-tools.md`](../4n-debug-tools.md), "Packages" row `F4.10`. Covers F-145,
+F-151–F-159 and F-195 with `B4.12`.
+
+- [ ] The test-only PR (step 2): the Developer Tools, Logging Settings and Databases panel tests.
+- [ ] The build PR: the Developer Tools section, Logging Settings and the Redis INFO block render
+      for an admin and show `F4.8`'s `AdminSignInPrompt` otherwise; the profiling client on
+      `/profile/stats` and its `results`, Download on `B4.12`'s route, Clear all per recording;
+      a new `operations/profiling.spec.ts`; every spec the design lists signs in as admin,
+      `shell/rate-limit` always. Its cross-lane part (UR-9): `require_debug_mode` goes and the
+      22 routes take `get_current_admin_user`; `scripts/feature_check.py` sends the harness
+      admin's cookie, with `test_feature_check.py`; `scripts/load_test.py`; the backend tests
+      the design names; the refusal leg of
+      `backend/tests/golden/external/test_debug_access.py`; the contract's known-missing debug
+      entries; the regenerated contract and types; the stale docstring, 404 responses and
+      `backend/api/routes/AGENTS.md`.
+- [ ] Golden path (Playwright and pytest) as the design gives it.
+
+**Done when:** steps 4–6 hold for its rows, and the known-missing list holds no debug entry.
 
 ### FB.\* Background track
 

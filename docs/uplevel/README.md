@@ -206,11 +206,16 @@ UR-147.
 | O3.7    | ops                     | 3          | `scripts/` truth                               |               | done        | #7329 |
 | B4.\*   | backend                 | 4          | Feature track (arming among them, UR-12)       | design: heavy | not started |     |
 | B4.1    | backend                 | 4          | Alert pipeline core                            | heavy         | awaiting real tier | #7335, #7342 |
+| B4.2    | backend                 | 4          | Recipients and delivery                        |               | awaiting real tier | #7339, #7346 |
 | B4.4    | backend                 | 4          | Trash purger                                   | heavy         | awaiting real tier | #7347, #7354 |
-| B4.6    | backend                 | 4          | Restore from backup                            | heavy         | awaiting real tier | #7345, #7350 |
+| B4.6    | backend                 | 4          | Restore from backup                            | heavy         | awaiting real tier | #7345, #7350, #7358 |
+| B4.7    | backend                 | 4          | Arming core                                    | heavy         | awaiting real tier | #7357, #7361 |
+| B4.11   | backend                 | 4          | System status (expand)                         | heavy · owner | in progress | #7366 |
 | BB.\*   | backend                 | 4          | Background track                               |               | not started |     |
 | F4.\*   | frontend                | 4          | Feature track, frontend parts                  | design: heavy | not started |     |
-| F4.4    | frontend                | 4          | Timeline filters and detections                |               | in progress | #7352 |
+| F4.4    | frontend                | 4          | Timeline filters and detections                |               | awaiting real tier | #7352, #7362 |
+| F4.1    | frontend                | 4          | The Alerts page                                |               | in progress | #7367 |
+| F4.9    | frontend                | 4          | Easy and Advanced modes                        | heavy         | in progress | #7376 |
 | FB.\*   | frontend                | 4          | Background track                               |               | not started |     |
 | OB.2    | ops                     | after 1    | CI dedupe                                      |               | done        | #6963 |
 | OB.3    | ops                     | after 1    | Image weight                                   |               | done        | #7307 |

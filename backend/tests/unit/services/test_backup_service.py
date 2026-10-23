@@ -171,6 +171,8 @@ class TestServiceConstruction:
             "prompt_versions",
             "settings",
             "alert_rules",
+            "recipients",
+            "recipient_channels",
         ]
         assert "events" not in names
         assert "alerts" not in names
@@ -268,6 +270,78 @@ class TestExportTable:
         # ... and the reserved key must not carry a stringified MetaData.
         assert "metadata" not in exported
 
+    @pytest.mark.asyncio
+    async def test_recipient_channels_export_without_secrets(self, tmp_path) -> None:
+        """[B4.2] 4n-restore.md §Privacy: recipient channels arrive without their secrets.
+
+        The signing secret (Fernet ciphertext) and its hint are excluded from the
+        exported rows entirely -- the key is absent, not None -- so a restore merge
+        keeps the local value on update and the default (None) on insert
+        (4n-restore.md §Shape: "A key missing from a record keeps the local value
+        on update and the default on insert"). The row is a real unsaved
+        RecipientChannel instance, the same object shape the export loop sees.
+        """
+        from backend.models.alert_delivery import RecipientChannel
+
+        row = RecipientChannel(
+            recipient_id="11111111-1111-7111-8111-111111111111",
+            kind="webhook",
+            target="http://example.invalid/hook",
+        )
+        row.signing_secret_encrypted = "gAAAAABh-fake-fernet-ciphertext"  # pragma: allowlist secret
+        row.signing_secret_hint = "gAAA"  # pragma: allowlist secret
+
+        svc = _service(tmp_path)
+        out = tmp_path / "recipient_channels.json"
+        count = await svc._export_table(
+            FakeDB([row]), RecipientChannel, out, table_name="recipient_channels"
+        )
+        assert count == 1
+        (exported,) = json.loads(out.read_text())
+        # The secret columns are absent from the archive, not nulled in it.
+        assert "signing_secret_encrypted" not in exported
+        assert "signing_secret_hint" not in exported
+        # The rest of the channel still ships.
+        assert exported["kind"] == "webhook"
+        assert exported["target"] == "http://example.invalid/hook"
+        assert exported["recipient_id"] == "11111111-1111-7111-8111-111111111111"
+
+    @pytest.mark.asyncio
+    async def test_recipients_export_without_user_id(self, tmp_path) -> None:
+        """[B4.2] user_id points at users, which backups do not carry; an archive
+        row with a dangling user_id would fail the whole all-or-nothing restore on
+        the FK. Excluded for the same absent-key reason as the channel secrets.
+        """
+        from backend.models.alert_delivery import Recipient
+
+        row = Recipient(name="Alex")
+        row.user_id = "user-7"
+
+        svc = _service(tmp_path)
+        out = tmp_path / "recipients.json"
+        count = await svc._export_table(FakeDB([row]), Recipient, out, table_name="recipients")
+        assert count == 1
+        (exported,) = json.loads(out.read_text())
+        assert "user_id" not in exported
+        assert exported["name"] == "Alex"
+        assert exported["enabled"] is True
+        assert exported["critical_breaks_quiet"] is True
+
+    @pytest.mark.asyncio
+    async def test_excluded_columns_only_apply_to_their_table(self, tmp_path) -> None:
+        """The exclusion map is keyed by table name; another table exporting the
+        same column name keeps it."""
+        from backend.models.alert_delivery import Recipient
+
+        row = Recipient(name="Sam")
+        row.user_id = "user-9"
+
+        svc = _service(tmp_path)
+        out = tmp_path / "no-name.json"
+        await svc._export_table(FakeDB([row]), Recipient, out, table_name=None)
+        (exported,) = json.loads(out.read_text())
+        assert exported["user_id"] == "user-9"
+
 
 # -------------------------------------------------------------- _calculate_checksum
 
@@ -323,7 +397,7 @@ class TestCreateBackup:
             assert "manifest.json" in names
             assert "households.json" in names and "alert_rules.json" in names
             assert "events.json" not in names and "alerts.json" not in names
-            assert len(names) == 13  # manifest + 12 configuration tables
+            assert len(names) == 15  # manifest + 14 configuration tables
             body = json.loads(zf.read("manifest.json"))
         assert body["backup_id"] == "abcdef12345"
         assert body["version"] == "1.1"
@@ -332,27 +406,29 @@ class TestCreateBackup:
         assert body["contents"]["cameras"]["count"] == 0
         assert body["contents"]["cameras"]["checksum"] == hashlib.sha256(b"[]").hexdigest()
 
-        # progress: 12 export steps at int(idx/12*80), then 85/90/95/100
+        # progress: 14 export steps at int(idx/14*80), then 85/90/95/100
         assert [p for p, _ in steps] == [
             0,
-            6,
-            13,
-            20,
-            26,
-            33,
+            5,
+            11,
+            17,
+            22,
+            28,
+            34,
             40,
-            46,
-            53,
-            60,
-            66,
-            73,
+            45,
+            51,
+            57,
+            62,
+            68,
+            74,
             85,
             90,
             95,
             100,
         ]
         assert steps[-1][1] == "Backup complete"
-        assert steps[12][1] == "Creating manifest"
+        assert steps[14][1] == "Creating manifest"
 
     @pytest.mark.asyncio
     async def test_without_callback_still_succeeds(self, tmp_path) -> None:

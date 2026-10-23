@@ -2044,6 +2044,134 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/arming": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Read Arming Status
+         * @description Return current household arming mode, source, timestamp, and next scheduled transition.
+         */
+        get: operations["arming_read_arming_status"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/arming/changes": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Read Arming Changes
+         * @description Return recent arming mode and camera exclusion changes.
+         */
+        get: operations["arming_read_arming_changes"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/arming/events/{event_id}/decision": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Read Event Notify Decision
+         * @description Return the persisted notify decision (`notify` and `decided_by`) for `event_id`.
+         */
+        get: operations["arming_read_event_notify_decision"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/arming/mode": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        /**
+         * Update Arming Mode
+         * @description Switch the household arming mode from the app.
+         */
+        put: operations["arming_update_arming_mode"];
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/arming/modes/{mode}/cameras": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Read Mode Cameras
+         * @description Return the excluded camera IDs for `mode`.
+         */
+        get: operations["arming_read_mode_cameras"];
+        /**
+         * Update Mode Cameras
+         * @description Replace the excluded camera IDs for `mode` (`home`, `away`, or `night`).
+         */
+        put: operations["arming_update_mode_cameras"];
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/arming/schedule": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Read Arming Schedule
+         * @description Return the weekly arming schedule.
+         */
+        get: operations["arming_read_arming_schedule"];
+        /**
+         * Update Arming Schedule
+         * @description Replace the weekly arming schedule and wake the in-process scheduler.
+         */
+        put: operations["arming_update_arming_schedule"];
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/audit": {
         parameters: {
             query?: never;
@@ -5332,6 +5460,10 @@ export interface paths {
          *             verification_failed, or 'none' for never-verified events). An
          *             unrecognised value is a 422 from the Literal-typed param - never
          *             an empty list, which would read as a false all-clear.
+         *         min_confidence: Optional detector-confidence floor (0.0-1.0): the
+         *             event matches when any of its detections is at or above it; 0
+         *             means the event has at least one detection. Outside 0 to 1 is
+         *             a 422 from the Query bounds.
          *         start_date: Optional start date for date range filter
          *         end_date: Optional end date for date range filter
          *         reviewed: Optional filter by reviewed status
@@ -11645,10 +11777,7 @@ export interface paths {
         put?: never;
         /**
          * Create Alert
-         * @description Not implemented (UR-12): external alert ingestion takes no action.
-         *
-         *     Accepts ``InboundAlertPayload`` and answers 501. A malformed payload
-         *     still 422s (the schema is live); auth failures 401 first.
+         * @description Create an external event on `payload.camera_id` and run `AlertPipeline.process` (A4, A5).
          */
         post: operations["inbound-webhooks_create_alert"];
         delete?: never;
@@ -11668,11 +11797,7 @@ export interface paths {
         put?: never;
         /**
          * Arm Zones
-         * @description Not implemented (UR-12): arming zones takes no action.
-         *
-         *     This is the endpoint D3 names: it used to answer "Arm command for N
-         *     zones queued" having queued nothing, telling an integrator the house
-         *     was armed when it was not.
+         * @description Arm the household in `payload.mode` (default `away`).
          */
         post: operations["inbound-webhooks_arm_zones"];
         delete?: never;
@@ -11692,7 +11817,7 @@ export interface paths {
         put?: never;
         /**
          * Disarm Zones
-         * @description Not implemented (UR-12): disarming zones takes no action.
+         * @description Disarm the household (`mode = 'disarmed'`).
          */
         post: operations["inbound-webhooks_disarm_zones"];
         delete?: never;
@@ -11712,11 +11837,7 @@ export interface paths {
         put?: never;
         /**
          * Set System Mode
-         * @description Not implemented (UR-12): system-mode changes take no action.
-         *
-         *     Mode values are no longer validated here: the check lived in the handler
-         *     that acted on them, and ``InboundModePayload`` is kept unchanged for the
-         *     arming feature, whose ruling it is.
+         * @description Set the household arming mode (`home`, `away`, `night`, `disarmed`).
          */
         post: operations["inbound-webhooks_set_system_mode"];
         delete?: never;
@@ -13068,6 +13189,11 @@ export interface components {
                 [key: string]: unknown;
             } | null;
             /**
+             * Raised While Unarmed
+             * @description Whether this alert was raised while the camera was unarmed
+             */
+            raised_while_unarmed?: boolean | null;
+            /**
              * Rule Id
              * @description Alert rule UUID that matched
              */
@@ -13190,6 +13316,11 @@ export interface components {
              */
             alert_on_rejected?: boolean | null;
             /**
+             * Alert On Rejected Modes
+             * @description Arming modes in which a rejected verdict still alerts (null = every mode)
+             */
+            alert_on_rejected_modes?: string[] | null;
+            /**
              * Camera Ids
              * @description Camera IDs to apply rule to (empty = all cameras)
              */
@@ -13273,6 +13404,11 @@ export interface components {
              * @default medium
              */
             severity: components["schemas"]["AlertSeverity"];
+            /**
+             * Sources
+             * @description Event sources this rule matches (camera, external)
+             */
+            sources?: string[] | null;
             /**
              * Threat Confidence Threshold
              * @description Minimum threat detection confidence (0.0-1.0)
@@ -13385,6 +13521,11 @@ export interface components {
              */
             alert_on_rejected?: boolean | null;
             /**
+             * Alert On Rejected Modes
+             * @description Arming modes in which a rejected verdict still alerts
+             */
+            alert_on_rejected_modes?: string[] | null;
+            /**
              * Camera Ids
              * @description Camera IDs to apply to
              */
@@ -13473,6 +13614,11 @@ export interface components {
             schedule?: components["schemas"]["AlertRuleSchedule"] | null;
             /** @description Severity level */
             severity: components["schemas"]["AlertSeverity"];
+            /**
+             * Sources
+             * @description Event sources this rule matches (camera, external)
+             */
+            sources?: string[] | null;
             /**
              * Threat Confidence Threshold
              * @description Minimum threat confidence
@@ -13572,6 +13718,11 @@ export interface components {
              */
             alert_on_rejected?: boolean | null;
             /**
+             * Alert On Rejected Modes
+             * @description Arming modes in which a rejected verdict still alerts
+             */
+            alert_on_rejected_modes?: string[] | null;
+            /**
              * Camera Ids
              * @description Camera IDs to apply rule to
              */
@@ -13647,6 +13798,11 @@ export interface components {
             schedule?: components["schemas"]["AlertRuleSchedule"] | null;
             /** @description Severity level */
             severity?: components["schemas"]["AlertSeverity"] | null;
+            /**
+             * Sources
+             * @description Event sources this rule matches (camera, external)
+             */
+            sources?: string[] | null;
             /**
              * Threat Confidence Threshold
              * @description Minimum threat confidence
@@ -13869,6 +14025,11 @@ export interface components {
             metadata?: {
                 [key: string]: unknown;
             } | null;
+            /**
+             * Raised While Unarmed
+             * @description Whether this alert was raised while the camera was unarmed
+             */
+            raised_while_unarmed?: boolean | null;
             /**
              * Rule Id
              * @description Alert rule UUID that triggered this
@@ -14868,6 +15029,169 @@ export interface components {
              * @description Area name
              */
             name?: string | null;
+        };
+        /**
+         * ArmingChangeItemResponse
+         * @description A single entry in the arming change history.
+         */
+        ArmingChangeItemResponse: {
+            /**
+             * Changed At
+             * Format: date-time
+             */
+            changed_at: string;
+            /** Exclusions After */
+            exclusions_after?: {
+                [key: string]: string[];
+            };
+            /** From Value */
+            from_value?: unknown | null;
+            /** Id */
+            id: number;
+            /** Kind */
+            kind: string;
+            /** Mode After */
+            mode_after: string;
+            /** Source Kind */
+            source_kind: string;
+            /** Source Name */
+            source_name: string;
+            /** To Value */
+            to_value: unknown;
+        };
+        /**
+         * ArmingChangesListResponse
+         * @description Response for GET /api/arming/changes.
+         */
+        ArmingChangesListResponse: {
+            /** Items */
+            items?: components["schemas"]["ArmingChangeItemResponse"][];
+        };
+        /**
+         * ArmingEventDecisionResponse
+         * @description Response for GET /api/arming/events/{event_id}/decision.
+         */
+        ArmingEventDecisionResponse: {
+            /** Decided By */
+            decided_by: string;
+            /** Event Id */
+            event_id: number;
+            /** Notify */
+            notify: boolean;
+        };
+        /**
+         * ArmingModeCamerasResponse
+         * @description Response for GET/PUT /api/arming/modes/{mode}/cameras.
+         */
+        ArmingModeCamerasResponse: {
+            /**
+             * Excluded Camera Ids
+             * @description Camera IDs excluded from alerting in this mode
+             */
+            excluded_camera_ids?: string[];
+            /**
+             * Mode
+             * @description Arming mode
+             */
+            mode: string;
+        };
+        /**
+         * ArmingModeCamerasUpdateRequest
+         * @description Request for PUT /api/arming/modes/{mode}/cameras.
+         */
+        ArmingModeCamerasUpdateRequest: {
+            /**
+             * Excluded Camera Ids
+             * @description Camera IDs to leave out of alerting in this mode
+             */
+            excluded_camera_ids?: string[];
+        };
+        /**
+         * ArmingScheduleEntrySchema
+         * @description A single weekly schedule entry.
+         */
+        ArmingScheduleEntrySchema: {
+            /**
+             * Days
+             * @description Weekdays (monday..sunday)
+             */
+            days: string[];
+            /**
+             * Id
+             * @description Schedule entry ID
+             */
+            id?: number | null;
+            /**
+             * Mode
+             * @description Target arming mode: home, away, night, or disarmed
+             */
+            mode: string;
+            /**
+             * Time
+             * @description Local time in HH:MM (24-hour)
+             */
+            time: string;
+        };
+        /**
+         * ArmingScheduleResponse
+         * @description Response for GET/PUT /api/arming/schedule.
+         */
+        ArmingScheduleResponse: {
+            /** Items */
+            items?: components["schemas"]["ArmingScheduleEntrySchema"][];
+        };
+        /**
+         * ArmingScheduleUpdateRequest
+         * @description Request for PUT /api/arming/schedule.
+         */
+        ArmingScheduleUpdateRequest: {
+            /** Items */
+            items?: components["schemas"]["ArmingScheduleEntrySchema"][];
+        };
+        /**
+         * ArmingSetModeRequest
+         * @description Request for PUT /api/arming/mode.
+         */
+        ArmingSetModeRequest: {
+            /**
+             * Mode
+             * @description Target arming mode: home, away, night, or disarmed
+             */
+            mode: string;
+        };
+        /**
+         * ArmingStatusResponse
+         * @description Response for GET /api/arming.
+         */
+        ArmingStatusResponse: {
+            /**
+             * By Whom
+             * @description Who or what set the current mode
+             */
+            by_whom: string;
+            /**
+             * Mode
+             * @description Current household arming mode (home, away, night, disarmed)
+             */
+            mode: string;
+            /** @description Next scheduled transition if a schedule is configured */
+            next_scheduled?: components["schemas"]["NextScheduledTransitionResponse"] | null;
+            /**
+             * Since
+             * Format: date-time
+             * @description UTC timestamp when the current mode was set
+             */
+            since: string;
+            /**
+             * Source Kind
+             * @description Source kind (user, webhook, mqtt, schedule, system)
+             */
+            source_kind: string;
+            /**
+             * Source Name
+             * @description Source identifier
+             */
+            source_name: string;
         };
         /**
          * AssociatedDetection
@@ -21423,6 +21747,11 @@ export interface components {
              * @description Event summary
              */
             summary: string;
+            /**
+             * Verdict
+             * @description Optional VLM verdict (confirmed, uncertain, rejected, verification_failed)
+             */
+            verdict?: string | null;
         };
         /**
          * EventBulkCreateRequest
@@ -26529,12 +26858,22 @@ export interface components {
         };
         /**
          * InboundAlertPayload
-         * @description Payload for creating an external alert.
+         * @description Payload for creating an external alert event on a camera (B4.7 / 4n-arming.md).
          */
         InboundAlertPayload: {
             /**
+             * Camera Id
+             * @description Camera ID associated with the external sensor/alert (required by /alert).
+             */
+            camera_id?: string | null;
+            /**
+             * Idempotency Key
+             * @description Optional caller idempotency key (namespaced per API key fingerprint).
+             */
+            idempotency_key?: string | null;
+            /**
              * Message
-             * @description Alert message.
+             * @description Alert message stored as the external event summary.
              */
             message: string;
             /**
@@ -26552,29 +26891,52 @@ export interface components {
             severity: string;
             /**
              * Source
-             * @description Source system identifier (e.g., 'ifttt', 'zapier').
+             * @description Source system identifier (e.g., 'ifttt', 'home_assistant').
              */
             source: string;
         };
         /**
+         * InboundAlertWebhookResponse
+         * @description Response returned by /alert.
+         */
+        InboundAlertWebhookResponse: {
+            /** Alert Ids */
+            alert_ids?: string[];
+            /** Batch Id */
+            batch_id: string;
+            /** Camera Id */
+            camera_id: string;
+            /** Event Id */
+            event_id: number;
+            /** Notify */
+            notify: boolean;
+            /** Severity */
+            severity: string;
+            /**
+             * Status
+             * @default ok
+             */
+            status: string;
+        };
+        /**
          * InboundArmPayload
-         * @description Payload for arming zones.
+         * @description Payload for arming the household via inbound webhook.
          */
         InboundArmPayload: {
             /**
              * Mode
-             * @description Optional arm mode (full, perimeter, instant).
+             * @description Optional target mode (home, away, night, disarmed; default away).
              */
             mode?: string | null;
             /**
              * Zone Ids
-             * @description Zone IDs to arm. If None, arms all zones.
+             * @description Zone IDs (unsupported; supplying zone_ids returns 422 naming the four modes).
              */
             zone_ids?: string[] | null;
         };
         /**
          * InboundDisarmPayload
-         * @description Payload for disarming zones.
+         * @description Payload for disarming the household via inbound webhook.
          */
         InboundDisarmPayload: {
             /**
@@ -26584,13 +26946,13 @@ export interface components {
             reason?: string | null;
             /**
              * Zone Ids
-             * @description Zone IDs to disarm. If None, disarms all zones.
+             * @description Zone IDs (unsupported; supplying zone_ids returns 422 naming the four modes).
              */
             zone_ids?: string[] | null;
         };
         /**
          * InboundModePayload
-         * @description Payload for setting system mode.
+         * @description Payload for setting the household arming mode.
          */
         InboundModePayload: {
             /**
@@ -26598,6 +26960,26 @@ export interface components {
              * @description System mode: home, away, night, disarmed.
              */
             mode: string;
+        };
+        /**
+         * InboundModeWebhookResponse
+         * @description Response returned by /mode, /arm, and /disarm.
+         */
+        InboundModeWebhookResponse: {
+            /** Mode */
+            mode: string;
+            /**
+             * Source Kind
+             * @default webhook
+             */
+            source_kind: string;
+            /** Source Name */
+            source_name: string;
+            /**
+             * Status
+             * @default ok
+             */
+            status: string;
         };
         /**
          * InferenceMetrics
@@ -30191,6 +30573,23 @@ export interface components {
              * @description Health status: healthy, unhealthy, unreachable
              */
             status: string;
+        };
+        /**
+         * NextScheduledTransitionResponse
+         * @description Next scheduled mode transition.
+         */
+        NextScheduledTransitionResponse: {
+            /**
+             * At
+             * Format: date-time
+             * @description UTC timestamp of the next scheduled transition
+             */
+            at: string;
+            /**
+             * Mode
+             * @description Target arming mode (home, away, night, disarmed)
+             */
+            mode: string;
         };
         /**
          * NotificationChannel
@@ -39204,6 +39603,12 @@ export interface components {
              */
             name: string;
             /**
+             * On Local Network
+             * @description Allow private/unique-local targets and plain HTTP for this webhook (the household's own network). Loopback, link-local and metadata addresses stay blocked either way.
+             * @default false
+             */
+            on_local_network: boolean;
+            /**
              * Payload Template
              * @description Custom payload template (Jinja2)
              */
@@ -39523,6 +39928,12 @@ export interface components {
              * @description Webhook name
              */
             name: string;
+            /**
+             * On Local Network
+             * @description Whether private/unique-local targets are allowed for this webhook
+             * @default false
+             */
+            on_local_network: boolean;
             /** Payload Template */
             payload_template?: string | null;
             /** Retry Delay Seconds */
@@ -39666,6 +40077,11 @@ export interface components {
             max_retries?: number | null;
             /** Name */
             name?: string | null;
+            /**
+             * On Local Network
+             * @description Set true to allow private/unique-local targets and plain HTTP for this webhook
+             */
+            on_local_network?: boolean | null;
             /** Payload Template */
             payload_template?: string | null;
             /** Retry Delay Seconds */
@@ -43670,6 +44086,240 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content?: never;
+            };
+        };
+    };
+    arming_read_arming_status: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ArmingStatusResponse"];
+                };
+            };
+        };
+    };
+    arming_read_arming_changes: {
+        parameters: {
+            query?: {
+                limit?: number;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ArmingChangesListResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    arming_read_event_notify_decision: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                event_id: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ArmingEventDecisionResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    arming_update_arming_mode: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ArmingSetModeRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ArmingStatusResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    arming_read_mode_cameras: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                mode: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ArmingModeCamerasResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    arming_update_mode_cameras: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                mode: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ArmingModeCamerasUpdateRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ArmingModeCamerasResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    arming_read_arming_schedule: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ArmingScheduleResponse"];
+                };
+            };
+        };
+    };
+    arming_update_arming_schedule: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ArmingScheduleUpdateRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ArmingScheduleResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
             };
         };
     };
@@ -48114,6 +48764,8 @@ export interface operations {
                 risk_level?: string | null;
                 /** @description Filter by VLM verification verdict (confirmed, rejected, uncertain, verification_failed) or 'none' for events never verified. Anything else is a 422, never an empty list - a typo'd verdict must not read as a false all-clear. */
                 verdict?: ("confirmed" | "rejected" | "uncertain" | "verification_failed" | "none") | null;
+                /** @description Minimum detector confidence across the event's detections (0.0-1.0). An event matches when ANY of its detections is at or above the threshold. 0 means the event has at least one detection. Values outside 0 to 1 are a 422. */
+                min_confidence?: number | null;
                 /** @description Filter by start date (ISO format) */
                 start_date?: string | null;
                 /** @description Filter by end date (ISO format) */
@@ -56561,6 +57213,15 @@ export interface operations {
             };
         };
         responses: {
+            /** @description Webhook processed */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["InboundAlertWebhookResponse"];
+                };
+            };
             /** @description Authentication failed */
             401: {
                 headers: {
@@ -56574,15 +57235,6 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content?: never;
-            };
-            /** @description Not implemented — UR-12; this endpoint takes no action */
-            501: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": unknown;
-                };
             };
         };
     };
@@ -56601,6 +57253,15 @@ export interface operations {
             };
         };
         responses: {
+            /** @description Webhook processed */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["InboundModeWebhookResponse"];
+                };
+            };
             /** @description Authentication failed */
             401: {
                 headers: {
@@ -56614,15 +57275,6 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content?: never;
-            };
-            /** @description Not implemented — UR-12; this endpoint takes no action */
-            501: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": unknown;
-                };
             };
         };
     };
@@ -56641,6 +57293,15 @@ export interface operations {
             };
         };
         responses: {
+            /** @description Webhook processed */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["InboundModeWebhookResponse"];
+                };
+            };
             /** @description Authentication failed */
             401: {
                 headers: {
@@ -56654,15 +57315,6 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content?: never;
-            };
-            /** @description Not implemented — UR-12; this endpoint takes no action */
-            501: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": unknown;
-                };
             };
         };
     };
@@ -56681,6 +57333,15 @@ export interface operations {
             };
         };
         responses: {
+            /** @description Webhook processed */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["InboundModeWebhookResponse"];
+                };
+            };
             /** @description Authentication failed */
             401: {
                 headers: {
@@ -56694,15 +57355,6 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content?: never;
-            };
-            /** @description Not implemented — UR-12; this endpoint takes no action */
-            501: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": unknown;
-                };
             };
         };
     };

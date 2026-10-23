@@ -112,12 +112,9 @@ import {
   closedByGuard,
   createAuditFixture,
   hardDeleteFixtureRows,
-  loginAsAdminShell as loginAsAdmin,
-  quietBoot,
+  openTimelineEventModal,
   readAuditLookup,
   readTimelineHarness,
-  seedDefaultViewMode,
-  seedTourDismissed,
   type AuditFixture,
   type Session,
   type TimelineHarness,
@@ -150,25 +147,14 @@ test.afterAll(async () => {
 });
 
 /** Boots /timeline filtered to this fixture with the modal already OPEN on one
- *  row, through the shipped `?event=` door (the same door ./event-detail.spec.ts
- *  uses, and the one F-061's "clicks Re-evaluate" clause implies — the button
- *  lives inside the modal, so opening it IS the first step of the path). */
+ *  row, through the shipped `?event=` door (delegated to `openTimelineEventModal`
+ *  in `./harness.ts`, F4.9 consolidation). */
 async function openModal(page: Page, eventId: number): Promise<Session> {
-  const session = await adminSession(harness);
-  await seedTourDismissed(page);
-  await seedDefaultViewMode(page);
-  await loginAsAdmin(page, harness);
-  await quietBoot(
-    page,
-    harness,
-    `/timeline?camera=${encodeURIComponent(fx.cameraId)}&event=${eventId}`
-  );
-  await expect(page.getByTestId('timeline-page')).toBeVisible();
-  await expect(
-    page.getByTestId('event-detail-modal'),
-    'the ?event= deep link opens the detail modal'
-  ).toBeVisible();
-  return session;
+  return openTimelineEventModal(page, harness, {
+    cameraId: fx.cameraId,
+    eventId,
+    waitForCards: false,
+  });
 }
 
 test.describe('F-061 Re-evaluate button (AI Summary)', () => {
