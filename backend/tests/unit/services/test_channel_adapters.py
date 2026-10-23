@@ -1,8 +1,12 @@
-"""Unit tests for backend.services.alerting.channels (B4.2).
+"""Unit tests for backend.services.alerting.channels and payload (B4.2/B4.3).
+
+Consolidated under 01's zero kill-loss protocol (B4.3 step 2): the browser
+channel's tests moved here from test_alert_delivery_channels.py (B4.3's build
+touches the channels package, the worker dispatch and payload handling).
 
 Covers the F-246 webhook signature vector, the F12 local-network URL policy
 (allowed/blocked per flag, metadata always blocked), the F9 SMTP timeout, F13
-escaping, and the idempotency headers.
+escaping, the idempotency headers, and the browser channel's republish leg.
 """
 
 from __future__ import annotations
@@ -18,6 +22,7 @@ import pytest
 from backend.core.url_validation import SSRFValidationError  # noqa: F401
 from backend.models.alert_delivery import DeliveryChannelKind
 from backend.services.alerting.channels.base import DeliveryTask
+from backend.services.alerting.channels.browser import BrowserChannel
 from backend.services.alerting.channels.email import build_message
 from backend.services.alerting.channels.webhook import WebhookChannel, sign_payload
 from backend.services.alerting.payload import build_payload
@@ -290,3 +295,52 @@ class TestBuildPayload:
 
         p = build_payload(A(), idempotency_key="k1", include_names=True, known_names={"Jane"})
         assert "Jane" in p["summary"]
+
+
+# --- Browser channel (consolidated from test_alert_delivery_channels.py, B4.3) ---
+
+
+def _browser_task() -> DeliveryTask:
+    return DeliveryTask(
+        delivery_id="d-1",
+        channel_id="c-1",
+        channel_kind=DeliveryChannelKind.BROWSER,
+        recipient_id="r-1",
+        idempotency_key="idem-1",
+        payload={"title": "t", "severity": "high", "summary": "s"},
+        include_names=False,
+    )
+
+
+class _Broadcaster:
+    """Records broadcasts; returns a configured client count."""
+
+    def __init__(self, reached: int) -> None:
+        self.reached = reached
+        self.calls: list[dict[str, Any]] = []
+
+    async def broadcast_alert(self, alert_data: dict[str, Any], event_type: Any) -> int:
+        self.calls.append({"alert_data": alert_data, "event_type": event_type})
+        return self.reached
+
+
+class TestBrowserChannel:
+    async def test_send_succeeds_when_clients_reached(self) -> None:
+        b = _Broadcaster(reached=2)
+        result = await BrowserChannel(b).send(_browser_task())
+        assert result.success is True
+        assert result.meta == {"reached": 2}
+        # The republish is the "created" shape, as the WebSocketAlertEventType
+        # member — a bare string would fail EventBroadcaster's per-type
+        # payload validation.
+        assert b.calls[0]["event_type"].value == "alert_created"
+        assert b.calls[0]["alert_data"]["title"] == "t"
+
+    async def test_send_fails_when_nobody_is_listening(self) -> None:
+        b = _Broadcaster(reached=0)
+        result = await BrowserChannel(b).send(_browser_task())
+        assert result.success is False
+        assert result.error == "no_connected_clients"
+
+    async def test_kind_is_browser(self) -> None:
+        assert BrowserChannel.kind is DeliveryChannelKind.BROWSER
