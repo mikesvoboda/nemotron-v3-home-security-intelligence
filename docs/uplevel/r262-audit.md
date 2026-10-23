@@ -871,7 +871,9 @@ polling. / @default true / enabled?: boolean;`; `:254-272` both the enabled and 
 - Fix: correct :241-242 to "23 entries over 23 distinct positions", or make the count a
   computed interpolation from audit.scan.dynamic so it cannot drift again.
   Size S; owner: frontend.
-- Owner: (pending)
+- Owner: ruled 299: later (r262 cite checker, ruling 296) — Q-012 rules with its mover's
+  batch 4 (#7230, ruling 299, record 6321779954); the batch-4 cells were all written then
+  and this re-attributed template's own line kept the stale "(pending)".
 - Refuted=false (verified against the re-attributed owner): no reading of "entries" yields
   24 (23 array lines, 23 tokens, 14 distinct files, nonApi empty); the merge blob said
   "25/24" against an actual 26/25 (useWebSocketStatus.ts:145 doubled), so the comment was
@@ -897,7 +899,9 @@ authenticates the browser.` / `return { url: wsUrl };` — no protocols field is
 - Fix: rewrite the comment to the ruling-44 wording used by the five sibling hooks — the
   builder resolves the origin and attaches no credential — and drop the destructured
   protocols. Size S; owner: frontend.
-- Owner: (pending)
+- Owner: ruled 271: later (one cleanup PR per lane at the audit's end) — Q-014 rules with
+  batch 2 (#6936; ruling 271, record 6277412644); the ruling-271 decision was written into
+  the batch-2 rows and this re-attributed template's own line kept the stale "(pending)".
 - Refuted=false. Refuter verified all claims at the pin: the comment (:148-151) and the
   call verbatim (`protocols` destructured at :152, threaded into wsOptions at :155, always
   undefined since the builder at api.ts:969-1005 returns only `{ url: wsUrl }` — harmless
@@ -949,7 +953,9 @@ authenticates the browser.` / `return { url: wsUrl };` — no protocols field is
   protocols a caller sets are forwarded to the WebSocket constructor
   (webSocketManager.ts:503-504); before F1.3 they were dropped on the floor, as
   useWebSocket.ts:19 admitted at e9ec74ef. Size S; owner: frontend.
-- Owner: (pending)
+- Owner: ruled 271: later (one cleanup PR per lane at the audit's end) — Q-015 rules with
+  batch 2 (#6936; ruling 271, record 6277412644); the ruling-271 decision was written into
+  the batch-2 rows and this re-attributed template's own line kept the stale "(pending)".
 - Refuted=false. Refuter verified every leg at the pin: :9-13 byte-exact as quoted; one
   subject ("any protocols a caller sets") carries two conflicting predicates ("are not
   dropped" / "is dropped on the floor") with no punctuation or relative structure between
