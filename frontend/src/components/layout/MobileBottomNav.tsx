@@ -14,6 +14,7 @@ import { NavLink, useLocation, useNavigate } from 'react-router-dom';
 import ModeSwitch from './ModeSwitch';
 import { ADVANCED_HUBS, EASY_HUBS, hubForPath, type Hub } from '../../config/surfaces';
 import { useViewMode } from '../../contexts/ViewModeContext';
+import { useOpenAlertCount } from '../../hooks/useOpenAlertCount';
 import BottomSheet from '../common/BottomSheet';
 
 export interface MobileBottomNavProps {
@@ -52,11 +53,16 @@ const primaryNavItems: PrimaryNavItem[] = [
 
 const primaryHubIds = new Set(primaryNavItems.map((item) => item.hubId));
 
-export default function MobileBottomNav({ notificationCount = 0 }: MobileBottomNavProps) {
+export default function MobileBottomNav({ notificationCount }: MobileBottomNavProps) {
   const [isMoreMenuOpen, setIsMoreMenuOpen] = useState(false);
   const location = useLocation();
   const navigate = useNavigate();
   const { mode } = useViewMode();
+  // F4.1: the Alerts nav item shows the open count. Falls back to the hook
+  // when no explicit count is passed (Layout renders this component without
+  // a prop).
+  const openAlertCount = useOpenAlertCount();
+  const badgeCount = notificationCount ?? openAlertCount;
 
   const formatBadgeCount = (count: number): string => {
     return count > 9 ? '9+' : count.toString();
@@ -96,7 +102,7 @@ export default function MobileBottomNav({ notificationCount = 0 }: MobileBottomN
         <div className="flex h-full items-center justify-around">
           {primaryNavItems.map((item) => {
             const Icon = item.icon;
-            const showBadge = item.showBadge && notificationCount > 0;
+            const showBadge = item.showBadge && badgeCount > 0;
 
             return (
               <NavLink
@@ -114,9 +120,9 @@ export default function MobileBottomNav({ notificationCount = 0 }: MobileBottomN
                 {showBadge && (
                   <span
                     className="absolute right-0 top-0 flex h-5 min-w-[20px] items-center justify-center rounded-full bg-red-500 px-1.5 text-xs font-bold text-white"
-                    aria-label={`${notificationCount} unread notifications`}
+                    aria-label={`${badgeCount} unread notifications`}
                   >
-                    {formatBadgeCount(notificationCount)}
+                    {formatBadgeCount(badgeCount)}
                   </span>
                 )}
               </NavLink>

@@ -610,7 +610,7 @@ export interface paths {
          * @description List all alerts with optional filtering and pagination.
          *
          *     Args:
-         *         status_filter: Filter by alert status (pending, delivered, acknowledged, dismissed)
+         *         status_filter: Filter by alert status (open, pending, delivered, acknowledged, dismissed)
          *         severity_filter: Filter by severity level (low, medium, high, critical)
          *         event_id: Filter by associated event ID
          *         rule_id: Filter by alert rule ID
@@ -13902,6 +13902,7 @@ export interface components {
          * AlertServiceResponse
          * @description Schema for alert response from Alert Service operations.
          * @example {
+         *       "camera_id": "front_door",
          *       "channels": [
          *         "pushover"
          *       ],
@@ -13918,6 +13919,11 @@ export interface components {
          *     }
          */
         AlertServiceResponse: {
+            /**
+             * Camera Id
+             * @description Camera that produced the triggering event, read through the event (F4.1: the Alerts page's camera column; None when the event is gone)
+             */
+            camera_id?: string | null;
             /**
              * Channels
              * @description Notification channels
