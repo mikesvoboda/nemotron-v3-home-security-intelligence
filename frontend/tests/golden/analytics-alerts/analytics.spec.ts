@@ -36,8 +36,7 @@
  *         detection returns, so it lands before the analyzer's verdict, which
  *         is why a verdict that fails closed would still not have hidden it.)
  *
- * The API leg runs BEFORE the UI leg (the dashboard-drop discipline): an
- * aggregate the store cannot produce would otherwise pass as a rendered card.
+ * The API leg runs BEFORE the UI leg (the dashboard-drop discipline): an aggregate the store cannot produce would otherwise pass as a rendered card.
  */
 import { expect, test } from '../guard';
 import {
@@ -46,6 +45,7 @@ import {
   authedFetchAlerts as authedFetch,
   loginAlerts as login,
   readHarnessAlerts as readHarness,
+  setMode,
   type HarnessAlerts as Harness,
 } from '../harness';
 
@@ -156,8 +156,8 @@ test.describe('DO-1 golden path: /analytics surfaces over the batch data (F-070,
     const latency = await api.getJson('/api/system/pipeline-latency');
     expect(latency.status, 'pipeline-latency answers').toBe(200);
 
-    // 2. /analytics default view (F-070): page mounts, Grafana embeds, chrome
-    //    exists, refresh RELOADS the iframe, toggle reaches Native.
+    // 2. /analytics default view (F-070, Advanced mode): page mounts, Grafana embeds,
+    await setMode(page, 'advanced');
     await login(page, h, session);
     const dashboardRequests: string[] = [];
     page.on('request', (request) => {

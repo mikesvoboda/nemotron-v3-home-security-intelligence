@@ -230,7 +230,7 @@ test.describe('golden path: command palette + keyboard shortcuts @critical', () 
     expect(() => closedByGuard(page)).toThrow(GUARD_MESSAGE);
   });
 
-  test('F-018 (g-chords): g+key jumps between routes; the 1000 ms window expires', async ({
+  test('F-018, F-019 (g-chords): g+key jumps between routes; g y lands on /operations; the 1000 ms window expires', async ({
     page,
   }) => {
     test.info().skip(!harness.ready, harness.ready ? '' : harness.why);
@@ -244,6 +244,11 @@ test.describe('golden path: command palette + keyboard shortcuts @critical', () 
     await page.keyboard.press('g');
     await page.keyboard.press('t');
     await assertOnRoute(page, h, '/timeline');
+
+    // F-019: g y → /operations (not /system 404).
+    await page.keyboard.press('g');
+    await page.keyboard.press('y');
+    await assertOnRoute(page, h, '/operations');
 
     // g a → /alerts (:23)
     await page.keyboard.press('g');
