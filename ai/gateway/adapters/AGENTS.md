@@ -12,7 +12,7 @@ One FastAPI router module per legacy AI service. Each adapter translates the ser
 | `clip.py`             | `/clip`       | CLIP embeddings  | backed by SigLIP 2 Base (swapped from ViT-L/14 to save VRAM); `/embed`, `/classify`, `/similarity`, `/anomaly-score` |
 | `florence.py`         | `/florence`   | Florence-2       | Triton Python backend; `/extract`, `/ocr`, region endpoints                                                          |
 | `enrichment.py`       | `/enrichment` | Heavy enrichment | fans out to per-model Triton models; `/enrich` dispatches on detection_type                                          |
-| `enrichment_light.py` | `/enrich-lt`  | Light enrichment | `/pose-analyze`, `/threat-detect`, `/person-reid`, `/pet-classify`, `/depth-estimate`                                |
+| `enrichment_light.py` | `/enrich-lt`  | Light enrichment | `/threat-detect`, `/person-reid`, `/face-detect`, `/face-recognize` ([r307a])                                        |
 
 ## Patterns / Gotchas
 

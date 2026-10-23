@@ -1491,9 +1491,9 @@ Every small model the product runs on the GPU is served by Triton (UR-86). The f
 CPU today by an earlier choice (`backend/services/face_recognizer_loader.py:19`, `:152`); `[r307b]`
 moves the backend to the routes this package adds.
 
-- [ ] Serve SCRFD (`det_10g.onnx`) and ArcFace (`w600k_r50.onnx`), the same pinned files, in Triton
+- [x] Serve SCRFD (`det_10g.onnx`) and ArcFace (`w600k_r50.onnx`), the same pinned files, in Triton
       as TensorRT plans built for the serving GPU, behind gateway routes as `reid` is.
-- [ ] Parity against the CPU ONNX path on a fixed face set, stage by stage as `[r157]`'s runner
+- [x] Parity against the CPU ONNX path on a fixed face set, stage by stage as `[r157]`'s runner
       does: ArcFace cosine at least 0.999 (ruling 68's gate); SCRFD boxes and the five landmarks
       within a tolerance the PR states and justifies. A CPU-only CI test pins whatever graph change
       the plans need, as `[r252]`'s does.

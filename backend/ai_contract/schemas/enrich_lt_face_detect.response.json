@@ -1,0 +1,66 @@
+{
+  "$defs": {
+    "FaceDetectionItem": {
+      "description": "One SCRFD face detection in original image coordinates.",
+      "properties": {
+        "bbox": {
+          "items": {
+            "type": "number"
+          },
+          "maxItems": 4,
+          "minItems": 4,
+          "title": "Bbox",
+          "type": "array"
+        },
+        "confidence": {
+          "title": "Confidence",
+          "type": "number"
+        },
+        "landmarks": {
+          "items": {
+            "items": {
+              "type": "number"
+            },
+            "type": "array"
+          },
+          "maxItems": 5,
+          "minItems": 5,
+          "title": "Landmarks",
+          "type": "array"
+        }
+      },
+      "required": ["bbox", "confidence", "landmarks"],
+      "title": "FaceDetectionItem",
+      "type": "object"
+    }
+  },
+  "description": "Response from SCRFD face detection ([r307a]).",
+  "properties": {
+    "faces": {
+      "items": {
+        "$ref": "#/$defs/FaceDetectionItem"
+      },
+      "title": "Faces",
+      "type": "array"
+    },
+    "inference_time_ms": {
+      "title": "Inference Time Ms",
+      "type": "number"
+    },
+    "model_id": {
+      "anyOf": [
+        {
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Model Id"
+    }
+  },
+  "required": ["inference_time_ms"],
+  "title": "FaceDetectResponse",
+  "type": "object"
+}

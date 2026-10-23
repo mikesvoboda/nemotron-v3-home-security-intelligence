@@ -74,6 +74,41 @@ class ReIDResponse(BaseModel):
     model_id: str | None = None
 
 
+class FaceDetectRequest(BaseModel):
+    """Request for SCRFD face detection + 5-point landmarks ([r307a])."""
+
+    model_config = {"extra": "ignore", "populate_by_name": True}
+
+    image: str = Field(..., description="Base64 encoded image", alias="image_base64")
+    threshold: float = Field(default=0.6, ge=0.0, le=1.0)
+    nms_iou: float = Field(default=0.4, ge=0.0, le=1.0)
+
+
+class FaceDetectionItem(BaseModel):
+    """One SCRFD face detection in original image coordinates."""
+
+    bbox: list[float] = Field(..., min_length=4, max_length=4)
+    confidence: float = Field(...)
+    landmarks: list[list[float]] = Field(..., min_length=5, max_length=5)
+
+
+class FaceDetectResponse(BaseModel):
+    """Response from SCRFD face detection ([r307a])."""
+
+    faces: list[FaceDetectionItem] = Field(default_factory=list)
+    inference_time_ms: float = Field(...)
+    model_id: str | None = None
+
+
+class FaceRecognizeResponse(BaseModel):
+    """Response from ArcFace w600k_r50 face recognition ([r307a])."""
+
+    embedding: list[float] = Field(...)
+    embedding_dimension: int = Field(...)
+    inference_time_ms: float = Field(...)
+    model_id: str | None = None
+
+
 # ---------------------------------------------------------------------------
 # Helpers
 # ---------------------------------------------------------------------------
@@ -179,6 +214,35 @@ async def threat_detect(request: BBoxRequest) -> ThreatResponse:
 
 
 _SHA256_HEX = re.compile(r"^[0-9a-f]{64}$")
+_SCRFD_FMC = 3
+_SCRFD_STRIDES = (8, 16, 32)
+_SCRFD_ANCHORS_PER_CELL = 2
+_SCRFD_OUTPUT_NAMES = [
+    "448",
+    "471",
+    "494",
+    "451",
+    "474",
+    "497",
+    "454",
+    "477",
+    "500",
+]
+
+
+def _provenance_model_id(triton_name: str) -> str | None:
+    """Read `<zoo_name>@<source_file stem>@<sha256[:12]>` from `<triton_name>/1/provenance.json`."""
+    repo = Path(os.getenv("TRITON_MODEL_REPOSITORY", "/models/repository"))
+    try:
+        record = json.loads((repo / triton_name / "1" / "provenance.json").read_text())
+        zoo = str(record["zoo_name"])
+        stem = Path(str(record["source_file"])).stem
+        sha = str(record["source_sha256"]).lower()
+    except (OSError, ValueError, KeyError, TypeError):
+        return None
+    if not zoo or not stem or not _SHA256_HEX.match(sha):
+        return None
+    return f"{zoo}@{stem}@{sha[:12]}"
 
 
 @functools.cache
@@ -192,17 +256,206 @@ def reid_model_id() -> str | None:
     loaded at start, so a record rewritten later by a re-export would describe
     weights this process is not serving.
     """
-    repo = Path(os.getenv("TRITON_MODEL_REPOSITORY", "/models/repository"))
+    return _provenance_model_id("reid")
+
+
+@functools.cache
+def scrfd_model_id() -> str | None:
+    """The ``scrfd`` model's ID (`face-detector-scrfd@scrfd_10g_bnkps@<sha256[:12]>`)."""
+    return _provenance_model_id("scrfd")
+
+
+@functools.cache
+def arcface_model_id() -> str | None:
+    """The ``arcface`` model's ID (`face-recognizer@w600k_r50@<sha256[:12]>`)."""
+    return _provenance_model_id("arcface")
+
+
+def _scrfd_blob(
+    image_np: np.ndarray, input_size: tuple[int, int] = (640, 640)
+) -> tuple[np.ndarray, float]:
+    """Letterbox + normalize `(canvas - 127.5) / 128.0` matching `face_recognizer_loader._scrfd_blob`."""
+    from PIL import Image
+
+    ih, iw = image_np.shape[0], image_np.shape[1]
+    tw, th = input_size
+    ratio = min(tw / iw, th / ih)
+    nw, nh = max(1, int(iw * ratio)), max(1, int(ih * ratio))
+    resized = np.asarray(
+        Image.fromarray(image_np).resize((nw, nh), Image.Resampling.BILINEAR),
+        dtype=np.float32,
+    )
+    canvas = np.zeros((th, tw, 3), dtype=np.float32)
+    canvas[:nh, :nw, :] = resized
+    blob = (canvas - 127.5) / 128.0
+    blob = np.ascontiguousarray(blob.transpose(2, 0, 1)[None], dtype=np.float32)
+    return blob, ratio
+
+
+def _scrfd_nms(boxes: np.ndarray, scores: np.ndarray, iou_threshold: float = 0.4) -> list[int]:
+    """Greedy score-ordered NMS matching `face_recognizer_loader._nms`."""
+    order = np.argsort(-scores, kind="stable")
+    keep: list[int] = []
+    for idx in order:
+        x1, y1, x2, y2 = boxes[idx]
+        ok = True
+        for k in keep:
+            kx1, ky1, kx2, ky2 = boxes[k]
+            ix1, iy1 = max(x1, kx1), max(y1, ky1)
+            ix2, iy2 = min(x2, kx2), min(y2, ky2)
+            iw_ih = max(0.0, ix2 - ix1) * max(0.0, iy2 - iy1)
+            union = (x2 - x1) * (y2 - y1) + (kx2 - kx1) * (ky2 - ky1) - iw_ih
+            if union > 0 and iw_ih / union > iou_threshold:
+                ok = False
+                break
+        if ok:
+            keep.append(int(idx))
+    return keep
+
+
+def _decode_scrfd_outputs(
+    result: dict[str, np.ndarray],
+    *,
+    scale: float,
+    input_size: tuple[int, int] = (640, 640),
+    threshold: float = 0.6,
+    nms_iou: float = 0.4,
+) -> list[FaceDetectionItem]:
+    """Decode SCRFD 9-output dict into boxes + 5 landmarks in original image coordinates."""
+    w_in, h_in = input_size
+    net_outs = [result[name] for name in _SCRFD_OUTPUT_NAMES]
+    all_scores: list[np.ndarray] = []
+    all_boxes: list[np.ndarray] = []
+    all_kps: list[np.ndarray] = []
+    for idx, stride in enumerate(_SCRFD_STRIDES):
+        scores = np.asarray(net_outs[idx], dtype=np.float32).reshape(-1)
+        dbox = np.asarray(net_outs[idx + _SCRFD_FMC], dtype=np.float32).reshape(-1, 4) * stride
+        dkps = np.asarray(net_outs[idx + 2 * _SCRFD_FMC], dtype=np.float32).reshape(-1, 10) * stride
+        h, w = h_in // stride, w_in // stride
+        centers = (
+            np.stack(list(np.mgrid[:h, :w][::-1]), axis=-1).astype(np.float32) * stride
+        ).reshape(-1, 2)
+        if _SCRFD_ANCHORS_PER_CELL > 1:
+            centers = np.stack([centers] * _SCRFD_ANCHORS_PER_CELL, axis=1).reshape(-1, 2)
+        centers = centers[
+            : scores.shape.index(scores.shape[0]) if not scores.shape else scores.shape[0]
+        ]
+        pos = np.where(scores >= threshold)[0]
+        if pos.size == 0:
+            continue
+        c = centers[pos]
+        boxes = np.stack(
+            [
+                c[:, 0] - dbox[pos, 0],
+                c[:, 1] - dbox[pos, 1],
+                c[:, 0] + dbox[pos, 2],
+                c[:, 1] + dbox[pos, 3],
+            ],
+            axis=1,
+        )
+        kps = (c[:, None, :] + dkps[pos].reshape(-1, 5, 2)).reshape(-1, 10)
+        all_scores.append(scores[pos])
+        all_boxes.append(boxes)
+        all_kps.append(kps)
+
+    if not all_scores:
+        return []
+
+    scores_cat = np.concatenate(all_scores)
+    boxes_cat = np.concatenate(all_boxes) / scale
+    kps_cat = np.concatenate(all_kps) / scale
+
+    items: list[FaceDetectionItem] = []
+    for i in _scrfd_nms(boxes_cat, scores_cat, nms_iou):
+        x1, y1, x2, y2 = boxes_cat[i]
+        landmarks = kps_cat[i].reshape(5, 2).tolist()
+        items.append(
+            FaceDetectionItem(
+                bbox=[float(x1), float(y1), float(x2), float(y2)],
+                confidence=float(scores_cat[i]),
+                landmarks=[[float(pt[0]), float(pt[1])] for pt in landmarks],
+            )
+        )
+    return items
+
+
+@router.post("/face-detect", response_model=FaceDetectResponse)
+async def face_detect(request: FaceDetectRequest) -> FaceDetectResponse:
+    """Detect faces and 5-point landmarks via Triton `scrfd` TensorRT plan ([r307a])."""
+    start = time.monotonic()
+    triton = get_triton_client()
+
     try:
-        record = json.loads((repo / "reid" / "1" / "provenance.json").read_text())
-        zoo = str(record["zoo_name"])
-        stem = Path(str(record["source_file"])).stem
-        sha = str(record["source_sha256"]).lower()
-    except (OSError, ValueError, KeyError, TypeError):
-        return None
-    if not zoo or not stem or not _SHA256_HEX.match(sha):
-        return None
-    return f"{zoo}@{stem}@{sha[:12]}"
+        image_np = decode_base64_image(request.image)
+        blob, scale = _scrfd_blob(image_np, (640, 640))
+        result = await triton.infer(
+            model_name="scrfd",
+            inputs={"input.1": blob},
+            outputs=_SCRFD_OUTPUT_NAMES,
+        )
+        faces = _decode_scrfd_outputs(
+            result,
+            scale=scale,
+            input_size=(640, 640),
+            threshold=request.threshold,
+            nms_iou=request.nms_iou,
+        )
+        inference_time_ms = (time.monotonic() - start) * 1000
+        return FaceDetectResponse(
+            faces=faces,
+            inference_time_ms=round(inference_time_ms, 2),
+            model_id=scrfd_model_id(),
+        )
+    except TritonClientError as e:
+        raise HTTPException(status_code=503, detail=f"Face detection failed: {e}") from e
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e)) from e
+
+
+@router.post("/face-recognize", response_model=FaceRecognizeResponse)
+async def face_recognize(request: BBoxRequest) -> FaceRecognizeResponse:
+    """Embed an aligned 112x112 face crop via Triton `arcface` TensorRT plan ([r307a])."""
+    start = time.monotonic()
+    triton = get_triton_client()
+
+    try:
+        image_np = decode_base64_image(request.image)
+        from PIL import Image
+
+        pil_img = (
+            Image.fromarray(image_np).convert("RGB").resize((112, 112), Image.Resampling.BILINEAR)
+        )
+        arr = np.asarray(pil_img, dtype=np.float32) / 127.5 - 1.0
+        tensor = np.ascontiguousarray(arr.transpose(2, 0, 1)[np.newaxis, ...], dtype=np.float32)
+
+        result = await triton.infer(
+            model_name="arcface",
+            inputs={"input.1": tensor},
+            outputs=["683"],
+        )
+
+        vector = np.asarray(result["683"][0], dtype=np.float32).reshape(-1)
+        if vector.shape[0] != 512:
+            raise HTTPException(
+                status_code=503,
+                detail=f"Face recognition emitted {vector.shape[0]}-d, expected 512-d",
+            )
+        norm = float(np.linalg.norm(vector))
+        if norm <= 0.0:
+            raise HTTPException(status_code=503, detail="Face recognition emitted zero vector")
+        embedding = [float(v) for v in (vector / norm)]
+
+        inference_time_ms = (time.monotonic() - start) * 1000
+        return FaceRecognizeResponse(
+            embedding=embedding,
+            embedding_dimension=len(embedding),
+            inference_time_ms=round(inference_time_ms, 2),
+            model_id=arcface_model_id(),
+        )
+    except TritonClientError as e:
+        raise HTTPException(status_code=503, detail=f"Face recognition failed: {e}") from e
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e)) from e
 
 
 @router.post("/person-reid", response_model=ReIDResponse)
@@ -267,9 +520,11 @@ async def health() -> dict[str, Any]:
     payload report ``degraded`` on every healthy boot -- the health row probes
     the set, not a memory of it.
     """
+    from ai.gateway.residency import FULL_MODEL_SET
+
     triton = get_triton_client()
 
-    models = ["threat", "reid"]
+    models = [m for m in FULL_MODEL_SET if m != "yolo26"]
     statuses: dict[str, bool] = {}
     for model in models:
         statuses[model] = await triton.is_model_ready(model)

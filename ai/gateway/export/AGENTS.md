@@ -6,13 +6,14 @@ Scripts that convert HuggingFace/PyTorch models into Triton-servable artifacts: 
 
 ## Key Files
 
-| Script                  | Model                                                       | Output type     |
-| ----------------------- | ----------------------------------------------------------- | --------------- |
-| `export_all.sh`         | Master orchestrator — runs every export                     | —               |
-| `export_yolo26.py`      | YOLO26m                                                     | ONNX            |
-| `copy_yolo26_engine.py` | Copies pre-built YOLO26 TensorRT engine into the repository | copy            |
-| `export_reid.py`        | Person Re-ID (OSNet-AIN x1.0)                               | ONNX / TensorRT |
-| `export_yolo_threat.py` | YOLOv8n threat detection                                    | TensorRT / ONNX |
+| Script                  | Model                                                                          | Output type     |
+| ----------------------- | ------------------------------------------------------------------------------ | --------------- |
+| `export_all.sh`         | Master orchestrator — runs every export                                        | —               |
+| `export_yolo26.py`      | YOLO26m                                                                        | ONNX            |
+| `copy_yolo26_engine.py` | Copies pre-built YOLO26 TensorRT engine into the repository                    | copy            |
+| `export_reid.py`        | Person Re-ID (OSNet-AIN x1.0)                                                  | ONNX / TensorRT |
+| `export_face.py`        | Face leg SCRFD (`scrfd_10g_bnkps.onnx`) + ArcFace (`w600k_r50.onnx`) ([r307a]) | ONNX / TensorRT |
+| `export_yolo_threat.py` | YOLOv8n threat detection                                                       | TensorRT / ONNX |
 
 `README.md` has the full pipeline diagram, CLI flags (`--model-path`, `--output-path`, `--precision`) and engine paths.
 
