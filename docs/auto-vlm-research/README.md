@@ -1,6 +1,8 @@
 # Auto-VLM research: an agentic search for threat-detection accuracy
 
 > **Status: design proposal. Nothing here is built.** Work starts after the `docs/uplevel/` campaign completes, so this design assumes nothing about the tree as it will stand then. Every path, number and module named below is **evidence as of `origin/main` `9cb9e60b0` (2026-10-23)**, cited to show where a claim came from. The design depends on the interfaces and requirements it states, not on those paths.
+>
+> **Implementation plan:** [`docs/superpowers/2026-10-23-autovlm/`](../superpowers/2026-10-23-autovlm/README.md) (UR-87 puts dated plans there, not in this folder). P0 and P1 are written at step level; P2 to P5 at task level, each expanded when its predecessor merges.
 
 ## What this is
 
@@ -40,21 +42,22 @@ Taken by the owner in the design session of 2026-10-23.
 3. [`03-idea-catalogue.md`](03-idea-catalogue.md) — what the search would explore, layer by layer, with cost, evidence and gates for each idea.
 4. [`04-system-1-research.md`](04-system-1-research.md) — the open research brief for fast decision models.
 5. [`05-stack-integration.md`](05-stack-integration.md) — what changes in `dgx-station-inference-stack`, and the spikes that must pass first.
+6. [The implementation plan](../superpowers/2026-10-23-autovlm/README.md) — phases P0 to P5 as tasks, with tests and acceptance criteria.
 
 ## Build order
 
-Each phase is useful on its own; later phases need the earlier ones.
+Each phase is useful on its own; later phases need the earlier ones. The [implementation plan](../superpowers/2026-10-23-autovlm/README.md) has one file per phase.
 
-| Phase | Delivers                                                                                                                                                                                                                   | Useful without agents?                            |
-| ----- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------- |
-| P0    | The spikes in [`05-stack-integration.md`](05-stack-integration.md)                                                                                                                                                         | —                                                 |
-| P1    | The measurement core: blinded export, detector-fed inputs, the split-tier scorer and its query ledger, cluster ranking, the null envelope, recipe v0. A human runs `autovlm eval <recipe>` and gets the realistic baseline | Yes. The realistic baseline is worth having alone |
-| P2    | The executor: host daemon, content-addressed cache, token-gated API, `autovlm status` with the Pareto front                                                                                                                | Yes. Humans submit recipes                        |
-| P3    | A one-worker loop: manager and worker skills, the findings register seeded from existing research, herdr control, the stack-repo launch flag                                                                               | First agentic run                                 |
-| P4    | The tree fleet: N workers, briefs and epochs, combine briefs, the auditor, fresh synthbench batches per epoch                                                                                                              | —                                                 |
-| P5    | The expensive lanes: LoRA and system-1 training, specialist plugins, automated Brev tier confirmation                                                                                                                      | —                                                 |
+| Phase | Delivers                                                                                                                                                                                                                                          | Useful without agents?                            |
+| ----- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------- |
+| P0    | The spikes in [`05-stack-integration.md`](05-stack-integration.md)                                                                                                                                                                                | —                                                 |
+| P1    | The measurement core: blinded export, detector-fed inputs, the split-tier scorer and its query ledger, cluster ranking, the mechanical checks, the null envelope, recipe v1. A human runs `autovlm eval <recipe>` and gets the realistic baseline | Yes. The realistic baseline is worth having alone |
+| P2    | The executor: host daemon, content-addressed cache, token-gated API, `autovlm status` with the Pareto front                                                                                                                                       | Yes. Humans submit recipes                        |
+| P3    | A one-worker loop: manager and worker skills, the findings register seeded from existing research, herdr control, the stack-repo launch flag                                                                                                      | First agentic run                                 |
+| P4    | The tree fleet: N workers, briefs and epochs, combine briefs, the auditor, fresh synthbench batches per epoch                                                                                                                                     | —                                                 |
+| P5    | The expensive lanes: LoRA and system-1 training, specialist plugins, automated Brev tier confirmation                                                                                                                                             | —                                                 |
 
-A dated implementation plan for any phase goes under `docs/superpowers/<date>-<slug>/` (UR-87), not in this folder.
+The plan lives under `docs/superpowers/2026-10-23-autovlm/` because UR-87 puts dated plans there; later revisions of it go in the same place, not in this folder.
 
 ## Open questions for the owner
 

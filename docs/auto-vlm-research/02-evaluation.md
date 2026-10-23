@@ -37,7 +37,8 @@ This lowers the baseline, honestly. In the sweep the shipped model hit 74 of 95 
 
 On the select split:
 
-- **Primary accuracy:** S3 at the threshold that yields 5% S2 **on the train split**, applied unchanged to select. Fitting the threshold on the split being scored flatters the result.
+- **Primary accuracy:** S3 at the alert threshold T that yields 5% S2 **on the train split**, applied unchanged to select. Fitting the threshold on the split being scored flatters the result. **S3 keeps its per-incident severity floor:** a benign item is a false alarm when its score ≥ T, and an incident is a hit only when its score ≥ max(T, its own floor of 30, 60 or 85). So an incident must both alert and reach its declared level; a threat scored 40 is never a hit. At T = 30 this is exactly the 2026-10-03 sweep's rule, because every floor is at least 30.
+- **Against the F14 bar:** any number compared with the 90% bar uses that same S3 rule. Single-cutoff readings that ignore the floors, such as AUROC and recall at 5% false alarms, are ranking diagnostics only and never stand in for S3.
 - **Also reported:** S2 and S3 at that threshold with scenario-cluster intervals; AUROC; S2 and S3 at the shipped floor of 60, for comparison with OD-29; S3 per scenario group (stranger or intent, context risk, object cued); refusal, uncertain and truncation rates.
 - **Cost:** estimated resident VRAM of the **whole stack** (detector, specialists, VLM weights, projector and KV cache at the configured context) and latency median and p95. GB300 readings are indicative only (F13); tier fit is confirmed on Brev (§5).
 

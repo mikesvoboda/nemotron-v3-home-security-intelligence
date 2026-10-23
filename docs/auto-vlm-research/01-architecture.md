@@ -125,6 +125,8 @@ One executor for the whole run makes VRAM a scheduling problem it solves, instea
 
 Every select query is written to a query ledger, so the manager can see how often a select set has been reused ([`02-evaluation.md`](02-evaluation.md) §2).
 
+The Claude manager runs on the host as the owner's user, so the scorer cannot tell the owner from the manager by uid. `confirm` therefore accepts only root, reached through `sudo` with the owner's password; if the owner's `sudo` does not prompt, holdout confirmation moves to a host no agent runs on.
+
 ### 3.7 Ledger
 
 **Job:** hold the run's state, so that no agent needs to remember it. **Interface:** append-only rows, written through the `autovlm` CLI, which owns locking and validation. Row kinds follow autocuda's: `baseline`, `brief`, `brief_start`, `brief_continue`, `trial`, `brief_stop`, `retroactive`, plus `epoch` and `front_change`. The manager rebuilds its view from `autovlm status` after compaction or takeover, never from its own context.
