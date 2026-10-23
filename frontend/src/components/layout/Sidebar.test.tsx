@@ -1,9 +1,9 @@
-import { render, screen, fireEvent } from '@testing-library/react';
-import { MemoryRouter } from 'react-router-dom';
+import { screen, fireEvent } from '@testing-library/react';
 import { describe, expect, it, vi, beforeEach, afterEach } from 'vitest';
 
 import Sidebar from './Sidebar';
 import { navGroups, navItems, STORAGE_KEY } from './sidebarNav';
+import { createNavigationFixture, renderWithNavigation } from '../../test-utils';
 
 import type { ViewportInfo } from '../../hooks/useViewport';
 
@@ -37,13 +37,12 @@ vi.mock('../../hooks/useIsMobile', () => ({
   useViewport: () => viewportState.current,
 }));
 
-// Helper to render with router
+// Helper to render with shared navigation fixture
 const renderWithRouter = (initialEntries: string[] = ['/']) => {
-  return render(
-    <MemoryRouter initialEntries={initialEntries}>
-      <Sidebar />
-    </MemoryRouter>
-  );
+  return renderWithNavigation(<Sidebar />, {
+    initialEntries,
+    withSidebarContext: false,
+  });
 };
 
 describe('Sidebar', () => {
@@ -54,13 +53,7 @@ describe('Sidebar', () => {
     // Both mocked hooks read live objects, so a test that flips them must not
     // leak into the next one.
     menuState.current = false;
-    viewportState.current = {
-      isMobile: false,
-      isTablet: false,
-      isDesktop: true,
-      width: 1200,
-      breakpoint: 'lg',
-    };
+    viewportState.current = createNavigationFixture().desktopViewport;
   });
 
   afterEach(() => {

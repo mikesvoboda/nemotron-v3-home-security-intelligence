@@ -16,10 +16,10 @@
 # =============================================================================
 # Stage 1: Builder - compile llama.cpp for GB300 sm_103 (compute capability 10.3)
 # =============================================================================
-FROM docker.io/nvidia/cuda:13.3.1-devel-ubuntu22.04 AS builder
+FROM docker.io/nvidia/cuda:13.4.3-devel-ubuntu24.04 AS builder
 
-# apt cmake is 3.22.1 on jammy: verified to configure+build CUDA arch 103 against
-# nvcc 13.3 (CMake >= 3.18 only requires numeric archs; nvcc does the real check).
+# apt cmake on noble (3.28.3) configures and builds CUDA arch 103 against
+# nvcc 13.4 (CMake >= 3.18 only requires numeric archs; nvcc does the real check).
 # ccache is intentionally NOT installed: its cache mount was not allowed by agent-gpu.
 # hadolint ignore=DL3008
 RUN apt-get update && apt-get install -y --no-install-recommends \
@@ -35,15 +35,15 @@ WORKDIR /build
 # the build container too, but use the canonical URL).
 RUN git clone https://github.com/ggml-org/llama.cpp.git
 WORKDIR /build/llama.cpp
-# Pin rationale: compiling FOR sm_103 (CC 10.3, GB300) is nvcc's job, not llama.cpp's
-# - an explicit -DCMAKE_CUDA_ARCHITECTURES=103 configures cleanly at b7972 (verified
-# in-container with the exact flags below and apt cmake 3.22.1). No newer pin is
-# required to compile sm_103; bump to a recent release (e.g. b11090, 2026-09-21,
-# verified to exist) via --build-arg LLAMA_CPP_REF=... for newer VLM/mmproj features.
-# NOTE for every pin through HEAD (b11165): ggml gates the Blackwell tensor-core MMA
-# path on __CUDA_ARCH__ >= 1200 (sm_120); a GB300 (cc 1030) compiles/runs the
-# Ampere/Turing MMA + cuBLAS paths (common.cuh at b7972 AND b11165 verified).
-ARG LLAMA_CPP_REF=b7972
+# Pin rationale ([r314a], ruling 314): compiling FOR sm_103 (CC 10.3, GB300) is nvcc's job,
+# not llama.cpp's - an explicit -DCMAKE_CUDA_ARCHITECTURES=103 configures cleanly at b11819
+# against nvcc 13.4 on Ubuntu 24.04 (noble, apt cmake 3.28.3).
+# Override via --build-arg LLAMA_CPP_REF=... if needed for newer VLM/mmproj features.
+# (Ruling 314 moved the shipped default from b7972 to b11819 on CUDA 13.4.3.)
+# NOTE: ggml gates the Blackwell tensor-core MMA path on __CUDA_ARCH__ >= 1200 (sm_120);
+# a GB300 (cc 1030) compiles and runs the Ampere/Turing MMA + cuBLAS paths
+# (common.cuh verified across b7972 through b11819).
+ARG LLAMA_CPP_REF=b11819
 RUN git checkout "${LLAMA_CPP_REF}"
 
 # CUDA stubs for build-time linking; the real libcuda.so.1 is driver-injected at run
@@ -53,14 +53,14 @@ RUN ln -s /usr/local/cuda/lib64/stubs/libcuda.so /usr/local/cuda/lib64/stubs/lib
     ln -s /usr/local/cuda/lib64/libcuda.so /usr/local/cuda/lib64/libcuda.so.1 && \
     ldconfig
 
-# Single-arch build for this host's GPU: 103 == sm_103 (verified: nvcc 13.3 emits
-# -gencode arch=compute_103,code=sm_103 and the binary runs on GB300, driver 610.57.04).
+# Single-arch build for this host's GPU: 103 == sm_103 (verified: nvcc 13.4 emits
+# -gencode arch=compute_103,code=sm_103 and the binary runs on GB300, driver 615.71.09).
 # ONE Dockerfile, two hosts (Phase 1.2 scope call - no per-host fork): the arch
 # is a build-arg, so GB300 dev passes CUDA_ARCHITECTURES=103 (aarch64) and the
 # A5500 bring-up (1.7) passes 86 (sm_86, x86) to THIS context unchanged.
-# GGML_NATIVE=ON is safe when CMAKE_CUDA_ARCHITECTURES is set explicitly (b7972's
+# GGML_NATIVE=ON is safe when CMAKE_CUDA_ARCHITECTURES is set explicitly (the
 # GGML_NATIVE block only substitutes arches when the var is NOT DEFINED; configure
-# with these exact flags at b7972 succeeded in-container).
+# with these exact flags succeeded in-container).
 ARG CUDA_ARCHITECTURES=""
 # hadolint ignore=SC2046
 RUN CUDA_ARCH_FLAG=""; \
@@ -80,10 +80,10 @@ RUN CUDA_ARCH_FLAG=""; \
 
 # =============================================================================
 # Stage 2: Runtime - minimal image with the server binary
-# (runtime-ubuntu22.04 already ships libcublas/libcublasLt/libcudart/libnvrtc 13.x
+# (runtime-ubuntu24.04 already ships libcublas/libcublasLt/libcudart/libnvrtc 13.4
 #  for sbsa-linux - verified in the pulled arm64 image)
 # =============================================================================
-FROM docker.io/nvidia/cuda:13.3.1-runtime-ubuntu22.04
+FROM docker.io/nvidia/cuda:13.4.3-runtime-ubuntu24.04
 
 # hadolint ignore=DL3008
 RUN apt-get update && apt-get install -y --no-install-recommends \
@@ -91,7 +91,7 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     libgomp1 \
     && rm -rf /var/lib/apt/lists/*
 
-RUN groupadd -g 1000 llama && \
+RUN userdel -r ubuntu 2>/dev/null || true && groupadd -g 1000 llama && \
     useradd -u 1000 -g llama -s /bin/bash -m llama
 
 COPY --from=builder /build/llama.cpp/build/bin/llama-server /usr/local/bin/llama-server

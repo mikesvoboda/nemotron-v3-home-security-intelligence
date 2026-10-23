@@ -1,9 +1,9 @@
-import { render, screen, waitFor } from '@testing-library/react';
+import { screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
-import { BrowserRouter } from 'react-router-dom';
 import { describe, it, expect, vi } from 'vitest';
 
 import MobileBottomNav from './MobileBottomNav';
+import { renderWithNavigation } from '../../test-utils';
 
 // Mock useIsMobile hook
 vi.mock('../../hooks/useIsMobile', () => ({
@@ -55,7 +55,7 @@ vi.mock('framer-motion', async () => {
 
 describe('MobileBottomNav', () => {
   const renderWithRouter = (ui: React.ReactElement) => {
-    return render(<BrowserRouter>{ui}</BrowserRouter>);
+    return renderWithNavigation(ui, { useMemoryRouter: false });
   };
 
   describe('Primary Navigation', () => {

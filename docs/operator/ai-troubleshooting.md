@@ -284,7 +284,7 @@ curl -s http://localhost:8098/props | jq
 ```
 
 If you rebuilt llama.cpp from a different source, the build string no longer matches the
-pinned `b7972`. Update `VLM_REQUIRED_BUILD` to the build you actually ship — do not blank
+pinned `b11819`. Update `VLM_REQUIRED_BUILD` to the build you actually ship — do not blank
 it in production, since an empty value skips the assertion and lets a stale proof launder
 onto an unknown build.
 

@@ -317,7 +317,11 @@ agents and the rest on the fast lanes.
 **The P2 packages** (ruling 317, record 6347331324): scene changes, exports and system status,
 designed in [`../4n-scene-changes.md`](../4n-scene-changes.md),
 [`../4n-exports.md`](../4n-exports.md) and [`../4n-status.md`](../4n-status.md) with their review.
-Debug tooling (OD-36) waits for a keep-or-retire ruling, and F-063 for the Easy/Advanced design.
+
+**The modes and debug tools packages** (ruling 321, record 6355356496): `F4.9` (frontend's block,
+heavy-a), designed in [`../4n-modes.md`](../4n-modes.md), and `B4.12` and `F4.10`, designed in
+[`../4n-debug-tools.md`](../4n-debug-tools.md) on OD-36's ruling (keep, admin-only, ruling 319).
+F-063's AI X-Ray is its own design session after `F4.9`.
 
 ### B4.1 Alert pipeline core
 
@@ -563,6 +567,25 @@ Design: [`../4n-status.md`](../4n-status.md), "Packages" row `B4.11`. Covers the
 
 **Done when:** steps 4–6 hold for its rows. F-140's real-tier check is the owner's witnessed restart
 on the live install (ruling 317). F-293's row reads **retired**.
+
+### B4.12 Debug tools (expand)
+
+**Flags:** `owner` (ruling 89). **Assigned:** backend, after `B4.10` (ruling 321). **Depends on:**
+none.
+**PR:** none yet. (ruling 321, record 6355356496)
+
+Design: [`../4n-debug-tools.md`](../4n-debug-tools.md), "Packages" row `B4.12`. Covers F-151–F-153
+with `F4.10`.
+
+- [ ] The test-only PR (step 2): the debug router's tests and the backend tests the design names.
+- [ ] The build PR: `/profile/stats` adds `results`; `GET /profile/download` serves the last
+      stopped profile; the regenerated contract and types; `/api/debug/profile/download` leaves the
+      contract's known-missing list. It guards nothing; `F4.10` closes the routes.
+- [ ] Golden path (pytest, `backend/tests/golden/external/test_debug_access.py`, its profiling
+      leg).
+
+**Done when:** its golden path is green on the fake stack, its real-tier check is posted, and
+`F4.10` can call both additions.
 
 ### BB.\* Background track
 

@@ -517,7 +517,7 @@ services:
       # S-2 per-build enforcement: the probe runs by default, and the build
       # assertion only fires when the operator names the build. Empty default
       # is deliberate — compose cannot know which llama-server build a local
-      # build produced; .env.example ships the pinned b7972 for the shipped
+      # build produced; .env.example ships the pinned b11819 for the shipped
       # image. Threading is what makes setting it in .env actually DO something.
       - VLM_ENFORCEMENT_PROBE_ENABLED=${VLM_ENFORCEMENT_PROBE_ENABLED:-true}
       - VLM_REQUIRED_BUILD=${VLM_REQUIRED_BUILD:-}
