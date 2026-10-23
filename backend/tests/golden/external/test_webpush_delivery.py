@@ -48,6 +48,28 @@ purge — which cascades the alert and its delivery rows — rule delete,
 subscription delete) removes everything the leg created. The dedupe window
 is 300 s; the fixture bytes are unique to this module and the module drops
 once.
+
+Per-worker isolation (the CI red of 2026-10-23): the repo's default addopts
+run ``-n 8 --dist=worksteal``, which schedules at FUNCTION granularity — a
+module whose tests land on two workers builds TWO full fixture chains, one
+per worker. Two chains over the same constants collide three ways, each
+observed in run 39906556327: (1) dedupe keys on file CONTENT only
+(``dedupe:{sha256}``, camera-independent), so both chains' drops collapse
+onto one event and one chain's teardown deletes the other's fixture;
+(2) the subscription upsert keys the channel row on ``device_id`` — a second
+PUT with the same id ROTATES the row's endpoint and keys in place
+(``_push_channel_of``), leaving the first worker's receiver keys pointing at
+a subscription that no longer matches the row the worker sends to;
+(3) one teardown purges the shared event while the other chain is still
+reading it. So every identity the chain touches is keyed per xdist worker
+(``PYTEST_XDIST_WORKER``, 'master' when serial): folder, camera, device,
+rule, and the fixture SUFFIX — because dedupe and the fake VLM's verdict
+draw both key on bytes, camera folders alone would not separate the chains
+(``app.py:_images_of`` hashes the decoded data-URI bytes). Each worker's
+suffix is measured to draw confirmed / MEDIUM (above this leg's rule
+threshold 30, below the default rule's 60) from
+``_rng_for("vlm_assess", digest, "gateway", "verdict")`` and pinned by
+digest so a moved fixture re-measures instead of silently redrawing.
 """
 
 from __future__ import annotations
@@ -70,22 +92,75 @@ from cryptography.hazmat.primitives.asymmetric import ec
 
 pytestmark = [pytest.mark.network, pytest.mark.timeout(300)]
 
-# The fixture suffix that lands confirmed / risk 43 (MEDIUM): measured against
-# the fake VLM's `_rng_for("vlm_assess", digest, "gateway", "verdict")` draw,
-# pinned here by digest so a moved fixture re-measures instead of silently
-# drawing a different tier.
-_FIXTURE_SUFFIX = b"webpush-golden-9"
-# A sha256 of public fixture bytes — the digest the fake VLM draws its
-# verdict from, not a secret.
-_FIXTURE_SHA256 = (
+# Per-worker fixture suffixes: ``webpush-golden-<worker ordinal>-9-<draw>``,
+# each measured (backend/ai_contract/fake/generators.py:456's draw, gateway
+# profile, on f4.4-gold-high.jpg's bytes) to land verdict=confirmed with a
+# risk_score in 31..59 — MEDIUM tier: above this leg's custom-rule threshold
+# 30 (policy.py: `score < threshold` refuses), below the default rule's 60 so
+# the frontend's sole-high-event pin on the shared stack keeps holding.
+# Digests pinned per worker so a moved fixture re-measures instead of
+# silently drawing a different tier. sha256 of public fixture bytes — the
+# digests the fake VLM draws from, not secrets.
+_WORKER_DIGESTS: dict[str, str] = {
+    "gw0": "2d47fa5c34788a627f33b613441dc463536efea43c6306839def418047d55928",  # pragma: allowlist secret
+    "gw1": "da2c2038bd7a0c8ab85a61c41e3ecb1e4df78804ab60b4daf152185719daebeb",  # pragma: allowlist secret
+    "gw2": "2055e78d0fab83d7c1bd5d8d44f353ab72aa37daa030f4c0ae651224285ed467",  # pragma: allowlist secret
+    "gw3": "5b634dd96b3ecf3b2639ea8456a107613750d556d31ab56f703e8c858ce63c65",  # pragma: allowlist secret
+    "gw4": "67ae9e1d7287251da35a594c664258b7c6a09e3dab68a52bc95a4fb614c70400",  # pragma: allowlist secret
+    "gw5": "7e4384e3de5de23a6b18ba05453124ee10d8d079b7633c510118025ada51bdd3",  # pragma: allowlist secret
+    "gw6": "db7f860dd479609875fb4960d3c285c0cf2a9dc9f03ad9e5edf0c74cd7286e69",  # pragma: allowlist secret
+    "gw7": "12d622b15e2e706b2940ea0f98abcdb0f2dea358922d51a5953a539cf846b061",  # pragma: allowlist secret
+}
+_WORKER_SUFFIXES: dict[str, str] = {
+    "gw0": "webpush-golden-0-9-5",
+    "gw1": "webpush-golden-1-9-2",
+    "gw2": "webpush-golden-2-9-2",
+    "gw3": "webpush-golden-3-9-8",
+    "gw4": "webpush-golden-4-9-6",
+    "gw5": "webpush-golden-5-9-0",
+    "gw6": "webpush-golden-6-9-24",
+    "gw7": "webpush-golden-7-9-7",
+}
+# The serial run's identity (no xdist): the original single suffix/digest.
+_MAIN_SUFFIX = "webpush-golden-9"
+_MAIN_DIGEST = (
     "dbc7638825570c937bb74c491150293d3ab805a015783741279b807ec0059785"  # pragma: allowlist secret
 )
-_CAMERA_FOLDER = "golden-b43-webpush"
-_CAMERA = "golden_b43_webpush"  # Camera.from_folder_name normalizes [-\s] to _
-_DEVICE = "golden-webpush"
-_RULE_NAME = "golden-b43-webpush-rule"
+
+
 # WebPushChannel._TTL_SECONDS (adapter): one hour per RFC 8030's offline hold.
 _TTL = "3600"
+
+
+def _leg() -> dict[str, str]:
+    """This chain's identity: worker-keyed camera, device, rule and fixture.
+
+    One dict because the identity is used together everywhere; a worker id
+    outside the measured tables (a -n value above 8, a future renames) fails
+    LOUDLY here rather than silently sharing another worker's identity —
+    the red the per-worker split exists to prevent.
+    """
+    wid = os.environ.get("PYTEST_XDIST_WORKER", "master")
+    if wid == "master":
+        suffix, digest = _MAIN_SUFFIX, _MAIN_DIGEST
+    elif wid in _WORKER_SUFFIXES:
+        suffix, digest = _WORKER_SUFFIXES[wid], _WORKER_DIGESTS[wid]
+    else:
+        pytest.fail(
+            f"no measured fixture suffix for xdist worker {wid!r}: the fake VLM's "
+            f"verdict draw is keyed on the fixture bytes, so every worker needs a "
+            f"suffix measured to confirmed/MEDIUM (see the module docstring)"
+        )
+    n = wid.removeprefix("gw") if wid.startswith("gw") else "main"
+    return {
+        "suffix": suffix,
+        "digest": digest,
+        "camera_folder": f"golden-b43-webpush-{n}",
+        "camera": f"golden_b43_webpush_{n}",  # Camera.from_folder_name normalizes [-\s] to _
+        "device": f"golden-webpush-{n}",
+        "rule": f"golden-b43-webpush-rule-{n}",
+    }
+
 
 SINK_ENV = (
     "FEATURE_CHECK_SINK_PUSH_URL",
@@ -135,6 +210,7 @@ def subscription(logged_in_api: httpx.Client, sinks: dict[str, str]) -> Iterator
     auth_secret = os.urandom(16)
     auth = base64.urlsafe_b64encode(auth_secret).rstrip(b"=")
 
+    leg = _leg()
     endpoint = f"http://{sinks['FEATURE_CHECK_SINK_PUSH_HOST']}/push/{uuid.uuid4().hex[:12]}"
     # The endpoint's path is this leg's own filter key at the sink: records
     # carry the request path, and only a record addressed to THIS
@@ -143,7 +219,7 @@ def subscription(logged_in_api: httpx.Client, sinks: dict[str, str]) -> Iterator
     created = logged_in_api.put(
         "/api/notification-preferences/push-subscription",
         json={
-            "device_id": _DEVICE,
+            "device_id": leg["device"],
             "endpoint": endpoint,
             "keys": {"p256dh": p256dh.decode(), "auth": auth.decode()},
         },
@@ -158,13 +234,18 @@ def subscription(logged_in_api: httpx.Client, sinks: dict[str, str]) -> Iterator
         "push_path": push_path,
         "receiver": receiver,
         "auth_secret": auth_secret,
+        "device": leg["device"],
+        # The payload's title is the rule's name and the rule is this chain's
+        # own (_leg is worker-deterministic), so the decrypt test can pin it
+        # without a dependency on the rule fixture.
+        "rule_name": _leg()["rule"],
     }
     try:
         yield state
     finally:
         removed = logged_in_api.delete(
             "/api/notification-preferences/push-subscription",
-            params={"device_id": _DEVICE},
+            params={"device_id": leg["device"]},
         )
         assert removed.status_code == 200, (
             f"cleanup DELETE push-subscription answered {removed.status_code}: {removed.text[:300]}"
@@ -179,41 +260,58 @@ def _drop_fixture() -> None:
     detector + fake VLM, and the pipeline then evaluates the rules —
     including this leg's custom rule, so the drop is deliberately AFTER the
     subscription and rule fixtures, not before.
+
+    The suffix is this WORKER's (``_leg``): dedupe keys on content, so two
+    chains dropping identical bytes would collapse onto one event even in
+    different camera folders. The folder and file are chmod'd 0o777/0o666
+    after the write: CI binds the run's camera dir into the backend
+    container, whose appuser (uid 1000) must UNLINK files a runner user
+    (uid 1001) created — the directory needs group/other write for the
+    unlink itself, the file needs it for the delete to clear the file
+    (event_purger's ``_unlink_path`` raises PermissionError otherwise and
+    the API answers 500).
     """
+    leg = _leg()
     scenario_dir = Path(os.environ["FEATURE_CHECK_SCENARIOS"]).parent
     base = (scenario_dir / "f4.4-gold-high.jpg").read_bytes()
-    data = base + _FIXTURE_SUFFIX
+    data = base + leg["suffix"].encode()
     digest = hashlib.sha256(data).hexdigest()
-    assert digest == _FIXTURE_SHA256, (
+    assert digest == leg["digest"], (
         "the fixture bytes moved; the fake VLM's verdict draw is keyed on this "
         "digest — re-measure the suffix before trusting the leg's tiers"
     )
 
-    folder = Path(os.environ["FEATURE_CHECK_CAMERA_ROOT"]) / _CAMERA_FOLDER
+    folder = Path(os.environ["FEATURE_CHECK_CAMERA_ROOT"]) / leg["camera_folder"]
     folder.mkdir(parents=True, exist_ok=True)
-    (folder / f"webpush-golden-{uuid.uuid4().hex[:8]}.jpg").write_bytes(data)
+    folder.chmod(0o777)
+    file = folder / f"webpush-golden-{uuid.uuid4().hex[:8]}.jpg"
+    file.write_bytes(data)
+    file.chmod(0o666)
 
 
-def _wait_for_the_event(logged_in_api: httpx.Client) -> dict[str, Any]:
-    """Poll the camera's confirmed events until this leg's risk-43 one lands.
+def _wait_for_the_event(logged_in_api: httpx.Client, leg: dict[str, str]) -> dict[str, Any]:
+    """Poll the camera's confirmed events until this leg's MEDIUM one lands.
 
     The list endpoint's ``verdict`` filter (422 on a typo, never an empty
-    false-all-clear) scopes the poll; ``risk_score`` disambiguates from any
-    other event the shared stack may hold on the same camera.
+    false-all-clear) scopes the poll; the camera is this WORKER's own folder,
+    so the sole confirmed event on it is this chain's — the per-worker split
+    moved the uniqueness contract from the event's content (a pinned risk
+    score) to its container (a per-worker camera), which is what lets the
+    suffix table vary the draw.
     """
     deadline = time.monotonic() + 240.0
     while time.monotonic() < deadline:
         listed = logged_in_api.get(
             "/api/events",
-            params={"camera_id": _CAMERA, "verdict": "confirmed", "limit": 10},
+            params={"camera_id": leg["camera"], "verdict": "confirmed", "limit": 10},
         )
         assert listed.status_code == 200, listed.text[:300]
         items = listed.json().get("items", [])
         for item in items:
-            if item.get("risk_score") == 43:
+            if item.get("risk_score") in range(31, 60):
                 return item
         time.sleep(5.0)  # real - the poll loop IS the VLM+pipeline wait
-    pytest.fail(f"no confirmed/risk-43 event for camera {_CAMERA} within 240 s")
+    pytest.fail(f"no confirmed/MEDIUM event for camera {leg['camera']} within 240 s")
 
 
 @pytest.fixture(scope="module")
@@ -230,8 +328,9 @@ def b43_event(
     cascades the alert and its delivery rows — runs after every test read
     the wire.
     """
+    leg = _leg()
     _drop_fixture()
-    event = _wait_for_the_event(logged_in_api)
+    event = _wait_for_the_event(logged_in_api, leg)
     try:
         yield event
     finally:
@@ -257,14 +356,15 @@ def b43_rule(logged_in_api: httpx.Client) -> Iterator[str]:
     Rule creation validates no camera ids, so creating it before the camera
     exists is the product's own behavior, not a test crutch.
     """
+    leg = _leg()
     created = logged_in_api.post(
         "/api/alerts/rules",
         json={
-            "name": _RULE_NAME,
+            "name": leg["rule"],
             "enabled": True,
             "severity": "medium",
             "risk_threshold": 30,
-            "camera_ids": [_CAMERA],
+            "camera_ids": [leg["camera"]],
             "cooldown_seconds": 3600,
         },
     )
@@ -373,7 +473,7 @@ class TestThePushDelivery:
         record = delivered[-1]
         plaintext = _decrypt_payload(record, subscription)
         payload = json.loads(plaintext)
-        assert payload == {"title": _RULE_NAME}, payload
+        assert payload == {"title": subscription["rule_name"]}, payload
 
     def test_the_alert_the_rule_raised_exists(
         self, logged_in_api: httpx.Client, b43_event: dict[str, Any]
@@ -397,4 +497,4 @@ class TestThePushDelivery:
         alert = mine[0]
         assert alert["status"] == "open", alert
         metadata = alert.get("metadata") or {}
-        assert metadata.get("rule_name") == _RULE_NAME, alert
+        assert metadata.get("rule_name") == _leg()["rule"], alert
