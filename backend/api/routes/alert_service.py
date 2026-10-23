@@ -69,7 +69,7 @@ async def list_alerts(
     """List all alerts with optional filtering and pagination.
 
     Args:
-        status_filter: Filter by alert status (pending, delivered, acknowledged, dismissed)
+        status_filter: Filter by alert status (open, pending, delivered, acknowledged, dismissed)
         severity_filter: Filter by severity level (low, medium, high, critical)
         event_id: Filter by associated event ID
         rule_id: Filter by alert rule ID
