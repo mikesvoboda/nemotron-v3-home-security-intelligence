@@ -1,23 +1,21 @@
-import { render, screen, fireEvent, act } from '@testing-library/react';
-import { MemoryRouter } from 'react-router-dom';
+import { screen, fireEvent, act } from '@testing-library/react';
 import { describe, expect, it, vi, beforeEach, afterEach } from 'vitest';
 
 import Header from './Header';
-import { ThemeProvider } from '../../contexts';
 import * as useConnectionStatusModule from '../../hooks/useConnectionStatus';
 import * as useHealthStatusQueryModule from '../../hooks/useHealthStatusQuery';
+import { renderWithNavigation } from '../../test-utils';
 
 import type { ChannelStatus, ConnectionState } from '../../hooks/useConnectionStatus';
 
-// Helper to render Header with Router and Theme context
+// Helper to render Header with shared navigation fixture (Router + ThemeProvider)
 const renderHeader = (initialRoute: string = '/') => {
-  return render(
-    <ThemeProvider defaultMode="dark">
-      <MemoryRouter initialEntries={[initialRoute]}>
-        <Header />
-      </MemoryRouter>
-    </ThemeProvider>
-  );
+  return renderWithNavigation(<Header />, {
+    route: initialRoute,
+    withSidebarContext: false,
+    withQueryClient: false,
+    withAnnouncementProvider: false,
+  });
 };
 
 // Mock the useSidebarContext hook
