@@ -134,8 +134,12 @@ class TestExpiryDisablesChannel:
 
     async def test_subscription_expired_disables_the_channel_row(self) -> None:
         capture: list[tuple[str, dict]] = []
-        channel = _FakeChannel(SendResult(success=False, error="subscription_expired", meta={"expired": True}))
-        w = _worker(channel, session_factory=_RecordingFactory(capture), channels={"webpush": channel})
+        channel = _FakeChannel(
+            SendResult(success=False, error="subscription_expired", meta={"expired": True})
+        )
+        w = _worker(
+            channel, session_factory=_RecordingFactory(capture), channels={"webpush": channel}
+        )
         await w._send_one(self._row(), set(), _NOW)
         # Two writes happen: the delivery failure + the channel disable.
         disable = self._disable_writes(capture)
@@ -144,16 +148,28 @@ class TestExpiryDisablesChannel:
 
     async def test_404_expired_marker_disables_too(self) -> None:
         capture: list[tuple[str, dict]] = []
-        channel = _FakeChannel(SendResult(success=False, error="subscription_expired", meta={"status_code": 404, "expired": True}))
-        w = _worker(channel, session_factory=_RecordingFactory(capture), channels={"webpush": channel})
+        channel = _FakeChannel(
+            SendResult(
+                success=False,
+                error="subscription_expired",
+                meta={"status_code": 404, "expired": True},
+            )
+        )
+        w = _worker(
+            channel, session_factory=_RecordingFactory(capture), channels={"webpush": channel}
+        )
         await w._send_one(self._row(), set(), _NOW)
         assert self._disable_writes(capture), "404 expiry must also disable the channel row"
 
     async def test_ordinary_failure_does_not_disable(self) -> None:
         """5xx rides the backoff ladder; the channel stays enabled."""
         capture: list[tuple[str, dict]] = []
-        channel = _FakeChannel(SendResult(success=False, error="http_500", meta={"status_code": 500}))
-        w = _worker(channel, session_factory=_RecordingFactory(capture), channels={"webpush": channel})
+        channel = _FakeChannel(
+            SendResult(success=False, error="http_500", meta={"status_code": 500})
+        )
+        w = _worker(
+            channel, session_factory=_RecordingFactory(capture), channels={"webpush": channel}
+        )
         await w._send_one(self._row(), set(), _NOW)
         assert not self._disable_writes(capture)
 
@@ -161,7 +177,11 @@ class TestExpiryDisablesChannel:
         """The delivery itself still lands FAILED/RETRYING with the marker —
         disabling the channel is in addition to, not instead of, recording."""
         capture: list[tuple[str, dict]] = []
-        channel = _FakeChannel(SendResult(success=False, error="subscription_expired", meta={"expired": True}))
-        w = _worker(channel, session_factory=_RecordingFactory(capture), channels={"webpush": channel})
+        channel = _FakeChannel(
+            SendResult(success=False, error="subscription_expired", meta={"expired": True})
+        )
+        w = _worker(
+            channel, session_factory=_RecordingFactory(capture), channels={"webpush": channel}
+        )
         await w._send_one(self._row(), set(), _NOW)
         assert any("notification_deliveries" in sql for sql, _ in capture)

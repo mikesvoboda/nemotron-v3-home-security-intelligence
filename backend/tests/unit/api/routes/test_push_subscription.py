@@ -146,9 +146,7 @@ class TestPutPushSubscription:
         finally:
             app.dependency_overrides.clear()
 
-    async def test_register_replaces_an_existing_subscription(
-        self, mock_db: AsyncMock
-    ) -> None:
+    async def test_register_replaces_an_existing_subscription(self, mock_db: AsyncMock) -> None:
         """Rotation: an existing webpush channel for the browser is updated,
         not duplicated."""
         household = _recipient_row()
@@ -176,7 +174,9 @@ class TestPutPushSubscription:
                 )
             assert response.status_code == 200, response.text[:400]
             # The existing row is re-used (mutated), not duplicated.
-            assert existing.push_subscription["endpoint"] == "https://fcm.googleapis.com/fcm/send/new"
+            assert (
+                existing.push_subscription["endpoint"] == "https://fcm.googleapis.com/fcm/send/new"
+            )
             assert existing.enabled is True
             added = mock_db.add.call_count
             assert added == 0, "rotation must not insert a second channel"
@@ -351,9 +351,7 @@ class TestDeletePushSubscription:
         finally:
             app.dependency_overrides.clear()
 
-    async def test_delete_of_an_unknown_device_is_a_noop_204(
-        self, mock_db: AsyncMock
-    ) -> None:
+    async def test_delete_of_an_unknown_device_is_a_noop_204(self, mock_db: AsyncMock) -> None:
         household = _recipient_row()
         household.channels = []
 

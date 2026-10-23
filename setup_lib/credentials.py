@@ -439,7 +439,7 @@ class CredentialsManager:
             "redis_password": "REDIS_PASSWORD",  # pragma: allowlist secret
             "mqtt_password": "MQTT_PASSWORD",  # pragma: allowlist secret
             "api_key": "API_KEY",  # pragma: allowlist secret
-            "vapid_private_key": "VAPID_PRIVATE_KEY",
+            "vapid_private_key": "VAPID_PRIVATE_KEY",  # pragma: allowlist secret
             "vapid_public_key": "VAPID_PUBLIC_KEY",
         }
         return mapping.get(name, name.upper())

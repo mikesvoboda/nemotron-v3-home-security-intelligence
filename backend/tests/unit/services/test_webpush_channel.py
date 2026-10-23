@@ -76,7 +76,9 @@ def _task(**kw: Any) -> DeliveryTask:
 
 def _vapid_env(monkeypatch: pytest.MonkeyPatch) -> None:
     """Stand the VAPID settings in so send() proceeds past its config check."""
-    monkeypatch.setenv("VAPID_PRIVATE_KEY", _PRIV)  # nosemgrep: hardcoded-password — a test-generated key, never a credential
+    monkeypatch.setenv(
+        "VAPID_PRIVATE_KEY", _PRIV
+    )  # nosemgrep: hardcoded-password — a test-generated key, never a credential
     monkeypatch.setenv("VAPID_PUBLIC_KEY", _PUB)
     monkeypatch.setenv("VAPID_SUBJECT", "mailto:alerts@nemotron.local")
 
@@ -139,9 +141,7 @@ class _FakeSettings:
 
 
 class TestWebPushSend:
-    async def test_send_success_maps_201_to_success(
-        self, monkeypatch: pytest.MonkeyPatch
-    ) -> None:
+    async def test_send_success_maps_201_to_success(self, monkeypatch: pytest.MonkeyPatch) -> None:
         _vapid_env(monkeypatch)
         monkeypatch.setattr(
             "backend.services.alerting.channels.webpush.get_settings",
@@ -158,9 +158,7 @@ class TestWebPushSend:
         # The POST went to the subscription's endpoint.
         assert fake.calls[0]["url"] == "https://push.example.com/v1/abcd"
 
-    async def test_send_carries_title_only_payload(
-        self, monkeypatch: pytest.MonkeyPatch
-    ) -> None:
+    async def test_send_carries_title_only_payload(self, monkeypatch: pytest.MonkeyPatch) -> None:
         """Privacy: push carries the title only — no summary, no camera, no names."""
         _vapid_env(monkeypatch)
         monkeypatch.setattr(
@@ -207,9 +205,7 @@ class TestWebPushSend:
             lambda: _FakeSettings(),
         )
         wp = AsyncMock(return_value=_resp(201))
-        monkeypatch.setattr(
-            "backend.services.alerting.channels.webpush.webpush_async", wp
-        )
+        monkeypatch.setattr("backend.services.alerting.channels.webpush.webpush_async", wp)
         sub = _subscription()
         sub_view = {k: v for k, v in sub.items() if k != "_priv"}
         task = _task(push_subscription=sub)
@@ -221,9 +217,7 @@ class TestWebPushSend:
         assert kwargs["ttl"] == WebPushChannel.TTL_SECONDS
         assert kwargs["timeout"] == WebPushChannel.REQUEST_TIMEOUT_SECONDS
 
-    async def test_send_requires_configured_keys(
-        self, monkeypatch: pytest.MonkeyPatch
-    ) -> None:
+    async def test_send_requires_configured_keys(self, monkeypatch: pytest.MonkeyPatch) -> None:
         """No VAPID keys configured: fail closed, never a half-authed send."""
         _vapid_env(monkeypatch)
         monkeypatch.delenv("VAPID_PRIVATE_KEY", raising=False)
@@ -236,9 +230,7 @@ class TestWebPushSend:
         assert result.success is False
         assert result.error == "webpush_not_configured"
 
-    async def test_send_requires_subscription_keys(
-        self, monkeypatch: pytest.MonkeyPatch
-    ) -> None:
+    async def test_send_requires_subscription_keys(self, monkeypatch: pytest.MonkeyPatch) -> None:
         """A webpush channel row without subscription keys cannot be sent."""
         _vapid_env(monkeypatch)
         monkeypatch.setattr(
@@ -260,17 +252,13 @@ class TestWebPushSend:
             lambda: _FakeSettings(),
         )
         wp = AsyncMock(side_effect=_wp_exception(410))
-        monkeypatch.setattr(
-            "backend.services.alerting.channels.webpush.webpush_async", wp
-        )
+        monkeypatch.setattr("backend.services.alerting.channels.webpush.webpush_async", wp)
         result = await WebPushChannel().send(_task())
         assert result.success is False
         assert result.error == "subscription_expired"
         assert result.meta == {"status_code": 410, "expired": True}
 
-    async def test_http_404_also_marks_expired(
-        self, monkeypatch: pytest.MonkeyPatch
-    ) -> None:
+    async def test_http_404_also_marks_expired(self, monkeypatch: pytest.MonkeyPatch) -> None:
         """Some push services answer 404 for the same condition."""
         _vapid_env(monkeypatch)
         monkeypatch.setattr(
@@ -278,9 +266,7 @@ class TestWebPushSend:
             lambda: _FakeSettings(),
         )
         wp = AsyncMock(side_effect=_wp_exception(404))
-        monkeypatch.setattr(
-            "backend.services.alerting.channels.webpush.webpush_async", wp
-        )
+        monkeypatch.setattr("backend.services.alerting.channels.webpush.webpush_async", wp)
         result = await WebPushChannel().send(_task())
         assert result.success is False
         assert result.error == "subscription_expired"
@@ -297,26 +283,20 @@ class TestWebPushSend:
         )
         for status in (500, 429, 403):
             wp = AsyncMock(side_effect=_wp_exception(status))
-            monkeypatch.setattr(
-                "backend.services.alerting.channels.webpush.webpush_async", wp
-            )
+            monkeypatch.setattr("backend.services.alerting.channels.webpush.webpush_async", wp)
             result = await WebPushChannel().send(_task())
             assert result.success is False, status
             assert result.error == f"http_{status}", status
             assert "expired" not in result.meta, status
 
-    async def test_connection_error_is_a_failure(
-        self, monkeypatch: pytest.MonkeyPatch
-    ) -> None:
+    async def test_connection_error_is_a_failure(self, monkeypatch: pytest.MonkeyPatch) -> None:
         _vapid_env(monkeypatch)
         monkeypatch.setattr(
             "backend.services.alerting.channels.webpush.get_settings",
             lambda: _FakeSettings(),
         )
         wp = AsyncMock(side_effect=ClientError("connect failed"))
-        monkeypatch.setattr(
-            "backend.services.alerting.channels.webpush.webpush_async", wp
-        )
+        monkeypatch.setattr("backend.services.alerting.channels.webpush.webpush_async", wp)
         result = await WebPushChannel().send(_task())
         assert result.success is False
         assert result.error and result.error.startswith("request_error")
@@ -328,9 +308,7 @@ class TestWebPushSend:
             lambda: _FakeSettings(),
         )
         wp = AsyncMock(side_effect=TimeoutError())
-        monkeypatch.setattr(
-            "backend.services.alerting.channels.webpush.webpush_async", wp
-        )
+        monkeypatch.setattr("backend.services.alerting.channels.webpush.webpush_async", wp)
         result = await WebPushChannel().send(_task())
         assert result.success is False
         assert result.error and result.error.startswith("timeout")
@@ -405,9 +383,7 @@ class TestConfigGeneration:
         from py_vapid import Vapid
 
         v = Vapid.from_string(priv)
-        assert "Authorization" in v.sign(
-            {"sub": "mailto:x@y.z", "aud": "https://push.example.com"}
-        )
+        assert "Authorization" in v.sign({"sub": "mailto:x@y.z", "aud": "https://push.example.com"})
 
     def test_public_key_matches_private(self) -> None:
         from py_vapid import Vapid
@@ -418,9 +394,7 @@ class TestConfigGeneration:
         v = Vapid.from_string(priv)
         import base64
 
-        raw = v.public_key.public_bytes(
-            Encoding.X962, PublicFormat.UncompressedPoint
-        )
+        raw = v.public_key.public_bytes(Encoding.X962, PublicFormat.UncompressedPoint)
         assert base64.urlsafe_b64encode(raw).rstrip(b"=").decode() == pub
 
 

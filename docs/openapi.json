@@ -31000,6 +31000,160 @@
         "title": "PropertyUpdate",
         "type": "object"
       },
+      "PushSubscriptionKeys": {
+        "description": "Browser-supplied Web Push encryption keys (PushSubscriptionJSON.keys).",
+        "properties": {
+          "auth": {
+            "description": "Authentication secret (urlsafe base64)",
+            "minLength": 1,
+            "title": "Auth",
+            "type": "string"
+          },
+          "p256dh": {
+            "description": "Client public key (P-256, urlsafe base64)",
+            "minLength": 1,
+            "title": "P256Dh",
+            "type": "string"
+          }
+        },
+        "required": [
+          "p256dh",
+          "auth"
+        ],
+        "title": "PushSubscriptionKeys",
+        "type": "object"
+      },
+      "PushSubscriptionRegister": {
+        "description": "Body for registering/rotating This-browser's Web Push subscription.\n\nMirrors the browser's ``PushSubscriptionJSON``: endpoint plus keys, with an\noptional device id so multiple browsers can each hold their own channel row.",
+        "properties": {
+          "device_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Stable browser identifier; used to match the channel row",
+            "title": "Device Id"
+          },
+          "endpoint": {
+            "description": "Push service endpoint URL",
+            "minLength": 1,
+            "title": "Endpoint",
+            "type": "string"
+          },
+          "keys": {
+            "$ref": "#/components/schemas/PushSubscriptionKeys",
+            "description": "p256dh + auth encryption keys"
+          }
+        },
+        "required": [
+          "endpoint",
+          "keys"
+        ],
+        "title": "PushSubscriptionRegister",
+        "type": "object"
+      },
+      "PushSubscriptionRegisterResponse": {
+        "description": "Answer to a successful registration/rotation.",
+        "properties": {
+          "enabled": {
+            "default": true,
+            "description": "Channel state after registration",
+            "title": "Enabled",
+            "type": "boolean"
+          },
+          "push_subscription": {
+            "additionalProperties": true,
+            "description": "Masked subscription echo",
+            "title": "Push Subscription",
+            "type": "object"
+          },
+          "status": {
+            "description": "registered",
+            "title": "Status",
+            "type": "string"
+          }
+        },
+        "required": [
+          "status",
+          "push_subscription"
+        ],
+        "title": "PushSubscriptionRegisterResponse",
+        "type": "object"
+      },
+      "PushSubscriptionState": {
+        "description": "This-browser subscription state for the settings page (masked).\n\nThe privacy row (4n-alerting.md \"Privacy\"): the API never returns secrets\nor push keys in full \u2014 key material is masked to a fingerprint.",
+        "example": {
+          "enabled": true,
+          "endpoint": "https://fcm.googleapis.com/fcm/send/\u2026",
+          "push_subscription": {
+            "endpoint": "https://fcm.googleapis.com/fcm/send/\u2026",
+            "keys": {
+              "auth": "auth:9d20\u2026",
+              "p256dh": "p256dh:bf31\u2026"
+            }
+          },
+          "registered": true
+        },
+        "properties": {
+          "enabled": {
+            "default": false,
+            "description": "Whether the channel row is enabled",
+            "title": "Enabled",
+            "type": "boolean"
+          },
+          "endpoint": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Push service endpoint (host truncated)",
+            "title": "Endpoint"
+          },
+          "last_error": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Last delivery error, e.g. subscription_expired",
+            "title": "Last Error"
+          },
+          "push_subscription": {
+            "anyOf": [
+              {
+                "additionalProperties": true,
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Masked subscription: endpoint + fingerprinted keys",
+            "title": "Push Subscription"
+          },
+          "registered": {
+            "description": "Whether a subscription exists for this browser",
+            "title": "Registered",
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "registered"
+        ],
+        "title": "PushSubscriptionState",
+        "type": "object"
+      },
       "QualityScores": {
         "description": "Self-evaluation quality scores (1-5 scale).",
         "example": {
@@ -56945,6 +57099,144 @@
           }
         },
         "summary": "Update Camera Setting",
+        "tags": [
+          "notification-preferences"
+        ]
+      }
+    },
+    "/api/notification-preferences/push-subscription": {
+      "delete": {
+        "description": "Delete this browser's channel row (the browser asked to unsubscribe).",
+        "operationId": "notification-preferences_delete_push_subscription",
+        "parameters": [
+          {
+            "in": "query",
+            "name": "device_id",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Device Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PushSubscriptionState"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Remove this browser's Web Push subscription",
+        "tags": [
+          "notification-preferences"
+        ]
+      },
+      "get": {
+        "description": "Subscription state for the settings page, with keys masked.\n\nReports ``registered``/``enabled`` so a channel the worker switched off\non HTTP 410 is shown switched off (4n-alerting.md:236).",
+        "operationId": "notification-preferences_get_push_subscription",
+        "parameters": [
+          {
+            "in": "query",
+            "name": "device_id",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Device Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PushSubscriptionState"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "This browser's Web Push subscription state (masked)",
+        "tags": [
+          "notification-preferences"
+        ]
+      },
+      "put": {
+        "description": "Register (or rotate) this browser's Web Push subscription.\n\nWrites a ``webpush`` channel row on the Household recipient \u2014 the seeded\nrecipient that owns quiet hours and holds the This-browser row (the\ndesign's This-browser row needs no login). An existing row for the same\nbrowser is updated in place, never duplicated, and a re-subscription\nre-enables a row the worker disabled on HTTP 410.",
+        "operationId": "notification-preferences_register_push_subscription",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/PushSubscriptionRegister"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PushSubscriptionRegisterResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Register or rotate this browser's Web Push subscription",
         "tags": [
           "notification-preferences"
         ]

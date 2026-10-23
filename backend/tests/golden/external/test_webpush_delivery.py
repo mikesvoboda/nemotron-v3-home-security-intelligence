@@ -75,7 +75,11 @@ pytestmark = [pytest.mark.network, pytest.mark.timeout(300)]
 # pinned here by digest so a moved fixture re-measures instead of silently
 # drawing a different tier.
 _FIXTURE_SUFFIX = b"webpush-golden-9"
-_FIXTURE_SHA256 = "dbc7638825570c937bb74c491150293d3ab805a015783741279b807ec0059785"
+# A sha256 of public fixture bytes — the digest the fake VLM draws its
+# verdict from, not a secret.
+_FIXTURE_SHA256 = (
+    "dbc7638825570c937bb74c491150293d3ab805a015783741279b807ec0059785"  # pragma: allowlist secret
+)
 _CAMERA_FOLDER = "golden-b43-webpush"
 _CAMERA = "golden_b43_webpush"  # Camera.from_folder_name normalizes [-\s] to _
 _DEVICE = "golden-webpush"
@@ -208,7 +212,7 @@ def _wait_for_the_event(logged_in_api: httpx.Client) -> dict[str, Any]:
         for item in items:
             if item.get("risk_score") == 43:
                 return item
-        time.sleep(5.0)
+        time.sleep(5.0)  # real - the poll loop IS the VLM+pipeline wait
     pytest.fail(f"no confirmed/risk-43 event for camera {_CAMERA} within 240 s")
 
 
@@ -294,6 +298,7 @@ def delivered(
     deadline = time.monotonic() + 120.0
     records: list[dict[str, Any]] = []
     while time.monotonic() < deadline:
+        # nosemgrep: ssrf-requests - the push fake's harness env URL, the leg's subject
         listed = httpx.get(f"{reader}/requests", timeout=10.0)  # real
         assert listed.status_code == 200, listed.text[:300]
         records = [
@@ -301,7 +306,7 @@ def delivered(
         ]
         if records:
             break
-        time.sleep(5.0)
+        time.sleep(5.0)  # real - the poll loop IS the delivery wait
     assert records, (
         "no push delivery reached the sink within 120 s: the event, rule and "
         "subscription fixtures all exist, so check the worker and the planner"

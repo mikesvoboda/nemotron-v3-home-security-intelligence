@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import logging
 import uuid
+from typing import Any
 from urllib.parse import urlparse
 
 from fastapi import APIRouter, Depends, HTTPException, status
@@ -432,7 +433,8 @@ def _masked_subscription(sub: dict | None) -> dict | None:
     if not isinstance(sub, dict):
         return None
     endpoint = str(sub.get("endpoint") or "")
-    keys = sub.get("keys") if isinstance(sub.get("keys"), dict) else {}
+    raw_keys = sub.get("keys")
+    keys: dict[str, Any] = raw_keys if isinstance(raw_keys, dict) else {}
     masked_keys: dict[str, str] = {}
     for name in ("p256dh", "auth"):
         value = str(keys.get(name) or "")
@@ -477,7 +479,9 @@ async def register_push_subscription(
     from sqlalchemy.orm import selectinload
 
     result = await db.execute(
-        select(Recipient).options(selectinload(Recipient.channels)).where(Recipient.enabled.is_(True))
+        select(Recipient)
+        .options(selectinload(Recipient.channels))
+        .where(Recipient.enabled.is_(True))
     )
     recipients = result.scalars().all()
     recipient = next((r for r in recipients if r.name == "Household"), None)
@@ -491,7 +495,10 @@ async def register_push_subscription(
             detail="No notification recipient exists yet; complete setup first.",
         )
 
-    subscription = {"endpoint": payload.endpoint, "keys": {"p256dh": payload.keys.p256dh, "auth": payload.keys.auth}}
+    subscription = {
+        "endpoint": payload.endpoint,
+        "keys": {"p256dh": payload.keys.p256dh, "auth": payload.keys.auth},
+    }
     channel = _push_channel_of(recipient, payload.device_id)
     if channel is None:
         channel = RecipientChannel(
@@ -534,7 +541,9 @@ async def get_push_subscription(
     from sqlalchemy.orm import selectinload
 
     result = await db.execute(
-        select(Recipient).options(selectinload(Recipient.channels)).where(Recipient.enabled.is_(True))
+        select(Recipient)
+        .options(selectinload(Recipient.channels))
+        .where(Recipient.enabled.is_(True))
     )
     recipients = result.scalars().all()
     recipient = next((r for r in recipients if r.name == "Household"), None)
@@ -545,11 +554,12 @@ async def get_push_subscription(
     if channel is None:
         return PushSubscriptionState(registered=False)
     sub = channel.push_subscription if isinstance(channel.push_subscription, dict) else None
+    masked = _masked_subscription(sub)
     return PushSubscriptionState(
         registered=True,
         enabled=bool(channel.enabled),
-        endpoint=_masked_subscription(sub)["endpoint"] if sub else None,
-        push_subscription=_masked_subscription(sub),
+        endpoint=masked["endpoint"] if masked else None,
+        push_subscription=masked,
         last_error=getattr(channel, "last_error", None),
     )
 
@@ -567,7 +577,9 @@ async def delete_push_subscription(
     from sqlalchemy.orm import selectinload
 
     result = await db.execute(
-        select(Recipient).options(selectinload(Recipient.channels)).where(Recipient.enabled.is_(True))
+        select(Recipient)
+        .options(selectinload(Recipient.channels))
+        .where(Recipient.enabled.is_(True))
     )
     recipients = result.scalars().all()
     recipient = next((r for r in recipients if r.name == "Household"), None)

@@ -140,7 +140,7 @@ services:
       # holds for Postgres (docker-compose.ci.yml:37). The subject rides the
       # adapter's mailto fallback; the public key is what the golden leg's
       # subscription registers against (a browser's applicationServerKey).
-      - VAPID_PRIVATE_KEY=MIGHAgEAMBMGByqGSM49AgEGCCqGSM49AwEHBG0wawIBAQQg-CqnAKWVV31JrijoQ3HW607E5JZs55ZtRif7z_J1FQehRANCAAStIiAhQQEk9gnqBvGtXliEKHLpKfj518Co_XdQVXo6iyGOOdrhO3XuUN9cMC6igRJuE2ZJgEnhnVSNqQ6el65K  # pragma: allowlist secret
+      - VAPID_PRIVATE_KEY=MIGHAgEAMBMGByqGSM49AgEGCCqGSM49AwEHBG0wawIBAQQg-CqnAKWVV31JrijoQ3HW607E5JZs55ZtRif7z_J1FQehRANCAAStIiAhQQEk9gnqBvGtXliEKHLpKfj518Co_XdQVXo6iyGOOdrhO3XuUN9cMC6igRJuE2ZJgEnhnVSNqQ6el65K # pragma: allowlist secret
       - VAPID_PUBLIC_KEY=BK0iICFBAST2CeoG8a1eWIQocukp-PnXwKj9d1BVejqLIY452uE7de5Q31wwLqKBEm4TZkmASeGdVI2pDp6Xrko
     depends_on:
       mail-sink:
