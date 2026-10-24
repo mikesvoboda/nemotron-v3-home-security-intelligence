@@ -544,30 +544,30 @@ def fold_corrections(prebox: dict, state: dict) -> dict:
     }
 
 
-def make_handler(root: Path, prebox: dict, state_path: Path, export_path: Path) -> type:
+def make_handler(
+    root: Path, prebox: dict, state_path: Path, export_path: Path
+) -> type[LabellingHandler]:
     class Handler(LabellingHandler):
-        pass
+        export_path: Path
+
+        def do_EXPORT(self) -> None:  # noqa: N802 (http.server API)
+            state = load_state(state_path)  # reload: client just POSTed
+            corrected = fold_corrections(prebox, state)
+            export_path.parent.mkdir(parents=True, exist_ok=True)
+            export_path.write_text(json.dumps(corrected, indent=2) + "\n")
+            self._send_json(
+                {
+                    "exported": str(export_path),
+                    "frames": len(corrected["images"]),
+                    "annotations": len(corrected["annotations"]),
+                }
+            )
 
     Handler.root = root
     Handler.prebox = prebox
     Handler.state_path = state_path
     Handler.state = load_state(state_path)
     Handler.export_path = export_path
-
-    def do_EXPORT(self) -> None:
-        Handler.state = load_state(state_path)  # reload: client just POSTed
-        corrected = fold_corrections(prebox, Handler.state)
-        export_path.parent.mkdir(parents=True, exist_ok=True)
-        export_path.write_text(json.dumps(corrected, indent=2) + "\n")
-        self._send_json(
-            {
-                "exported": str(export_path),
-                "frames": len(corrected["images"]),
-                "annotations": len(corrected["annotations"]),
-            }
-        )
-
-    Handler.do_EXPORT = do_EXPORT
     return Handler
 
 

@@ -243,6 +243,7 @@ def main() -> int:
         if stratum is None:
             # width was None (we checked) - unreachable, kept for the type checker
             continue
+        assert dims is not None  # width came from dims; mypy can't see it
         buckets[stratum].append(
             {
                 "path": str(p),
