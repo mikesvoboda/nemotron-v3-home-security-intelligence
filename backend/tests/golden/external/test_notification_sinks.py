@@ -44,6 +44,7 @@ import json
 import os
 import time
 import uuid
+from datetime import UTC, datetime
 from typing import Any
 
 import httpx
@@ -133,7 +134,9 @@ def test_the_mail_sink_receives_the_test_route_email(
 
 
 def test_the_webhook_sink_receives_the_acknowledgement_payload(
-    logged_in_api: httpx.Client, sinks: dict[str, str], sink_reader: Any
+    logged_in_api: httpx.Client,
+    sinks: dict[str, str],
+    sink_reader: Any,
 ) -> None:
     """One webhook delivery through the outbound machinery, read back.
 
@@ -144,13 +147,89 @@ def test_the_webhook_sink_receives_the_acknowledgement_payload(
     backend container points at the backend itself. The read-back goes over
     the host-side URL the harness exports. The sink answers 200 so the
     delivery lands ``success``; the payload's ``event_type``/``webhook_id``
-    are what the sink recorded. The idempotency key is F4.2's golden-path row
+    are what the sink recorded. The alert binds to an event this spec
+    bulk-creates itself (rejected verdict, so the alert pipeline raises
+    nothing off it) — see the comment at the create below. The idempotency
+    key is F4.2's golden-path row
     ("the webhook sink receives the payload with its idempotency key"), and
     arrives with B4.2's payload work — the read-back here pins the transport,
     not the field B4.2 adds.
     """
     reader = sink_reader(sinks["FEATURE_CHECK_SINK_WEBHOOK_URL"])
     reader.clear("/requests")
+
+    # The acknowledgement needs an events.id to bind the alert to. This spec
+    # makes its OWN event on its OWN camera (get-or-create "Sinks (r308a
+    # golden)" below, the same leg-owned-camera shape as test_arming.py's
+    # B4.7 camera and test_backup.py's F-101 camera) and carries a
+    # ``rejected`` verdict: AlertPipeline sees the rejected verdict
+    # and raises nothing (``policy._check_verdict_and_severity`` returns None),
+    # so the event cannot leak an alert into a sibling golden spec's
+    # ``items == []`` assert — the collision #7390 recorded, where this spec's
+    # blind newest-event grab (``GET /api/events?limit=1``) landed on the
+    # arming spec's future-dated fixture inside its ~1s "newest" window and
+    # bound its alert to that event. The event is deleted in the finally
+    # (soft, then permanent, as the arming spec's teardown does).
+    #
+    # The leg-owned camera is not style: every other bulk-creating golden spec
+    # either uses its own camera (arming, backup) or carries no verdict (the
+    # F-297 400 leg), so this leg is the ONLY spec putting a verified row on
+    # the harness-smoke camera — and any dating it picks loses: 2026-01-01
+    # made it the OLDEST verified row and test_webhook_deliveries.py's module
+    # fixture ("the oldest verified event is the smoke event … it is never a
+    # purge target") bound F-250/F-251's alerts to it, then the finally's
+    # delete killed the row mid-fixture (run 40082904509, alerts_event_id_fkey,
+    # Key (event_id)=(2)); NOW-dated (a2ae36ba3) it became the NEWEST verified
+    # row instead and test_household_embeddings.py's smoke_event fixture —
+    # first-verified in the same started_at DESC list — bound to it and got
+    # "Event does not contain a person detection" (run 40084759113, shard
+    # 1-of-4). The row's own consumers (the alert FK, the webhook delivery)
+    # never read the camera, so the row moves off the shared camera entirely
+    # and stops participating in either picker.
+    cams = logged_in_api.get("/api/cameras")
+    assert cams.status_code == 200, cams.text[:500]
+    cam_items = cams.json()
+    if isinstance(cam_items, dict):
+        cam_items = cam_items.get("items") or cam_items.get("cameras") or []
+    sink_camera = next(
+        (
+            str(c["id"])
+            for c in cam_items
+            if isinstance(c, dict) and c.get("name") == "Sinks (r308a golden)"
+        ),
+        None,
+    )
+    if sink_camera is None:
+        created_cam = logged_in_api.post(
+            "/api/cameras",
+            json={
+                "name": "Sinks (r308a golden)",
+                "folder_path": "/cameras/r308a_golden_sinks",
+                "status": "online",
+            },
+        )
+        assert created_cam.status_code == 201, created_cam.text[:500]
+        sink_camera = str(created_cam.json()["id"])
+    bulked = logged_in_api.post(
+        "/api/events/bulk",
+        json={
+            "events": [
+                {
+                    "batch_id": f"golden-r308a-sink-{uuid.uuid4().hex[:8]}",
+                    "camera_id": sink_camera,
+                    "started_at": datetime.now(UTC).isoformat(),
+                    "risk_score": 10,
+                    "risk_level": "low",
+                    "summary": "golden r308a webhook-leg event (rejected verdict)",
+                    "verdict": "rejected",
+                }
+            ]
+        },
+    )
+    assert bulked.status_code == 207, bulked.text[:500]
+    results = bulked.json().get("results", [])
+    assert len(results) == 1 and results[0].get("status") == "success", bulked.text[:500]
+    sink_event_id = int(results[0]["id"])
 
     sink_host = os.environ["FEATURE_CHECK_SINK_WEBHOOK_HOST"]
     created = logged_in_api.post(
@@ -170,15 +249,10 @@ def test_the_webhook_sink_receives_the_acknowledgement_payload(
     assert created.status_code == 201, created.text[:500]
     webhook_id = created.json()["id"]
     try:
-        events = logged_in_api.get("/api/events", params={"limit": 1})
-        assert events.status_code == 200, events.text[:500]
-        items = events.json()["items"]
-        if not items:
-            pytest.skip("no events on this stack; an alert needs a real events.id")
         alert = logged_in_api.post(
             "/api/alert-service/alerts",
             json={
-                "event_id": items[0]["id"],
+                "event_id": sink_event_id,
                 "severity": "high",
                 "dedup_key": f"golden:r308a:{uuid.uuid4().hex[:12]}",
             },
@@ -206,6 +280,11 @@ def test_the_webhook_sink_receives_the_acknowledgement_payload(
         else:
             pytest.fail("the webhook delivery never reached a terminal state")
     finally:
+        # Event first (no asserts — cleanup must not be blocked by the
+        # webhook delete's own assert): soft, then permanent, as the arming
+        # spec's teardown does.
+        logged_in_api.delete(f"/api/events/{sink_event_id}")
+        logged_in_api.delete(f"/api/events/{sink_event_id}", params={"permanent": "true"})
         deleted = logged_in_api.delete(f"/api/outbound-webhooks/{webhook_id}")
         assert deleted.status_code == 204, deleted.status_code
 
