@@ -1,4 +1,4 @@
-# Production Compose base (Podman / Docker). Configure ports and paths in .env (.env.example).
+# Production Compose base (Podman / Docker). Configure ports and paths in .env (.env.example; e.g., AI_MODELS_PATH, YOLO26_CONFIDENCE).
 
 # ORCHESTRATOR_ENABLED=false uses '-f docker-compose.prod.yml -f docker-compose.engine-false.yml'.
 include:
