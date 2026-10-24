@@ -44,6 +44,22 @@ class TestSetting:
         with pytest.raises(ValueError):
             Settings(reid_backend="cuda")
 
+    def test_refuses_removed_local_backend(self) -> None:
+        with pytest.raises(ValueError):
+            Settings(reid_backend="local")
+
+    def test_cpu_osnet_and_torchreid_removed_from_backend(self) -> None:
+        import inspect
+        import tomllib
+
+        src = inspect.getsource(osnet_loader)
+        assert "import torch" not in src
+        assert "torchreid" not in src
+        assert "from torchvision" not in src
+        pyproject = tomllib.loads((REPO_ROOT / "pyproject.toml").read_text())
+        prod_deps = pyproject.get("project", {}).get("dependencies", [])
+        assert not any("torchreid" in dep for dep in prod_deps)
+
 
 class TestHandle:
     def test_gateway_backend_gives_a_gateway_handle_without_the_local_model(self) -> None:
@@ -61,19 +77,6 @@ class TestHandle:
 
         # model_id None: the belt is the gateway's per-response ID, never assumed.
         assert handle == {"kind": "gateway", "base_url": GW, "model_id": None}
-
-    def test_local_backend_keeps_the_resident_handle(self) -> None:
-        resident = {"model": object(), "transform": object(), "model_id": "local-id"}
-        manager = SimpleNamespace(_loaded_models={osnet_loader.OSNET_ZOO_NAME: resident})
-        with (
-            patch.object(
-                osnet_loader, "get_settings", autospec=True, return_value=_settings("local")
-            ),
-            patch(
-                "backend.services.model_zoo.get_model_manager", autospec=True, return_value=manager
-            ),
-        ):
-            assert osnet_loader.get_reid_handle() is resident
 
 
 class TestExtract:

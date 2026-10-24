@@ -1218,11 +1218,11 @@ stay valid across the flip once parity holds. When O2.4 passes (UR-85), `O2.4` g
 ### [r306b] The backend's CPU copy of OSNet leaves
 
 **Flags:** none. **Assigned:** backend, after `[r306a]` merges (ruling 306). **Depends on:**
-`[r306a]` merged. **PR:** none yet. (ruling 306, record 6323748868)
+`[r306a]` merged. **PR:** #7416. (ruling 306, record 6323748868; ruling 329, record 6378113072)
 
 UR-85 lets a proven GPU path stand without a CPU fallback.
 
-- [ ] Remove the `local` path: `backend/services/osnet_loader.py` and its callers' CPU branch,
+- [x] Remove the `local` path: `backend/services/osnet_loader.py` and its callers' CPU branch,
       `torchreid`, and `torch` from the backend only if no other kept import needs it. The PR
       reports the import trace.
 

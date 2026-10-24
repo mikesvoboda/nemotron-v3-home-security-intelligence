@@ -875,7 +875,10 @@ def test_real_tree_matches_spec_baselines():
         # Both adjudicated environment via HOST_JUSTIFIED (b904d853f's
         # channel); registry entries + baseline raised in this same commit.
         # Increase path, seventh precedent.
-        "pytest_skip_imperative": 95,
+        # 95→92 (2026-10-24, [r306b] PR #7416): test_osnet_loader.py's three
+        # CPU torchreid/weights skips (:1360/:1387/:1398) removed with the
+        # backend's CPU OSNet path.
+        "pytest_skip_imperative": 92,
         # 51→49 (2026-10-21, roll 10 of #7246) then main's r285 +3 sites landed
         # inside files the F3.2 cut had already deleted (useMonitoringTargets,
         # ReidHistoryPanel tests): the merged tree MEASURES 49, so main's 52
