@@ -5,6 +5,8 @@
  * - useDeletedEventsQuery: Fetch all soft-deleted events
  * - useRestoreEventMutation: Restore a soft-deleted event
  * - usePermanentDeleteMutation: Permanently delete an event
+ * - useSoftDeleteEventMutation: Move an event to Trash (F4.3, ruling 131)
+ * - useBulkSoftDeleteMutation: Bulk move selected events to Trash (F4.3)
  *
  * Benefits:
  * - Automatic cache management
@@ -21,7 +23,10 @@ import {
   fetchDeletedEvents,
   restoreEvent,
   permanentlyDeleteEvent,
+  softDeleteEvent,
+  bulkSoftDeleteEvents,
   type DeletedEvent,
+  type BulkOperationResponse,
 } from '../services/api';
 import { queryKeys, DEFAULT_STALE_TIME } from '../services/queryClient';
 
@@ -256,6 +261,148 @@ export function usePermanentDeleteMutation(): UsePermanentDeleteMutationReturn {
   return {
     mutateAsync: async (eventId: number) => {
       await mutation.mutateAsync(eventId);
+    },
+    mutate: mutation.mutate,
+    isPending: mutation.isPending,
+    error: mutation.error,
+    reset: mutation.reset,
+  };
+}
+
+// ============================================================================
+// useSoftDeleteEventMutation - Move an event to Trash (F4.3, ruling 131)
+// ============================================================================
+
+/**
+ * Return type for the useSoftDeleteEventMutation hook
+ */
+export interface UseSoftDeleteEventMutationReturn {
+  /** Execute the soft delete mutation */
+  mutateAsync: (eventId: number) => Promise<void>;
+  /** Synchronous mutation trigger */
+  mutate: (eventId: number) => void;
+  /** Whether the mutation is in progress */
+  isPending: boolean;
+  /** Error object if the mutation failed */
+  error: Error | null;
+  /** Reset mutation state */
+  reset: () => void;
+}
+
+/**
+ * Hook providing a mutation to soft-delete (move to Trash) an event.
+ *
+ * Soft deletion is reversible (ruling 131): the event moves to Trash and can
+ * be restored while its purge deadline has not passed. There is no confirmation
+ * dialog — the Undo toast replaces it. Automatically invalidates BOTH the
+ * deleted events query (the event now appears in Trash) and the main events
+ * query (the row must drop from the timeline) on success.
+ *
+ * @returns Mutation object for soft deletion
+ *
+ * @example
+ * ```tsx
+ * const { mutateAsync, isPending } = useSoftDeleteEventMutation();
+ *
+ * const handleDelete = async (eventId: number) => {
+ *   try {
+ *     await mutateAsync(eventId);
+ *     toast.success('Moved to Trash', { action: { label: 'Undo', onClick: ... } });
+ *   } catch (error) {
+ *     toast.error('Failed to delete event');
+ *   }
+ * };
+ * ```
+ */
+export function useSoftDeleteEventMutation(): UseSoftDeleteEventMutationReturn {
+  const queryClient = useQueryClient();
+
+  const mutation = useMutation({
+    mutationFn: (eventId: number) => softDeleteEvent(eventId),
+    onSuccess: () => {
+      // Invalidate deleted events so the event appears in Trash
+      void queryClient.invalidateQueries({ queryKey: DELETED_EVENTS_QUERY_KEY });
+      // Also invalidate the main events list so the row drops from the timeline
+      void queryClient.invalidateQueries({ queryKey: queryKeys.events.all });
+    },
+  });
+
+  return {
+    mutateAsync: async (eventId: number) => {
+      await mutation.mutateAsync(eventId);
+    },
+    mutate: mutation.mutate,
+    isPending: mutation.isPending,
+    error: mutation.error,
+    reset: mutation.reset,
+  };
+}
+
+// ============================================================================
+// useBulkSoftDeleteMutation - Bulk Delete on the timeline selection bar (F4.3)
+// ============================================================================
+
+/**
+ * Return type for the useBulkSoftDeleteMutation hook
+ */
+export interface UseBulkSoftDeleteMutationReturn {
+  /** Execute the bulk soft delete mutation */
+  mutateAsync: (eventIds: number[]) => Promise<BulkOperationResponse>;
+  /** Synchronous mutation trigger */
+  mutate: (eventIds: number[]) => void;
+  /** Whether the mutation is in progress */
+  isPending: boolean;
+  /** Error object if the mutation failed */
+  error: Error | null;
+  /** Reset mutation state */
+  reset: () => void;
+}
+
+/**
+ * Hook providing a mutation to bulk soft-delete events from the timeline
+ * selection bar (F4.3). Returns the backend's 207 Multi-Status shape so the
+ * caller can surface per-item failures.
+ *
+ * Automatically invalidates BOTH the deleted events query (the soft-deleted
+ * rows now appear in Trash) and the main events query (the rows must drop
+ * from the timeline) on success.
+ *
+ * @returns Mutation object for bulk soft deletion
+ *
+ * @example
+ * ```tsx
+ * const { mutateAsync, isPending } = useBulkSoftDeleteMutation();
+ *
+ * const handleBulkDelete = async (ids: number[]) => {
+ *   try {
+ *     const result = await mutateAsync(ids);
+ *     if (result.failed > 0) {
+ *       toast.warning(`${result.failed} of ${result.total} could not be deleted`);
+ *     } else {
+ *       toast.success(`Moved ${result.succeeded} to Trash`, { action: { label: 'Undo', ... } });
+ *     }
+ *   } catch (error) {
+ *     toast.error('Bulk delete failed');
+ *   }
+ * };
+ * ```
+ */
+export function useBulkSoftDeleteMutation(): UseBulkSoftDeleteMutationReturn {
+  const queryClient = useQueryClient();
+
+  const mutation = useMutation({
+    mutationFn: (eventIds: number[]) => bulkSoftDeleteEvents(eventIds),
+    onSuccess: () => {
+      // Invalidate deleted events so the soft-deleted rows appear in Trash
+      void queryClient.invalidateQueries({ queryKey: DELETED_EVENTS_QUERY_KEY });
+      // Also invalidate the main events list so the rows drop from the timeline
+      void queryClient.invalidateQueries({ queryKey: queryKeys.events.all });
+    },
+  });
+
+  return {
+    mutateAsync: async (eventIds: number[]) => {
+      return await mutation.mutateAsync(eventIds);
     },
     mutate: mutation.mutate,
     isPending: mutation.isPending,

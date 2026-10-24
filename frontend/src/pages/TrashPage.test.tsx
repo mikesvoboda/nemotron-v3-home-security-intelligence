@@ -12,13 +12,36 @@ import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import TrashPage from './TrashPage';
 import * as api from '../services/api';
 
-import type { DeletedEvent } from '../services/api';
+import type { DeletedEvent, SystemConfig } from '../services/api';
 
-// Mock the API module
+// A minimal config shape — the page only reads retention_days and the
+// optional trash_retention_days; other fields are filler.
+function createMockConfig(overrides: Partial<SystemConfig> = {}): SystemConfig {
+  return {
+    app_name: 'Home Security Intelligence',
+    batch_idle_timeout_seconds: 30,
+    batch_window_seconds: 90,
+    debug: false,
+    detection_confidence_threshold: 0.5,
+    fast_path_confidence_threshold: 0.9,
+    fast_path_enabled: false,
+    grafana_url: '/grafana',
+    log_retention_days: 7,
+    retention_days: 30,
+    trash_retention_days: 30,
+    version: '0.1.0',
+    ...overrides,
+  };
+}
+
+// Mock the API module — fetchConfig feeds useSystemConfigQuery for the
+// purge clock (F4.3); every test asserts copy that depends on it, so the
+// default mock answers the configured value, not the old hardcoded 30.
 vi.mock('../services/api', () => ({
   fetchDeletedEvents: vi.fn(),
   restoreEvent: vi.fn(),
   permanentlyDeleteEvent: vi.fn(),
+  fetchConfig: vi.fn(),
 }));
 
 // Helper to create a test QueryClient
@@ -59,6 +82,9 @@ function createMockDeletedEvent(overrides: Partial<DeletedEvent> = {}): DeletedE
 describe('TrashPage', () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    // Default config per test: the documented trash default of 30. Tests
+    // needing a different clock mock it differently in their body.
+    vi.mocked(api.fetchConfig).mockResolvedValue(createMockConfig());
   });
 
   afterEach(() => {
@@ -171,6 +197,139 @@ describe('TrashPage', () => {
     });
 
     expect(screen.getByText(/30 days/i)).toBeInTheDocument();
+  });
+
+  // F4.3 (spec 4n-trash.md): the notice and the card chips must show the
+  // configured clock, never a hardcoded 30 — the setting lives under
+  // Settings › Data and can be 0 (Trash clock disabled).
+  describe('purge clock from config (F4.3)', () => {
+    it('shows the configured trash_retention_days in the cleanup notice', async () => {
+      vi.mocked(api.fetchConfig).mockResolvedValue(createMockConfig({ trash_retention_days: 14 }));
+      vi.mocked(api.fetchDeletedEvents).mockResolvedValueOnce({
+        events: [createMockDeletedEvent()],
+        total: 1,
+      });
+
+      const queryClient = createTestQueryClient();
+
+      render(
+        <QueryClientProvider client={queryClient}>
+          <TrashPage />
+        </QueryClientProvider>
+      );
+
+      await waitFor(() => {
+        expect(screen.getByText('Automatic cleanup')).toBeInTheDocument();
+      });
+
+      expect(screen.getByText(/after 14 days/i)).toBeInTheDocument();
+      expect(screen.queryByText(/after 30 days/i)).not.toBeInTheDocument();
+    });
+
+    it('with trash_retention_days = 0 the notice states the retention clock, not days', async () => {
+      vi.mocked(api.fetchConfig).mockResolvedValue(createMockConfig({ trash_retention_days: 0 }));
+      vi.mocked(api.fetchDeletedEvents).mockResolvedValueOnce({
+        events: [createMockDeletedEvent()],
+        total: 1,
+      });
+
+      const queryClient = createTestQueryClient();
+
+      render(
+        <QueryClientProvider client={queryClient}>
+          <TrashPage />
+        </QueryClientProvider>
+      );
+
+      await waitFor(() => {
+        expect(screen.getByText('Automatic cleanup')).toBeInTheDocument();
+      });
+
+      expect(
+        screen.getByText(/deleted when their general retention expires/i)
+      ).toBeInTheDocument();
+      expect(screen.queryByText(/after 0 days/i)).not.toBeInTheDocument();
+    });
+
+    it('shows the purge date chip computed by the mirror rule', async () => {
+      // started 2025-06-01, deleted 2025-06-10 (relative to now it is "2 days
+      // ago" so the Deleted chip stays live); retention 365 so the Trash clock
+      // wins: purge at deleted + 30d = Jul 10, 2025.
+      const event = createMockDeletedEvent({
+        started_at: '2025-06-01T12:00:00Z',
+        deleted_at: '2025-06-10T12:00:00Z',
+      });
+      vi.mocked(api.fetchConfig).mockResolvedValue(
+        createMockConfig({ retention_days: 365, trash_retention_days: 30 })
+      );
+      vi.mocked(api.fetchDeletedEvents).mockResolvedValueOnce({
+        events: [event],
+        total: 1,
+      });
+
+      const queryClient = createTestQueryClient();
+
+      render(
+        <QueryClientProvider client={queryClient}>
+          <TrashPage />
+        </QueryClientProvider>
+      );
+
+      await waitFor(() => {
+        expect(screen.getByTestId('purge-date-1')).toBeInTheDocument();
+      });
+      expect(screen.getByTestId('purge-date-1')).toHaveTextContent('Purged: Jul 10, 2025');
+    });
+
+    it('with trash_retention_days = 0 the chip falls back to the retention deadline', async () => {
+      // started 2025-06-01 + 30d = Jul 1, even though deleted + 30d is Jul 10.
+      const event = createMockDeletedEvent({
+        started_at: '2025-06-01T12:00:00Z',
+        deleted_at: '2025-06-10T12:00:00Z',
+      });
+      vi.mocked(api.fetchConfig).mockResolvedValue(
+        createMockConfig({ retention_days: 30, trash_retention_days: 0 })
+      );
+      vi.mocked(api.fetchDeletedEvents).mockResolvedValueOnce({
+        events: [event],
+        total: 1,
+      });
+
+      const queryClient = createTestQueryClient();
+
+      render(
+        <QueryClientProvider client={queryClient}>
+          <TrashPage />
+        </QueryClientProvider>
+      );
+
+      await waitFor(() => {
+        expect(screen.getByTestId('purge-date-1')).toBeInTheDocument();
+      });
+      expect(screen.getByTestId('purge-date-1')).toHaveTextContent('Purged: Jul 1, 2025');
+    });
+
+    it('omits the chip while config has not loaded rather than printing a false date', async () => {
+      vi.mocked(api.fetchConfig).mockImplementation(() => new Promise(() => {})); // never resolves
+      vi.mocked(api.fetchDeletedEvents).mockResolvedValueOnce({
+        events: [createMockDeletedEvent()],
+        total: 1,
+      });
+
+      const queryClient = createTestQueryClient();
+
+      render(
+        <QueryClientProvider client={queryClient}>
+          <TrashPage />
+        </QueryClientProvider>
+      );
+
+      await waitFor(() => {
+        expect(screen.getByText('front_door')).toBeInTheDocument();
+      });
+
+      expect(screen.queryByTestId('purge-date-1')).not.toBeInTheDocument();
+    });
   });
 
   it('handles error state', async () => {

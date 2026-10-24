@@ -23,10 +23,13 @@ import {
   Loader2,
   Play,
   RefreshCw,
+  Save,
+  Trash2,
   X,
   XCircle,
 } from 'lucide-react';
 import { useCallback, useState } from 'react';
+import { useQueryClient } from '@tanstack/react-query';
 
 import { BackupSection } from '../components/backup';
 import Button from '../components/common/Button';
@@ -34,7 +37,10 @@ import EmptyState from '../components/common/EmptyState';
 import LoadingSpinner from '../components/common/LoadingSpinner';
 import ExportColumnSelector from '../components/exports/ExportColumnSelector';
 import { useExportJobsQuery, useStartExportJob, useCancelExportJob } from '../hooks/useExportJobs';
-import { downloadExportFile } from '../services/api';
+import { useSystemConfigQuery } from '../hooks/useSystemConfigQuery';
+import { downloadExportFile, updateConfig } from '../services/api';
+import { useToast } from '../hooks/useToast';
+import { queryKeys } from '../services/queryClient';
 import {
   formatFileSize,
   formatFilterParams,
@@ -391,6 +397,129 @@ function ExportJobCard({ job, onCancel, onDownload, isCancelling }: ExportJobCar
 }
 
 // ============================================================================
+// Trash Retention Section (F4.3)
+// ============================================================================
+
+/**
+ * TrashRetentionSection edits `trash_retention_days` — the Trash clock that
+ * purges soft-deleted events at `deleted_at + N days` (the earlier of that
+ * and general retention, mirrored in src/utils/trashPurge.ts). The spec
+ * (4n-trash.md) places the setting under Settings › Data. 0 disables the
+ * Trash clock; general retention still purges.
+ */
+function TrashRetentionSection() {
+  const { data: config, isLoading: configLoading } = useSystemConfigQuery();
+  const queryClient = useQueryClient();
+  const toast = useToast();
+  const [editedDays, setEditedDays] = useState<number | null>(null);
+  const [isSaving, setIsSaving] = useState(false);
+
+  // null editedDays = not yet seeded from config; seeding happens in the
+  // derive step below rather than a useEffect so the first render already
+  // carries the server value (LoggingSettings seeds state in an effect,
+  // which flashes the fallback 7 for a frame).
+  const originalDays = config?.trash_retention_days;
+  const days = editedDays ?? originalDays;
+  const hasChanges = days !== null && originalDays !== undefined && days !== originalDays;
+
+  const handleSave = useCallback(async () => {
+    if (days === null || !hasChanges) return;
+
+    setIsSaving(true);
+    try {
+      // Partial PATCH: only the changed key travels (ConfigUpdateRequest
+      // fields are all optional; the backend applies non-null fields).
+      await updateConfig({ trash_retention_days: days });
+      // Drop the cached config so this card (and the TrashPage chips, which
+      // share the query) refetch the server's value rather than showing the
+      // stale pre-save number for the next 5 staleTime minutes.
+      await queryClient.invalidateQueries({ queryKey: queryKeys.system.config });
+      setEditedDays(null); // back to "clean" — days now derives from config
+      toast.success(`Trash retention updated to ${days} days`);
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : 'Failed to update trash retention');
+    } finally {
+      setIsSaving(false);
+    }
+  }, [days, hasChanges, toast, queryClient]);
+
+  const handleReset = useCallback(() => {
+    setEditedDays(null);
+  }, []);
+
+  return (
+    <div
+      className="rounded-lg border border-gray-700 bg-gray-800/50 p-6"
+      data-testid="trash-retention-settings"
+    >
+      <div className="mb-4 flex items-center gap-2">
+        <Trash2 className="h-5 w-5 text-primary" />
+        <h2 className="text-lg font-semibold text-white">Trash Retention</h2>
+      </div>
+
+      {configLoading || originalDays === undefined ? (
+        <p className="text-sm text-gray-400">
+          {configLoading
+            ? 'Loading current setting…'
+            : 'This deployment does not report a Trash retention setting.'}
+        </p>
+      ) : (
+        <>
+          <div className="mb-2 flex items-end justify-between">
+            <div>
+              <p className="text-sm text-gray-300">Days to keep deleted events in Trash</p>
+              <p className="mt-1 text-xs text-gray-500">
+                Deleted events are purged at the earlier of this clock and general retention. 0
+                disables the Trash clock — general retention alone then purges them.
+              </p>
+            </div>
+            <p className="text-lg font-semibold text-white" data-testid="trash-retention-value">
+              {days} {days === 1 ? 'day' : 'days'}
+            </p>
+          </div>
+          <input
+            type="range"
+            min="0"
+            max="365"
+            step="1"
+            value={days}
+            onChange={(e) => setEditedDays(parseInt(e.target.value, 10))}
+            className="h-2 w-full cursor-pointer appearance-none rounded-lg bg-gray-700 accent-[#76B900]"
+            aria-label="Trash retention in days"
+            data-testid="trash-retention-slider"
+          />
+          <div className="mt-1 flex justify-between text-xs text-gray-500">
+            <span>Off (0)</span>
+            <span>365 days</span>
+          </div>
+
+          {/* Action buttons */}
+          <div className="mt-4 flex gap-3 border-t border-gray-700 pt-4">
+            <Button
+              onClick={() => void handleSave()}
+              disabled={!hasChanges}
+              isLoading={isSaving}
+              leftIcon={<Save className="h-4 w-4" />}
+              data-testid="trash-retention-save"
+            >
+              Save
+            </Button>
+            <Button
+              variant="ghost"
+              onClick={handleReset}
+              disabled={!hasChanges || isSaving}
+              data-testid="trash-retention-reset"
+            >
+              Reset
+            </Button>
+          </div>
+        </>
+      )}
+    </div>
+  );
+}
+
+// ============================================================================
 // Main Component
 // ============================================================================
 
@@ -518,6 +647,9 @@ export default function DataManagementPage() {
 
           {/* Backup Section */}
           <BackupSection />
+
+          {/* Trash Retention (F4.3) — the setting under Settings › Data */}
+          <TrashRetentionSection />
         </div>
       </div>
     </div>

@@ -2527,15 +2527,45 @@ export async function restoreEvent(id: number): Promise<Event> {
 }
 
 /**
+ * Soft delete an event (move it to Trash) — F4.3 / F-087 (ruling 131).
+ * A soft delete is reversible (restore), so callers show an Undo toast instead of
+ * a confirmation dialog; the deleted event becomes fetchable via fetchDeletedEvents.
+ *
+ * @param id - Event ID to move to Trash
+ */
+export async function softDeleteEvent(id: number): Promise<void> {
+  return fetchApi<void>(`/api/events/${id}`, { method: 'DELETE' });
+}
+
+/**
+ * Bulk soft delete events (the timeline selection bar's Delete) — F4.3 / F-087.
+ * Sends `DELETE /api/events/bulk` with `{ event_ids, soft_delete: true }`; the backend
+ * answers 207 Multi-Status with per-item results.
+ *
+ * @param eventIds - Event IDs to move to Trash (1-100 per request)
+ * @returns BulkOperationResponse with per-item results
+ */
+export async function bulkSoftDeleteEvents(eventIds: number[]): Promise<BulkOperationResponse> {
+  if (eventIds.length === 0) {
+    throw new Error('bulkSoftDeleteEvents requires at least one event id');
+  }
+  return fetchApi<BulkOperationResponse>('/api/events/bulk', {
+    method: 'DELETE',
+    body: JSON.stringify({ event_ids: eventIds, soft_delete: true }),
+  });
+}
+
+/**
  * Permanently delete a soft-deleted event.
  * This action cannot be undone - the event and all associated data are permanently removed.
+ * Sends `?permanent=true` (B4.4): the route hard-deletes only a trashed event and
+ * returns 409 "Event not in Trash" otherwise.
  *
  * @param id - Event ID to permanently delete
  */
 export async function permanentlyDeleteEvent(id: number): Promise<void> {
-  return fetchApi<void>(`/api/events/${id}`, {
+  return fetchApi<void>(`/api/events/${id}?permanent=true`, {
     method: 'DELETE',
-    body: JSON.stringify({ soft_delete: false }),
   });
 }
 
