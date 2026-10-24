@@ -1,12 +1,14 @@
-"""B2.2 (owner ruling 68): the seam is ``osnet_loader.extract_person_embedding``.
+"""B2.2 / [r306a] (owner rulings 68, 306, 325): the seam is ``osnet_loader.extract_person_embedding``.
 
 "Put a gateway-backed embedding behind it (``/enrich-lt/person-reid``), so
-neither caller changes." The switch is ``Settings.reid_backend``; until the
-owner's run is posted it stays ``local``, and reverting it is the rollback.
+neither caller changes." The switch is ``Settings.reid_backend``; after O2.4's
+parity pass (`[r312a]` Run 2, #7238 `6353368002`, ruling 325), the default is
+``gateway``.
 """
 
 from __future__ import annotations
 
+from pathlib import Path
 from types import SimpleNamespace
 from unittest.mock import AsyncMock, patch
 
@@ -19,6 +21,7 @@ from backend.services import osnet_loader
 from backend.services.osnet_loader import PersonEmbeddingResult
 
 GW = "http://gw/enrich-lt"
+REPO_ROOT = Path(__file__).resolve().parents[4]
 
 
 def _settings(backend: str) -> SimpleNamespace:
@@ -26,8 +29,16 @@ def _settings(backend: str) -> SimpleNamespace:
 
 
 class TestSetting:
-    def test_defaults_to_local(self) -> None:
-        assert Settings.model_fields["reid_backend"].default == "local"
+    def test_defaults_to_gateway(self) -> None:
+        assert Settings.model_fields["reid_backend"].default == "gateway"
+
+    def test_env_example_defaults_to_gateway(self) -> None:
+        reid_lines = [
+            line
+            for line in (REPO_ROOT / ".env.example").read_text().splitlines()
+            if line.startswith("REID_BACKEND=")
+        ]
+        assert reid_lines == ["REID_BACKEND=gateway"]
 
     def test_refuses_an_unknown_backend(self) -> None:
         with pytest.raises(ValueError):

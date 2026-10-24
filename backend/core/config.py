@@ -1471,11 +1471,11 @@ class Settings(BaseSettings):
         "Uses exponential backoff (2^attempt seconds). Default: 3 attempts.",
     )
     reid_backend: Literal["local", "gateway"] = Field(
-        default="local",
-        description="Where person re-ID embeddings are computed (B2.2, owner ruling 68). "
-        "'local': the backend's resident OSNet copy. 'gateway': the AI gateway's GPU "
-        "'reid' model at ENRICHMENT_LIGHT_URL/person-reid, the same network and weights. "
-        "Stays 'local' until the owner's parity run is posted; switching back is the rollback.",
+        default="gateway",
+        description="Where person re-ID embeddings are computed (B2.2, [r306a]; owner rulings 68, 306, 325). "
+        "'gateway': the AI gateway's GPU 'reid' model at ENRICHMENT_LIGHT_URL/person-reid, "
+        "the same network and weights (default after O2.4's parity pass in [r312a] Run 2). "
+        "'local': the backend's resident OSNet copy (rollback until [r306b] removes it).",
     )
 
     # Face auto-enrollment settings (NEM-4941)
