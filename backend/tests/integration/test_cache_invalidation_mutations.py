@@ -274,11 +274,29 @@ class TestEventCacheInvalidation:
     async def test_event_creation_invalidates_cache(
         self,
         client_with_cache: AsyncClient,
+        db_session: AsyncSession,
         test_camera: Camera,
         cache_service: CacheService,
         cleanup_cache: None,
     ) -> None:
         """Test that event creation invalidates event cache."""
+        # Create a real detection: since B4.4 the bulk route inserts EventDetection
+        # rows for detection_ids, so nonexistent ids are refused per item.
+        detection = Detection(
+            camera_id=test_camera.id,
+            file_path=f"/test/{_unique_id()}.jpg",
+            object_type="person",
+            confidence=0.85,
+            bbox_x=50,
+            bbox_y=50,
+            bbox_width=150,
+            bbox_height=150,
+            detected_at=datetime.now(UTC),
+        )
+        db_session.add(detection)
+        await db_session.commit()
+        await db_session.refresh(detection)
+
         # Pre-populate event cache
         cache_key = "events:list"
         cached_data = {"events": [], "count": 0}
@@ -299,7 +317,7 @@ class TestEventCacheInvalidation:
                     "risk_level": "high",
                     "summary": "Test event",
                     "reasoning": "Test reasoning",
-                    "detection_ids": [1, 2],
+                    "detection_ids": [detection.id],
                 },
             ]
         }

@@ -276,11 +276,11 @@ F-079.
 ### F4.3 The Trash UI
 
 **Flags:** none. **Assigned:** frontend, after `F4.1` (ruling 308). **Depends on:** `B4.4`
-merged. **PR:** none yet. (ruling 308, record 6326364266)
+merged. **PR:** #7404 (ruling 308, record 6326364266); step-2 PR: #7405
 
 Design: [`../4n-trash.md`](../4n-trash.md), the `F4.3` parts. Covers F-087, F-088 with `B4.4`.
 
-- [ ] The test-only PR (step 2).
+- [x] The test-only PR (step 2). — #7405
 - [ ] The build PR: Delete in `EventDetailModal`, bulk Delete on the timeline, the Undo toast;
       `permanentlyDeleteEvent` sends `?permanent=true`; Trash shows the deleted and purge dates;
       the setting under Settings › Data.
