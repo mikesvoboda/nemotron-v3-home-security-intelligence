@@ -217,9 +217,11 @@ def main() -> int:
     if args.nav_json:
         nav = json.loads(args.nav_json.read_text())
     else:
+        # argv is [interpreter, committed sibling script, --root, directory path];
+        # no shell, root is never interpolated into a command string — nominal
+        # taint only (sys.executable + argparse root, the ratchet-check.py shape).
         proc = subprocess.run(
-            # nosemgrep: python.lang.security.audit.dangerous-subprocess-use-tainted-env-args - argv is [interpreter, committed sibling script, --root, directory path]; no shell, root is never interpolated into a command string
-            [sys.executable, str(NAV_SCRIPT), "--root", str(root)],
+            [sys.executable, str(NAV_SCRIPT), "--root", str(root)],  # nosemgrep: python.lang.security.audit.dangerous-subprocess-use-tainted-env-args
             capture_output=True,
             text=True,
             timeout=300,
