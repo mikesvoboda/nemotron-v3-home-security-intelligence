@@ -271,9 +271,12 @@ def face_frame(tmp_path):
 
 
 def _wire_manager(monkeypatch, manager):
+    import backend.services.face_recognizer_loader as frl
     import backend.services.model_zoo as mz
 
     monkeypatch.setattr(mz, "get_model_manager", lambda: manager)
+    if not manager._loaded_models:
+        monkeypatch.setattr(frl, "get_face_leg_handles", lambda: None)
 
 
 async def _fake_gallery(match):
