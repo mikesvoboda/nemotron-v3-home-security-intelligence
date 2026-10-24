@@ -105,7 +105,7 @@ def is_disabled(text: str) -> bool:
     return frontmatter_flags(text).get("disabled", "").lower() == "true"
 
 
-def _node_targets(node) -> list[str]:
+def _node_targets(node: object) -> list[str]:
     """Every string target inside one nav node, at any depth, title-free.
 
     mkdocs nav nodes are: a list of children; a {key: value} where the key is a
@@ -303,7 +303,9 @@ def main() -> int:
             f.append("record")
         if f:
             flags[rel] = f
-    living_missing = sorted(missing - {r for r, f in flags.items() if "disabled" in f or "record" in f})
+    living_missing = sorted(
+        missing - {r for r, f in flags.items() if "disabled" in f or "record" in f}
+    )
 
     by_dir: dict[str, int] = {}
     for rel in living_missing:
