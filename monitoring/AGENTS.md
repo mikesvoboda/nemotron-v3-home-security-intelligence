@@ -26,13 +26,10 @@ monitoring/
     config.alloy               # Alloy collector configuration
   blackbox-exporter.yml        # Blackbox Exporter synthetic monitoring config (NEM-1637)
   cadvisor/                    # cAdvisor systemd unit (container metrics)
-  dcgm/                        # NVIDIA DCGM GPU exporter (see dcgm/AGENTS.md)
+  dcgm/                        # NVIDIA DCGM GPU exporter
   grafana/                     # Grafana configuration
-    AGENTS.md                  # Grafana directory guide
-    dashboards/                # Dashboard JSON definitions (14 dashboards; see dashboards/AGENTS.md)
-      AGENTS.md                # Dashboards guide
+    dashboards/                # Dashboard JSON definitions (14 dashboards)
     provisioning/              # Auto-provisioning configs
-      AGENTS.md                # Provisioning guide
       dashboards/
         dashboard.yml          # Dashboard provider config
       datasources/

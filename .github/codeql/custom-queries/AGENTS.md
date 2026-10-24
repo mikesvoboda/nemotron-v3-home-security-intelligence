@@ -15,13 +15,11 @@ CodeQL is GitHub's semantic code analysis engine that treats code as data. These
 .github/codeql/custom-queries/
 ├── AGENTS.md                    # This file
 ├── python/                      # Python/FastAPI security queries
-│   ├── AGENTS.md               # Python queries guide
 │   ├── qlpack.yml              # CodeQL package definition
 │   ├── fastapi-missing-auth.ql
 │   ├── fastapi-sql-injection.ql
 │   └── unsafe-file-operations.ql
 └── javascript/                  # JavaScript/TypeScript/React queries
-    ├── AGENTS.md               # JavaScript queries guide
     ├── qlpack.yml              # CodeQL package definition
     ├── localstorage-sensitive-data.ql
     ├── react-dangerous-html.ql
@@ -362,7 +360,7 @@ If CodeQL analysis times out (> 2 hours):
 - **Pre-commit security:** See `/AGENTS.md` (Semgrep, Hadolint)
 - **Python security patterns:** See `backend/AGENTS.md`
 - **React security patterns:** See `frontend/AGENTS.md`
-- **CI/CD workflows:** See `.github/workflows/AGENTS.md`
+- **CI/CD workflows:** See `.github/AGENTS.md`
 
 ## External Resources
 

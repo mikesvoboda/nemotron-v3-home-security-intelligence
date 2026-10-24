@@ -14,13 +14,10 @@ This directory contains GitHub-specific configuration files for the Home Securit
   dependabot.yml              # Automated dependency updates
   pull_request_template.md    # PR template with checklist
   codeql/                     # CodeQL configuration
-    AGENTS.md                 # CodeQL directory guide
     codeql-config.yml         # Query configuration and path exclusions
   prompts/                    # AI prompt templates
-    AGENTS.md                 # Prompts directory guide
     code-review.prompt.md     # System prompt for AI code review
   workflows/                  # GitHub Actions workflow definitions (35 workflows)
-    AGENTS.md                 # Workflows directory guide
     # Core CI/CD
     ci.yml                    # Main CI pipeline
     deploy.yml                # Docker image build and push
