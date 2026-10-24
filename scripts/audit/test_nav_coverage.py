@@ -30,8 +30,9 @@ live mkdocs.yml at 90f820e3d, so none is hypothetical:
     them as "unlinked pages in no nav") inverts the intent. They are reported,
     flagged separately, and never in the debt count.
   * the dated record trees are exempt from the LIVING-docs definition
-    (docs/plans/, docs/superpowers/, docs/vss-integration/, docs/uplevel/ —
-    the same set scripts/audit/retired_names.py ships, and this test pins the
+    (docs/plans/, docs/superpowers/, docs/vss-integration/, docs/uplevel/,
+    and docs/auto-vlm-research/ per ruling 330 — the same set
+    scripts/audit/retired_names.py ships, and this test pins the
     two copies against each other; the fixture expectations themselves are
     literals, not derived from either constant).
   * a nav target that names neither an existing file nor an existing directory
@@ -83,6 +84,10 @@ DOCS_FILES = {
     "off/disabled.md": "---\ndisabled: true\n---\n\n# moved\n",
     # a dated record: living-docs exempt, still nav-missing
     "plans/2026-01-01-old.md": "# record\n",
+    # ruling 330: the auto-vlm design record, exempt the same way — the page
+    # is nav-missing on purpose (the fixture nav never lists it), so the
+    # exemption is observable in living_docs_missing
+    "auto-vlm-research/01-architecture.md": "# record\n",
     # ordinary nav debt
     "extra/loose.md": "# loose\n",
 }
@@ -96,9 +101,15 @@ COVERED = {
     "deep/page.md",
     "twin/README.md",
 }
-MISSING = {"AGENTS.md", "off/disabled.md", "plans/2026-01-01-old.md", "extra/loose.md"}
+MISSING = {
+    "AGENTS.md",
+    "off/disabled.md",
+    "plans/2026-01-01-old.md",
+    "auto-vlm-research/01-architecture.md",
+    "extra/loose.md",
+}
 DISABLED = {"off/disabled.md"}
-RECORD = {"plans/2026-01-01-old.md"}
+RECORD = {"plans/2026-01-01-old.md", "auto-vlm-research/01-architecture.md"}
 LIVING_MISSING = {"AGENTS.md", "extra/loose.md"}
 DANGLING = {"nowhere/missing.md", "ghost/"}
 
@@ -229,6 +240,7 @@ included in the "nav" configuration:
   - AGENTS.md
   - off/disabled.md
   - plans/2026-01-01-old.md
+  - auto-vlm-research/01-architecture.md
   - extra/loose.md
 INFO    -  Doc file 'x.md' contains a link 'y.md', but the target is not found.
 INFO    -  Documentation built in 31.58 seconds

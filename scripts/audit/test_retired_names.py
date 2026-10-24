@@ -80,6 +80,13 @@ def build_tree(root: Path) -> None:
     (root / "backend" / "tests" / "test_pose.py").write_text(
         "def test_pose():\n    assert demographic\n", encoding="utf-8"
     )
+    # ruling 330: docs/auto-vlm-research/ is a design record like
+    # docs/vss-integration/ — excluded from the census corpus (fixture page
+    # names a retired name so the exclusion is observable, not vacuous)
+    (root / "docs" / "auto-vlm-research").mkdir()
+    (root / "docs" / "auto-vlm-research" / "01-architecture.md").write_text(
+        "the nemotron design record\n", encoding="utf-8"
+    )
 
 
 def run_script(tree: Path) -> tuple[int, str, str]:
@@ -154,6 +161,19 @@ def test_summary_line_and_exit(tmp_path: Path):
     payload = json.loads(out)
     assert payload["files_with_hits"] == 4
     assert "O1.7 retired-names: 4 files with hits" in err
+
+
+def test_record_tree_auto_vlm_is_exempt(tmp_path: Path):
+    """Ruling 330: docs/auto-vlm-research/ is a design record (stamped
+    9cb9e60b0), the docs lane leaves it alone, so its mentions cannot ride
+    the census — an exempt tree whose counts moved would read as drift in a
+    record the lane does not edit. The fixture page names a retired name on
+    purpose: with the prefix missing from RECORD_DOC_PREFIXES the docs bucket
+    counts it and this test goes red; the exemption is observable."""
+    build_tree(tmp_path)
+    result = scan(tmp_path)
+    assert result["buckets"]["docs"] == 1  # architecture.md only
+    assert "docs/auto-vlm-research/01-architecture.md" not in {f["path"] for f in result["files"]}
 
 
 def test_names_match_plan_text():

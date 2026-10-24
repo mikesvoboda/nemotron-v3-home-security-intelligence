@@ -65,6 +65,8 @@ RECORD_DOC_PREFIXES = (
     "docs/superpowers/",
     "docs/vss-integration/",
     "docs/uplevel/",
+    # ruling 330: the autovlm design record (mirrors retired_names.py)
+    "docs/auto-vlm-research/",
 )
 # The tuples above are REPO-relative because retired_names.py walks the whole
 # repo. This census walks docs/, so its paths are DOCS-relative and a raw

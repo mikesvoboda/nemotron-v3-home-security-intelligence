@@ -64,6 +64,9 @@ RECORD_DOC_PREFIXES = (
     "docs/superpowers/",
     "docs/vss-integration/",
     "docs/uplevel/",
+    # ruling 330: the autovlm design record, stamped 9cb9e60b0 — the docs lane
+    # leaves it alone, so its pages are exempt the same way as the four above
+    "docs/auto-vlm-research/",
 )
 DOC_SUFFIXES = {".md"}
 # Extensionless files (Makefile, Dockerfile…) and ordinary text are scanned;
