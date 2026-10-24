@@ -127,6 +127,12 @@ HOST_JUSTIFIED: dict[str, str] = {
     # non-nullable FK); an empty events table is the stack's data state, the
     # same data-chain shape as test_risk_score_validation.py:199 above.
     "backend/tests/golden/external/test_webhook_deliveries.py:165": "no events rows on the live stack — DB data chain, not repo content",
+    # B4.3's golden webpush leg: `_sinks()` guards on the SAME harness env the
+    # sibling sink specs read. The guard's `missing` list is a comprehension
+    # over os.environ reads — the SINK_ENV names plus the camera-root and
+    # scenarios variables — the conftest.py:61/:70 local-alias shape;
+    # collection must never crash without a stack.
+    "backend/tests/golden/external/test_webpush_delivery.py:185": "missing is a comprehension over os.environ reads — FEATURE_CHECK_* harness env absent, host state behind a local alias",
     # Compose binary availability, resolved inside a helper the probe can't see.
     "backend/tests/unit/core/test_compose_render_lists_ai_vlm.py:67": "argv is None when no compose binary (podman/docker) resolves via shutil.which — host-executable guard, not repo content",
     # O1.11's prometheus boot pin: same docker-availability shape, resolved two

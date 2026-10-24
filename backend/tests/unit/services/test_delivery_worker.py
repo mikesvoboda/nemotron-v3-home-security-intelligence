@@ -7,9 +7,10 @@ and skip without TEST_DATABASE_URL.
 
 from __future__ import annotations
 
-from datetime import timedelta
+from datetime import UTC, datetime, timedelta
 
 from backend.models.alert_delivery import DeliveryChannelKind
+from backend.services.alerting.channels.base import SendResult
 from backend.services.alerting.worker import (
     BACKOFF_SECONDS,
     BROWSER_EXPIRE_AFTER,
@@ -18,6 +19,8 @@ from backend.services.alerting.worker import (
     NotificationDeliveryWorker,
     next_backoff,
 )
+
+_NOW = datetime(2026, 10, 23, 12, 0, 0, tzinfo=UTC)
 
 
 class TestBackoffLadder:
@@ -80,3 +83,105 @@ class TestWakeLifecycle:
         await w.start()
         await w.stop()
         await w.stop()
+
+
+class _RecordingFactory:
+    """Session factory double that records every UPDATE's SQL text + params."""
+
+    def __init__(self, capture: list[tuple[str, dict]]) -> None:
+        self.capture = capture
+
+    def __call__(self):
+        return _RecordingSession(self.capture)
+
+
+class _RecordingSession:
+    def __init__(self, capture: list[tuple[str, dict]]) -> None:
+        self.capture = capture
+
+    async def __aenter__(self):
+        return self
+
+    async def __aexit__(self, *a: object) -> None:
+        return None
+
+    async def execute(self, stmt: object, params: dict | None = None) -> None:
+        self.capture.append((str(stmt), dict(params or {})))
+
+    async def commit(self) -> None:
+        return None
+
+
+class TestExpiryDisablesChannel:
+    """The worker's 410 contract (4n-alerting.md:236): a push subscription
+    expiry switches the channel off so the recipient's settings show it."""
+
+    def _row(self, kind: str = "webpush") -> dict:
+        return {
+            "id": "d-1",
+            "kind": kind,
+            "channel_id": "ch-1",
+            "recipient_id": "r-1",
+            "attempts": 1,
+            "created_at": None,
+            "alert_id": "a-1",
+            "idempotency_key": "k-1",
+        }
+
+    def _disable_writes(self, capture: list[tuple[str, dict]]) -> list[dict]:
+        """Params of the writes that UPDATE recipient_channels."""
+        return [p for sql, p in capture if "recipient_channels" in sql]
+
+    async def test_subscription_expired_disables_the_channel_row(self) -> None:
+        capture: list[tuple[str, dict]] = []
+        channel = _FakeChannel(
+            SendResult(success=False, error="subscription_expired", meta={"expired": True})
+        )
+        w = _worker(
+            channel, session_factory=_RecordingFactory(capture), channels={"webpush": channel}
+        )
+        await w._send_one(self._row(), set(), _NOW)
+        # Two writes happen: the delivery failure + the channel disable.
+        disable = self._disable_writes(capture)
+        assert disable, f"no channel-disable write among {len(capture)} writes"
+        assert disable[0]["cid"] == "ch-1"
+
+    async def test_404_expired_marker_disables_too(self) -> None:
+        capture: list[tuple[str, dict]] = []
+        channel = _FakeChannel(
+            SendResult(
+                success=False,
+                error="subscription_expired",
+                meta={"status_code": 404, "expired": True},
+            )
+        )
+        w = _worker(
+            channel, session_factory=_RecordingFactory(capture), channels={"webpush": channel}
+        )
+        await w._send_one(self._row(), set(), _NOW)
+        assert self._disable_writes(capture), "404 expiry must also disable the channel row"
+
+    async def test_ordinary_failure_does_not_disable(self) -> None:
+        """5xx rides the backoff ladder; the channel stays enabled."""
+        capture: list[tuple[str, dict]] = []
+        channel = _FakeChannel(
+            SendResult(success=False, error="http_500", meta={"status_code": 500})
+        )
+        w = _worker(
+            channel, session_factory=_RecordingFactory(capture), channels={"webpush": channel}
+        )
+        await w._send_one(self._row(), set(), _NOW)
+        assert not self._disable_writes(capture)
+
+    async def test_disabled_channel_also_records_the_failure(self) -> None:
+        """The delivery itself still lands FAILED/RETRYING with the marker —
+        disabling the channel is in addition to, not instead of, recording."""
+        capture: list[tuple[str, dict]] = []
+        channel = _FakeChannel(
+            SendResult(success=False, error="subscription_expired", meta={"expired": True})
+        )
+        w = _worker(
+            channel, session_factory=_RecordingFactory(capture), channels={"webpush": channel}
+        )
+        await w._send_one(self._row(), set(), _NOW)
+        assert any("notification_deliveries" in sql for sql, _ in capture)

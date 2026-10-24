@@ -131,6 +131,17 @@ services:
       # instead, and B4.2's per-channel flag consumes these names).
       - FEATURE_CHECK_SINK_WEBHOOK_HOST=webhook-sink:8091
       - FEATURE_CHECK_SINK_PUSH_HOST=push-sink:8092
+      # Web Push (B4.3): a fixed TEST-ONLY VAPID pair so the adapter's fail
+      # closed check (settings.vapid_private_key is None -> webpush_not_
+      # configured) opens in the fake stack and the golden leg proves a real
+      # RFC 8291 send through the worker. Production generates a per-install
+      # pair at setup (setup_lib/credentials.py); this key guards nothing but
+      # the test stack's own push sink, the same doctrine ci_test_password
+      # holds for Postgres (docker-compose.ci.yml:37). The subject rides the
+      # adapter's mailto fallback; the public key is what the golden leg's
+      # subscription registers against (a browser's applicationServerKey).
+      - VAPID_PRIVATE_KEY=MIGHAgEAMBMGByqGSM49AgEGCCqGSM49AwEHBG0wawIBAQQg-CqnAKWVV31JrijoQ3HW607E5JZs55ZtRif7z_J1FQehRANCAAStIiAhQQEk9gnqBvGtXliEKHLpKfj518Co_XdQVXo6iyGOOdrhO3XuUN9cMC6igRJuE2ZJgEnhnVSNqQ6el65K # pragma: allowlist secret
+      - VAPID_PUBLIC_KEY=BK0iICFBAST2CeoG8a1eWIQocukp-PnXwKj9d1BVejqLIY452uE7de5Q31wwLqKBEm4TZkmASeGdVI2pDp6Xrko
     depends_on:
       mail-sink:
         condition: service_healthy

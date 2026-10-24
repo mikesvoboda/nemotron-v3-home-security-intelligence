@@ -15,6 +15,7 @@ torn down in teardown: terminate first, kill only if it ignores that.
 
 from __future__ import annotations
 
+import base64
 import json
 import os
 import queue
@@ -263,6 +264,39 @@ class TestTheRecorderSinks:
         assert record["headers"]["ttl"] == "60", record
         assert record["headers"]["authorization"].startswith("vapid "), record
         assert json.loads(record["body"]) == {"blob": "encrypted-bytes"}, record
+
+    def test_the_recorder_keeps_the_exact_bytes_it_received(self, sink: Any) -> None:
+        """``body_b64`` carries the raw request bytes (B4.3's decrypt leg).
+
+        Web Push bodies are AES128GCM ciphertext (RFC 8291) — not valid UTF-8,
+        so the text form (``errors="replace"``) mangles them and a golden leg
+        could never prove the round-trip against what was actually on the
+        wire. The base64 twin decodes to the bytes that arrived; for a plain
+        JSON body it is the same payload re-encoded, which this pin asserts
+        alongside the text form for a non-ASCII byte too (0xFF has no UTF-8
+        meaning, so the text form's fidelity for it is exactly what the
+        replacement-scheme gives and no more).
+        """
+        process = sink("http", "0", "webhook")
+        process.wait_ports("HTTP_PORT")
+        url = f"http://127.0.0.1:{process.ports['HTTP_PORT']}"
+
+        import urllib.request
+
+        request = urllib.request.Request(  # noqa: S310 (the sink's own 127.0.0.1 port, announced above)
+            f"{url}/hook",
+            data=b"\xff\xfe binary \x00 bytes",
+            method="POST",
+        )
+        # nosemgrep: ssrf-requests - the URL is the sink subprocess's announced loopback port
+        with urllib.request.urlopen(  # noqa: S310 (same loopback port as the Request above)
+            request, timeout=5.0
+        ) as response:
+            assert response.status == 200
+
+        _, listing = _http_json(f"{url}/requests")
+        record = listing["requests"][0]
+        assert base64.b64decode(record["body_b64"]) == b"\xff\xfe binary \x00 bytes", record
 
     def test_the_recorder_refuses_unexpected_methods(self, sink: Any) -> None:
         process = sink("http", "0", "webhook")

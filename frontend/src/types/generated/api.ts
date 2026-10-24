@@ -8066,6 +8066,43 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/notification-preferences/push-subscription": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * This browser's Web Push subscription state (masked)
+         * @description Subscription state for the settings page, with keys masked.
+         *
+         *     Reports ``registered``/``enabled`` so a channel the worker switched off
+         *     on HTTP 410 is shown switched off (4n-alerting.md:236).
+         */
+        get: operations["notification-preferences_get_push_subscription"];
+        /**
+         * Register or rotate this browser's Web Push subscription
+         * @description Register (or rotate) this browser's Web Push subscription.
+         *
+         *     Writes a ``webpush`` channel row on the Household recipient — the seeded
+         *     recipient that owns quiet hours and holds the This-browser row (the
+         *     design's This-browser row needs no login). An existing row for the same
+         *     browser is updated in place, never duplicated, and a re-subscription
+         *     re-enables a row the worker disabled on HTTP 410.
+         */
+        put: operations["notification-preferences_register_push_subscription"];
+        post?: never;
+        /**
+         * Remove this browser's Web Push subscription
+         * @description Delete this browser's channel row (the browser asked to unsubscribe).
+         */
+        delete: operations["notification-preferences_delete_push_subscription"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/notification-preferences/quiet-hours": {
         parameters: {
             query?: never;
@@ -33767,6 +33804,116 @@ export interface components {
             timezone?: string | null;
         };
         /**
+         * PushSubscriptionKeys
+         * @description Browser-supplied Web Push encryption keys (PushSubscriptionJSON.keys).
+         */
+        PushSubscriptionKeys: {
+            /**
+             * Auth
+             * @description Authentication secret (urlsafe base64)
+             */
+            auth: string;
+            /**
+             * P256Dh
+             * @description Client public key (P-256, urlsafe base64)
+             */
+            p256dh: string;
+        };
+        /**
+         * PushSubscriptionRegister
+         * @description Body for registering/rotating This-browser's Web Push subscription.
+         *
+         *     Mirrors the browser's ``PushSubscriptionJSON``: endpoint plus keys, with an
+         *     optional device id so multiple browsers can each hold their own channel row.
+         */
+        PushSubscriptionRegister: {
+            /**
+             * Device Id
+             * @description Stable browser identifier; used to match the channel row
+             */
+            device_id?: string | null;
+            /**
+             * Endpoint
+             * @description Push service endpoint URL
+             */
+            endpoint: string;
+            /** @description p256dh + auth encryption keys */
+            keys: components["schemas"]["PushSubscriptionKeys"];
+        };
+        /**
+         * PushSubscriptionRegisterResponse
+         * @description Answer to a successful registration/rotation.
+         */
+        PushSubscriptionRegisterResponse: {
+            /**
+             * Enabled
+             * @description Channel state after registration
+             * @default true
+             */
+            enabled: boolean;
+            /**
+             * Push Subscription
+             * @description Masked subscription echo
+             */
+            push_subscription: {
+                [key: string]: unknown;
+            };
+            /**
+             * Status
+             * @description registered
+             */
+            status: string;
+        };
+        /**
+         * PushSubscriptionState
+         * @description This-browser subscription state for the settings page (masked).
+         *
+         *     The privacy row (4n-alerting.md "Privacy"): the API never returns secrets
+         *     or push keys in full — key material is masked to a fingerprint.
+         * @example {
+         *       "enabled": true,
+         *       "endpoint": "https://fcm.googleapis.com/fcm/send/…",
+         *       "push_subscription": {
+         *         "endpoint": "https://fcm.googleapis.com/fcm/send/…",
+         *         "keys": {
+         *           "auth": "auth:9d20…",
+         *           "p256dh": "p256dh:bf31…"
+         *         }
+         *       },
+         *       "registered": true
+         *     }
+         */
+        PushSubscriptionState: {
+            /**
+             * Enabled
+             * @description Whether the channel row is enabled
+             * @default false
+             */
+            enabled: boolean;
+            /**
+             * Endpoint
+             * @description Push service endpoint (host truncated)
+             */
+            endpoint?: string | null;
+            /**
+             * Last Error
+             * @description Last delivery error, e.g. subscription_expired
+             */
+            last_error?: string | null;
+            /**
+             * Push Subscription
+             * @description Masked subscription: endpoint + fingerprinted keys
+             */
+            push_subscription?: {
+                [key: string]: unknown;
+            } | null;
+            /**
+             * Registered
+             * @description Whether a subscription exists for this browser
+             */
+            registered: boolean;
+        };
+        /**
          * QualityScores
          * @description Self-evaluation quality scores (1-5 scale).
          * @example {
@@ -52369,6 +52516,101 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content?: never;
+            };
+        };
+    };
+    "notification-preferences_get_push_subscription": {
+        parameters: {
+            query?: {
+                device_id?: string | null;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PushSubscriptionState"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    "notification-preferences_register_push_subscription": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["PushSubscriptionRegister"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PushSubscriptionRegisterResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    "notification-preferences_delete_push_subscription": {
+        parameters: {
+            query?: {
+                device_id?: string | null;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PushSubscriptionState"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
             };
         };
     };

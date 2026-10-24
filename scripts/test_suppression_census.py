@@ -807,6 +807,16 @@ def test_real_tree_matches_spec_baselines():
     HOST_JUSTIFIED (b904d853f) — registry + baseline raised inside the PR,
     the mirror raised THIS commit after the PR's first-round local gates
     missed it; Collection Sanity caught the drift exactly as designed.
+    pytest_skip_imperative 95→96 (2026-10-23, B4.3 PR #7372): the golden
+    webpush leg's `_sinks()` — test_webpush_delivery.py:185 — the sink-env
+    gate; the comprehension over os.environ reads sits behind a local alias
+    `missing` (SINK_ENV + FEATURE_CHECK_CAMERA_ROOT + FEATURE_CHECK_
+    SCENARIOS), the conftest.py:61/:70 local-alias shape. Adjudicated
+    environment via HOST_JUSTIFIED (b904d853f's channel); registry entry +
+    baseline raised in this same commit. Increase path, eighth precedent.
+    (The id moved 110→185 the same day: the per-worker identity tables
+    added above `_sinks()` shifted the line; the site itself is unchanged,
+    so the registry row moved with it — no count change, no re-adjudication.)
     """
     got = run_census(REPO_ROOT)
     expected = {
@@ -875,7 +885,15 @@ def test_real_tree_matches_spec_baselines():
         # Both adjudicated environment via HOST_JUSTIFIED (b904d853f's
         # channel); registry entries + baseline raised in this same commit.
         # Increase path, seventh precedent.
-        "pytest_skip_imperative": 95,
+        # 95→96 (2026-10-23, B4.3 PR #7372): the golden webpush leg's
+        # `_sinks()` — test_webpush_delivery.py:185 — the sink-env gate;
+        # the comprehension over os.environ reads sits behind a local alias
+        # `missing` (SINK_ENV + FEATURE_CHECK_CAMERA_ROOT + FEATURE_CHECK_
+        # SCENARIOS), the conftest.py:61/:70 local-alias shape. Adjudicated
+        # environment via HOST_JUSTIFIED (b904d853f's channel); registry
+        # entry + baseline raised in this same commit.
+        # Increase path, eighth precedent.
+        "pytest_skip_imperative": 96,
         # 51→49 (2026-10-21, roll 10 of #7246) then main's r285 +3 sites landed
         # inside files the F3.2 cut had already deleted (useMonitoringTargets,
         # ReidHistoryPanel tests): the merged tree MEASURES 49, so main's 52

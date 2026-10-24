@@ -380,7 +380,41 @@ class TestCredentialsManager:
 
         for name, value in credentials.items():
             if name != "api_key":  # API key uses URL-safe encoding
+                # VAPID keys are urlsafe-base64 (- and _), not random passwords.
+                if name.startswith("vapid_"):
+                    continue
                 assert not any(c in SPECIAL_CHARS for c in value)
+
+    def test_generate_all_creates_vapid_keys(self) -> None:
+        """generate_all provisions a Web Push VAPID keypair (B4.3).
+
+        The private key is the PKCS8 DER urlsafe form pywebpush loads; the
+        public key the 87-char uncompressed P-256 point a browser receives as
+        ``applicationServerKey``.
+        """
+        manager = CredentialsManager()
+        credentials = manager.generate_all()
+
+        assert "vapid_private_key" in credentials
+        assert "vapid_public_key" in credentials
+        assert len(credentials["vapid_private_key"]) >= 160
+        assert len(credentials["vapid_public_key"]) == 87
+
+    def test_write_env_file_carries_vapid_keys(self) -> None:
+        """The .env write includes the VAPID env names (never the database)."""
+        import tempfile
+        from pathlib import Path
+
+        manager = CredentialsManager()
+        manager.generate_all()
+        with tempfile.TemporaryDirectory() as tmp:
+            env_path = Path(tmp) / ".env"
+            assert manager.write_env_file(env_path)
+            content = env_path.read_text()
+            assert "VAPID_PRIVATE_KEY=" in content
+            assert "VAPID_PUBLIC_KEY=" in content
+            stat_mode = env_path.stat().st_mode & 0o777
+            assert stat_mode == 0o600
 
     def test_callback_called_on_generation(self) -> None:
         """on_credential_generated callback is called for each credential."""
@@ -393,12 +427,14 @@ class TestCredentialsManager:
         manager.on_credential_generated = callback
         manager.generate_all()
 
-        assert len(generated) == 4
+        assert len(generated) == 6  # 4 credentials + the VAPID keypair (B4.3)
         names = [g[0] for g in generated]
         assert "postgres_password" in names
         assert "redis_password" in names
         assert "mqtt_password" in names
         assert "api_key" in names
+        assert "vapid_private_key" in names
+        assert "vapid_public_key" in names
 
     def test_get_credential_returns_value(self) -> None:
         """get_credential returns stored credential value."""
@@ -614,7 +650,12 @@ class TestCredentialsManagerDockerSecrets:
         """create_docker_secrets uses docker secret create in swarm mode."""
         # First call to inspect returns error (secret doesn't exist)
         # Second call to create returns success
+        # 6 credentials (4 + the VAPID keypair) x (inspect + create).
         mock_subprocess.side_effect = [
+            MagicMock(returncode=1),  # inspect fails
+            MagicMock(returncode=0),  # create succeeds
+            MagicMock(returncode=1),  # inspect fails
+            MagicMock(returncode=0),  # create succeeds
             MagicMock(returncode=1),  # inspect fails
             MagicMock(returncode=0),  # create succeeds
             MagicMock(returncode=1),  # inspect fails
@@ -633,7 +674,7 @@ class TestCredentialsManagerDockerSecrets:
         assert result is True
         # Check that create was called with stdin input
         create_calls = [c for c in mock_subprocess.call_args_list if "create" in str(c)]
-        assert len(create_calls) == 4
+        assert len(create_calls) == 6
 
     def test_create_docker_secrets_raises_if_no_credentials(self, secrets_dir: Path) -> None:
         """create_docker_secrets raises RuntimeError if no credentials."""
@@ -689,7 +730,7 @@ class TestPromptAndGenerateCredentials:
         config = {"env_file_path": str(env_file_path)}
         credentials = prompt_and_generate_credentials(config)
 
-        assert len(credentials) == 4
+        assert len(credentials) == 6  # 4 credentials + the VAPID keypair (B4.3)
         assert env_file_path.exists()
 
     def test_prompt_skips_if_existing_and_declined(

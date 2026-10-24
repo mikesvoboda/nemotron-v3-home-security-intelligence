@@ -35,6 +35,7 @@ from collections.abc import Iterator
 from pathlib import Path
 
 import pytest
+from sqlalchemy import text
 from sqlalchemy.ext.asyncio import AsyncConnection, create_async_engine
 
 from backend.migrations import registry
@@ -429,14 +430,16 @@ async def test_a_failing_upgrade_statement_rolls_back_and_leaves_no_record(
 async def test_upgrade_command_records_a_create_all_database_without_running_sql(
     postgres_container,
 ):
-    """A database `create_all` built fresh: record all five upgrades, run NO upgrade SQL.
+    """A database `create_all` built fresh: record the upgrades, run NO upgrade SQL except 0013's seed.
 
-    This is what a new installation does, and it is the branch nothing else in the repo asserted
-    (census: `grep -rn 'state == .verified.' backend/tests/` was empty). The runner answers "is
-    this upgrade's effect already in THIS database?" per upgrade, and on a create_all database the
-    answer is yes five times: jsonb alert columns (0001), the three provenance columns (0002/0003),
-    the two retired tables gone (0004 -- the models no longer define them, so create_all cannot
-    bring them back), and the twelve January-2026 columns (0005).
+    This is what a new installation does. The runner answers "is this upgrade's effect already
+    in THIS database?" per upgrade, and on a create_all database the answer is yes for every
+    schema effect: jsonb alert columns (0001), the three provenance columns (0002/0003), the
+    two retired tables gone (0004 -- the models no longer define them, so create_all cannot
+    bring them back), and the twelve January-2026 columns (0005). The one exception is 0013:
+    create_all builds the delivery tables but seeds nothing, so the Household recipient row is
+    missing and the CHECK (data-aware since the deterministic 503 of run 39901062658) has the
+    file's idempotent INSERT run and record executed.
 
     `executed=False` is asserted twice over -- on the returned results AND on the rows read back
     out of `schema_migrations` -- because the record is the thing later boots trust. A run that
@@ -458,22 +461,36 @@ async def test_upgrade_command_records_a_create_all_database_without_running_sql
 
         results = await upgrade_database(engine)
         assert [r.id for r in results] == list(registry.ids())
-        assert [r.state for r in results] == ["verified"] * len(registry.ids()), [
-            r.describe() for r in results
+        # 0013 is the one deliberate exception to verified-without-running on a fresh
+        # database: its CHECK is data-aware (the Household seed is part of 0013's effect and
+        # create_all seeds nothing), so its idempotent INSERT runs and records executed. The
+        # rest of the registry stays verified -- the ACCESS EXCLUSIVE rationale (NEM-5051)
+        # belongs to the ALTER-carrying upgrades.
+        expected_states = [
+            "applied" if uid == "0013-alert-delivery" else "verified" for uid in registry.ids()
         ]
-        assert not any(r.executed for r in results), [r.describe() for r in results]
-        assert not any(r.statements for r in results), "a verified upgrade must run zero statements"
+        assert [r.state for r in results] == expected_states, [r.describe() for r in results]
+        executed_ids = [r.id for r in results if r.executed]
+        assert executed_ids == ["0013-alert-delivery"], [r.describe() for r in results]
+        assert not any(r.statements for r in results if r.id != "0013-alert-delivery"), (
+            "a verified upgrade must run zero statements"
+        )
 
         async with engine.connect() as conn:
             records = await read_records_tx(conn)
             assert set(records) == set(registry.ids())
-            assert not any(rec.executed for rec in records.values()), {
-                uid: rec.executed for uid, rec in records.items()
-            }
+            assert all(
+                rec.executed == (uid == "0013-alert-delivery") for uid, rec in records.items()
+            ), {uid: rec.executed for uid, rec in records.items()}
             by_id = {u.id: u for u in registry.UPGRADES}
             assert all(records[uid].checksum == by_id[uid].checksum() for uid in records)
             # 0005's effect on this database came from create_all, not from the upgrade.
             assert await _missing_0005_columns(conn) == []
+            # And 0013's data effect came FROM the upgrade: the Household seed ran.
+            seeded = await conn.execute(
+                text("SELECT count(*) FROM recipients WHERE name = 'Household'")
+            )
+            assert seeded.scalar() == 1
 
         # And the second boot is inert, exactly as test 1's is for an upgraded box.
         async with engine.connect() as conn:

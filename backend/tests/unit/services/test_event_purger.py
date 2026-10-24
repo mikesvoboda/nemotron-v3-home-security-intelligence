@@ -695,3 +695,128 @@ class TestEventPurgerUnit:
         ):
             recovered = await recover_orphaned_detections(aggregator)
         assert recovered == 0
+
+    @pytest.mark.asyncio
+    async def test_purge_deletes_notification_deliveries_when_the_table_exists(
+        self, tmp_path: Path
+    ) -> None:
+        """Purging an alert's last event deletes its notification_deliveries rows.
+
+        Regression for feature-check run 39901062658: `_delete_deliveries_if_present` bound a
+        tuple into `text("... IN :alert_ids")`, which is one scalar in a list position -- every
+        purge sent `IN $1` to Postgres, got `syntax error at or near "$1"`, and the method's
+        own except swallowed it, returning 0 while the rows survived. The fix uses `delete()`
+        + `in_()`, so this pins the deletion actually counting rows when the table is present
+        (the B4.2-compatibility "table may not exist" path stays the except branch).
+        """
+        db_file = tmp_path / "purger_deliveries.db"
+        engine = create_engine(f"sqlite:///{db_file}", future=True)
+
+        @event.listens_for(engine, "connect")
+        def _enable_fk(dbapi_conn, _conn_record):
+            cursor = dbapi_conn.cursor()
+            cursor.execute("PRAGMA foreign_keys=ON")
+            cursor.close()
+
+        from backend.models.alert_delivery import (
+            NotificationDelivery,
+            Recipient,
+            RecipientChannel,
+        )
+        from backend.models.user import User
+
+        # The main fixture's table list (everything the purge path touches), plus the
+        # delivery tables this test is for.
+        tables = [
+            Household.__table__,
+            Property.__table__,
+            Camera.__table__,
+            Event.__table__,
+            EventVerification.__table__,
+            EventNotifyDecision.__table__,
+            Detection.__table__,
+            EventDetection.__table__,
+            Entity.__table__,
+            KnownPerson.__table__,
+            FaceEmbedding.__table__,
+            FaceDetectionEvent.__table__,
+            HouseholdMember.__table__,
+            PersonEmbedding.__table__,
+            AlertRule.__table__,
+            Alert.__table__,
+            AlertEvent.__table__,
+            AuditLog.__table__,
+            User.__table__,
+            Recipient.__table__,
+            RecipientChannel.__table__,
+            NotificationDelivery.__table__,
+        ]
+        with engine.begin() as conn:
+            for tbl in tables:
+                tbl.create(conn, checkfirst=True)
+
+        factory = sessionmaker(engine, expire_on_commit=False)
+        with factory() as sync_sess:
+            sync_sess.add(
+                Camera(
+                    id="front_door",
+                    name="Front Door",
+                    folder_path="/export/foscam/front_door",
+                    status="online",
+                )
+            )
+            sync_sess.commit()
+
+        class _Sess(_AsyncSQLiteSession):
+            async def flush(self) -> None:
+                self._s.flush()
+
+        sess = _Sess(factory())
+        now = datetime.now(UTC)
+        ev = Event(
+            batch_id="b-del-1",
+            camera_id="front_door",
+            started_at=now - timedelta(minutes=20),
+            ended_at=now - timedelta(minutes=19),
+            risk_score=80,
+            risk_level="high",
+            summary="Purge with deliveries",
+            deleted_at=now - timedelta(minutes=5),
+        )
+        sess.add(ev)
+        await sess.flush()
+
+        alert = Alert(
+            event_id=ev.id,
+            last_event_id=ev.id,
+            last_seen_at=ev.started_at,
+            match_count=1,
+            severity=AlertSeverityEnum.HIGH,
+            status=AlertStatusEnum.OPEN,
+            dedup_key="front_door:person:del",
+        )
+        sess.add(alert)
+        await sess.flush()
+        sess.add(Recipient(id="r-del-1", name="Household", enabled=True))
+        await sess.flush()
+        sess.add(RecipientChannel(id="c-del-1", recipient_id="r-del-1", kind="email", target="x@y"))
+        await sess.flush()
+        for key in ("idem-1", "idem-2"):
+            sess.add(
+                NotificationDelivery(
+                    alert_id=alert.id,
+                    recipient_id="r-del-1",
+                    channel_id="c-del-1",
+                    kind="email",
+                    idempotency_key=key,
+                )
+            )
+        await sess.commit()
+
+        report = await EventPurger().purge([ev.id], reason="user", session=sess)  # type: ignore[arg-type]
+        await sess.commit()
+        assert report.purged == (ev.id,)
+        assert report.rows_removed["alerts"] == 1
+        assert report.rows_removed["deliveries"] == 2
+
+        engine.dispose()

@@ -2242,6 +2242,24 @@ class Settings(BaseSettings):
         description="Default email recipients for notifications",
     )
 
+    # Web Push (VAPID) settings (B4.3). The private key stays out of the
+    # database (4n-alerting.md:186): it is generated at setup and written to
+    # .env (600, owner read/write) by setup_lib, never to recipient_channels.
+    vapid_private_key: SecretStr | None = Field(
+        default=None,
+        description="VAPID private key (PKCS8 DER, urlsafe base64) for Web Push; "
+        "generated at setup, .env only",
+    )
+    vapid_public_key: str | None = Field(
+        default=None,
+        description="VAPID public key (raw uncompressed P-256 point, urlsafe base64) "
+        "handed to browsers as applicationServerKey",
+    )
+    vapid_subject: str | None = Field(
+        default=None,
+        description="VAPID subject (a mailto: contact) carried in the auth token",
+    )
+
     # Clip generation settings
     clips_directory: str = Field(
         default="data/clips",

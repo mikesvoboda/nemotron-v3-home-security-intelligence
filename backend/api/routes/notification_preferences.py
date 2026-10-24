@@ -3,6 +3,9 @@
 from __future__ import annotations
 
 import logging
+import uuid
+from typing import Any
+from urllib.parse import urlparse
 
 from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy import select
@@ -14,12 +17,16 @@ from backend.api.schemas.notification_preferences import (
     CameraNotificationSettingUpdate,
     NotificationPreferencesResponse,
     NotificationPreferencesUpdate,
+    PushSubscriptionRegister,
+    PushSubscriptionRegisterResponse,
+    PushSubscriptionState,
     QuietHoursPeriodCreate,
     QuietHoursPeriodResponse,
     QuietHoursPeriodsListResponse,
 )
 from backend.api.schemas.pagination import PaginationMeta
 from backend.core import get_db
+from backend.models.alert_delivery import DeliveryChannelKind, Recipient, RecipientChannel
 from backend.models.notification_preferences import (
     DEFAULT_CAMERA_RISK_THRESHOLD,
     CameraNotificationSetting,
@@ -411,3 +418,178 @@ async def delete_quiet_hours_period(
 
     await db.delete(period)
     await db.commit()
+
+
+# --- Web Push subscription (This browser, B4.3) ------------------------------
+
+
+def _masked_subscription(sub: dict | None) -> dict | None:
+    """A subscription echo the privacy row can stand behind.
+
+    The endpoint host is kept (routing diagnostics need it) but the path is
+    truncated, and each key is replaced by a fingerprint — the API never
+    returns secrets or push keys in full (4n-alerting.md, "Privacy").
+    """
+    if not isinstance(sub, dict):
+        return None
+    endpoint = str(sub.get("endpoint") or "")
+    raw_keys = sub.get("keys")
+    keys: dict[str, Any] = raw_keys if isinstance(raw_keys, dict) else {}
+    masked_keys: dict[str, str] = {}
+    for name in ("p256dh", "auth"):
+        value = str(keys.get(name) or "")
+        masked_keys[name] = f"{name}:{value[:4]}…" if value else ""
+    host = urlparse(endpoint).netloc or endpoint[:24]
+    masked_endpoint = f"{host}/…"
+    return {"endpoint": masked_endpoint, "keys": masked_keys}
+
+
+def _push_channel_of(recipient: Recipient, device_id: str | None) -> RecipientChannel | None:
+    """This browser's webpush channel row, or None when it has none.
+
+    A ``device_id`` pins the row (several browsers may each hold their own
+    subscription); without one the first webpush row answers.
+    """
+    for channel in recipient.channels:
+        if getattr(channel, "kind", None) != DeliveryChannelKind.WEBPUSH:
+            continue
+        if device_id and str(getattr(channel, "target", "") or "") != device_id:
+            continue
+        return channel
+    return None
+
+
+@router.put(
+    "/push-subscription",
+    response_model=PushSubscriptionRegisterResponse,
+    summary="Register or rotate this browser's Web Push subscription",
+)
+async def register_push_subscription(
+    payload: PushSubscriptionRegister,
+    db: AsyncSession = Depends(get_db),
+) -> PushSubscriptionRegisterResponse:
+    """Register (or rotate) this browser's Web Push subscription.
+
+    Writes a ``webpush`` channel row on the Household recipient — the seeded
+    recipient that owns quiet hours and holds the This-browser row (the
+    design's This-browser row needs no login). An existing row for the same
+    browser is updated in place, never duplicated, and a re-subscription
+    re-enables a row the worker disabled on HTTP 410.
+    """
+    from sqlalchemy.orm import selectinload
+
+    result = await db.execute(
+        select(Recipient)
+        .options(selectinload(Recipient.channels))
+        .where(Recipient.enabled.is_(True))
+    )
+    recipients = result.scalars().all()
+    recipient = next((r for r in recipients if r.name == "Household"), None)
+    if recipient is None:
+        recipient = recipients[0] if recipients else None
+    if recipient is None:
+        # The recorded upgrade seeds Household; nothing to attach to is a
+        # server-side state problem, not a client error.
+        raise HTTPException(
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+            detail="No notification recipient exists yet; complete setup first.",
+        )
+
+    subscription = {
+        "endpoint": payload.endpoint,
+        "keys": {"p256dh": payload.keys.p256dh, "auth": payload.keys.auth},
+    }
+    channel = _push_channel_of(recipient, payload.device_id)
+    if channel is None:
+        channel = RecipientChannel(
+            id=str(uuid.uuid4()),
+            recipient_id=recipient.id,
+            kind=DeliveryChannelKind.WEBPUSH,
+            target=payload.device_id or "browser",
+            push_subscription=subscription,
+            enabled=True,
+        )
+        db.add(channel)
+        recipient.channels.append(channel)
+    else:
+        channel.push_subscription = subscription
+        channel.target = payload.device_id or channel.target
+        channel.enabled = True
+        channel.last_error = None
+    await db.commit()
+    return PushSubscriptionRegisterResponse(
+        status="registered",
+        push_subscription=_masked_subscription(subscription) or {},
+        enabled=True,
+    )
+
+
+@router.get(
+    "/push-subscription",
+    response_model=PushSubscriptionState,
+    summary="This browser's Web Push subscription state (masked)",
+)
+async def get_push_subscription(
+    device_id: str | None = None,
+    db: AsyncSession = Depends(get_db),
+) -> PushSubscriptionState:
+    """Subscription state for the settings page, with keys masked.
+
+    Reports ``registered``/``enabled`` so a channel the worker switched off
+    on HTTP 410 is shown switched off (4n-alerting.md:236).
+    """
+    from sqlalchemy.orm import selectinload
+
+    result = await db.execute(
+        select(Recipient)
+        .options(selectinload(Recipient.channels))
+        .where(Recipient.enabled.is_(True))
+    )
+    recipients = result.scalars().all()
+    recipient = next((r for r in recipients if r.name == "Household"), None)
+    if recipient is None:
+        return PushSubscriptionState(registered=False)
+
+    channel = _push_channel_of(recipient, device_id)
+    if channel is None:
+        return PushSubscriptionState(registered=False)
+    sub = channel.push_subscription if isinstance(channel.push_subscription, dict) else None
+    masked = _masked_subscription(sub)
+    return PushSubscriptionState(
+        registered=True,
+        enabled=bool(channel.enabled),
+        endpoint=masked["endpoint"] if masked else None,
+        push_subscription=masked,
+        last_error=getattr(channel, "last_error", None),
+    )
+
+
+@router.delete(
+    "/push-subscription",
+    response_model=PushSubscriptionState,
+    summary="Remove this browser's Web Push subscription",
+)
+async def delete_push_subscription(
+    device_id: str | None = None,
+    db: AsyncSession = Depends(get_db),
+) -> PushSubscriptionState:
+    """Delete this browser's channel row (the browser asked to unsubscribe)."""
+    from sqlalchemy.orm import selectinload
+
+    result = await db.execute(
+        select(Recipient)
+        .options(selectinload(Recipient.channels))
+        .where(Recipient.enabled.is_(True))
+    )
+    recipients = result.scalars().all()
+    recipient = next((r for r in recipients if r.name == "Household"), None)
+    if recipient is None:
+        return PushSubscriptionState(registered=False)
+
+    channel = _push_channel_of(recipient, device_id)
+    if channel is None:
+        return PushSubscriptionState(registered=False)
+    await db.delete(channel)
+    recipient.channels.remove(channel)
+    await db.commit()
+    return PushSubscriptionState(registered=False)
