@@ -74,6 +74,7 @@ ALWAYS_PRESENT = (
     "frontend_only",
     "frontend_todo",
     "golden_skip",
+    "golden_fixme",
     "frontend_quarantine",
 )
 
