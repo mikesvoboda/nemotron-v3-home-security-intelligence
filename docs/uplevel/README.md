@@ -215,6 +215,7 @@ UR-147.
 | F4.\*   | frontend                | 4          | Feature track, frontend parts                  | design: heavy | not started |     |
 | F4.4    | frontend                | 4          | Timeline filters and detections                |               | awaiting real tier | #7352, #7362 |
 | F4.1    | frontend                | 4          | The Alerts page                                |               | in progress | #7367, #7370 |
+| F4.3    | frontend                | 4          | The Trash UI                                   |               | in progress | #7404, #7405 |
 | F4.9    | frontend                | 4          | Easy and Advanced modes                        | heavy         | awaiting real tier | #7376, #7380 |
 | FB.\*   | frontend                | 4          | Background track                               |               | not started |     |
 | OB.2    | ops                     | after 1    | CI dedupe                                      |               | done        | #6963 |
@@ -226,7 +227,7 @@ UR-147.
 | W2.1    | docs                    | 2          | The boundary list and the line caps            |               | done        | #6920 |
 | W2.2    | docs                    | 2          | Docs rulings for `R2`                          |               | done        | #6923 |
 | W3.1    | docs                    | 3          | Boundaries only                                |               | in progress | #7331, #7351, #7353 |
-| W3.2    | docs                    | 3          | Rewrite the boundary files to the standard     |               | not started |     |
+| W3.2    | docs                    | 3          | Rewrite the boundary files to the standard     |               | in progress | backend PR (frontend + ops pending) |
 | W3.3    | docs                    | 3          | Living docs truth                              |               | not started |     |
 | W3.4    | docs                    | 3          | Carry out the docs rulings                     |               | done        | #7250 |
 
