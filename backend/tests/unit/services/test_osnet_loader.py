@@ -1211,25 +1211,25 @@ class TestOsnetModelId:
 
 
 class TestGetReidHandle:
-    """Membership read of the resident models — NEVER a load trigger (the
-    face get_face_leg_handles pattern)."""
+    """Membership read of the resident models when reid_backend='local' — NEVER
+    a load trigger (the face get_face_leg_handles pattern)."""
 
     def test_absent_model_answers_none(self, monkeypatch) -> None:
-        fake_manager = MagicMock()
-        fake_manager._loaded_models = {}
+        fake_manager = MagicMock(_loaded_models={})
+        monkeypatch.setattr(ol, "get_settings", lambda: MagicMock(reid_backend="local"))
         monkeypatch.setattr("backend.services.model_zoo.get_model_manager", lambda: fake_manager)
         assert ol.get_reid_handle() is None
 
     def test_resident_model_is_returned_unchanged(self, monkeypatch) -> None:
         handle = {"model": MagicMock(), "model_id": OSNET_ID}
-        fake_manager = MagicMock()
-        fake_manager._loaded_models = {"osnet-ain-x1-0": handle}
+        fake_manager = MagicMock(_loaded_models={"osnet-ain-x1-0": handle})
+        monkeypatch.setattr(ol, "get_settings", lambda: MagicMock(reid_backend="local"))
         monkeypatch.setattr("backend.services.model_zoo.get_model_manager", lambda: fake_manager)
         assert ol.get_reid_handle() is handle
 
     def test_read_never_triggers_a_load(self, monkeypatch) -> None:
-        fake_manager = MagicMock()
-        fake_manager._loaded_models = {}
+        fake_manager = MagicMock(_loaded_models={})
+        monkeypatch.setattr(ol, "get_settings", lambda: MagicMock(reid_backend="local"))
         monkeypatch.setattr("backend.services.model_zoo.get_model_manager", lambda: fake_manager)
         ol.get_reid_handle()
         assert fake_manager.load.call_count == 0

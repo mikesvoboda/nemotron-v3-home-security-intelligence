@@ -11,10 +11,22 @@ import {
   LayoutGrid,
   ShieldAlert,
   Square,
+  Trash2,
 } from 'lucide-react';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useSearchParams } from 'react-router-dom';
 
+import EventCard from './EventCard';
+import EventClusterCard from './EventClusterCard';
+import EventDetailModal from './EventDetailModal';
+import EventListView, { type SortField, type SortDirection } from './EventListView';
+import EventStatsPanel from './EventStatsPanel';
+import FilterChips from './FilterChips';
+import LiveActivitySection from './LiveActivitySection';
+import MobileEventCard from './MobileEventCard';
+import TimeGroupedEvents from './TimeGroupedEvents';
+import TimelineScrubber, { type TimeRange, type ZoomLevel } from './TimelineScrubber';
+import ViewToggle, { type ViewMode } from './ViewToggle';
 import { useEventModalRow, useEventWriteInvalidation } from '../../hooks/useEventModalRow';
 import { useEventsInfiniteQuery, type EventFilters } from '../../hooks/useEventsQuery';
 import { useEventStats } from '../../hooks/useEventStats';
@@ -26,6 +38,11 @@ import { usePaginationState } from '../../hooks/usePaginationState';
 import { useSnoozeEvent } from '../../hooks/useSnoozeEvent';
 import { useTimelineData } from '../../hooks/useTimelineData';
 import { useToast } from '../../hooks/useToast';
+import {
+  useBulkSoftDeleteMutation,
+  useRestoreEventMutation,
+  useSoftDeleteEventMutation,
+} from '../../hooks/useTrashQuery';
 import {
   bulkUpdateEvents,
   downloadEventMedia,
@@ -59,17 +76,6 @@ import { type ActivityEvent } from '../dashboard/ActivityFeed';
 import { ExportButton } from '../ExportButton';
 import ExportModal from '../exports/ExportModal';
 import { SearchBar, SearchResultsPanel } from '../search';
-import EventCard from './EventCard';
-import EventClusterCard from './EventClusterCard';
-import EventDetailModal from './EventDetailModal';
-import EventListView, { type SortField, type SortDirection } from './EventListView';
-import EventStatsPanel from './EventStatsPanel';
-import FilterChips from './FilterChips';
-import LiveActivitySection from './LiveActivitySection';
-import MobileEventCard from './MobileEventCard';
-import TimeGroupedEvents from './TimeGroupedEvents';
-import TimelineScrubber, { type TimeRange, type ZoomLevel } from './TimelineScrubber';
-import ViewToggle, { type ViewMode } from './ViewToggle';
 
 import type { SearchFilters } from '../search';
 import type { Event as ModalEvent } from './EventDetailModal';
@@ -577,6 +583,90 @@ export default function EventTimeline({ onViewEventDetails, className = '' }: Ev
   // browse query and the fetched row, and it is the one that works when the row
   // the user just edited is not in the browse list at all.
   const invalidateEventWrites = useEventWriteInvalidation();
+
+  // F4.3 soft delete (ruling 131): Delete moves the event to Trash — reversible,
+  // so no confirmation; the Undo toast replaces it. Trash invalidation rides
+  // inside the hooks (deleted + main lists).
+  const { mutateAsync: softDeleteEventMutate } = useSoftDeleteEventMutation();
+  const { mutateAsync: bulkSoftDeleteMutate } = useBulkSoftDeleteMutation();
+  const { mutateAsync: restoreEventMutate } = useRestoreEventMutation();
+  const toast = useToast();
+  const pendingUndoIdsRef = useRef<Set<number>>(new Set());
+  const undoToastIdRef = useRef<string | number | null>(null);
+
+  // Shared Undo: restores every id still pending and clears the toast. Guarded
+  // so two toasts / a double click cannot double-restore the same row.
+  const performUndo = useCallback(
+    async (ids: number[]) => {
+      const remaining = ids.filter((id) => !pendingUndoIdsRef.current.has(id));
+      if (remaining.length === 0) return;
+      remaining.forEach((id) => pendingUndoIdsRef.current.add(id));
+      try {
+        await Promise.all(remaining.map((id) => restoreEventMutate(id)));
+      } finally {
+        remaining.forEach((id) => pendingUndoIdsRef.current.delete(id));
+      }
+      toast.dismiss(undoToastIdRef.current ?? undefined);
+      undoToastIdRef.current = null;
+    },
+    [restoreEventMutate, toast]
+  );
+
+  const handleSoftDelete = useCallback(
+    async (eventId: string) => {
+      const id = parseInt(eventId, 10);
+      try {
+        await softDeleteEventMutate(id);
+        // Ruling 131: no confirmation dialog — the Undo toast replaces it.
+        undoToastIdRef.current = toast.success('Moved to Trash', {
+          action: { label: 'Undo', onClick: () => void performUndo([id]) },
+        });
+      } catch (err) {
+        console.error('Failed to delete event:', err);
+        toast.error('Failed to delete event');
+      }
+    },
+    [softDeleteEventMutate, toast, performUndo]
+  );
+
+  // Handle bulk delete to Trash (F4.3): the 207 Multi-Status shape reports
+  // per-item failures; the Undo restores exactly the rows that landed.
+  const handleBulkSoftDelete = useCallback(async () => {
+    if (selectedEventIds.size === 0) return;
+
+    setBulkActionLoading(true);
+    setBulkActionError(null);
+    try {
+      const result = await bulkSoftDeleteMutate(Array.from(selectedEventIds));
+
+      if (result.failed > 0) {
+        const failedRows = (result.results ?? []).filter((r) => r.status === 'failed');
+        console.error('Some events failed to delete:', failedRows);
+        setBulkActionError(`Deleted ${result.succeeded} events, but ${result.failed} failed`);
+      }
+
+      const deletedIds = (result.results ?? [])
+        .filter((r) => r.status === 'success' && r.id !== null)
+        .map((r) => r.id as number);
+
+      if (deletedIds.length > 0) {
+        undoToastIdRef.current = toast.success(
+          `Moved ${deletedIds.length} ${deletedIds.length === 1 ? 'event' : 'events'} to Trash`,
+          { action: { label: 'Undo', onClick: () => void performUndo(deletedIds) } }
+        );
+      }
+
+      // Refetch events to reflect changes
+      void refetch();
+
+      // Clear selections
+      setSelectedEventIds(new Set());
+    } catch (err) {
+      setBulkActionError(err instanceof Error ? err.message : 'Failed to delete events');
+    } finally {
+      setBulkActionLoading(false);
+    }
+  }, [selectedEventIds, bulkSoftDeleteMutate, refetch, toast, performUndo]);
 
   // Handle select all toggle - needs filteredEvents so defined after
   const handleToggleSelectAll = useCallback(() => {
@@ -1686,6 +1776,30 @@ export default function EventTimeline({ onViewEventDetails, className = '' }: Ev
                     )}
                   </button>
                 )}
+
+                {/* Bulk Delete to Trash button — F4.3, ruling 131: reversible,
+                    no confirmation; the Undo toast replaces it */}
+                {selectedEventIds.size > 0 && (
+                  <button
+                    onClick={() => void handleBulkSoftDelete()}
+                    disabled={bulkActionLoading}
+                    className="flex items-center gap-2 rounded-md border border-gray-600 bg-[#1A1A1A] px-4 py-1.5 text-sm font-semibold text-gray-300 transition-all hover:border-gray-500 hover:bg-[#252525] active:bg-[#1A1A1A] disabled:cursor-not-allowed disabled:opacity-50"
+                    aria-label={`Move ${selectedEventIds.size} selected events to Trash`}
+                    data-testid="bulk-delete-button"
+                  >
+                    {bulkActionLoading ? (
+                      <>
+                        <div className="h-4 w-4 animate-spin rounded-full border-2 border-gray-300 border-t-transparent" />
+                        <span>Deleting...</span>
+                      </>
+                    ) : (
+                      <>
+                        <Trash2 className="h-4 w-4" />
+                        <span>Delete</span>
+                      </>
+                    )}
+                  </button>
+                )}
               </div>
             )}
           </div>
@@ -1978,6 +2092,7 @@ export default function EventTimeline({ onViewEventDetails, className = '' }: Ev
         onDownloadMedia={handleDownloadMedia}
         onSnooze={(eventId, seconds) => handleSnooze(eventId, seconds)}
         onUnsnooze={(eventId) => handleSnooze(eventId, 0)}
+        onDelete={(eventId) => void handleSoftDelete(eventId)}
       />
 
       {/* Export Modal */}

@@ -209,7 +209,11 @@ class TestRealTree:
             "fast_alpr_loader",
         }, sorted(loaders)
         inproc = sum(1 for m in loaders.values() if m["bucket"] == "INPROC-AI")
-        assert inproc >= 2, f"surviving loaders still import heavy libs in-proc, got {inproc}"
+        # [r307b] moved face_recognizer_loader from INPROC-AI (CPU onnxruntime)
+        # to HTTP-AI (gateway /enrich-lt/face-detect + /face-recognize); osnet_loader
+        # is the 1 remaining INPROC-AI loader until [r306b] removes it (UR-186).
+        assert mods["face_recognizer_loader"]["bucket"] == "HTTP-AI"
+        assert inproc >= 1, f"surviving loaders still import heavy libs in-proc, got {inproc}"
 
     def test_known_dead_land_dead(self, real: dict) -> None:
         mods = real["modules"]

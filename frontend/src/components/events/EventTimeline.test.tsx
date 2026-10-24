@@ -19,6 +19,21 @@ import type { Camera, Event } from '../../services/api';
 // Mock API module (still needed for cameras, bulk updates, exports)
 vi.mock('../../services/api');
 
+// Mock the toast hook: the Undo toast (F4.3, ruling 131) is sonner-rendered and
+// no <Toaster> is mounted in this file, so assertions read the hook's calls.
+vi.mock('../../hooks/useToast', () => {
+  const toastMock = {
+    success: vi.fn().mockReturnValue('toast-1'),
+    error: vi.fn(),
+    warning: vi.fn(),
+    info: vi.fn(),
+    loading: vi.fn(),
+    dismiss: vi.fn(),
+    promise: vi.fn(),
+  };
+  return { useToast: () => toastMock };
+});
+
 // Mock useEventStream hook with factory function
 vi.mock('../../hooks/useEventStream', () => ({
   useEventStream: vi.fn(),
@@ -1574,6 +1589,237 @@ describe('EventTimeline', () => {
       // Should show select all but not Mark Not Reviewed button
       expect(screen.getByText('Select all')).toBeInTheDocument();
       expect(screen.queryByText('Mark Not Reviewed')).not.toBeInTheDocument();
+    });
+  });
+
+  // F4.3, ruling 131: bulk Delete moves the selected events to Trash over the
+  // 207 Multi-Status route — reversible, so no confirmation; the Undo toast
+  // replaces it and restores exactly the rows the backend reports as succeeded.
+  describe('Bulk Delete to Trash (F4.3)', () => {
+    function createMockBulkResponse(overrides: {
+      total?: number;
+      succeeded?: number;
+      failed?: number;
+      skipped?: number;
+      results?: Array<{ index: number; status: string; id: number | null; error?: string | null }>;
+    }) {
+      return {
+        total: overrides.total ?? 2,
+        succeeded: overrides.succeeded ?? 2,
+        failed: overrides.failed ?? 0,
+        skipped: overrides.skipped ?? 0,
+        results:
+          overrides.results ??
+          ([
+            { index: 0, status: 'success', id: 3, error: null },
+            { index: 1, status: 'success', id: 2, error: null },
+          ] as Array<{ index: number; status: string; id: number | null; error?: string | null }>),
+      };
+    }
+
+    it('shows the bulk Delete button when events are selected', async () => {
+      const user = userEvent.setup({ advanceTimers: vi.advanceTimersByTime });
+      renderWithProviders(<EventTimeline />);
+
+      await waitFor(() => {
+        expect(screen.getByText('Person detected near entrance')).toBeInTheDocument();
+      });
+
+      const checkboxButtons = screen.getAllByLabelText(/Select event \d+/);
+      await user.click(checkboxButtons[0]);
+
+      await waitFor(() => {
+        expect(screen.getByText('1 selected')).toBeInTheDocument();
+      });
+
+      expect(screen.getByTestId('bulk-delete-button')).toBeInTheDocument();
+    });
+
+    it('does not show bulk Delete when no events are selected', async () => {
+      renderWithProviders(<EventTimeline />);
+
+      await waitFor(() => {
+        expect(screen.getByText('Person detected near entrance')).toBeInTheDocument();
+      });
+
+      expect(screen.queryByTestId('bulk-delete-button')).not.toBeInTheDocument();
+    });
+
+    it('sends the bulk soft delete with the selected ids and clears selection', async () => {
+      const mockRefetch = vi.fn();
+      vi.mocked(useEventsQueryHook.useEventsInfiniteQuery).mockReturnValue(
+        createMockEventsQueryReturn({ refetch: mockRefetch })
+      );
+
+      const user = userEvent.setup({ advanceTimers: vi.advanceTimersByTime });
+
+      vi.mocked(api.bulkSoftDeleteEvents).mockResolvedValue(
+        createMockBulkResponse({ total: 2, succeeded: 2 }) as never
+      );
+      vi.mocked(api.restoreEvent).mockResolvedValue(mockEvents[0]);
+
+      renderWithProviders(<EventTimeline />);
+
+      await waitFor(() => {
+        expect(screen.getByText('Person detected near entrance')).toBeInTheDocument();
+      });
+
+      // Select first two events (events sorted by most recent first: 3, 2)
+      const checkboxButtons = screen.getAllByLabelText(/Select event \d+/);
+      await user.click(checkboxButtons[0]);
+      await user.click(checkboxButtons[1]);
+
+      await waitFor(() => {
+        expect(screen.getByText('2 selected')).toBeInTheDocument();
+      });
+
+      await user.click(screen.getByTestId('bulk-delete-button'));
+
+      await waitFor(() => {
+        expect(api.bulkSoftDeleteEvents).toHaveBeenCalledWith([3, 2]);
+      });
+
+      // Rows leave the timeline and the selection clears
+      await waitFor(() => {
+        expect(mockRefetch).toHaveBeenCalled();
+      });
+      await waitFor(() => {
+        expect(screen.getByText('Select all')).toBeInTheDocument();
+      });
+    });
+
+    it('Undo restores the rows the backend reports as deleted', async () => {
+      const mockRefetch = vi.fn();
+      vi.mocked(useEventsQueryHook.useEventsInfiniteQuery).mockReturnValue(
+        createMockEventsQueryReturn({ refetch: mockRefetch })
+      );
+
+      const user = userEvent.setup({ advanceTimers: vi.advanceTimersByTime });
+
+      vi.mocked(api.bulkSoftDeleteEvents).mockResolvedValue(
+        createMockBulkResponse({
+          total: 1,
+          succeeded: 1,
+          results: [{ index: 0, status: 'success', id: 3, error: null }],
+        }) as never
+      );
+      vi.mocked(api.restoreEvent).mockResolvedValue(mockEvents[0]);
+
+      renderWithProviders(<EventTimeline />);
+
+      await waitFor(() => {
+        expect(screen.getByText('Person detected near entrance')).toBeInTheDocument();
+      });
+
+      const checkboxButtons = screen.getAllByLabelText(/Select event \d+/);
+      await user.click(checkboxButtons[0]);
+
+      await user.click(screen.getByTestId('bulk-delete-button'));
+
+      await waitFor(() => {
+        expect(api.bulkSoftDeleteEvents).toHaveBeenCalledWith([3]);
+      });
+
+      // The Undo toast fires with the Undo action wired to restore
+      const { useToast } = await import('../../hooks/useToast');
+      const toastMock = useToast() as unknown as {
+        success: ReturnType<typeof vi.fn>;
+        error: ReturnType<typeof vi.fn>;
+      };
+      expect(toastMock.success).toHaveBeenCalledWith(
+        'Moved 1 event to Trash',
+        expect.objectContaining({ action: expect.objectContaining({ label: 'Undo' }) })
+      );
+
+      const undoAction = (
+        toastMock.success.mock.calls[0][1] as {
+          action: { onClick: () => void };
+        }
+      ).action;
+      undoAction.onClick();
+
+      await waitFor(() => {
+        expect(api.restoreEvent).toHaveBeenCalledTimes(1);
+      });
+    });
+
+    it('Undo restores nothing for a row the backend refused (207 partial failure)', async () => {
+      const mockRefetch = vi.fn();
+      vi.mocked(useEventsQueryHook.useEventsInfiniteQuery).mockReturnValue(
+        createMockEventsQueryReturn({ refetch: mockRefetch })
+      );
+
+      const user = userEvent.setup({ advanceTimers: vi.advanceTimersByTime });
+
+      vi.mocked(api.bulkSoftDeleteEvents).mockResolvedValue(
+        createMockBulkResponse({
+          total: 2,
+          succeeded: 1,
+          failed: 1,
+          results: [
+            { index: 0, status: 'success', id: 3, error: null },
+            { index: 1, status: 'failed', id: null, error: 'Event not in Trash: 2' },
+          ],
+        }) as never
+      );
+      vi.mocked(api.restoreEvent).mockResolvedValue(mockEvents[0]);
+
+      renderWithProviders(<EventTimeline />);
+
+      await waitFor(() => {
+        expect(screen.getByText('Person detected near entrance')).toBeInTheDocument();
+      });
+
+      const checkboxButtons = screen.getAllByLabelText(/Select event \d+/);
+      await user.click(checkboxButtons[0]);
+      await user.click(checkboxButtons[1]);
+
+      await user.click(screen.getByTestId('bulk-delete-button'));
+
+      // The toast counts only the row that actually landed
+      const { useToast } = await import('../../hooks/useToast');
+      const toastMock = useToast() as unknown as {
+        success: ReturnType<typeof vi.fn>;
+      };
+      await waitFor(() => {
+        expect(toastMock.success).toHaveBeenCalledWith(
+          'Moved 1 event to Trash',
+          expect.objectContaining({ action: expect.objectContaining({ label: 'Undo' }) })
+        );
+      });
+
+      // Undo restores ONLY the succeeded row — the refused one was never deleted.
+      const undoAction = (
+        toastMock.success.mock.calls[0][1] as {
+          action: { onClick: () => void };
+        }
+      ).action;
+      undoAction.onClick();
+
+      await waitFor(() => {
+        expect(api.restoreEvent).toHaveBeenCalledTimes(1);
+      });
+    });
+
+    it('shows an error message when the bulk delete fails entirely', async () => {
+      const user = userEvent.setup({ advanceTimers: vi.advanceTimersByTime });
+
+      vi.mocked(api.bulkSoftDeleteEvents).mockRejectedValue(new Error('network down'));
+
+      renderWithProviders(<EventTimeline />);
+
+      await waitFor(() => {
+        expect(screen.getByText('Person detected near entrance')).toBeInTheDocument();
+      });
+
+      const checkboxButtons = screen.getAllByLabelText(/Select event \d+/);
+      await user.click(checkboxButtons[0]);
+
+      await user.click(screen.getByTestId('bulk-delete-button'));
+
+      await waitFor(() => {
+        expect(screen.getByText('network down')).toBeInTheDocument();
+      });
     });
   });
 
