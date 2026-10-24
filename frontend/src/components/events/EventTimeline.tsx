@@ -16,6 +16,17 @@ import {
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useSearchParams } from 'react-router-dom';
 
+import EventCard from './EventCard';
+import EventClusterCard from './EventClusterCard';
+import EventDetailModal from './EventDetailModal';
+import EventListView, { type SortField, type SortDirection } from './EventListView';
+import EventStatsPanel from './EventStatsPanel';
+import FilterChips from './FilterChips';
+import LiveActivitySection from './LiveActivitySection';
+import MobileEventCard from './MobileEventCard';
+import TimeGroupedEvents from './TimeGroupedEvents';
+import TimelineScrubber, { type TimeRange, type ZoomLevel } from './TimelineScrubber';
+import ViewToggle, { type ViewMode } from './ViewToggle';
 import { useEventModalRow, useEventWriteInvalidation } from '../../hooks/useEventModalRow';
 import { useEventsInfiniteQuery, type EventFilters } from '../../hooks/useEventsQuery';
 import { useEventStats } from '../../hooks/useEventStats';
@@ -26,12 +37,12 @@ import { useLocalStorage } from '../../hooks/useLocalStorage';
 import { usePaginationState } from '../../hooks/usePaginationState';
 import { useSnoozeEvent } from '../../hooks/useSnoozeEvent';
 import { useTimelineData } from '../../hooks/useTimelineData';
+import { useToast } from '../../hooks/useToast';
 import {
   useBulkSoftDeleteMutation,
   useRestoreEventMutation,
   useSoftDeleteEventMutation,
 } from '../../hooks/useTrashQuery';
-import { useToast } from '../../hooks/useToast';
 import {
   bulkUpdateEvents,
   downloadEventMedia,
@@ -65,17 +76,6 @@ import { type ActivityEvent } from '../dashboard/ActivityFeed';
 import { ExportButton } from '../ExportButton';
 import ExportModal from '../exports/ExportModal';
 import { SearchBar, SearchResultsPanel } from '../search';
-import EventCard from './EventCard';
-import EventClusterCard from './EventClusterCard';
-import EventDetailModal from './EventDetailModal';
-import EventListView, { type SortField, type SortDirection } from './EventListView';
-import EventStatsPanel from './EventStatsPanel';
-import FilterChips from './FilterChips';
-import LiveActivitySection from './LiveActivitySection';
-import MobileEventCard from './MobileEventCard';
-import TimeGroupedEvents from './TimeGroupedEvents';
-import TimelineScrubber, { type TimeRange, type ZoomLevel } from './TimelineScrubber';
-import ViewToggle, { type ViewMode } from './ViewToggle';
 
 import type { SearchFilters } from '../search';
 import type { Event as ModalEvent } from './EventDetailModal';

@@ -21,12 +21,12 @@ import EmptyState from '../components/common/EmptyState';
 import LoadingSpinner from '../components/common/LoadingSpinner';
 import DeletedEventCard from '../components/events/DeletedEventCard';
 import ConfirmDialog from '../components/jobs/ConfirmDialog';
+import { useSystemConfigQuery } from '../hooks/useSystemConfigQuery';
 import {
   useDeletedEventsQuery,
   useRestoreEventMutation,
   usePermanentDeleteMutation,
 } from '../hooks/useTrashQuery';
-import { useSystemConfigQuery } from '../hooks/useSystemConfigQuery';
 import {
   DEFAULT_TRASH_RETENTION_DAYS,
   formatPurgeDate,
