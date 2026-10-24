@@ -188,6 +188,7 @@ def test_the_webhook_sink_receives_the_acknowledgement_payload(
         assert acked.status_code == 200, acked.text[:300]
 
         deadline = 90.0
+        delivery_row: dict[str, Any] | None = None
         while deadline > 0:
             deliveries = logged_in_api.get(
                 f"/api/outbound-webhooks/{webhook_id}/deliveries", params={"limit": 50}
@@ -198,6 +199,7 @@ def test_the_webhook_sink_receives_the_acknowledgement_payload(
             ]
             if mine and mine[0]["status"] in ("success", "failed"):
                 assert mine[0]["status"] == "success", mine[0]
+                delivery_row = mine[0]
                 break
             time.sleep(1.0)  # real - the poll loop IS the delivery wait
             deadline -= 1.0
@@ -212,6 +214,28 @@ def test_the_webhook_sink_receives_the_acknowledgement_payload(
     payload = json.loads(records[-1]["body"])
     assert payload["event_type"] == "alert_acknowledged", payload
     assert payload["webhook_id"] == webhook_id, payload
+
+    # B4.2's real-tier record (4n-alerting.md: "records the latency from commit
+    # to delivery"): the row itself dies with the webhook at teardown (the
+    # DELETE cascades the delivery rows), so the record survives only in this
+    # log line — which the harness keeps as golden-backend.log. Printed AFTER
+    # the sink read-back so a failure above cannot print a half record. The
+    # fields are WebhookDeliveryResponse's (created_at, delivered_at,
+    # response_time_ms): created_at is the commit side, delivered_at +
+    # response_time_ms the delivery side.
+    assert delivery_row is not None, "the poll loop broke on success but dropped the row"
+    record = {
+        field: delivery_row.get(field)
+        for field in (
+            "id",
+            "created_at",
+            "delivered_at",
+            "response_time_ms",
+            "attempt_count",
+            "status",
+        )
+    }
+    print(f"B42-LATENCY {json.dumps(record, sort_keys=True)}")
 
 
 def test_the_push_fake_accepts_a_push_request(sinks: dict[str, str], sink_reader: Any) -> None:

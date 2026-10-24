@@ -10,6 +10,14 @@ vi.mock('../../hooks/useIsMobile', () => ({
   useIsMobile: () => true,
 }));
 
+// F4.1: the Alerts badge falls back to the open-count hook when no
+// notificationCount prop is passed; the tests control it here.
+const alertCountState = vi.hoisted(() => ({ current: 0 }));
+
+vi.mock('../../hooks/useOpenAlertCount', () => ({
+  useOpenAlertCount: () => alertCountState.current,
+}));
+
 // Mock framer-motion to avoid animation issues in tests
 vi.mock('framer-motion', async () => {
   const actual = await vi.importActual<typeof import('framer-motion')>('framer-motion');

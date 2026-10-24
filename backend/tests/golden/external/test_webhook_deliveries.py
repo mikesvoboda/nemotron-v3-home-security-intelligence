@@ -158,13 +158,30 @@ def dead_webhook(logged_in_api: httpx.Client) -> dict[str, Any]:
     assert webhook_id, created.json()
 
     try:
-        events = logged_in_api.get("/api/events", params={"limit": 1})
+        events = logged_in_api.get("/api/events", params={"limit": 100})
         assert events.status_code == 200, events.text[:500]
         items = events.json()["items"]
         if not items:
             pytest.skip("no events on this stack; an alert needs a real events.id")
 
-        yield {"webhook_id": webhook_id, "event_id": items[0]["id"]}
+        # Pick by the property smoke() guarantees — a verification verdict —
+        # not by position: the list is newest-first, and other golden legs
+        # create AND PURGE disposable rows mid-run (test_arming's finally
+        # block soft-then-permanent-deletes its own NOW-dated events, and
+        # trash_purge's Empty Trash sweeps every trashed row). A newest-first
+        # position pick names the row arming just created, and when arming's
+        # teardown purges it between this pick and a test's alert POST the
+        # POST trips alerts_event_id_fkey and answers 409 (run 39989579025,
+        # `Key (event_id)=(3) is not present in table "events"`). The oldest
+        # verified event is the smoke event — feature_check asserts exactly
+        # one event, with a verdict, on the smoke camera before golden runs —
+        # and it is never a purge target, so every failed_delivery POST hangs
+        # off a stable row. Same contract as the snooze pick
+        # (test_alert_pipeline_core.py), which stopped trusting position for
+        # the same reason (run 39888773743).
+        verified = [e for e in items if (e.get("verification") or {}).get("verdict")]
+        event = verified[-1] if verified else items[-1]
+        yield {"webhook_id": webhook_id, "event_id": event["id"]}
     finally:
         deleted = logged_in_api.delete(f"/api/outbound-webhooks/{webhook_id}")
         # A leak here is not cosmetic: the webhook stays enabled and fires on
