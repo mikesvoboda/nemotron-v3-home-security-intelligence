@@ -224,12 +224,12 @@ describe('endpoint contract (D2)', () => {
       /api/events/stats  src/services/api.ts:2282  options passed by name: options
       /api/events/clusters  src/services/api.ts:2329  options passed by name: options
       /api/events/deleted  src/services/api.ts:2510  options passed by name: options
-      /api/events/search  src/services/api.ts:3718  options passed by name: options
-      /api/audit  src/services/api.ts:4378  options passed by name: options
-      /api/entities  src/services/api.ts:5602  options passed by name: options
-      /api/entities/matches/{}  src/services/api.ts:5698  options passed by name: options
-      /api/logs  src/services/api.ts:8737  options passed by name: options
-      /api/reid/similar/{}  src/services/api.ts:8850  options passed by name: options"
+      /api/events/search  src/services/api.ts:3748  options passed by name: options
+      /api/audit  src/services/api.ts:4408  options passed by name: options
+      /api/entities  src/services/api.ts:5632  options passed by name: options
+      /api/entities/matches/{}  src/services/api.ts:5728  options passed by name: options
+      /api/logs  src/services/api.ts:8767  options passed by name: options
+      /api/reid/similar/{}  src/services/api.ts:8880  options passed by name: options"
     `);
   });
 
@@ -259,7 +259,7 @@ describe('endpoint contract (D2)', () => {
       src/hooks/webSocketManager.ts:504  "url" is not a file-local constant
       src/services/api.ts:1504  built at runtime: getCameraSnapshotUrl(cameraId)
       src/services/api.ts:1576  built at runtime: getCameraSnapshotUrl(cameraId)
-      src/services/api.ts:3244  built at runtime: isVideo
+      src/services/api.ts:3274  built at runtime: isVideo
       src/services/backupApi.ts:146  suffix for fetchBackupApi() at src/services/backupApi.ts:116: not a literal path
       src/services/backupApi.ts:168  suffix for fetchBackupApi() at src/services/backupApi.ts:116: not a literal path
       src/services/errorReporting.ts:113  built at runtime: config.endpoint

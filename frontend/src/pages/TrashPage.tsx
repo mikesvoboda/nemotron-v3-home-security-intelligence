@@ -31,6 +31,7 @@ import {
   DEFAULT_TRASH_RETENTION_DAYS,
   formatPurgeDate,
   purgeDeadlineForEvent,
+  TRASH_RETENTION_DISABLED,
 } from '../utils/trashPurge';
 
 // ============================================================================
@@ -407,7 +408,7 @@ export default function TrashPage() {
           icon={Trash2}
           title="Trash is empty"
           description={
-            trashRetentionDays > 0
+            trashRetentionDays > TRASH_RETENTION_DISABLED
               ? `Deleted events will appear here. You can restore them within ${trashRetentionDays} days before they are permanently removed.`
               : 'Deleted events will appear here. They are removed when their general retention expires.'
           }
@@ -424,7 +425,7 @@ export default function TrashPage() {
             <div>
               <p className="font-medium text-blue-300">Automatic cleanup</p>
               <p className="mt-1 text-sm text-blue-200/80">
-                {trashRetentionDays > 0
+                {trashRetentionDays > TRASH_RETENTION_DISABLED
                   ? `Events in trash are automatically deleted after ${trashRetentionDays} days. Restore important events before they are permanently removed.`
                   : 'Events in trash are automatically deleted when their general retention expires. Restore important events before they are permanently removed.'}
               </p>
