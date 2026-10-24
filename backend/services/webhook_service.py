@@ -618,16 +618,40 @@ class WebhookService:
             },
         )
 
-        # Deliver to each webhook
+        # Deliver to each webhook. Each delivery rides its own SAVEPOINT: a
+        # webhook deleted between the SELECT above and its slot in this loop
+        # makes its delivery INSERT trip webhook_deliveries_webhook_id_fkey,
+        # and without the savepoint that one failure poisons the shared
+        # session (PendingRollbackError) and rolls back every SIBLING
+        # delivery already flushed in the same transaction — including rows
+        # whose HTTP attempt had already completed (CI run 40002172540: the
+        # F-250 golden leg's terminal FAILED row vanished because another
+        # test's webhook was deleted mid-fanout, and the history poll saw
+        # zero rows for 90s). Roll back to the savepoint, keep the loop
+        # going, and the surviving webhooks' rows survive too.
         deliveries: list[WebhookDelivery] = []
         for webhook in webhooks:
-            delivery = await self.deliver_webhook(
-                db,
-                webhook,
-                event_type,
-                event_data,
-                event_id,
-            )
+            try:
+                async with db.begin_nested():
+                    delivery = await self.deliver_webhook(
+                        db,
+                        webhook,
+                        event_type,
+                        event_data,
+                        event_id,
+                    )
+            except Exception as e:
+                # This webhook's delivery is lost (its row may no longer have
+                # an owner); the other webhooks' deliveries must not be.
+                logger.warning(
+                    f"Webhook delivery skipped, webhook gone or unusable: {webhook.id}",
+                    extra={
+                        "webhook_id": webhook.id,
+                        "event_type": event_type_value,
+                        "error": str(e)[:500],
+                    },
+                )
+                continue
             deliveries.append(delivery)
 
         return deliveries
