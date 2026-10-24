@@ -1655,47 +1655,59 @@ async def test_system_broadcaster_check_ai_health_both_healthy():
 @pytest.mark.usefixtures("shipped_pipeline_mode")
 async def test_system_broadcaster_check_ai_health_both_unhealthy():
     """Test _check_ai_health when both AI services fail."""
+    from backend.services import ai_health
+
     broadcaster = SystemBroadcaster()
+    ai_health.record_vlm_call("failing", "Connection refused")
 
-    with patch(
-        "backend.services.system_broadcaster.httpx.AsyncClient", autospec=True
-    ) as mock_client_cls:
-        mock_client = AsyncMock()
-        mock_client.get.side_effect = OSError("Connection refused")
-        mock_client_cls.return_value.__aenter__.return_value = mock_client
-        mock_client_cls.return_value.__aexit__.return_value = None
+    try:
+        with patch(
+            "backend.services.system_broadcaster.httpx.AsyncClient", autospec=True
+        ) as mock_client_cls:
+            mock_client = AsyncMock()
+            mock_client.get.side_effect = OSError("Connection refused")
+            mock_client_cls.return_value.__aenter__.return_value = mock_client
+            mock_client_cls.return_value.__aexit__.return_value = None
 
-        result = await broadcaster._check_ai_health()
+            result = await broadcaster._check_ai_health()
 
-    assert result["yolo26"] is False
-    assert result["ai-vlm"] is False
-    assert result["all_healthy"] is False
-    assert result["any_healthy"] is False
+        assert result["yolo26"] is False
+        assert result["ai-vlm"] is False
+        assert result["all_healthy"] is False
+        assert result["any_healthy"] is False
+    finally:
+        ai_health.reset_ai_health_state()
 
 
 @pytest.mark.asyncio
 @pytest.mark.usefixtures("shipped_pipeline_mode")
 async def test_system_broadcaster_check_ai_health_non_200_status():
     """Test _check_ai_health when services return non-200 status codes."""
+    from backend.services import ai_health
+
     broadcaster = SystemBroadcaster()
+    ai_health.record_vlm_call("failing", "HTTP 500")
 
-    with patch(
-        "backend.services.system_broadcaster.httpx.AsyncClient", autospec=True
-    ) as mock_client_cls:
-        mock_client = AsyncMock()
-        mock_response = MagicMock()
-        mock_response.status_code = 500  # Server error
-        mock_client.get.return_value = mock_response
-        mock_client_cls.return_value.__aenter__.return_value = mock_client
-        mock_client_cls.return_value.__aexit__.return_value = None
+    try:
+        with patch(
+            "backend.services.system_broadcaster.httpx.AsyncClient", autospec=True
+        ) as mock_client_cls:
+            mock_client = AsyncMock()
+            mock_response = MagicMock()
+            mock_response.status_code = 500  # Server error
+            mock_client.get.return_value = mock_response
+            mock_client_cls.return_value.__aenter__.return_value = mock_client
+            mock_client_cls.return_value.__aexit__.return_value = None
 
-        result = await broadcaster._check_ai_health()
+            result = await broadcaster._check_ai_health()
 
-    # Non-200 status should be treated as unhealthy
-    assert result["yolo26"] is False
-    assert result["ai-vlm"] is False
-    assert result["all_healthy"] is False
-    assert result["any_healthy"] is False
+        # Non-200 status should be treated as unhealthy
+        assert result["yolo26"] is False
+        assert result["ai-vlm"] is False
+        assert result["all_healthy"] is False
+        assert result["any_healthy"] is False
+    finally:
+        ai_health.reset_ai_health_state()
 
 
 @pytest.mark.asyncio
@@ -1704,23 +1716,29 @@ async def test_system_broadcaster_check_ai_health_timeout():
     """Test _check_ai_health handles timeouts gracefully."""
     import httpx as real_httpx
 
+    from backend.services import ai_health
+
     broadcaster = SystemBroadcaster()
+    ai_health.record_vlm_call("failing", "Timeout")
 
-    with patch(
-        "backend.services.system_broadcaster.httpx.AsyncClient", autospec=True
-    ) as mock_client_cls:
-        mock_client = AsyncMock()
-        mock_client.get.side_effect = real_httpx.TimeoutException("Timeout")
-        mock_client_cls.return_value.__aenter__.return_value = mock_client
-        mock_client_cls.return_value.__aexit__.return_value = None
+    try:
+        with patch(
+            "backend.services.system_broadcaster.httpx.AsyncClient", autospec=True
+        ) as mock_client_cls:
+            mock_client = AsyncMock()
+            mock_client.get.side_effect = real_httpx.TimeoutException("Timeout")
+            mock_client_cls.return_value.__aenter__.return_value = mock_client
+            mock_client_cls.return_value.__aexit__.return_value = None
 
-        result = await broadcaster._check_ai_health()
+            result = await broadcaster._check_ai_health()
 
-    # Timeout should be treated as unhealthy
-    assert result["yolo26"] is False
-    assert result["ai-vlm"] is False
-    assert result["all_healthy"] is False
-    assert result["any_healthy"] is False
+        # Timeout should be treated as unhealthy
+        assert result["yolo26"] is False
+        assert result["ai-vlm"] is False
+        assert result["all_healthy"] is False
+        assert result["any_healthy"] is False
+    finally:
+        ai_health.reset_ai_health_state()
 
 
 @pytest.mark.asyncio
@@ -1942,8 +1960,12 @@ async def _ai_health_broadcast(up: set[str], *, system_status: bool = False):
 async def test_check_ai_health_probes_ai_vlm_not_nemotron():
     result, probed = await _ai_health_broadcast({"yolo26_url", "ai_vlm_url"})
 
-    assert result == {"yolo26": True, "ai-vlm": True, "any_healthy": True, "all_healthy": True}
-    assert f"{_MODE_URLS['ai_vlm_url']}/health" in probed
+    assert result["yolo26"] is True
+    assert result["ai-vlm"] is True
+    assert result["ai_vlm"] is True
+    assert result["any_healthy"] is True
+    assert result["all_healthy"] is True
+    assert not [u for u in probed if u.startswith(_MODE_URLS["ai_vlm_url"])], probed
     assert not [u for u in probed if u.startswith(_RETIRED_LLM_URL)], probed
 
 
@@ -1954,20 +1976,28 @@ async def test_system_status_is_healthy_with_nemotron_gone():
     deleted the setting, so a stale probe is now impossible, not merely down."""
     status, _ = await _ai_health_broadcast({"yolo26_url", "ai_vlm_url"}, system_status=True)
 
-    assert status["data"]["ai"] == {"status": "healthy", "yolo26": "healthy", "ai-vlm": "healthy"}
+    assert status["data"]["ai"]["status"] == "healthy"
+    assert status["data"]["ai"]["yolo26"] == "healthy"
+    assert status["data"]["ai"]["ai-vlm"] == "healthy"
+    assert status["data"]["ai"]["ai_vlm"] == "healthy"
     assert status["data"]["health"] == "healthy"
 
 
 @pytest.mark.asyncio
 async def test_system_status_ai_vlm_down_is_degraded():
-    status, _ = await _ai_health_broadcast({"yolo26_url"}, system_status=True)
+    from backend.services import ai_health
 
-    assert status["data"]["ai"] == {
-        "status": "degraded",
-        "yolo26": "healthy",
-        "ai-vlm": "unhealthy",
-    }
-    assert status["data"]["health"] == "degraded"
+    ai_health.record_vlm_call("failing", "Connection refused")
+    try:
+        status, _ = await _ai_health_broadcast({"yolo26_url"}, system_status=True)
+
+        assert status["data"]["ai"]["status"] == "degraded"
+        assert status["data"]["ai"]["yolo26"] == "healthy"
+        assert status["data"]["ai"]["ai-vlm"] == "unhealthy"
+        assert status["data"]["ai"]["ai_vlm"] == "unhealthy"
+        assert status["data"]["health"] == "degraded"
+    finally:
+        ai_health.reset_ai_health_state()
 
 
 @pytest.mark.asyncio
@@ -1976,11 +2006,17 @@ async def test_system_status_never_reports_the_retired_engine():
     no nemotron key at all, and the dead ai-llm base URL is never probed — it is
     no longer even a Settings field, so only a stale hardcoded probe could
     reach it."""
-    status, probed = await _ai_health_broadcast({"yolo26_url"}, system_status=True)
+    from backend.services import ai_health
 
-    assert "nemotron" not in status["data"]["ai"]
-    assert status["data"]["ai"]["ai-vlm"] == "unhealthy"
-    assert not [u for u in probed if u.startswith(_RETIRED_LLM_URL)], probed
+    ai_health.record_vlm_call("failing", "Connection refused")
+    try:
+        status, probed = await _ai_health_broadcast({"yolo26_url"}, system_status=True)
+
+        assert "nemotron" not in status["data"]["ai"]
+        assert status["data"]["ai"]["ai-vlm"] == "unhealthy"
+        assert not [u for u in probed if u.startswith(_RETIRED_LLM_URL)], probed
+    finally:
+        ai_health.reset_ai_health_state()
 
 
 # ============================================================================
@@ -2468,21 +2504,27 @@ async def test_system_broadcaster_get_camera_stats_deprecated_method():
 @pytest.mark.usefixtures("shipped_pipeline_mode")
 async def test_system_broadcaster_check_ai_health_gather_error():
     """Test _check_ai_health handles asyncio.gather errors (line 856-857)."""
+    from backend.services import ai_health
+
     broadcaster = SystemBroadcaster()
+    ai_health.record_vlm_call("failing", "Client creation failed")
 
-    # Mock httpx.AsyncClient to cause gather to fail
-    with patch(
-        "backend.services.system_broadcaster.httpx.AsyncClient", autospec=True
-    ) as mock_client_cls:
-        mock_client_cls.side_effect = RuntimeError("Client creation failed")
+    try:
+        # Mock httpx.AsyncClient to cause gather to fail
+        with patch(
+            "backend.services.system_broadcaster.httpx.AsyncClient", autospec=True
+        ) as mock_client_cls:
+            mock_client_cls.side_effect = RuntimeError("Client creation failed")
 
-        result = await broadcaster._check_ai_health()
+            result = await broadcaster._check_ai_health()
 
-    # Should return all False on error
-    assert result["yolo26"] is False
-    assert result["ai-vlm"] is False
-    assert result["all_healthy"] is False
-    assert result["any_healthy"] is False
+        # Should return all False on error
+        assert result["yolo26"] is False
+        assert result["ai-vlm"] is False
+        assert result["all_healthy"] is False
+        assert result["any_healthy"] is False
+    finally:
+        ai_health.reset_ai_health_state()
 
 
 # ============================================================================

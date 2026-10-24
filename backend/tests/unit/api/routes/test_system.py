@@ -2021,42 +2021,57 @@ class TestCheckAIServicesHealthRetiredLlm:
 
         assert result.status == "healthy", result
         assert result.details == {"yolo26": "healthy", "ai-vlm": "healthy"}
-        # R8 S2 retargets the old "no ai-llm probe" filter, which could no longer
-        # be falsified: settings.nemotron_url is DELETED, so there is no URL left
-        # to filter on. Two pins replace it — the field is really gone, and the
-        # probe set is exactly the two survivors (a third row fails here).
         assert not hasattr(self._settings(), "nemotron_url"), (
             "Settings regained the deleted nemotron_url field"
         )
-        assert set(probed) == {f"{self.YOLO26}/health", f"{self.AI_VLM}/health"}
+        # B4.11 T4: only yolo26 is HTTP-probed; ai-vlm is never HTTP-probed
+        assert set(probed) == {f"{self.YOLO26}/health"}
 
     @pytest.mark.asyncio
     async def test_degraded_when_ai_vlm_is_down(self) -> None:
-        result, _ = await self._run({self.YOLO26: 200})
+        from backend.services import ai_health
 
-        assert result.status == "degraded"
-        assert result.message == "ai-vlm service unavailable, YOLO26 operational"
-        assert "nemotron" not in result.message.lower()
-        assert set(result.details) == {"yolo26", "ai-vlm"}
-        assert result.details["ai-vlm"] == "ai-vlm service connection refused"
+        ai_health.record_vlm_call("failing", "ai-vlm service connection refused")
+        try:
+            result, _ = await self._run({self.YOLO26: 200})
+
+            assert result.status == "degraded"
+            assert result.message == "ai-vlm service unavailable, YOLO26 operational"
+            assert "nemotron" not in result.message.lower()
+            assert set(result.details) == {"yolo26", "ai-vlm"}
+            assert result.details["ai-vlm"] == "ai-vlm service connection refused"
+        finally:
+            ai_health.reset_ai_health_state()
 
     @pytest.mark.asyncio
     async def test_loading_503_is_not_ready(self) -> None:
         """llama-server answers /health 503 while it loads the model: up, but
         not yet able to serve a verdict - degraded, and the detail says why."""
-        result, _ = await self._run({self.YOLO26: 200, self.AI_VLM: 503})
+        from backend.services import ai_health
 
-        assert result.status == "degraded"
-        assert "loading" in result.details["ai-vlm"].lower()
-        assert "503" in result.details["ai-vlm"]
+        ai_health.record_vlm_call("loading", "ai-vlm is loading its model (HTTP 503)")
+        try:
+            result, _ = await self._run({self.YOLO26: 200, self.AI_VLM: 503})
+
+            assert result.status == "degraded"
+            assert "loading" in result.details["ai-vlm"].lower()
+            assert "503" in result.details["ai-vlm"]
+        finally:
+            ai_health.reset_ai_health_state()
 
     @pytest.mark.asyncio
     async def test_unhealthy_when_yolo26_and_ai_vlm_are_down(self) -> None:
-        result, _ = await self._run({})
+        from backend.services import ai_health
 
-        assert result.status == "unhealthy"
-        assert result.message == "All AI services unavailable"
-        assert set(result.details) == {"yolo26", "ai-vlm"}
+        ai_health.record_vlm_call("failing", "ai-vlm service connection refused")
+        try:
+            result, _ = await self._run({})
+
+            assert result.status == "unhealthy"
+            assert result.message == "All AI services unavailable"
+            assert set(result.details) == {"yolo26", "ai-vlm"}
+        finally:
+            ai_health.reset_ai_health_state()
 
 
 class TestCircuitBreakerState:

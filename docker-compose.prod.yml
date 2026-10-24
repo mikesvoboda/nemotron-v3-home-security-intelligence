@@ -541,6 +541,7 @@ services:
       # the ai-vlm block byte for byte (test_ai_vlm_compose_service pins it).
       - VLM_CTX_SIZE=${VLM_CTX_SIZE:-32768}
       - VLM_PARALLEL=${VLM_PARALLEL:-2}
+      - VLM_SLEEP_IDLE_SECONDS=${VLM_SLEEP_IDLE_SECONDS:-300}
       # LLM context budget for the token counter's defaults (config.py
       # nemotron_context_window = CTX_SIZE // PARALLEL). The legacy 30B's own
       # llama.cpp server is gone; the shipped verdict engine budgets its slots

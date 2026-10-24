@@ -79,6 +79,10 @@ class AuditAction(str, Enum):
     EXPORT_EXPIRED = "export_expired"
     EXPORT_CANCELLED = "export_cancelled"
 
+    # Service & worker control actions (B4.11 / 4n-status.md)
+    SERVICE_RESTART = "service_restart"
+    WORKER_RESTART = "worker_restart"
+
 
 class AuditStatus(str, Enum):
     """Enumeration of audit log statuses."""
