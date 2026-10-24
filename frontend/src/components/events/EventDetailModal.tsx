@@ -11,6 +11,7 @@ import {
   RefreshCw,
   Save,
   Timer,
+  Trash2,
   TrendingUp,
   UserPlus,
   X,
@@ -159,6 +160,8 @@ export interface EventDetailModalProps {
   onSnooze?: (eventId: string, seconds: number) => void;
   /** Callback to clear the snooze on the event (NEM-3640) */
   onUnsnooze?: (eventId: string) => void;
+  /** Callback to soft-delete the event into Trash — F4.3, ruling 131: reversible, no confirmation; the Undo toast replaces it */
+  onDelete?: (eventId: string) => void;
 }
 
 /**
@@ -174,6 +177,7 @@ export default function EventDetailModal({
   onDownloadMedia,
   onSnooze,
   onUnsnooze,
+  onDelete,
 }: EventDetailModalProps) {
   // State for active tab (Details vs AI Analysis vs AI Audit vs Video Clip)
   const [activeTab, setActiveTab] = useState<'details' | 'analysis' | 'audit' | 'clip'>('details');
@@ -1272,6 +1276,20 @@ export default function EventDetailModal({
                       <Printer className="h-4 w-4" />
                       Print
                     </button>
+
+                    {/* Delete (soft delete to Trash) button — F4.3, ruling 131:
+                        reversible, so no confirmation dialog; the Undo toast replaces it */}
+                    {onDelete && (
+                      <button
+                        onClick={() => onDelete(event.id)}
+                        className="flex items-center gap-2 rounded-lg bg-gray-800 px-4 py-2 text-sm font-semibold text-white transition-all hover:bg-gray-700 active:bg-gray-900"
+                        aria-label="Move event to Trash"
+                        data-testid="delete-event-button"
+                      >
+                        <Trash2 className="h-4 w-4" />
+                        Delete
+                      </button>
+                    )}
 
                     {/* Mark as reviewed button */}
                     {onMarkReviewed && !event.reviewed && (

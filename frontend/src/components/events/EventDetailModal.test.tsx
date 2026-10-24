@@ -909,6 +909,58 @@ describe('EventDetailModal', () => {
     });
   });
 
+  // F4.3, ruling 131: Delete soft-deletes into Trash — reversible, so there is
+  // deliberately NO confirmation dialog (the Undo toast replaces it).
+  describe('delete to Trash (F4.3)', () => {
+    it('renders delete button when onDelete is provided', async () => {
+      const onDelete = vi.fn();
+      renderWithQueryClient(<EventDetailModal {...mockProps} onDelete={onDelete} />);
+
+      await waitFor(() => {
+        expect(screen.getByRole('button', { name: 'Move event to Trash' })).toBeInTheDocument();
+      });
+    });
+
+    it('does not render delete button when onDelete is undefined', async () => {
+      renderWithQueryClient(<EventDetailModal {...mockProps} onDelete={undefined} />);
+
+      await waitFor(() => {
+        expect(screen.getByRole('dialog')).toBeInTheDocument();
+      });
+      expect(screen.queryByRole('button', { name: 'Move event to Trash' })).not.toBeInTheDocument();
+    });
+
+    it('calls onDelete with event ID when button is clicked', async () => {
+      const user = userEvent.setup({ advanceTimers: vi.advanceTimersByTime });
+      const onDelete = vi.fn();
+      renderWithQueryClient(<EventDetailModal {...mockProps} onDelete={onDelete} />);
+
+      await waitFor(() => {
+        expect(screen.getByRole('button', { name: 'Move event to Trash' })).toBeInTheDocument();
+      });
+
+      await user.click(screen.getByRole('button', { name: 'Move event to Trash' }));
+
+      expect(onDelete).toHaveBeenCalledWith('123');
+      expect(onDelete).toHaveBeenCalledTimes(1);
+    });
+
+    it('opens no confirmation dialog before calling onDelete (ruling 131)', async () => {
+      const user = userEvent.setup({ advanceTimers: vi.advanceTimersByTime });
+      const onDelete = vi.fn();
+      renderWithQueryClient(<EventDetailModal {...mockProps} onDelete={onDelete} />);
+
+      await waitFor(() => {
+        expect(screen.getByRole('button', { name: 'Move event to Trash' })).toBeInTheDocument();
+      });
+
+      await user.click(screen.getByRole('button', { name: 'Move event to Trash' }));
+
+      // One click fires the delete immediately — no intermediate confirm step.
+      expect(onDelete).toHaveBeenCalledTimes(1);
+    });
+  });
+
   describe('accessibility', () => {
     it('has role="dialog"', async () => {
       renderWithQueryClient(<EventDetailModal {...mockProps} />);
