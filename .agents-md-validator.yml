@@ -253,7 +253,7 @@ line_caps_baseline:
   'backend/AGENTS.md': 150 # lane_root
   'frontend/AGENTS.md': 676 # lane_root
   'monitoring/AGENTS.md': 383 # lane_root
-  'scripts/AGENTS.md': 1214 # lane_root
+  'scripts/AGENTS.md': 1223 # lane_root
   'setup_lib/AGENTS.md': 167 # package
   'synthbench/AGENTS.md': 40 # lane_root
   'ai/gateway/AGENTS.md': 45 # package

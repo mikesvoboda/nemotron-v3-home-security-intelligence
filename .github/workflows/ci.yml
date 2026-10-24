@@ -3905,6 +3905,14 @@ jobs:
           # leg, named in the error). Without this opt-in [r264]'s
           # count-based --shard applies unchanged.
           FEATURE_CHECK_SHARD_MANIFEST: '1'
+          # [r297] Opt into the warm Playwright pull: the harness starts the
+          # image's fetch the moment the boot starts (up(), before the
+          # stack's own pull would run), so the ~29 s registry round-trip
+          # hides inside boot+seed+smoke instead of appending to it. The
+          # fetch stays ONE pull with the same accounting vocabulary; a
+          # warmer left running at teardown is killed and named (the reaper
+          # in run_check's finally).
+          FEATURE_CHECK_WARM_PLAYWRIGHT: '1'
         run: |
           # split "i-of-N" into --shard I/N; Actions has no arithmetic, so the
           # pair arrives as one slash-free string from the matrix (artifact

@@ -3368,6 +3368,426 @@ def test_a_stalled_pull_is_a_named_problem_and_never_starts_the_leg(
     assert any("executed no tests" in p for p in problems), "ruling 114 still guards the hole"
 
 
+# ---------------------------------------------------------------------------
+# [r297] The warm pull: the fetch starts at boot, the accounting stays here
+# ---------------------------------------------------------------------------
+
+
+def _pull_process(command: list[str], rc: int, tail: str = "") -> Any:
+    """A Popen stand-in whose result is already decided (its `poll()` returns rc).
+
+    The warmer's contract with golden() is Popen-shaped (poll → rc, streams),
+    not CompletedProcess-shaped, so the stand-in is the same shape rather than a
+    different object a second abstraction layer would have to translate. The
+    streams are the attributes a real Popen carries (`_as_text` reads them the
+    same way), so the tail a failed pull prints reaches the firewall clause
+    through the SAME reader the inline pull's tail does.
+    """
+
+    class _DonePopen:
+        def __init__(self, command: list[str], **_kwargs: Any) -> None:
+            self.args = command
+            self._rc = rc
+            self.returncode = rc
+            self._tail = tail
+
+        def poll(self) -> int | None:
+            return self._rc
+
+        def wait(self, timeout: float | None = None) -> int:
+            return self._rc
+
+        def communicate(self, timeout: float | None = None) -> tuple[str, str]:
+            # The shape a text-mode Popen answers: golden() joins the warmer
+            # through communicate (never a bare wait -- a real pull writes past
+            # the 64 KiB pipe buffer, and a wait that does not read blocks the
+            # child on a full pipe), so the tail reaches the firewall clause
+            # through the SAME channel the inline pull's does.
+            return ("", self._tail)
+
+        def kill(self) -> None:
+            pass
+
+        @property
+        def stdout(self) -> str:
+            return ""
+
+        @property
+        def stderr(self) -> str:
+            return self._tail
+
+    return _DonePopen(command)
+
+
+def _warm_calls(calls: list[tuple[list[str], dict[str, Any]]]) -> list[list[str]]:
+    """The pull argvs the warm-up issued — the engine's `pull`, on its own."""
+    return [c for c, _ in calls if c[:2] == ["docker", "pull"]]
+
+
+def _bootable(monkeypatch: pytest.MonkeyPatch) -> None:
+    """Let the fixture's run complete a real ``up()`` past the boot.
+
+    The golden() fixture's ``_run`` recorder answers only the sink ports, so
+    the boot's own lookups for backend/frontend (and the props GET on
+    ai-vlm's port) would raise. The pins in this section drive ``up()`` for
+    the ORDER it witnesses -- the warm start recorded before the boot
+    returns -- so they answer the boot's lookups the way
+    ``test_up_without_a_prebuild_boots_plain`` does: canned loopback ports
+    for the services, and a props GET that answers nothing (which up()
+    skips). Nothing here touches what the warm-up pins assert.
+    """
+
+    def canned_address(self: Any, service: str, port: int) -> str:
+        # Every service answers its own loopback port; the pins never read
+        # which service, only that up() got past the lookups.
+        return f"http://127.0.0.1:{18000 + port}"
+
+    monkeypatch.setattr(fc.Run, "_address", canned_address)
+    monkeypatch.setattr(fc, "_http", lambda *_, **__: (0, None))
+
+
+def test_a_warm_pull_runs_beside_the_boot_and_arrives_before_the_leg(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """[r297] Measure's finding, turned into the Cut: the 29 s Playwright pull
+    runs AFTER boot+seed+smoke today (~95 s it could hide inside), so with the
+    warm-up enabled the fetch starts the moment the boot starts and the leg's
+    own path sees an image that is already there.
+
+    The pin holds the ORDER, not a timing: the warm start must be recorded
+    before the boot's `up` returns, and by the time the leg's argv is issued the
+    fetch has completed (the accounting records `pulled` from the warmer, and
+    the leg runs). What must NOT change is who owns the fetch: one pull, the
+    parent's deadline, the same `playwright_image_pull` value the docs spell.
+    """
+    calls: list[tuple[list[str], dict[str, Any]]] = []
+    run = _golden_only_run(tmp_path, monkeypatch, False, calls, image_present=False)
+    started: list[list[str]] = []
+
+    def factory(command: list[str], **kwargs: Any) -> subprocess.Popen[str] | None:
+        started.append(list(command))
+        return _pull_process(command, 0)
+
+    monkeypatch.setattr(fc, "_start_warm_pull", factory)
+    monkeypatch.setenv(fc.WARM_PULL_ENV, "1")
+    _bootable(monkeypatch)
+    run.up()
+    assert started == [[run.engine, "pull", LOCK_IMAGE_V163]], (
+        "the warm-up starts the pull at boot, with the tag the lock derives"
+    )
+    golden_results_before = json.dumps(run.summary["results"].get("golden", {}))
+    problems = run.golden()
+    assert problems == []
+    assert run.summary["results"]["golden"]["playwright_image_pull"] == "pulled"
+    assert _warm_calls(calls) == [], "golden() issues no second pull of its own"
+    assert _container_calls(calls), "the leg runs on the image the warm-up fetched"
+    assert json.dumps(run.summary["results"]["golden"]) != "{}", (
+        f"the golden record is the same shape as ever: {golden_results_before!r}"
+    )
+
+
+def test_a_failed_warm_pull_names_the_host_and_pulls_nothing_twice(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """[r297] The warm-up is the SAME fetch, moved earlier — not a new one.
+
+    Its failure must read exactly like today's: one problem naming the registry
+    (UR-131's host to allow), the child's own tail carried, the leg never
+    started (ruling 114's vacuity guard), and NO second pull — a warm-up that
+    failed and an inline pull that retries it would be the very workaround the
+    firewall clause forbids (a blocked host gets two refusals instead of one
+    named one, and the second hides the first).
+    """
+    calls: list[tuple[list[str], dict[str, Any]]] = []
+    run = _golden_only_run(tmp_path, monkeypatch, False, calls, image_present=False)
+    started: list[list[str]] = []
+
+    def factory(command: list[str], **kwargs: Any) -> subprocess.Popen[str] | None:
+        started.append(list(command))
+        return _pull_process(command, 1, tail="Error: pull access denied")
+
+    monkeypatch.setattr(fc, "_start_warm_pull", factory)
+    monkeypatch.setenv(fc.WARM_PULL_ENV, "1")
+    _bootable(monkeypatch)
+    run.up()
+    problems = run.golden()
+    named = [p for p in problems if "pull of" in p]
+    assert len(named) == 1, problems
+    assert _named_registry(named[0]) == LOCK_REGISTRY
+    assert "the host to allow" in named[0]
+    assert "does not work around a block" in named[0]
+    assert "pull access denied" in named[0], "the warmer's own tail is carried, not replaced"
+    assert _warm_calls(calls) == [] and _container_calls(calls) == [], (
+        "one fetch total (the warmer's), and a leg with no image never starts"
+    )
+    assert run.summary["results"]["golden"]["playwright_image_pull"] == "exit 1"
+    assert any("executed no tests" in p for p in problems), "ruling 114 still guards the hole"
+
+
+def test_a_present_image_starts_no_warm_pull(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """The warm-up is gated on the same fact the inline pull is: an inspect that
+    says the tag is already here starts nothing.
+
+    Without this gate a host that has the image would pay a registry round-trip
+    (or, with the registry blocked, a named failure) for content it already
+    holds — the exact case `test_a_present_image_is_never_pulled` pins, and the
+    warm-up must not undo it. `pulled` and `present` stay two different records:
+    the summary must not claim a fetch happened when none did.
+    """
+    calls: list[tuple[list[str], dict[str, Any]]] = []
+    run = _golden_only_run(tmp_path, monkeypatch, False, calls, image_present=True)
+
+    def factory(command: list[str], **kwargs: Any) -> subprocess.Popen[str] | None:
+        raise AssertionError(f"no warm pull when the image is present: {command}")
+
+    monkeypatch.setattr(fc, "_start_warm_pull", factory)
+    monkeypatch.setenv(fc.WARM_PULL_ENV, "1")
+    _bootable(monkeypatch)
+    run.up()
+    assert run.summary["results"].get("golden", {}).get("playwright_image_pull") != "pulled"
+    problems = run.golden()
+    assert problems == []
+    assert run.summary["results"]["golden"]["playwright_image_pull"] == "present"
+    assert _warm_calls(calls) == []
+
+
+def test_the_warm_up_is_opt_in_and_leaves_every_other_run_byte_identical(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """[r297] The cut rides an env opt-in, and its OFF state is today.
+
+    The [r282] manifest route set the idiom: the harness reads one variable, the
+    workflow's diff carries the opt-in as one env line, and a tree without it
+    behaves exactly as before — which is what keeps UR-121's bar met (the
+    workflow edit is appending one entry to the step's existing env block) and
+    every existing caller (the operator, --real, maui) byte-identical. The pin
+    holds both directions: unset means no warmer is started even on a host the
+    image is missing from, and set means the warm-up arms exactly as the pins
+    above drive it. The record keeps its own key, so a consumer grepping
+    `playwright_image_pull` sees the same vocabulary the docs spell whether the
+    warm-up ran or not.
+    """
+    calls_off: list[tuple[list[str], dict[str, Any]]] = []
+    run_off = _golden_only_run(tmp_path, monkeypatch, False, calls_off, image_present=False)
+
+    def factory(command: list[str], **kwargs: Any) -> subprocess.Popen[str] | None:
+        raise AssertionError(f"warm pull started with the opt-in unset: {command}")
+
+    monkeypatch.setattr(fc, "_start_warm_pull", factory)
+    monkeypatch.delenv(fc.WARM_PULL_ENV, raising=False)
+    _bootable(monkeypatch)
+    run_off.up()
+    problems = run_off.golden()
+    assert problems == []
+    # OFF keeps the inline pull exactly where it was: the fetch moves back
+    # inside golden(), one pull, same record.
+    assert [c for c, _ in calls_off if c[:2] == ["docker", "pull"]] == [
+        ["docker", "pull", LOCK_IMAGE_V163]
+    ]
+    assert run_off.summary["results"]["golden"]["playwright_image_pull"] == "pulled"
+    assert _container_calls(calls_off), "the leg runs as ever"
+    # And the NAME is the opt-in's contract, not a value the harness guessed.
+    assert fc.WARM_PULL_ENV == "FEATURE_CHECK_WARM_PLAYWRIGHT"
+
+
+def test_a_warm_pull_golden_joined_is_accounted_once_by_the_join(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """The warmer golden() joins is accounted once, and the join is the once.
+
+    A slow pull and a fast boot meet in the middle: golden() arrives while the
+    warmer is still running, waits for it (its own deadline, unchanged), and
+    records whatever it returns — `pulled` or the same named failure the pin
+    above holds. Its outcome read, its streams drained and its process reaped
+    inside that join, the warmer is done being accounted: the teardown's
+    reaper must find nothing to say about it. The first cut left the slot set
+    after the join, and CI witnessed the consequence (run 39781242786, shard
+    2, 13:04:49Z): a green run whose teardown logged `FAIL warm pull outlived
+    the run` for a fetch the leg itself had just recorded as `pulled` — a
+    re-accounting reading as a failure the run did not have.
+    """
+    calls: list[tuple[list[str], dict[str, Any]]] = []
+    run = _golden_only_run(tmp_path, monkeypatch, False, calls, image_present=False)
+    reaped: list[str] = []
+
+    class _SlowPopen:
+        def __init__(self, command: list[str], **kwargs: Any) -> None:
+            self.args = command
+            self._alive = True
+            self.returncode: int | None = None
+
+        def poll(self) -> int | None:
+            return None if self._alive else 0
+
+        def wait(self, timeout: float | None = None) -> int:
+            if self._alive and timeout is not None and timeout <= 0:
+                raise subprocess.TimeoutExpired(self.args, timeout)
+            self._alive = False
+            reaped.append(" ".join(self.args))
+            return 0
+
+        def communicate(self, timeout: float | None = None) -> tuple[str, str]:
+            # golden()'s join goes through here, and a completed communicate
+            # has reaped the child: returncode set, streams drained, nothing
+            # left for a teardown path to wait on or kill.
+            self._alive = False
+            self.returncode = 0
+            return ("", "")
+
+        def kill(self) -> None:
+            self._alive = False
+            reaped.append("killed " + " ".join(self.args))
+
+    def warm_factory(command: list[str], **kwargs: Any) -> _SlowPopen:
+        return _SlowPopen(command)
+
+    monkeypatch.setattr(fc, "_start_warm_pull", warm_factory)
+    monkeypatch.setenv(fc.WARM_PULL_ENV, "1")
+    _bootable(monkeypatch)
+    run.up()
+    # golden() joins it: a warm-up still in flight is waited on, then its
+    # outcome is recorded — here rc 0, so `pulled`, and no inline pull.
+    problems = run.golden()
+    assert problems == []
+    assert run.summary["results"]["golden"]["playwright_image_pull"] == "pulled"
+    assert _warm_calls(calls) == []
+    assert reaped == [], "a still-running warm-up is waited for inside golden(), not reaped there"
+    # And after the run's own cleanup, the reaper has nothing left to account:
+    # the join was the warmer's one accounting, not a lease the reaper collects.
+    assert run.reap_warm_pull() == []
+    assert reaped == [], f"nothing re-accounts a warmer the join already accounted: {reaped}"
+
+
+def test_a_warm_pull_the_run_outlives_ends_with_the_run(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """The finally-path reaper: a warm-up STILL running when the harness's own
+    cleanup has happened is killed, and the account says so.
+
+    Distinct from the pin above, which holds the golden()-joins-it edge: here
+    golden() never waits long enough (the warmer never finishes inside its
+    deadline window the pin simulates by keeping the poll None through golden()
+    and completing only after the run is done) — so the leg records an
+    image-unavailable problem, and the reaper kills what is left. What must not
+    happen is a child that outlives the postflight's clean machine.
+    """
+    calls: list[tuple[list[str], dict[str, Any]]] = []
+    run = _golden_only_run(tmp_path, monkeypatch, False, calls, image_present=False)
+    events: list[str] = []
+
+    class _NeverPopen:
+        def __init__(self, command: list[str], **kwargs: Any) -> None:
+            self.args = command
+            self._alive = True
+            self.returncode: int | None = None
+
+        def poll(self) -> int | None:
+            return None
+
+        def wait(self, timeout: float | None = None) -> int:
+            # A pull that outlasts EVERY deadline the parent could name: any
+            # finite timeout still finds it running (only wait(None) -- never
+            # reachable in the harness -- would ever finish it), so golden()'s
+            # join must read the expiry, not the child's success.
+            if timeout is not None:
+                raise subprocess.TimeoutExpired(self.args, timeout)
+            self._alive = False
+            events.append("waited " + " ".join(self.args))
+            return 0
+
+        def communicate(self, timeout: float | None = None) -> tuple[str, str]:
+            # golden()'s join reaches the warmer's stall through here, exactly
+            # as a real Popen's communicate raises its deadline's
+            # TimeoutExpired.
+            self.wait(timeout)
+            raise AssertionError(
+                "unreachable: wait(None) in the harness would hang on a real child"
+            )
+
+        def kill(self) -> None:
+            self._alive = False
+            events.append("killed " + " ".join(self.args))
+
+    def warm_factory(command: list[str], **kwargs: Any) -> _NeverPopen:
+        return _NeverPopen(command)
+
+    monkeypatch.setattr(fc, "_start_warm_pull", warm_factory)
+    monkeypatch.setenv(fc.WARM_PULL_ENV, "1")
+    _bootable(monkeypatch)
+    run.up()
+    problems = run.golden()
+    # golden() waited its own (pin-bounded) deadline, got nothing, and reads the
+    # same shape as today's stalled inline pull: no image, the vacuity guard,
+    # and the host named from the warmer's tail once it is reaped.
+    assert run.summary["results"]["golden"]["playwright"] == "image unavailable"
+    assert any("executed no tests" in p for p in problems)
+    run.reap_warm_pull()
+    assert events == ["killed docker pull mcr.microsoft.com/playwright:v1.63.0-noble"], (
+        f"an unfinished warmer is killed, not waited on, at reaping: {events}"
+    )
+    assert run.summary["results"]["golden"]["playwright_image_pull"] in {"exit 1", "exit timed out"}
+
+
+def test_the_workflow_opt_in_and_the_harness_agree_on_the_name(
+    tmp_path: Path,
+) -> None:
+    """The workflow's env entry and the harness's constant are ONE spelling.
+
+    [r282]'s opt-in drifted once (the workflow set a name the harness never
+    read — the run silently stayed on the old route), so the pair is pinned
+    against each other: the shards step's env carries
+    FEATURE_CHECK_WARM_PLAYWRIGHT exactly when the harness's WARM_PULL_ENV
+    says it does, and both spell it the same way. A rename on either side reds
+    this test with both names in the message.
+    """
+    yaml = pytest.importorskip("yaml")
+    ci = yaml.safe_load(
+        (REPO_ROOT / ".github" / "workflows" / "ci.yml").read_text(encoding="utf-8")
+    )
+    step = next(s for s in ci["jobs"]["feature-check-shards"]["steps"] if s.get("id") == "harness")
+    env = step.get("env", {})
+    assert fc.WARM_PULL_ENV in env, (
+        f"the shards step never opts into the warm pull; the harness's name is {fc.WARM_PULL_ENV}"
+    )
+    assert env[fc.WARM_PULL_ENV] == "1"
+
+
+def test_no_warm_pull_in_the_real_tier_or_without_a_boot(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """The warm-up is a fake-tier boot cut, not a lifecycle change.
+
+    --real's boot carries the agent-gpu admission between `up` and the reach
+    check, and its golden env is built before its own `up` — arming a fetch in
+    the middle of that would couple the registry's reachability to a boot
+    ruling 189 already budgets separately. The opt-in only ever rides the
+    fake-shard workflow env, so the gate is the run's shape, not the caller's
+    word: a prod-shape (or real) run never starts a warmer even with the
+    variable set, and a run whose boot never happened has nothing to arm.
+    """
+    calls: list[tuple[list[str], dict[str, Any]]] = []
+    run = _golden_only_run(
+        tmp_path, monkeypatch, False, calls, image_present=False, prod_shape=True
+    )
+
+    def factory(command: list[str], **kwargs: Any) -> subprocess.Popen[str] | None:
+        raise AssertionError(f"a prod-shape run started no warm pull: {command}")
+
+    monkeypatch.setattr(fc, "_start_warm_pull", factory)
+    monkeypatch.setenv(fc.WARM_PULL_ENV, "1")
+    _bootable(monkeypatch)
+    run.up()
+    assert run.summary["results"].get("golden", {}).get("playwright_image_pull") != "pulled"
+    problems = run.golden()
+    assert run.summary["results"]["golden"]["playwright_image_pull"] == "pulled"
+    assert [c for c, _ in calls if c[:2] == ["docker", "pull"]] == [
+        ["docker", "pull", LOCK_IMAGE_V163]
+    ], "the prod-shape run still pulls inline, at golden(), as today"
+    assert _container_calls(calls), "the leg runs as ever"
+
+
 def test_a_stalled_step_is_an_ordinary_failure_for_a_check_false_caller(
     tmp_path: Path,
 ) -> None:
@@ -6063,6 +6483,11 @@ def test_the_image_cleanup_is_gated_on_shape_not_on_started(
             calls.append("cleanup")
             return fc.EXIT_OK
 
+        def reap_warm_pull(self) -> list[str]:
+            # The finally's warm-up reaper (the [r297] reaper) runs after the
+            # image cleanup; this stub never arms a warmer, so it ends nothing.
+            return []
+
         def _write(self, name: str, data: Any) -> None:
             return None
 
@@ -6460,6 +6885,12 @@ class _WiredRun:
             raise self.cleanup_raises
         assert self.cleanup is not None
         return self.cleanup
+
+    def reap_warm_pull(self) -> list[str]:
+        # run_check's finally ends the warm-up child here (the [r297] reaper);
+        # this double never arms one, so the account is always empty and the
+        # lifecycle's order record is untouched.
+        return []
 
     def _write(self, name: str, data: Any) -> None:
         return None
