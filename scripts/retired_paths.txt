@@ -127,3 +127,12 @@ docs/plans/image-revalidation-testing.md
 # count is untouched). No declared alias: "shard measure" prose lives in the
 # inventory/plans history and a derived stem would flag it.
 .github/workflows/feature-check-shard-measure.yml
+
+# W3.3 box 1 (#7411): the five dated goal prompts. The packages/record trees keep
+# their references (the gate's record-tree rule); the two txt files that carried a
+# mutation hold banner go with their SUPERSEDED_DOCS rows in the same PR.
+docs/goal-prompt-dependabot-2026-09-21.txt
+docs/goal-prompt-dependabot-2026-09-23.txt
+docs/goal-prompt-dependabot-combined-2026-09-21.txt
+docs/goal-prompt-mutation-80-2026-09-22.txt
+docs/goal-prompt-mutation-80-2026-09-23.txt

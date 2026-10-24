@@ -13830,8 +13830,6 @@
   "backend/tests/unit/scripts/test_main_green_residue.py::TestModelDownloaderDispatch::test_live_handlers_survive": 0.003,
   "backend/tests/unit/scripts/test_main_green_residue.py::TestModelDownloaderDispatch::test_retired_handlers_are_gone": 0.003,
   "backend/tests/unit/scripts/test_main_green_residue.py::TestSeedEventsInstances::test_instances_list_has_no_retired_hostnames": 0.007,
-  "backend/tests/unit/scripts/test_mutation_hold_banner.py::test_a_superseded_doc_opens_pointing_at_the_policy[docs/goal-prompt-mutation-80-2026-09-22.txt-3]": 0.003,
-  "backend/tests/unit/scripts/test_mutation_hold_banner.py::test_a_superseded_doc_opens_pointing_at_the_policy[docs/goal-prompt-mutation-80-2026-09-23.txt-3]": 0.003,
   "backend/tests/unit/scripts/test_mutation_hold_banner.py::test_a_superseded_doc_opens_pointing_at_the_policy[docs/plans/2026-09-12-context-map-doc-updates.md-8]": 0.008,
   "backend/tests/unit/scripts/test_mutation_hold_banner.py::test_a_superseded_doc_opens_pointing_at_the_policy[docs/plans/2026-09-29-mutation-ladder-85-goal-prompt.md-8]": 0.003,
   "backend/tests/unit/scripts/test_mutation_hold_banner.py::test_the_l_ledger_opens_saying_it_takes_no_new_mutation_rows": 0.007,
