@@ -9,7 +9,7 @@ launched by `backend/entrypoint.sh:51`, log at
 `/app/data/logs/profiler.log`) — two views of the **same** backend process —
 plus `ai-vlm`, profiled from outside by Alloy's eBPF component because
 `llama-server` is native code (label `pyroscope.profile: 'true'`,
-`docker-compose.prod.yml:151-152`). `ai-gateway` runs Triton and pushes nothing.
+`docker-compose.prod.yml:77-78`). `ai-gateway` runs Triton and pushes nothing.
 Mechanism details: [Continuous Profiling Guide](../guides/profiling.md).
 
 ## Quick Reference
@@ -27,7 +27,7 @@ Mechanism details: [Continuous Profiling Guide](../guides/profiling.md).
 
 Grafana serves from the `/grafana/` sub-path
 (`GF_SERVER_ROOT_URL=/grafana/`, `GF_SERVER_SERVE_FROM_SUB_PATH=true`,
-`docker-compose.prod.yml:1095-1096`) on host port `${GRAFANA_PORT:-3002}`, bound
+`docker-compose.prod.yml:590-591`) on host port `${GRAFANA_PORT:-3002}`, bound
 to `127.0.0.1`.
 
 ---
@@ -808,7 +808,7 @@ Grafana serves from `/grafana/`, so its API lives at
 calls need the machine key or a login session), and the admin pair is
 `GF_ADMIN_USER`/`GF_ADMIN_PASSWORD` (both default `admin`). The provisioning
 directory is bind-mounted read-only
-(`docker-compose.prod.yml:1074`).
+(`docker-compose.prod.yml:570`).
 
 **Procedure:**
 
