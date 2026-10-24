@@ -40,6 +40,12 @@ export interface DeletedEventCardProps {
   onSelectionChange?: (eventId: number, selected: boolean) => void;
   /** Whether to show selection checkbox */
   showSelection?: boolean;
+  /**
+   * Preformatted purge date from the Trash clock rule (F4.3, spec 4n-trash.md:
+   * "Trash shows that date"). Omitted while config is loading or malformed —
+   * the chip simply doesn't render rather than printing a false date.
+   */
+  purgeDate?: string;
 }
 
 /**
@@ -85,6 +91,7 @@ const DeletedEventCard = memo(function DeletedEventCard({
   isSelected = false,
   onSelectionChange,
   showSelection = false,
+  purgeDate,
 }: DeletedEventCardProps) {
   const [showConfirmDialog, setShowConfirmDialog] = useState(false);
 
@@ -250,6 +257,12 @@ const DeletedEventCard = memo(function DeletedEventCard({
           <div className="mb-3 flex items-center gap-1.5 rounded bg-red-500/10 px-2 py-1 text-xs text-red-400">
             <Trash2 className="h-3.5 w-3.5" />
             <span>Deleted {timeSinceDeletion}</span>
+            {purgeDate !== undefined && (
+              <>
+                <span aria-hidden="true">·</span>
+                <span data-testid={`purge-date-${event.id}`}>Purged: {purgeDate}</span>
+              </>
+            )}
           </div>
 
           {/* Actions */}
