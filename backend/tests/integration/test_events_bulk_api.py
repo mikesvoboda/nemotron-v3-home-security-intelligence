@@ -249,7 +249,22 @@ class TestBulkDeleteEvents:
 
     @pytest.mark.asyncio
     async def test_bulk_delete_events_hard_delete(self, async_client, sample_events):
-        """Test bulk hard delete of events."""
+        """Test bulk hard delete of events already in Trash.
+
+        B4.4 Trash semantics (docs/uplevel/4n-trash.md): a permanent delete of
+        an event not in Trash returns 409-equivalent refusal ("Event not in
+        Trash"), so the events are soft-deleted first to move them to Trash,
+        then purged.
+        """
+        # Move events to Trash first (soft delete)
+        trash_data = {
+            "event_ids": [sample_events[2].id, sample_events[3].id],
+            "soft_delete": True,
+        }
+        trash_response = await async_client.request("DELETE", "/api/events/bulk", json=trash_data)
+        assert trash_response.status_code == 207
+        assert trash_response.json()["succeeded"] == 2
+
         delete_data = {
             "event_ids": [sample_events[2].id, sample_events[3].id],
             "soft_delete": False,
@@ -269,7 +284,13 @@ class TestBulkDeleteEvents:
 
     @pytest.mark.asyncio
     async def test_bulk_delete_events_not_found(self, async_client, sample_events):
-        """Test bulk delete with some events not found."""
+        """Test bulk hard delete reports the not-in-Trash event and the missing one.
+
+        B4.4 Trash semantics: an event not in Trash is refused (succeeded=0),
+        not hard-deleted; a nonexistent id is not_found. Per docs/uplevel/
+        4n-trash.md the bulk permanent delete "purges the trashed events and
+        reports the others as refused".
+        """
         delete_data = {
             "event_ids": [sample_events[0].id, 999999],
             "soft_delete": False,
@@ -279,12 +300,14 @@ class TestBulkDeleteEvents:
 
         assert response.status_code == 207
         data = response.json()
-        assert data["succeeded"] == 1
-        assert data["failed"] == 1
+        assert data["succeeded"] == 0
+        assert data["failed"] == 2
 
         # Check results
         success_result = next(r for r in data["results"] if r["id"] == sample_events[0].id)
-        assert success_result["status"] == BulkOperationStatus.SUCCESS
+        assert success_result["status"] == BulkOperationStatus.FAILED
+        assert "not in trash" in success_result["error"].lower()
 
         failed_result = next(r for r in data["results"] if r["id"] == 999999)
         assert failed_result["status"] == BulkOperationStatus.FAILED
+        assert "not found" in failed_result["error"].lower()
