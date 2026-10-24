@@ -245,9 +245,7 @@ describe('TrashPage', () => {
         expect(screen.getByText('Automatic cleanup')).toBeInTheDocument();
       });
 
-      expect(
-        screen.getByText(/deleted when their general retention expires/i)
-      ).toBeInTheDocument();
+      expect(screen.getByText(/deleted when their general retention expires/i)).toBeInTheDocument();
       expect(screen.queryByText(/after 0 days/i)).not.toBeInTheDocument();
     });
 

@@ -94,7 +94,9 @@ describe('purgeDeadlineForEvent (mirrors event_purger.py purge_deadline_for_even
   it('returns null on malformed retention config instead of printing a false date', () => {
     // retention_days <= 0 is impossible per the backend schema (ge=1);
     // NaN/absent likewise. No clock → no printed date.
-    expect(purgeDeadlineForEvent(DELETED_AT, STARTED_AT, { retentionDays: 0, trashRetentionDays: 30 })).toBeNull();
+    expect(
+      purgeDeadlineForEvent(DELETED_AT, STARTED_AT, { retentionDays: 0, trashRetentionDays: 30 })
+    ).toBeNull();
     expect(
       purgeDeadlineForEvent(DELETED_AT, STARTED_AT, { retentionDays: -1, trashRetentionDays: 30 })
     ).toBeNull();

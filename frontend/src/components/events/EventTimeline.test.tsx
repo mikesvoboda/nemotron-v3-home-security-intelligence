@@ -1610,10 +1610,10 @@ describe('EventTimeline', () => {
         skipped: overrides.skipped ?? 0,
         results:
           overrides.results ??
-          [
+          ([
             { index: 0, status: 'success', id: 3, error: null },
             { index: 1, status: 'success', id: 2, error: null },
-          ] as Array<{ index: number; status: string; id: number | null; error?: string | null }>,
+          ] as Array<{ index: number; status: string; id: number | null; error?: string | null }>),
       };
     }
 
@@ -1731,9 +1731,11 @@ describe('EventTimeline', () => {
         expect.objectContaining({ action: expect.objectContaining({ label: 'Undo' }) })
       );
 
-      const undoAction = (toastMock.success.mock.calls[0][1] as {
-        action: { onClick: () => void };
-      }).action;
+      const undoAction = (
+        toastMock.success.mock.calls[0][1] as {
+          action: { onClick: () => void };
+        }
+      ).action;
       undoAction.onClick();
 
       await waitFor(() => {
@@ -1787,9 +1789,11 @@ describe('EventTimeline', () => {
       });
 
       // Undo restores ONLY the succeeded row — the refused one was never deleted.
-      const undoAction = (toastMock.success.mock.calls[0][1] as {
-        action: { onClick: () => void };
-      }).action;
+      const undoAction = (
+        toastMock.success.mock.calls[0][1] as {
+          action: { onClick: () => void };
+        }
+      ).action;
       undoAction.onClick();
 
       await waitFor(() => {

@@ -198,10 +198,7 @@ export default function TrashPage() {
   // backend predates B4.4, which runs the documented default of 30.
   const trashRetentionDays = config?.trash_retention_days ?? DEFAULT_TRASH_RETENTION_DAYS;
   const retentionDays = config?.retention_days;
-  const purgeConfig =
-    retentionDays === undefined
-      ? null
-      : { retentionDays, trashRetentionDays };
+  const purgeConfig = retentionDays === undefined ? null : { retentionDays, trashRetentionDays };
 
   // Bulk selection state
   const [selectedIds, setSelectedIds] = useState<Set<number>>(new Set());
@@ -484,7 +481,9 @@ export default function TrashPage() {
                 purgeDate={
                   purgeConfig === null
                     ? undefined
-                    : formatPurgeDate(purgeDeadlineForEvent(event.deleted_at, event.started_at, purgeConfig))
+                    : formatPurgeDate(
+                        purgeDeadlineForEvent(event.deleted_at, event.started_at, purgeConfig)
+                      )
                 }
                 onRestore={handleRestore}
                 onPermanentDelete={handlePermanentDelete}

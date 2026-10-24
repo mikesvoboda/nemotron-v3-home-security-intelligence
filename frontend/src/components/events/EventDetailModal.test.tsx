@@ -927,9 +927,7 @@ describe('EventDetailModal', () => {
       await waitFor(() => {
         expect(screen.getByRole('dialog')).toBeInTheDocument();
       });
-      expect(
-        screen.queryByRole('button', { name: 'Move event to Trash' })
-      ).not.toBeInTheDocument();
+      expect(screen.queryByRole('button', { name: 'Move event to Trash' })).not.toBeInTheDocument();
     });
 
     it('calls onDelete with event ID when button is clicked', async () => {

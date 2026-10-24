@@ -56,19 +56,13 @@ export function purgeDeadlineForEvent(
   }
 
   const retentionDays = config.retentionDays;
-  if (
-    typeof retentionDays !== 'number' ||
-    !Number.isFinite(retentionDays) ||
-    retentionDays <= 0
-  ) {
+  if (typeof retentionDays !== 'number' || !Number.isFinite(retentionDays) || retentionDays <= 0) {
     // The backend validates retention_days >= 1; anything else is malformed
     // config, and inventing a deadline from it would print a false date.
     return null;
   }
 
-  const retentionDeadline = new Date(
-    started.getTime() + retentionDays * 24 * 60 * 60 * 1000
-  );
+  const retentionDeadline = new Date(started.getTime() + retentionDays * 24 * 60 * 60 * 1000);
 
   const trashDays = config.trashRetentionDays;
   if (typeof trashDays !== 'number' || !Number.isFinite(trashDays) || trashDays <= 0) {
@@ -76,12 +70,8 @@ export function purgeDeadlineForEvent(
     return retentionDeadline;
   }
 
-  const trashDeadline = new Date(
-    deleted.getTime() + trashDays * 24 * 60 * 60 * 1000
-  );
-  return trashDeadline.getTime() < retentionDeadline.getTime()
-    ? trashDeadline
-    : retentionDeadline;
+  const trashDeadline = new Date(deleted.getTime() + trashDays * 24 * 60 * 60 * 1000);
+  return trashDeadline.getTime() < retentionDeadline.getTime() ? trashDeadline : retentionDeadline;
 }
 
 /**

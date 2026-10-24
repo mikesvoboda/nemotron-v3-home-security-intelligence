@@ -567,9 +567,7 @@ describe('DataManagementPage', () => {
       renderWithProviders(<DataManagementPage />);
 
       await waitFor(() => {
-        expect(
-          screen.getByText(/does not report a Trash retention setting/i)
-        ).toBeInTheDocument();
+        expect(screen.getByText(/does not report a Trash retention setting/i)).toBeInTheDocument();
       });
       expect(screen.queryByTestId('trash-retention-slider')).not.toBeInTheDocument();
     });

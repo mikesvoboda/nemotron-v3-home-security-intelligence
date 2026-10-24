@@ -15,11 +15,7 @@ import { http, HttpResponse } from 'msw';
 import { describe, it, expect, afterEach } from 'vitest';
 
 import { server } from '../../mocks/server';
-import {
-  softDeleteEvent,
-  bulkSoftDeleteEvents,
-  permanentlyDeleteEvent,
-} from '../api';
+import { softDeleteEvent, bulkSoftDeleteEvents, permanentlyDeleteEvent } from '../api';
 
 interface CapturedRequest {
   url: URL;
