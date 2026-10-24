@@ -9,25 +9,15 @@ a member"): ``POST /api/household/members/{member_id}/embeddings`` with a JSON
 body ``{"event_id": ..., "confidence": ...}`` (confidence optional, defaulting
 to 1.0), implemented by ``backend/api/routes/household.py``
 ``add_embedding_from_event``. The ladder below walks the endpoint's documented
-error contract step by step, then stops one rung short of success — on
-purpose:
+error contract and its 201 success rung:
 
 * 404 for an unknown member, 404 for an unknown event, 400 for an event with
   no person detection: all three are pure-database answers reachable with
   nothing but HTTP.
-* 503 naming the missing weights: when the pinned OSNet-AIN x1.0 weights are
-  not resident the endpoint must say so, naming
-  ``osnet-ain-x1-0`` — the F11 belt against a silent zero-vector stub.
-
-The *success* rung (a 201 with a stored 512-dim vector beside a ``model_id``)
-is deliberately NOT asserted here, and neither is the 500. No agent tier loads
-the re-ID weights: the CI compose mounts no model zoo and
-``BACKEND_MODEL_PRELOAD`` stays at its default False
-(``backend/core/config.py:2562``, ruling 231), so the
-handle is always absent and a successful extraction is unwitnessable on this
-tier — the row waits at ``awaiting real tier`` for a tier that loads them, as
-F-278 does. A leg asserting 201 would skip-forever or false-fail; the row's
-status column, not this file, carries that caveat.
+* 201 storing a 512-dim person embedding: with ``REID_BACKEND=gateway``
+  (`[r306a]`), the smoke event's person detection is embedded through the
+  gateway's ``/enrich-lt/person-reid`` route and stored in
+  ``person_embeddings`` beside the producer's ``model_id``.
 """
 
 from __future__ import annotations
@@ -43,11 +33,6 @@ import pytest
 pytestmark = [pytest.mark.network, pytest.mark.timeout(120)]
 
 EMBEDDINGS_PATH = "/api/household/members/{member_id}/embeddings"
-
-# The weights name the 503 must say. ``backend/services/osnet_loader.py``
-# pins ``OSNET_ZOO_NAME``; a handler that relabels the cause (or stops naming
-# the file) breaks the "say so, naming the cause" contract.
-EXPECTED_WEIGHTS_NAME = "osnet-ain-x1-0"
 
 
 def _embeddings_url(member_id: int) -> str:
@@ -188,24 +173,28 @@ def test_f297_event_without_person_detection_answers_400(
     assert "Event does not contain a person detection" in response.text
 
 
-def test_f297_absent_weights_answer_503_naming_the_weights(
+def test_f297_person_event_stores_embedding_answers_201(
     logged_in_api: httpx.Client,
     member_id: int,
     smoke_event: dict,
 ) -> None:
-    """With the pinned re-ID weights not resident, the endpoint is 503 naming them.
+    """With REID_BACKEND=gateway ([r306a]), the smoke event's person crop embeds and stores (201).
 
     The smoke event carries a person detection (scenario fixture: one person,
     bbox 260,120,110,300) whose image file exists in-container — so the
-    endpoint reaches the Re-ID service, which raises ``ReIDUnavailableError``
-    because no agent tier loads ``osnet-ain-x1-0`` (ruling 231). The answer
-    must be 503 with the weights name in the detail: that string is the
-    operator's one-line explanation of *why* enrolment is refused.
+    endpoint reaches the Re-ID service, which extracts a 512-dim embedding
+    through the gateway's ``/enrich-lt/person-reid`` route and stores the
+    ``PersonEmbedding`` row beside the producer's ``model_id``.
     """
     event_id = smoke_event["id"]
     response = logged_in_api.post(
         _embeddings_url(member_id),
         json={"event_id": event_id, "confidence": 0.9},
     )
-    assert response.status_code == 503, response.text[:500]
-    assert EXPECTED_WEIGHTS_NAME in response.text, response.text[:500]
+    assert response.status_code == 201, response.text[:500]
+    body = response.json()
+    assert isinstance(body.get("id"), int), body
+    assert body.get("member_id") == member_id, body
+    assert body.get("source_event_id") == event_id, body
+    assert body.get("confidence") == pytest.approx(0.9), body
+    assert isinstance(body.get("created_at"), str) and body["created_at"], body
