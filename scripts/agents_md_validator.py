@@ -141,6 +141,13 @@ class ValidatorConfig:
     # {"path": <dir rel to root, "." for root>, "reason": <one line>}.
     boundary_list: list[dict[str, str]] = field(default_factory=list)
     line_caps: dict[str, int] = field(default_factory=dict)
+    # W3.2 (ruling 33): the per-file line baselines — one committed number per
+    # boundary AGENTS.md, may only FALL. The tier caps stay the rewrite target;
+    # the baseline is what fails. Same doctrine as retired_name_baseline: a
+    # missing file's key is neither 0 (fires on every pre-existing line) nor
+    # unchecked (deleting the key is the cheapest way to disable the gate) —
+    # the loader requires all of boundary_list's files.
+    line_caps_baseline: dict[str, int] = field(default_factory=dict)
     config_loaded: bool = False
 
 
@@ -317,6 +324,37 @@ def load_config(config_path: Path | None, project_root: Path) -> ValidatorConfig
         if not isinstance(cap_value, int) or isinstance(cap_value, bool) or cap_value < 1:
             raise ConfigError(f"line_caps[{tier!r}] must be an int >= 1, got {cap_value!r}")
         config.line_caps[tier] = cap_value
+
+    # W3.2 (ruling 33): the per-file fall-only line baselines. Required once
+    # the arm flipped — a config that dropped the key would silently return
+    # the caps arm to reporting-only (same absent-is-exit-2 doctrine).
+    raw_line_baseline = data.get("line_caps_baseline")
+    if raw_line_baseline is None:
+        raise ConfigError(
+            f"{config_path} has no line_caps_baseline key — W3.2's per-file "
+            "baselines are the failing arm of the caps; absent is not 'no "
+            "baseline', it is the gate silently off (same doctrine as the "
+            "baselines)"
+        )
+    if not isinstance(raw_line_baseline, dict):
+        raise ConfigError("line_caps_baseline must be a path: line-count mapping")
+    boundary_files: set[str] = set()
+    for entry in config.boundary_list:
+        boundary_files.add("AGENTS.md" if entry["path"] == "." else f"{entry['path']}/AGENTS.md")
+    for rel in sorted(boundary_files):
+        if rel not in raw_line_baseline:
+            raise ConfigError(
+                f"line_caps_baseline is missing {rel!r} — a missing file's key is "
+                "not 0 (would fire on every pre-existing line) and not unchecked "
+                "(deleting the key is the cheapest way to disable the gate); one "
+                "number per boundary file, all required (a listed-but-absent file "
+                "still carries a key — its number is inert until the file exists, "
+                "and the missing_agents_md arm fails the run for the hole)"
+            )
+        value = raw_line_baseline[rel]
+        if not isinstance(value, int) or isinstance(value, bool) or value < 1:
+            raise ConfigError(f"line_caps_baseline[{rel!r}] must be an int >= 1, got {value!r}")
+        config.line_caps_baseline[rel] = value
 
     config.config_loaded = True
     return config
@@ -811,25 +849,39 @@ def boundary_tier(dir_path: str) -> str:
 
 
 def evaluate_line_caps(scan: Scan, config: ValidatorConfig) -> dict[str, Any]:
-    """The W2.1 reporting arm: over-cap boundary files, measured, NOT failing.
+    """The W2.1 reporting arm + the W3.2 failing arm (ruling 33).
 
-    Returns the report's ratchet.line_caps block. Deliberately not a
-    violations[] source until W3.2 flips the mode: W1.3/W3.1 still have
-    boundary files to drain and delete, and a cap that failed today would
-    redden every PR touching a file that is scheduled to be rewritten or
-    pruned. The over-cap SET is the point: it is W3.2's work list per lane.
+    Two comparisons, both kept visible:
+
+    - `over` — the tier-cap work list. Reporting-only still (it does not feed
+      violations): the 16 frontend files over their tier cap are the FRONTEND
+      lane's W3.2 work, and failing on them from the backend PR would gate a
+      lane's tree on another lane's rewrite. The set is the rewrite map.
+    - `over_baseline` — the per-file fall-only baselines
+      (line_caps_baseline). This is the failing comparison: measured above a
+      file's baseline is a violation naming the file, so a boundary file can
+      still be over its tier cap (work list) but may not GROW past its
+      committed baseline until the lane's W3.2 PR rewrites it (baseline falls
+      to the new count, census pattern).
+
+    W2.1 shipped reporting-only because a cap that failed on adoption would
+    redden every PR touching a scheduled rewrite; W3.2 (ruling 33 answer 3)
+    keeps that for the tier caps and ships the growth ratchet instead —
+    `evaluate_ratchet` turns over_baseline into violations.
     """
     boundary_paths = {entry["path"] for entry in config.boundary_list}
     over: list[dict[str, Any]] = []
+    over_baseline: list[dict[str, Any]] = []
     for dir_path in sorted(boundary_paths):
         agents_md = "AGENTS.md" if dir_path == "." else f"{dir_path}/AGENTS.md"
         measured = scan.line_counts.get(agents_md)
         tier = boundary_tier(dir_path)
         cap = config.line_caps[tier]
+        baseline = config.line_caps_baseline.get(agents_md)
         if measured is None:
             # A boundary the scan never saw (deleted, or excluded by
-            # exclude_directories/no_agents_md_required). Reporting-only: W3.1
-            # owns reconciling the list against the tree.
+            # exclude_directories/no_agents_md_required): the missing_agents_md
+            # arm already fails the run; the caps arm records the hole.
             over.append(
                 {
                     "path": agents_md,
@@ -850,6 +902,15 @@ def evaluate_line_caps(scan: Scan, config: ValidatorConfig) -> dict[str, Any]:
                     "reason": f"over the {tier} cap by {measured - cap} lines",
                 }
             )
+        if baseline is not None and measured > baseline:
+            over_baseline.append(
+                {
+                    "path": agents_md,
+                    "measured": measured,
+                    "baseline": baseline,
+                    "reason": f"over its committed baseline by {measured - baseline} lines",
+                }
+            )
     return {
         "caps": config.line_caps,
         "boundaries": len(boundary_paths),
@@ -860,7 +921,9 @@ def evaluate_line_caps(scan: Scan, config: ValidatorConfig) -> dict[str, Any]:
             in scan.line_counts
         ),
         "over": over,
-        "failing": False,  # W3.2 flips this; tests pin it False until then
+        "over_baseline": over_baseline,
+        "failing": True,  # W3.2 flipped it (ruling 33): over_baseline feeds violations
+        "mode": "baseline",
     }
 
 
@@ -939,6 +1002,21 @@ def evaluate_ratchet(scan: Scan, config: ValidatorConfig) -> list[str]:
             f"<!-- agents-md-validator: ignore-reference {reference} --> has no "
             "tracking ref, so it suppresses nothing — append ' # <W1.3/ledger-ref>' "
             "or delete the comment."
+        )
+
+    # W3.2 (ruling 33): the per-file line baselines, the caps arm's failing
+    # comparison. A boundary file may still sit over its tier cap (the work
+    # list reports it) but may not GROW past its committed baseline — a raise
+    # is a hand edit in .agents-md-validator.yml that a human reviews, per
+    # scripts/ratchet-check.py's doctrine.
+    caps_block = evaluate_line_caps(scan, config)
+    for entry in caps_block["over_baseline"]:
+        violations.append(
+            f"line baseline exceeded: {entry['path']} measured {entry['measured']} > "
+            f"baseline {entry['baseline']} ({entry['reason']}). Counts may only "
+            "FALL: rewrite the file to the standard (W3.2), or lower the "
+            "baseline — a raise is a hand edit in .agents-md-validator.yml that "
+            "a human reviews, per scripts/ratchet-check.py's doctrine."
         )
 
     return violations
@@ -1070,20 +1148,27 @@ def print_summary(report: dict[str, Any]) -> None:
     else:
         print("\nNo issues found!", file=sys.stderr)
 
-    # W2.1: the reporting arm prints even under a clean run — a work list
-    # only visible in the JSON is a work list nobody opens. This line does
-    # not change the exit code; W3.2 flips the caps to violations.
+    # W2.1/W3.2: the caps block prints even under a clean run — a work list
+    # only visible in the JSON is a work list nobody opens. The tier-cap set
+    # does not change the exit code (rewrite map); the baseline comparison
+    # does, through the violations above.
     caps_block = report.get("ratchet", {}).get("line_caps")
     if caps_block:
         print(
-            f"\nLine caps (W2.1, reporting until W3.2): "
+            f"\nLine caps (W2.1 tier caps = work list; W3.2 baselines fail): "
             f"{len(caps_block['over'])} of {caps_block['measured']} boundary "
-            f"files over cap {caps_block['caps']}",
+            f"files over cap {caps_block['caps']}, "
+            f"{len(caps_block['over_baseline'])} over baseline",
             file=sys.stderr,
         )
         for entry in caps_block["over"]:
             print(
                 f"  [over-cap] {entry['path']} ({entry['tier']}): {entry['reason']}",
+                file=sys.stderr,
+            )
+        for entry in caps_block["over_baseline"]:
+            print(
+                f"  [over-baseline] {entry['path']}: {entry['reason']}",
                 file=sys.stderr,
             )
 

@@ -206,6 +206,51 @@ EXPECTED_RULE_EXCEPTIONS = {
     "synthbench/contract",  # cross-lane event contract
 }
 EXPECTED_LINE_CAPS = {"root": 600, "lane_root": 500, "package": 300}
+# W3.2 (ruling 33): the per-file fall-only baselines, one per boundary file,
+# byte-pinned like the caps. These are the pre-W3.2 line counts (post-rewrite
+# for the seven backend files this PR lands) — a rewrite lowers the number in
+# the same PR, a raise is the hand-edit-a-human-reviews path ratchet-check.py
+# documents. A value that does not match the committed config fails the pin
+# below; the config diff itself is the reviewed artifact.
+EXPECTED_LINE_BASELINES = {
+    "AGENTS.md": 509,
+    ".github/AGENTS.md": 355,
+    "ai/AGENTS.md": 442,
+    "backend/AGENTS.md": 150,
+    "frontend/AGENTS.md": 676,
+    "monitoring/AGENTS.md": 383,
+    "scripts/AGENTS.md": 1214,
+    "setup_lib/AGENTS.md": 167,
+    "synthbench/AGENTS.md": 40,
+    "ai/gateway/AGENTS.md": 45,
+    "backend/ai_contract/AGENTS.md": 34,
+    "backend/api/AGENTS.md": 127,
+    "backend/core/AGENTS.md": 177,
+    "backend/models/AGENTS.md": 129,
+    "backend/services/AGENTS.md": 168,
+    "frontend/src/AGENTS.md": 961,
+    "synthbench/contract/AGENTS.md": 35,
+    ".github/codeql/custom-queries/AGENTS.md": 381,
+    "ai/gateway/export/AGENTS.md": 27,
+    "backend/api/routes/AGENTS.md": 112,
+    "backend/api/schemas/AGENTS.md": 106,
+    "frontend/src/hooks/AGENTS.md": 2149,
+    "frontend/src/pages/AGENTS.md": 123,
+    "frontend/src/services/AGENTS.md": 931,
+    "frontend/src/types/AGENTS.md": 406,
+    "frontend/src/utils/AGENTS.md": 521,
+    "frontend/src/components/ai/AGENTS.md": 416,
+    "frontend/src/components/analytics/AGENTS.md": 400,
+    "frontend/src/components/common/AGENTS.md": 1102,
+    "frontend/src/components/dashboard/AGENTS.md": 512,
+    "frontend/src/components/developer-tools/AGENTS.md": 318,
+    "frontend/src/components/events/AGENTS.md": 515,
+    "frontend/src/components/face-recognition/AGENTS.md": 280,
+    "frontend/src/components/jobs/AGENTS.md": 308,
+    "frontend/src/components/settings/AGENTS.md": 393,
+    "frontend/src/components/system/AGENTS.md": 361,
+    "frontend/src/components/zones/AGENTS.md": 430,
+}
 # The rule's one live NOT-listed exception, with its reason (config comment
 # carries the same one): >= 20 code files but no AGENTS.md today, and W3.1
 # adds none — a listed boundary without a file is a permanent null hole in
@@ -223,6 +268,7 @@ def build(
     baseline=_SENTINEL,
     boundary=_SENTINEL,
     caps=_SENTINEL,
+    line_baseline=_SENTINEL,
 ) -> Path:
     """A minimal scannable tree whose config INHERITS the committed exclusion
     lists (hand-transcribed config copies rot) with spliced fixture baselines."""
@@ -237,7 +283,7 @@ def build(
         p = root / rel
         p.parent.mkdir(parents=True, exist_ok=True)
         p.write_text(content)
-    write_config(root, baseline=baseline, boundary=boundary, caps=caps)
+    write_config(root, baseline=baseline, boundary=boundary, caps=caps, line_baseline=line_baseline)
     return root
 
 
@@ -247,6 +293,7 @@ def write_config(
     baseline=_SENTINEL,
     boundary=_SENTINEL,
     caps=_SENTINEL,
+    line_baseline=_SENTINEL,
 ) -> Path:
     config = {
         "exclude_directories": [*COMMITTED_CONFIG["exclude_directories"], "site"],
@@ -259,7 +306,9 @@ def write_config(
         # The fixture's only scanned file is the root AGENTS.md, so the root
         # boundary is the honest one-entry list; caps default generous so the
         # green fixture stays green on the reporting arm unless a test pins
-        # them low on purpose.
+        # them low on purpose. The line baseline defaults to cover the same
+        # one entry at a generous number — W3.2's loader requires it, so a
+        # fixture config without it is exit 2, not a reporting arm.
         "boundary_list": (
             [{"path": ".", "reason": "the fixture's only boundary"}]
             if boundary is _SENTINEL
@@ -267,6 +316,9 @@ def write_config(
         ),
         "line_caps": (
             {"root": 1000, "lane_root": 1000, "package": 1000} if caps is _SENTINEL else caps
+        ),
+        "line_caps_baseline": (
+            {"AGENTS.md": 1000} if line_baseline is _SENTINEL else line_baseline
         ),
     }
     path = root / ".agents-md-validator.yml"
@@ -493,6 +545,7 @@ def test_missing_boundary_agents_md_fails(tmp_path):
             {"path": ".", "reason": "root"},
             {"path": "backend", "reason": "lane root"},
         ],
+        line_baseline={"AGENTS.md": 100, "backend/AGENTS.md": 100},
     )
     r = run_validator(root)
     assert r.returncode == 1
@@ -687,28 +740,42 @@ def test_report_shape_is_pinned(tmp_path):
     assert ratchet["outside_boundaries"] == {"count": 0, "files": [], "failing": False}
 
 
-def test_line_caps_report_every_tier_and_never_fail(tmp_path):
-    """W2.1's reporting arm, all four tier arms + the missing-file arm, in
-    one fixture, and the mode: caps NEVER fail the run until W3.2 flips
-    `failing`. Over-cap boundary files are W3.2's work list, so the SET is
-    what is pinned — path, tier, cap, measured — not a count.
+def test_line_caps_report_every_tier_and_baseline_fails(tmp_path):
+    """W2.1's reporting arm, all four tier arms, in one fixture — and W3.2's
+    flip (ruling 33): the per-file line baselines now FAIL the run.
 
-    A cap that failed on adoption would redden every PR touching a file that
-    is itself scheduled to be rewritten (measured in PR #6920: 29 of the 42
-    then-listed boundary files were over cap). Green-on-caps is therefore the pinned behaviour, not an oversight
-    — and `failing: False` is pinned False so W3.2's flip is a reviewed edit
-    to the validator, not a silent drift.
+    The two arms are deliberately different instruments:
+    - Tier caps stay REPORTING-ONLY (`failing` is about the baseline arm).
+      Over-cap boundary files are the lanes' W3.2 work lists, and failing on
+      them from one lane's PR would gate a lane's tree on another lane's
+      rewrite — 17 of the 18 files over cap on the real tree belong to the
+      frontend/ops lanes. The SET is what is pinned — path, tier, cap,
+      measured — not a count.
+    - The per-file baselines are the growth ratchet the tier caps never had:
+      measured > committed baseline is a violation naming the file; the way
+      down is rewrite-then-lower (census pattern), and a fall below the
+      baseline is free. `failing: True` + `mode: baseline` are pinned so the
+      flip is on the record — a return to reporting-only is a reviewed edit,
+      not a silent drift.
+
+    The fixture's first run is green with every file OVER its tier cap —
+    over-cap-but-at-baseline is exactly the W3.2 steady state the ruling
+    describes (the work list reports; the gate does not block). A cap that
+    failed on adoption would redden every PR touching a file scheduled for
+    rewrite (measured in PR #6920: 29 of the 42 then-listed boundary files
+    were over cap).
 
     The `backend/models` fixture entry is the case the real tree cannot supply:
-    a file whose line count EQUALS its cap, which must NOT be reported (a cap is
-    a maximum, not a trigger). No committed boundary file sits at one — the
-    smallest |lines - cap| on the real tree is 8
-    (frontend/src/components/jobs, 308 against the 300 cap; developer-tools is
-    318), and shifting every cap by ±5 leaves the over-set unchanged — so a `>`
-    slipping to `>=` is invisible to every real-tree assertion in this file.
-    Confirmed by mutation, not inference: flipping the comparison reddens THIS
-    test and leaves all five real-tree tests green. That is the pair-sides
-    rule's untested direction, pinned here instead."""
+    a file whose line count EQUALS its cap AND its baseline, which must NOT be
+    reported by either arm (a cap is a maximum, a baseline a floor for growth —
+    both compare with `>`). No committed boundary file sits at either edge —
+    the smallest |lines - cap| on the real tree is 8 (frontend/src/components/
+    jobs, 308 against the 300 cap; developer-tools is 318), and shifting every
+    cap by ±5 leaves the over-set unchanged — so a `>` slipping to `>=` is
+    invisible to every real-tree assertion in this file. Confirmed by mutation,
+    not inference: flipping either comparison reddens THIS test and leaves the
+    real-tree tests green. That is the pair-sides rule's untested direction,
+    pinned here instead."""
     boundary = [
         {"path": ".", "reason": "root"},
         {"path": "backend", "reason": "lane root"},
@@ -723,21 +790,32 @@ def test_line_caps_report_every_tier_and_never_fail(tmp_path):
             "backend/AGENTS.md": long_enough,
             "ai/gateway/AGENTS.md": long_enough,
             "scripts/AGENTS.md": "# Short\n",
-            # exactly the package cap (10 lines), no more — measured by the same
-            # splitlines rule the validator uses, so this is equality, not a
-            # newline-counting artefact.
+            # exactly the package cap (10 lines) and exactly its baseline, no
+            # more — measured by the same splitlines rule the validator uses,
+            # so this is equality, not a newline-counting artefact.
             "backend/models/AGENTS.md": "body\n" * 10,
         },
         boundary=boundary,
         caps={"root": 3, "lane_root": 10, "package": 10},
+        line_baseline={
+            "AGENTS.md": 30,
+            "backend/AGENTS.md": 30,
+            "ai/gateway/AGENTS.md": 30,
+            "scripts/AGENTS.md": 30,  # 1 line: far BELOW its baseline — a fall is free
+            "backend/models/AGENTS.md": 10,
+        },
     )
     r = run_validator(root)
-    assert r.returncode == 0, r.stdout + r.stderr  # caps do not fail the run
+    # Green with every file over its tier cap: the caps arm reports, the
+    # baseline arm is not exceeded. This is the W3.2 steady state.
+    assert r.returncode == 0, r.stdout + r.stderr
     report = report_of(root)
     block = report["ratchet"]["line_caps"]
-    assert block["failing"] is False
+    assert block["failing"] is True  # the W3.2 flip (ruling 33), pinned on the record
+    assert block["mode"] == "baseline"
     assert block["boundaries"] == 5
     assert block["measured"] == 5
+    assert block["over_baseline"] == []  # at-baseline and below are not over
     over = {e["path"]: e for e in block["over"]}
     assert over["AGENTS.md"]["tier"] == "root"
     assert over["backend/AGENTS.md"]["tier"] == "lane_root"
@@ -751,8 +829,42 @@ def test_line_caps_report_every_tier_and_never_fail(tmp_path):
         "a file whose line count equals its cap was reported over — the "
         "comparison is `> cap` (a maximum), not `>= cap` (a trigger)"
     )
-    # Reporting-only in the strongest sense: the gate's own verdict field.
+    # and the green run's violations are empty: over-cap never reached them.
     assert report["ratchet"]["violations"] == []
+
+    # THE FAILING ARM: grow a boundary file past its committed baseline and
+    # the run fails, the violation naming the file, measured, baseline. The
+    # file was already over its tier cap; the caps arm stayed silent about
+    # it — the growth is what turned the run red. (BASE_MD is 5 lines;
+    # +30 lands at 35 against the 30 baseline.)
+    amend(root, "body\n" * 30)  # 5 -> 35 > 30, the over-cap set unchanged
+    r_grown = run_validator(root)
+    assert r_grown.returncode == 1
+    grown = report_of(root)["ratchet"]
+    assert grown["line_caps"]["over_baseline"] == [
+        {
+            "path": "AGENTS.md",
+            "measured": 35,
+            "baseline": 30,
+            "reason": "over its committed baseline by 5 lines",
+        }
+    ]
+    assert any(
+        "line baseline exceeded: AGENTS.md measured 35 > baseline 30" in v
+        for v in grown["violations"]
+    ), grown["violations"]
+    # the tier-cap over-set is unchanged — the red is the baseline's, not the
+    # caps' (the caps block itself still reports and still does not fail).
+    assert {e["path"] for e in grown["line_caps"]["over"]} == set(over)
+
+    # The way down: rewrite below the baseline and the run is green again
+    # with no config edit — the gate reads the tree, not a memo. (Lowering
+    # the baseline to the new count is the same-PR census-pattern edit; a
+    # LOWER number cannot redden anything.)
+    (root / "AGENTS.md").write_text("# Fixture\n\n" + "body\n" * 20)
+    r_rewritten = run_validator(root)
+    assert r_rewritten.returncode == 0, r_rewritten.stdout + r_rewritten.stderr
+    assert report_of(root)["ratchet"]["line_caps"]["over_baseline"] == []
 
     # A boundary with no AGENTS.md is recorded in line_caps["over"] with
     # measured=None AND fails the run under W3.1's boundary requirement.
@@ -763,6 +875,16 @@ def test_line_caps_report_every_tier_and_never_fail(tmp_path):
             {"path": "synthbench/contract", "reason": "boundary with no AGENTS.md"},
         ],
         caps={"root": 3, "lane_root": 10, "package": 10},
+        line_baseline={
+            "AGENTS.md": 30,
+            "backend/AGENTS.md": 30,
+            "ai/gateway/AGENTS.md": 30,
+            "scripts/AGENTS.md": 30,
+            "backend/models/AGENTS.md": 10,
+            # a listed-but-absent file still carries a key; inert until the
+            # file exists (the hole is the missing_agents_md arm's failure)
+            "synthbench/contract/AGENTS.md": 10,
+        },
     )
     r_hole = run_validator(root)
     assert r_hole.returncode == 1
@@ -1161,6 +1283,24 @@ def test_committed_boundary_list_and_caps_are_pinned():
     assert COMMITTED_CONFIG["line_caps"] == EXPECTED_LINE_CAPS
     assert set(COMMITTED_CONFIG["line_caps"]) == {"root", "lane_root", "package"}
 
+    # W3.2 (ruling 33): the fourth pinned key. One baseline per boundary file,
+    # matching the list 1:1 — dropping a key is the cheapest way to disable
+    # the new gate (the loader refuses), and a raise fits a grown file.
+    # EXPECTED_LINE_BASELINES are the post-rewrite counts the seven backend
+    # W3.2 files landed at plus the pre-rewrite counts elsewhere; values fall
+    # as lanes rewrite, and a value change is a reviewed same-PR edit.
+    # (Compared as FILE paths: the baseline is keyed by the AGENTS.md path,
+    # the boundary list by directories — "." maps to "AGENTS.md".)
+    boundary_files = {
+        "AGENTS.md" if e["path"] == "." else f"{e['path']}/AGENTS.md"
+        for e in COMMITTED_CONFIG["boundary_list"]
+    }
+    assert set(COMMITTED_CONFIG["line_caps_baseline"]) == boundary_files, (
+        "line_caps_baseline keys must match boundary_list 1:1 — a missing key "
+        "silently unchecks a file and an extra one means the list moved"
+    )
+    assert COMMITTED_CONFIG["line_caps_baseline"] == EXPECTED_LINE_BASELINES
+
     sys.path.insert(0, str(REPO_ROOT / "scripts"))
     import agents_md_validator as v
 
@@ -1291,13 +1431,32 @@ def test_real_tree_caps_arm_denominator(real_run):
         f"{caps['measured']} of {caps['boundaries']} — the denominator is a hole, "
         "not a count"
     )
-    assert caps["failing"] is False, "the caps arm went failing ahead of W3.2"
+    # W3.2 (ruling 33): the flip, on the record — the baseline arm is the
+    # failing arm and the tier caps stay reporting. `failing` is pinned True
+    # the way it was pinned False before W3.2: the mode is a reviewed edit,
+    # not silent drift. And the run is green WITH the arm failing only
+    # because over_baseline is empty — the real tree sits at or below every
+    # baseline (asserted per-file below), which is what green now means.
+    assert caps["failing"] is True
+    assert caps["mode"] == "baseline"
+    assert caps["over_baseline"] == [], (
+        "the real tree is over a committed line baseline — counts may only "
+        "fall: rewrite the file to the standard (W3.2) or lower the baseline "
+        "in the same PR (census pattern)"
+    )
     assert caps["caps"] == EXPECTED_LINE_CAPS
 
     expected_over: set[str] = set()
     for dir_path in sorted(EXPECTED_BOUNDARY_PATHS):
         rel = "AGENTS.md" if dir_path == "." else f"{dir_path}/AGENTS.md"
         lines = len((REPO_ROOT / rel).read_text(encoding="utf-8").splitlines())
+        # per-file: measured at or below its committed baseline (the gate's
+        # green condition, checked against the test's own literal, not the
+        # module's)
+        assert lines <= EXPECTED_LINE_BASELINES[rel], (
+            f"{rel} measures {lines} > baseline {EXPECTED_LINE_BASELINES[rel]} "
+            "from the test's own literal — the arm let a growth through"
+        )
         tier = (
             "root"
             if dir_path == "."
