@@ -1523,7 +1523,7 @@ review approves.
 ### [r309] The labelled frame set for `[r303]`
 
 **Flags:** none. **Assigned:** ops-b, after `[r308a]` (ruling 309). **Depends on:** none.
-**PR:** none yet. (ruling 309, record 6327202214)
+**PR:** [#7410](https://github.com/mikesvoboda/nemotron-v3-home-security-intelligence/pull/7410). (ruling 309, record 6327202214)
 
 `[r303]`'s detector bake-off scores the candidates on about 400 real stills from the owner's
 cameras, stratified into day, night/IR and distant subjects, with at least 100 in each stratum that
