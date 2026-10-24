@@ -31,7 +31,7 @@ import ast
 import hashlib
 import json
 from pathlib import Path
-from unittest.mock import MagicMock, patch
+from unittest.mock import MagicMock
 
 import numpy as np
 import onnx
@@ -199,14 +199,14 @@ class TestChallengerExportsAndTensorRT:
 
         monkeypatch.setattr(bakeoff, "find_trtexec", lambda: "/usr/src/tensorrt/bin/trtexec")
         monkeypatch.setenv("TRT_VERSION", "11.3.0")
-        with patch("subprocess.run", side_effect=fake_run):
-            bakeoff.compile_challenger_plan(
-                "tao_swin_tiny_256",
-                src_path,
-                plan_path,
-                expected_sha256=sha,
-                precision="fp16",
-            )
+        monkeypatch.setattr(bakeoff.subprocess, "run", fake_run)
+        bakeoff.compile_challenger_plan(
+            "tao_swin_tiny_256",
+            src_path,
+            plan_path,
+            expected_sha256=sha,
+            precision="fp16",
+        )
         assert plan_path.is_file()
         assert "--minShapes=input:1x3x256x128" in captured_cmd
         assert "--optShapes=input:4x3x256x128" in captured_cmd
