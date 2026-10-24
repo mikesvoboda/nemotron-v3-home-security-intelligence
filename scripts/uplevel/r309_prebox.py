@@ -55,47 +55,57 @@ DEFAULT_EXTRA_QUERIES = ["dog", "cat", "package", "bicycle"]
 class OwlV2Like(Protocol):
     """The slice of the OWLv2 stack the pass needs (test seam)."""
 
-    def detect(
-        self, image: Any, queries: list[str]
-    ) -> list[tuple[str, list[float], float]]:
+    def detect(self, image: Any, queries: list[str]) -> list[tuple[str, list[float], float]]:
         """(label, [x, y, w, h] in pixels, score) per detection."""
         ...
 
 
 def parse_args() -> argparse.Namespace:
     ap = argparse.ArgumentParser(description=__doc__.splitlines()[0])
-    ap.add_argument("--selection", required=True,
-                    help="deliverable 1's selection list (JSON)")
-    ap.add_argument("--root", required=True,
-                    help="Foscam upload tree root the selection paths are "
-                         "relative to (or absolute paths are used as-is)")
-    ap.add_argument("--out", required=True,
-                    help="COCO output path (JSON, host-side)")
-    ap.add_argument("--threshold", type=float, default=0.2,
-                    help="keep detections scoring >= this (default 0.2)")
-    ap.add_argument("--max-per-frame", type=int, default=10,
-                    help="keep at most this many boxes per frame, "
-                         "highest score first (default 10)")
-    ap.add_argument("--classes", nargs="+", default=DEFAULT_CLASSES,
-                    help="bake-off classes, in id order (default: "
-                         f"{' '.join(DEFAULT_CLASSES)})")
-    ap.add_argument("--extra-queries", nargs="+",
-                    default=DEFAULT_EXTRA_QUERIES,
-                    help="additional open-vocabulary queries proposed to "
-                         "the owner (default: "
-                         f"{' '.join(DEFAULT_EXTRA_QUERIES)})")
-    ap.add_argument("--model-dir", default=None,
-                    help="local OWLv2 snapshot directory (offline hosts); "
-                         "default fetches google/owlv2-base-patch16-ensemble "
-                         "from the HF hub cache")
-    ap.add_argument("--device", default="cpu",
-                    help="torch device for the pass (default cpu)")
+    ap.add_argument("--selection", required=True, help="deliverable 1's selection list (JSON)")
+    ap.add_argument(
+        "--root",
+        required=True,
+        help="Foscam upload tree root the selection paths are "
+        "relative to (or absolute paths are used as-is)",
+    )
+    ap.add_argument("--out", required=True, help="COCO output path (JSON, host-side)")
+    ap.add_argument(
+        "--threshold", type=float, default=0.2, help="keep detections scoring >= this (default 0.2)"
+    )
+    ap.add_argument(
+        "--max-per-frame",
+        type=int,
+        default=10,
+        help="keep at most this many boxes per frame, highest score first (default 10)",
+    )
+    ap.add_argument(
+        "--classes",
+        nargs="+",
+        default=DEFAULT_CLASSES,
+        help=f"bake-off classes, in id order (default: {' '.join(DEFAULT_CLASSES)})",
+    )
+    ap.add_argument(
+        "--extra-queries",
+        nargs="+",
+        default=DEFAULT_EXTRA_QUERIES,
+        help="additional open-vocabulary queries proposed to "
+        "the owner (default: "
+        f"{' '.join(DEFAULT_EXTRA_QUERIES)})",
+    )
+    ap.add_argument(
+        "--model-dir",
+        default=None,
+        help="local OWLv2 snapshot directory (offline hosts); "
+        "default fetches google/owlv2-base-patch16-ensemble "
+        "from the HF hub cache",
+    )
+    ap.add_argument("--device", default="cpu", help="torch device for the pass (default cpu)")
     return ap.parse_args()
 
 
 def load_owlv2(model_dir: str | None, device: str) -> OwlV2Like:
     """The one seam that touches weights; tests stub this out."""
-    import torch
     from transformers import Owlv2ForObjectDetection, Owlv2Processor
 
     source = model_dir or "google/owlv2-base-patch16-ensemble"
@@ -105,23 +115,20 @@ def load_owlv2(model_dir: str | None, device: str) -> OwlV2Like:
     model.eval()
 
     class _OwlV2:
-        def detect(
-            self, image: Any, queries: list[str]
-        ) -> list[tuple[str, list[float], float]]:
+        def detect(self, image: Any, queries: list[str]) -> list[tuple[str, list[float], float]]:
             import torch as t
 
             with t.no_grad():
-                inputs = processor(text=[queries], images=image,
-                                   return_tensors="pt").to(device)
+                inputs = processor(text=[queries], images=image, return_tensors="pt").to(device)
                 outputs = model(**inputs)
                 target_sizes = t.tensor([[image.height, image.width]])
                 results = processor.post_process_object_detection(
                     outputs, target_sizes=target_sizes
                 )[0]
             out: list[tuple[str, list[float], float]] = []
-            for score, label, box in zip(results["scores"].tolist(),
-                                         results["labels"].tolist(),
-                                         results["boxes"].tolist()):
+            for score, label, box in zip(
+                results["scores"].tolist(), results["labels"].tolist(), results["boxes"].tolist()
+            ):
                 text = queries[label]
                 x1, y1, x2, y2 = box
                 out.append((text, [x1, y1, x2 - x1, y2 - y1], score))
@@ -135,15 +142,13 @@ def read_selection(path: Path) -> tuple[list[str], dict]:
     report = json.loads(path.read_text())
     selected = report.get("selected")
     if not isinstance(selected, list) or not selected:
-        print(f"r309_prebox: {path} carries no selected frames",
-              file=sys.stderr)
+        print(f"r309_prebox: {path} carries no selected frames", file=sys.stderr)
         sys.exit(2)
     paths: list[str] = []
     for e in selected:
         p = e.get("path") if isinstance(e, dict) else None
         if not isinstance(p, str) or not p:
-            print(f"r309_prebox: {path} has a selection entry without a path",
-                  file=sys.stderr)
+            print(f"r309_prebox: {path} has a selection entry without a path", file=sys.stderr)
             sys.exit(2)
         paths.append(p)
     return paths, report
@@ -165,9 +170,7 @@ def main() -> int:
 
     from PIL import Image
 
-    queries = list(args.classes) + [
-        q for q in args.extra_queries if q not in args.classes
-    ]
+    queries = list(args.classes) + [q for q in args.extra_queries if q not in args.classes]
 
     detector = load_owlv2(args.model_dir, args.device)
 
@@ -177,7 +180,7 @@ def main() -> int:
     next_ann_id = 1
     unreadable = 0
     frames_with_boxes = 0
-    per_class: dict[str, int] = {name: 0 for name in queries}
+    per_class: dict[str, int] = dict.fromkeys(queries, 0)
 
     for i, raw in enumerate(paths, start=1):
         frame = resolve_frame(root, raw)
@@ -186,8 +189,7 @@ def main() -> int:
                 rgb = im.convert("RGB")
                 width, height = im.size
         except (OSError, ValueError) as exc:
-            print(f"r309_prebox: [{i}/{len(paths)}] unreadable {frame}: {exc}",
-                  file=sys.stderr)
+            print(f"r309_prebox: [{i}/{len(paths)}] unreadable {frame}: {exc}", file=sys.stderr)
             unreadable += 1
             continue
 
@@ -198,30 +200,37 @@ def main() -> int:
 
         image_id = next_image_id
         next_image_id += 1
-        images.append({
-            "id": image_id,
-            "file_name": raw,
-            "width": width,
-            "height": height,
-            "stratum": next(
-                (e["stratum"] for e in selection_report["selected"]
-                 if e["path"] == raw),
-                None,
-            ),
-        })
+        images.append(
+            {
+                "id": image_id,
+                "file_name": raw,
+                "width": width,
+                "height": height,
+                "stratum": next(
+                    (e["stratum"] for e in selection_report["selected"] if e["path"] == raw),
+                    None,
+                ),
+            }
+        )
         if dets:
             frames_with_boxes += 1
         for label, box, score in dets:
-            annotations.append({
-                "id": next_ann_id,
-                "image_id": image_id,
-                "_label": label,
-                "bbox": [round(box[0], 2), round(box[1], 2),
-                         round(box[2], 2), round(box[3], 2)],
-                "area": round(box[2] * box[3], 2),
-                "iscrowd": 0,
-                "score": round(score, 4),
-            })
+            annotations.append(
+                {
+                    "id": next_ann_id,
+                    "image_id": image_id,
+                    "_label": label,
+                    "bbox": [
+                        round(box[0], 2),
+                        round(box[1], 2),
+                        round(box[2], 2),
+                        round(box[3], 2),
+                    ],
+                    "area": round(box[2] * box[3], 2),
+                    "iscrowd": 0,
+                    "score": round(score, 4),
+                }
+            )
             next_ann_id += 1
             per_class[label] += 1
         if i % 25 == 0 or i == len(paths):
@@ -231,10 +240,9 @@ def main() -> int:
     # labels); extras appear only when the pass actually found them - "any
     # other product class the pre-box finds is kept", and a category with
     # zero annotations is not a finding.
-    used_extras = [q for q in queries[len(args.classes):] if per_class[q] > 0]
+    used_extras = [q for q in queries[len(args.classes) :] if per_class[q] > 0]
     kept_queries = list(args.classes) + used_extras
-    categories = [{"id": i + 1, "name": name}
-                  for i, name in enumerate(kept_queries)]
+    categories = [{"id": i + 1, "name": name} for i, name in enumerate(kept_queries)]
     # Re-id the annotations whose labels are extras: detection labels map
     # through the FULL query list, COCO category ids through kept_queries.
     remap = {name: i + 1 for i, name in enumerate(kept_queries)}
@@ -244,7 +252,7 @@ def main() -> int:
     coco = {
         "info": {
             "description": "[r309] pre-box pass (OWLv2) for [r303]'s "
-                           "detector bake-off; owner corrections pending",
+            "detector bake-off; owner corrections pending",
             "prebox_model": "owlv2-base-patch16-ensemble",
             "score_threshold": args.threshold,
         },
@@ -258,9 +266,11 @@ def main() -> int:
     out.write_text(json.dumps(coco, indent=2) + "\n")
 
     print(f"r309_prebox: wrote {out}")
-    print(f"  frames:            {len(images)} "
-          f"(unreadable: {unreadable}, empty of boxes: "
-          f"{len(images) - frames_with_boxes})")
+    print(
+        f"  frames:            {len(images)} "
+        f"(unreadable: {unreadable}, empty of boxes: "
+        f"{len(images) - frames_with_boxes})"
+    )
     print(f"  boxes:             {len(annotations)}")
     for name in queries:
         print(f"    {name:<12} {per_class[name]}")

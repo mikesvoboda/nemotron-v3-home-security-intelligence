@@ -59,7 +59,6 @@ import os
 import random
 import struct
 import sys
-from datetime import datetime
 from pathlib import Path
 from typing import NoReturn
 
@@ -69,35 +68,53 @@ from backend.services.file_watcher import IMAGE_EXTENSIONS
 # A JPEG frame starts with the SOI marker; the SOF0/SOF2 segment carries
 # the dimensions. Scanning for the marker keeps this stdlib-only (no PIL
 # on the host) and correct for progressive JPEGs too (SOF2).
-_JPEG_SOF_MARKERS = {0xC0, 0xC1, 0xC2, 0xC3, 0xC5, 0xC6, 0xC7,
-                     0xC9, 0xCA, 0xCB, 0xCD, 0xCE, 0xCF}
+_JPEG_SOF_MARKERS = {0xC0, 0xC1, 0xC2, 0xC3, 0xC5, 0xC6, 0xC7, 0xC9, 0xCA, 0xCB, 0xCD, 0xCE, 0xCF}
 _PNG_IHDR = b"IHDR"
 
 
 def parse_args() -> argparse.Namespace:
     ap = argparse.ArgumentParser(description=__doc__.splitlines()[0])
-    ap.add_argument("--root", required=True,
-                    help="Foscam upload tree root (e.g. /export/foscam)")
-    ap.add_argument("--out", required=True,
-                    help="selection list output path (JSON, host-side)")
-    ap.add_argument("--seed", type=int, default=0,
-                    help="seed for the repeatable selection (default 0)")
-    ap.add_argument("--per-stratum", type=int, default=100,
-                    help="target selection size per stratum (default 100)")
-    ap.add_argument("--distant-resolution", type=int, default=720,
-                    help="width below which a frame is 'distant' (default 720)")
-    ap.add_argument("--day-start", type=int, default=6,
-                    help="first camera-local hour counted as day (default 6)")
-    ap.add_argument("--day-end", type=int, default=19,
-                    help="hour AFTER which it is night/IR (default 19)")
-    ap.add_argument("--camera-tz", default=None,
-                    help="IANA timezone of the cameras' clocks "
-                         "(falls back to CAMERA_TIMEZONE); required unless "
-                         "CAMERA_TIMEZONE is set")
-    ap.add_argument("--min-per-stratum", type=int, default=100,
-                    help="[r303] needs at least 100 person/vehicle frames per "
-                         "stratum; the sampler only counts what it finds and "
-                         "prints this bar for reference (default 100)")
+    ap.add_argument("--root", required=True, help="Foscam upload tree root (e.g. /export/foscam)")
+    ap.add_argument("--out", required=True, help="selection list output path (JSON, host-side)")
+    ap.add_argument(
+        "--seed", type=int, default=0, help="seed for the repeatable selection (default 0)"
+    )
+    ap.add_argument(
+        "--per-stratum",
+        type=int,
+        default=100,
+        help="target selection size per stratum (default 100)",
+    )
+    ap.add_argument(
+        "--distant-resolution",
+        type=int,
+        default=720,
+        help="width below which a frame is 'distant' (default 720)",
+    )
+    ap.add_argument(
+        "--day-start",
+        type=int,
+        default=6,
+        help="first camera-local hour counted as day (default 6)",
+    )
+    ap.add_argument(
+        "--day-end", type=int, default=19, help="hour AFTER which it is night/IR (default 19)"
+    )
+    ap.add_argument(
+        "--camera-tz",
+        default=None,
+        help="IANA timezone of the cameras' clocks "
+        "(falls back to CAMERA_TIMEZONE); required unless "
+        "CAMERA_TIMEZONE is set",
+    )
+    ap.add_argument(
+        "--min-per-stratum",
+        type=int,
+        default=100,
+        help="[r303] needs at least 100 person/vehicle frames per "
+        "stratum; the sampler only counts what it finds and "
+        "prints this bar for reference (default 100)",
+    )
     return ap.parse_args()
 
 
@@ -126,13 +143,13 @@ def jpeg_dimensions(data: bytes) -> tuple[int, int] | None:
             continue
         if marker == 0xD9:  # EOI
             return None
-        seg_len = struct.unpack(">H", data[i + 2:i + 4])[0]
+        seg_len = struct.unpack(">H", data[i + 2 : i + 4])[0]
         if seg_len < 2:
             return None
         if marker in _JPEG_SOF_MARKERS:
             if i + 9 > n:
                 return None
-            h, w = struct.unpack(">HH", data[i + 5:i + 9])
+            h, w = struct.unpack(">HH", data[i + 5 : i + 9])
             return (w, h)
         i += 2 + seg_len
     return None
@@ -226,12 +243,14 @@ def main() -> int:
         if stratum is None:
             # width was None (we checked) - unreachable, kept for the type checker
             continue
-        buckets[stratum].append({
-            "path": str(p),
-            "width": width,
-            "height": dims[1],
-            "capture_hour": local_hour,
-        })
+        buckets[stratum].append(
+            {
+                "path": str(p),
+                "width": width,
+                "height": dims[1],
+                "capture_hour": local_hour,
+            }
+        )
 
     # Distant is a flag on top of the two strata, applied at sample time.
     rng = random.Random(args.seed)
@@ -263,14 +282,13 @@ def main() -> int:
             "unmeasured_dimensions": unmeasured,
             "day_total": len(buckets["day"]),
             "night_ir_total": len(buckets["night_ir"]),
-            "day_distant": sum(1 for e in buckets["day"]
-                               if e["width"] < args.distant_resolution),
-            "night_ir_distant": sum(1 for e in buckets["night_ir"]
-                                    if e["width"] < args.distant_resolution),
+            "day_distant": sum(1 for e in buckets["day"] if e["width"] < args.distant_resolution),
+            "night_ir_distant": sum(
+                1 for e in buckets["night_ir"] if e["width"] < args.distant_resolution
+            ),
         },
         "selected": [
-            {"path": e["path"], "stratum": e["stratum"], "distant": e["distant"]}
-            for e in selection
+            {"path": e["path"], "stratum": e["stratum"], "distant": e["distant"]} for e in selection
         ],
     }
 
@@ -283,16 +301,18 @@ def main() -> int:
     print(f"  images seen:            {c['images_seen']}")
     print(f"  unparsable names:       {c['unparsable_names']}")
     print(f"  unmeasured dimensions:  {c['unmeasured_dimensions']}")
-    print(f"  day pool:               {c['day_total']} "
-          f"(distant: {c['day_distant']})")
-    print(f"  night/IR pool:          {c['night_ir_total']} "
-          f"(distant: {c['night_ir_distant']})")
-    print(f"  selected:               {len(selection)} "
-          f"({sum(1 for e in selection if e['stratum'] == 'day')} day, "
-          f"{sum(1 for e in selection if e['stratum'] == 'night_ir')} night/IR)")
-    print(f"  [r303] bar: at least {args.min_per_stratum} person/vehicle frames "
-          f"per stratum after labelling - the sampler cannot promise this; "
-          f"the pool sizes above are what it can promise")
+    print(f"  day pool:               {c['day_total']} (distant: {c['day_distant']})")
+    print(f"  night/IR pool:          {c['night_ir_total']} (distant: {c['night_ir_distant']})")
+    print(
+        f"  selected:               {len(selection)} "
+        f"({sum(1 for e in selection if e['stratum'] == 'day')} day, "
+        f"{sum(1 for e in selection if e['stratum'] == 'night_ir')} night/IR)"
+    )
+    print(
+        f"  [r303] bar: at least {args.min_per_stratum} person/vehicle frames "
+        f"per stratum after labelling - the sampler cannot promise this; "
+        f"the pool sizes above are what it can promise"
+    )
     return 0
 
 

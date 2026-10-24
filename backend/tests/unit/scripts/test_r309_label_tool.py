@@ -51,21 +51,36 @@ def env(tmp_path: Path):
     prebox = {
         "info": {"description": "prebox"},
         "licenses": [],
-        "categories": [{"id": 1, "name": "person"},
-                       {"id": 2, "name": "vehicle"}],
+        "categories": [{"id": 1, "name": "person"}, {"id": 2, "name": "vehicle"}],
         "images": [
-            {"id": 1, "file_name": day, "width": 64, "height": 48,
-             "stratum": "day"},
-            {"id": 2, "file_name": night, "width": 64, "height": 48,
-             "stratum": "night_ir"},
+            {"id": 1, "file_name": day, "width": 64, "height": 48, "stratum": "day"},
+            {"id": 2, "file_name": night, "width": 64, "height": 48, "stratum": "night_ir"},
         ],
         "annotations": [
-            {"id": 11, "image_id": 1, "category_id": 1,
-             "bbox": [10, 10, 30, 30], "area": 900, "iscrowd": 0},
-            {"id": 12, "image_id": 1, "category_id": 2,
-             "bbox": [40, 10, 20, 20], "area": 400, "iscrowd": 0},
-            {"id": 13, "image_id": 2, "category_id": 1,
-             "bbox": [5, 5, 10, 10], "area": 100, "iscrowd": 0},
+            {
+                "id": 11,
+                "image_id": 1,
+                "category_id": 1,
+                "bbox": [10, 10, 30, 30],
+                "area": 900,
+                "iscrowd": 0,
+            },
+            {
+                "id": 12,
+                "image_id": 1,
+                "category_id": 2,
+                "bbox": [40, 10, 20, 20],
+                "area": 400,
+                "iscrowd": 0,
+            },
+            {
+                "id": 13,
+                "image_id": 2,
+                "category_id": 1,
+                "bbox": [5, 5, 10, 10],
+                "area": 100,
+                "iscrowd": 0,
+            },
         ],
     }
     pb_path = tmp_path / "prebox.coco.json"
@@ -74,20 +89,27 @@ def env(tmp_path: Path):
     export_path = tmp_path / "corrected.coco.json"
 
     handler_cls = tool.make_handler(root, prebox, state_path, export_path)
-    return type("Env", (), {
-        "root": root, "prebox": prebox, "pb_path": pb_path,
-        "state_path": state_path, "export_path": export_path,
-        "handler_cls": handler_cls, "tmp": tmp_path,
-    })
+    return type(
+        "Env",
+        (),
+        {
+            "root": root,
+            "prebox": prebox,
+            "pb_path": pb_path,
+            "state_path": state_path,
+            "export_path": export_path,
+            "handler_cls": handler_cls,
+            "tmp": tmp_path,
+        },
+    )
 
 
 class FakeRequest:
     """The slice of BaseHTTPRequestHandler's self the handlers touch."""
 
-    def __init__(self, path: str, body: bytes | None = None,
-                 headers: dict | None = None) -> None:
+    def __init__(self, path: str, body: bytes | None = None, headers: dict | None = None) -> None:
         self.path = path
-        self.rfile = body and __import__("io").BytesIO(body) or None
+        self.rfile = (body and __import__("io").BytesIO(body)) or None
         self.headers = headers or {}
         self.sent: list[tuple[int, bytes, str]] = []
 
@@ -116,8 +138,7 @@ def call(handler_cls, req: FakeRequest) -> FakeRequest:
         h.sent.append((code, body, ctype))
 
     h._send = _send
-    h._send_json = lambda obj, code=200: _send(
-        code, json.dumps(obj).encode(), "application/json")
+    h._send_json = lambda obj, code=200: _send(code, json.dumps(obj).encode(), "application/json")
     return h
 
 
@@ -131,8 +152,7 @@ def get(handler_cls, path: str) -> FakeRequest:
 
 def post(handler_cls, path: str, body: dict) -> FakeRequest:
     payload = json.dumps(body).encode()
-    req = FakeRequest(path, body=payload,
-                      headers={"Content-Length": str(len(payload))})
+    req = FakeRequest(path, body=payload, headers={"Content-Length": str(len(payload))})
     h = call(handler_cls, req)
     h.do_POST()
     req.result = h.sent
@@ -174,8 +194,9 @@ def test_serves_page_prebox_state_and_named_frames_only(env) -> None:
 
 def test_post_persists_state(env) -> None:
     """POSTed corrections land in the state file and are served back."""
-    state = {"Front Yard/snap/MDAlarm_20260911-120000.jpg":
-             {"deleted": [12], "added": [], "moved": []}}
+    state = {
+        "Front Yard/snap/MDAlarm_20260911-120000.jpg": {"deleted": [12], "added": [], "moved": []}
+    }
     resp = post(env.handler_cls, "/state", state)
     assert json.loads(resp.result[0][1]) == {"saved": True}
     assert json.loads(env.state_path.read_text()) == state
@@ -189,13 +210,17 @@ def test_export_folds_deletions_moved_and_added(env) -> None:
     through untouched."""
     day = "Front Yard/snap/MDAlarm_20260911-120000.jpg"
     night = "Front Yard/snap/MDAlarm_20260911-020000.jpg"
-    post(env.handler_cls, "/state", {
-        day: {
-            "deleted": [12],
-            "moved": [{"id": 11, "bbox": [8, 8, 32, 34], "cat": "person"}],
-            "added": [{"bbox": [0, 0, 5, 5], "cat": "dog"}],
+    post(
+        env.handler_cls,
+        "/state",
+        {
+            day: {
+                "deleted": [12],
+                "moved": [{"id": 11, "bbox": [8, 8, 32, 34], "cat": "person"}],
+                "added": [{"bbox": [0, 0, 5, 5], "cat": "dog"}],
+            },
         },
-    })
+    )
     do_export(env.handler_cls)
     coco = json.loads(env.export_path.read_text())
     names = [c["name"] for c in coco["categories"]]
@@ -226,21 +251,38 @@ def test_export_with_empty_state_is_the_prebox(env) -> None:
 def test_refusals(env, capsys) -> None:
     """Missing root, missing prebox, frame-less prebox: exit 2 each."""
     for argv in (
-        ["--root", str(env.tmp / "nope"), "--prebox", str(env.pb_path),
-         "--state", str(env.tmp / "s.json")],
-        ["--root", str(env.root), "--prebox", str(env.tmp / "nope.json"),
-         "--state", str(env.tmp / "s.json")],
+        [
+            "--root",
+            str(env.tmp / "nope"),
+            "--prebox",
+            str(env.pb_path),
+            "--state",
+            str(env.tmp / "s.json"),
+        ],
+        [
+            "--root",
+            str(env.root),
+            "--prebox",
+            str(env.tmp / "nope.json"),
+            "--state",
+            str(env.tmp / "s.json"),
+        ],
     ):
         with pytest.raises(SystemExit) as excinfo:
             sys.argv = ["r309_label_tool", *argv]
             tool.main()
         assert excinfo.value.code == 2
     empty = env.tmp / "empty.json"
-    empty.write_text(json.dumps({"images": [], "categories": [],
-                                 "annotations": []}))
+    empty.write_text(json.dumps({"images": [], "categories": [], "annotations": []}))
     with pytest.raises(SystemExit) as excinfo:
-        sys.argv = ["r309_label_tool", "--root", str(env.root),
-                    "--prebox", str(empty),
-                    "--state", str(env.tmp / "s.json")]
+        sys.argv = [
+            "r309_label_tool",
+            "--root",
+            str(env.root),
+            "--prebox",
+            str(empty),
+            "--state",
+            str(env.tmp / "s.json"),
+        ]
         tool.main()
     assert excinfo.value.code == 2

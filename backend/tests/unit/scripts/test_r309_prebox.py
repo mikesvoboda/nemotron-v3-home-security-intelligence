@@ -49,8 +49,7 @@ def selection_list(tmp_path: Path, relative: bool = False) -> Path:
     write_frame(snap / day_name, width=64, height=48)
     write_frame(snap / night_name, width=96, height=64)
     day_path = f"Front Yard/snap/{day_name}" if relative else str(snap / day_name)
-    night_path = (f"Front Yard/snap/{night_name}" if relative
-                  else str(snap / night_name))
+    night_path = f"Front Yard/snap/{night_name}" if relative else str(snap / night_name)
     sel = {
         "selected": [
             {"path": day_path, "stratum": "day", "distant": False},
@@ -74,8 +73,11 @@ class FakeDetector:
 
 
 def stub_detector(monkeypatch, script) -> None:
-    monkeypatch.setattr(prebox, "load_owlv2",
-                        lambda model_dir, device: FakeDetector(script))
+    def fake_load_owlv2(model_dir: str | None, device: str) -> FakeDetector:
+        """Match load_owlv2's signature; the test never touches weights."""
+        return FakeDetector(script)
+
+    monkeypatch.setattr(prebox, "load_owlv2", fake_load_owlv2)
 
 
 def run(argv: list[str], monkeypatch) -> None:
@@ -87,19 +89,21 @@ def run(argv: list[str], monkeypatch) -> None:
 # --- tests ------------------------------------------------------------------
 
 
-def test_coco_carries_images_annotations_categories(
-    tmp_path: Path, monkeypatch
-) -> None:
+def test_coco_carries_images_annotations_categories(tmp_path: Path, monkeypatch) -> None:
     """A person above threshold and a sub-threshold vehicle: only the person
     survives; category ids resolve; the image carries its stratum."""
     sel = selection_list(tmp_path)
     out = tmp_path / "prebox.coco.json"
-    stub_detector(monkeypatch, {
-        "(64, 48)": [("person", [10, 10, 30, 40], 0.9),
-                     ("vehicle", [1, 1, 8, 8], 0.1)],
-    })
-    run(["--selection", str(sel), "--root", str(tmp_path / "foscam"),
-         "--out", str(out)], monkeypatch)
+    stub_detector(
+        monkeypatch,
+        {
+            "(64, 48)": [("person", [10, 10, 30, 40], 0.9), ("vehicle", [1, 1, 8, 8], 0.1)],
+        },
+    )
+    run(
+        ["--selection", str(sel), "--root", str(tmp_path / "foscam"), "--out", str(out)],
+        monkeypatch,
+    )
     coco = json.loads(out.read_text())
     assert [c["name"] for c in coco["categories"]] == prebox.DEFAULT_CLASSES
     assert [c["id"] for c in coco["categories"]] == [1, 2]
@@ -113,15 +117,25 @@ def test_coco_carries_images_annotations_categories(
     assert day["stratum"] == "day"
 
 
-def test_max_per_frame_keeps_highest_scores(tmp_path: Path,
-                                            monkeypatch) -> None:
+def test_max_per_frame_keeps_highest_scores(tmp_path: Path, monkeypatch) -> None:
     """More detections than --max-per-frame keeps the highest-scoring ones."""
     sel = selection_list(tmp_path)
     out = tmp_path / "prebox.coco.json"
     script = [("person", [0, 0, 10, 10], 0.5 + i / 10) for i in range(5)]
     stub_detector(monkeypatch, {"(64, 48)": script})
-    run(["--selection", str(sel), "--root", str(tmp_path / "foscam"),
-         "--out", str(out), "--max-per-frame", "3"], monkeypatch)
+    run(
+        [
+            "--selection",
+            str(sel),
+            "--root",
+            str(tmp_path / "foscam"),
+            "--out",
+            str(out),
+            "--max-per-frame",
+            "3",
+        ],
+        monkeypatch,
+    )
     coco = json.loads(out.read_text())
     scores = [a["score"] for a in coco["annotations"]]
     assert len(scores) == 3
@@ -134,11 +148,26 @@ def test_extra_queries_become_categories(tmp_path: Path, monkeypatch) -> None:
     FINDS is kept', not every query that was sent."""
     sel = selection_list(tmp_path)
     out = tmp_path / "prebox.coco.json"
-    stub_detector(monkeypatch, {
-        "(64, 48)": [("package", [5, 5, 5, 5], 0.6)],
-    })
-    run(["--selection", str(sel), "--root", str(tmp_path / "foscam"),
-         "--out", str(out), "--extra-queries", "package", "dog"], monkeypatch)
+    stub_detector(
+        monkeypatch,
+        {
+            "(64, 48)": [("package", [5, 5, 5, 5], 0.6)],
+        },
+    )
+    run(
+        [
+            "--selection",
+            str(sel),
+            "--root",
+            str(tmp_path / "foscam"),
+            "--out",
+            str(out),
+            "--extra-queries",
+            "package",
+            "dog",
+        ],
+        monkeypatch,
+    )
     coco = json.loads(out.read_text())
     names = [c["name"] for c in coco["categories"]]
     assert names == ["person", "vehicle", "package"]  # dog: zero hits, dropped
@@ -148,8 +177,7 @@ def test_extra_queries_become_categories(tmp_path: Path, monkeypatch) -> None:
     assert "_label" not in pkg  # the working key never reaches the file
 
 
-def test_unreadable_frame_is_counted_not_fatal(tmp_path: Path, monkeypatch,
-                                               capsys) -> None:
+def test_unreadable_frame_is_counted_not_fatal(tmp_path: Path, monkeypatch, capsys) -> None:
     """A frame PIL cannot open is counted and skipped, not a crash."""
     root = tmp_path / "foscam"
     snap = root / "Front Yard" / "snap"
@@ -157,18 +185,27 @@ def test_unreadable_frame_is_counted_not_fatal(tmp_path: Path, monkeypatch,
     (snap / "MDAlarm_20260911-120000.jpg").write_bytes(b"not a png")
     write_frame(snap / "MDAlarm_20260911-020000.jpg")
     sel = tmp_path / "selection.json"
-    sel.write_text(json.dumps({
-        "selected": [
-            {"path": str(snap / "MDAlarm_20260911-120000.jpg"),
-             "stratum": "day", "distant": False},
-            {"path": str(snap / "MDAlarm_20260911-020000.jpg"),
-             "stratum": "night_ir", "distant": False},
-        ],
-    }))
+    sel.write_text(
+        json.dumps(
+            {
+                "selected": [
+                    {
+                        "path": str(snap / "MDAlarm_20260911-120000.jpg"),
+                        "stratum": "day",
+                        "distant": False,
+                    },
+                    {
+                        "path": str(snap / "MDAlarm_20260911-020000.jpg"),
+                        "stratum": "night_ir",
+                        "distant": False,
+                    },
+                ],
+            }
+        )
+    )
     out = tmp_path / "prebox.coco.json"
     stub_detector(monkeypatch, {"(64, 48)": [("person", [0, 0, 4, 4], 0.8)]})
-    run(["--selection", str(sel), "--root", str(root), "--out", str(out)],
-        monkeypatch)
+    run(["--selection", str(sel), "--root", str(root), "--out", str(out)], monkeypatch)
     coco = json.loads(out.read_text())
     assert len(coco["images"]) == 1  # the good frame only
     assert "unreadable" in capsys.readouterr().out
@@ -179,8 +216,17 @@ def test_empty_selection_refused(tmp_path: Path, monkeypatch) -> None:
     broken = tmp_path / "empty.json"
     broken.write_text(json.dumps({"selected": []}))
     with pytest.raises(SystemExit) as excinfo:
-        run(["--selection", str(broken), "--root", str(tmp_path),
-             "--out", str(tmp_path / "out.json")], monkeypatch)
+        run(
+            [
+                "--selection",
+                str(broken),
+                "--root",
+                str(tmp_path),
+                "--out",
+                str(tmp_path / "out.json"),
+            ],
+            monkeypatch,
+        )
     assert excinfo.value.code == 2
 
 
@@ -189,8 +235,17 @@ def test_broken_selection_refused(tmp_path: Path, monkeypatch) -> None:
     broken = tmp_path / "broken.json"
     broken.write_text(json.dumps({"selected": [{"stratum": "day"}]}))
     with pytest.raises(SystemExit) as excinfo:
-        run(["--selection", str(broken), "--root", str(tmp_path),
-             "--out", str(tmp_path / "out.json")], monkeypatch)
+        run(
+            [
+                "--selection",
+                str(broken),
+                "--root",
+                str(tmp_path),
+                "--out",
+                str(tmp_path / "out.json"),
+            ],
+            monkeypatch,
+        )
     assert excinfo.value.code == 2
 
 
@@ -198,8 +253,17 @@ def test_missing_root_refused(tmp_path: Path, monkeypatch) -> None:
     """A missing --root is a refusal (exit 2)."""
     sel = selection_list(tmp_path)
     with pytest.raises(SystemExit) as excinfo:
-        run(["--selection", str(sel), "--root", str(tmp_path / "nope"),
-             "--out", str(tmp_path / "out.json")], monkeypatch)
+        run(
+            [
+                "--selection",
+                str(sel),
+                "--root",
+                str(tmp_path / "nope"),
+                "--out",
+                str(tmp_path / "out.json"),
+            ],
+            monkeypatch,
+        )
     assert excinfo.value.code == 2
 
 
@@ -208,8 +272,10 @@ def test_relative_paths_join_root(tmp_path: Path, monkeypatch) -> None:
     sel = selection_list(tmp_path, relative=True)
     out = tmp_path / "prebox.coco.json"
     stub_detector(monkeypatch, {"(64, 48)": [("person", [0, 0, 4, 4], 0.8)]})
-    run(["--selection", str(sel), "--root", str(tmp_path / "foscam"),
-         "--out", str(out)], monkeypatch)
+    run(
+        ["--selection", str(sel), "--root", str(tmp_path / "foscam"), "--out", str(out)],
+        monkeypatch,
+    )
     coco = json.loads(out.read_text())
     assert len(coco["images"]) == 2
     assert [im["file_name"] for im in coco["images"]] == [

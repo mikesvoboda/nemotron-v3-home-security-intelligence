@@ -114,26 +114,41 @@ def tree(tmp_path: Path) -> Path:
     return root
 
 
-def test_samples_seeded_and_repeatable(tree: Path, tmp_path: Path,
-                                       monkeypatch) -> None:
+def test_samples_seeded_and_repeatable(tree: Path, tmp_path: Path, monkeypatch) -> None:
     """Same tree + same seed = byte-identical selection list."""
     out1 = tmp_path / "sel1.json"
     out2 = tmp_path / "sel2.json"
-    common = ["--root", str(tree), "--seed", "7", "--camera-tz",
-              "America/New_York", "--per-stratum", "4"]
+    common = [
+        "--root",
+        str(tree),
+        "--seed",
+        "7",
+        "--camera-tz",
+        "America/New_York",
+        "--per-stratum",
+        "4",
+    ]
     run_sampler(*common, "--out", str(out1), monkeypatch=monkeypatch)
     run_sampler(*common, "--out", str(out2), monkeypatch=monkeypatch)
     assert out1.read_bytes() == out2.read_bytes()
 
 
-def test_strata_and_distant_flag_written(tree: Path, tmp_path: Path,
-                                         monkeypatch) -> None:
+def test_strata_and_distant_flag_written(tree: Path, tmp_path: Path, monkeypatch) -> None:
     """Selection entries carry (path, stratum, distant) and nothing else."""
     out = tmp_path / "sel.json"
-    run_sampler("--root", str(tree), "--seed", "3",
-                "--camera-tz", "America/New_York",
-                "--per-stratum", "10", "--out", str(out),
-                monkeypatch=monkeypatch)
+    run_sampler(
+        "--root",
+        str(tree),
+        "--seed",
+        "3",
+        "--camera-tz",
+        "America/New_York",
+        "--per-stratum",
+        "10",
+        "--out",
+        str(out),
+        monkeypatch=monkeypatch,
+    )
     report = json.loads(out.read_text())
     assert report["counted"]["images_seen"] == 5
     selected = report["selected"]
@@ -148,8 +163,7 @@ def test_strata_and_distant_flag_written(tree: Path, tmp_path: Path,
     assert any(e["distant"] for e in selected)
 
 
-def test_night_by_camera_local_time_not_utc(tmp_path: Path,
-                                            monkeypatch) -> None:
+def test_night_by_camera_local_time_not_utc(tmp_path: Path, monkeypatch) -> None:
     """Camera-local night hours must classify as night_ir even when their
     UTC hour falls inside the day window. 02:10 New York (EDT, UTC-4) is
     06:10 UTC - inside [6, 19) - so a sampler that stratifies on the UTC
@@ -162,17 +176,25 @@ def test_night_by_camera_local_time_not_utc(tmp_path: Path,
     (snap / "MDAlarm_20260911-021000.jpg").write_bytes(make_jpeg_bytes(1280, 720))
     (snap / "MDAlarm_20260911-191000.jpg").write_bytes(make_jpeg_bytes(1280, 720))
     out = tmp_path / "sel.json"
-    run_sampler("--root", str(root), "--seed", "0",
-                "--camera-tz", "America/New_York",
-                "--per-stratum", "10", "--out", str(out),
-                monkeypatch=monkeypatch)
+    run_sampler(
+        "--root",
+        str(root),
+        "--seed",
+        "0",
+        "--camera-tz",
+        "America/New_York",
+        "--per-stratum",
+        "10",
+        "--out",
+        str(out),
+        monkeypatch=monkeypatch,
+    )
     report = json.loads(out.read_text())
     assert report["counted"]["night_ir_total"] == 2
     assert report["counted"]["day_total"] == 0
 
 
-def test_non_foscam_names_are_counted_not_sampled(tmp_path: Path,
-                                                  monkeypatch) -> None:
+def test_non_foscam_names_are_counted_not_sampled(tmp_path: Path, monkeypatch) -> None:
     """A still named like nothing Foscam produces lands in unparsable_names
     and never in a bucket - the sampler does not guess its hour."""
     root = tmp_path / "foscam"
@@ -181,10 +203,19 @@ def test_non_foscam_names_are_counted_not_sampled(tmp_path: Path,
     (snap / "photo_20260911.jpg").write_bytes(make_jpeg_bytes(1280, 720))
     (snap / "MDAlarm_20260911-120000.jpg").write_bytes(make_jpeg_bytes(1280, 720))
     out = tmp_path / "sel.json"
-    run_sampler("--root", str(root), "--seed", "0",
-                "--camera-tz", "America/New_York",
-                "--per-stratum", "10", "--out", str(out),
-                monkeypatch=monkeypatch)
+    run_sampler(
+        "--root",
+        str(root),
+        "--seed",
+        "0",
+        "--camera-tz",
+        "America/New_York",
+        "--per-stratum",
+        "10",
+        "--out",
+        str(out),
+        monkeypatch=monkeypatch,
+    )
     report = json.loads(out.read_text())
     assert report["counted"]["unparsable_names"] == 1
     assert report["counted"]["images_seen"] == 2
@@ -196,17 +227,24 @@ def test_video_files_are_never_selected(tmp_path: Path, monkeypatch) -> None:
     root = tmp_path / "foscam"
     (root / "Front Yard" / "snap").mkdir(parents=True)
     (root / "Front Yard" / "record").mkdir(parents=True)
-    (root / "Front Yard" / "record" / "MDalarm_20260728_111148.mkv").write_bytes(
-        b"\x00" * 32
-    )
+    (root / "Front Yard" / "record" / "MDalarm_20260728_111148.mkv").write_bytes(b"\x00" * 32)
     (root / "Front Yard" / "snap" / "MDAlarm_20260911-120000.jpg").write_bytes(
         make_jpeg_bytes(1280, 720)
     )
     out = tmp_path / "sel.json"
-    run_sampler("--root", str(root), "--seed", "0",
-                "--camera-tz", "America/New_York",
-                "--per-stratum", "10", "--out", str(out),
-                monkeypatch=monkeypatch)
+    run_sampler(
+        "--root",
+        str(root),
+        "--seed",
+        "0",
+        "--camera-tz",
+        "America/New_York",
+        "--per-stratum",
+        "10",
+        "--out",
+        str(out),
+        monkeypatch=monkeypatch,
+    )
     report = json.loads(out.read_text())
     assert report["counted"]["images_seen"] == 1
     assert all(e["path"].endswith(".jpg") for e in report["selected"])
@@ -222,8 +260,15 @@ def test_requires_camera_timezone(tmp_path: Path, monkeypatch) -> None:
         lambda: _StubSettings(camera_timezone=None),
     )
     with pytest.raises(SystemExit) as excinfo:
-        run_sampler("--root", str(root), "--seed", "0",
-                    "--out", str(tmp_path / "sel.json"), monkeypatch=monkeypatch)
+        run_sampler(
+            "--root",
+            str(root),
+            "--seed",
+            "0",
+            "--out",
+            str(tmp_path / "sel.json"),
+            monkeypatch=monkeypatch,
+        )
     assert excinfo.value.code == 2
 
 
@@ -237,16 +282,23 @@ def test_respects_camera_timezone_env(tmp_path: Path, monkeypatch) -> None:
         "backend.core.config.get_settings",
         lambda: _StubSettings(camera_timezone="America/New_York"),
     )
-    run_sampler("--root", str(root), "--seed", "0", "--out", str(out),
-                monkeypatch=monkeypatch)
+    run_sampler("--root", str(root), "--seed", "0", "--out", str(out), monkeypatch=monkeypatch)
     assert json.loads(out.read_text())["counted"]["images_seen"] == 5
 
 
 def test_missing_root_fails_loudly(tmp_path: Path, monkeypatch) -> None:
     with pytest.raises(SystemExit) as excinfo:
-        run_sampler("--root", str(tmp_path / "nope"), "--seed", "0",
-                    "--camera-tz", "America/New_York",
-                    "--out", str(tmp_path / "sel.json"), monkeypatch=monkeypatch)
+        run_sampler(
+            "--root",
+            str(tmp_path / "nope"),
+            "--seed",
+            "0",
+            "--camera-tz",
+            "America/New_York",
+            "--out",
+            str(tmp_path / "sel.json"),
+            monkeypatch=monkeypatch,
+        )
     assert excinfo.value.code == 2
 
 
@@ -254,9 +306,17 @@ def test_empty_tree_fails_loudly(tmp_path: Path, monkeypatch) -> None:
     root = tmp_path / "foscam"
     root.mkdir()
     with pytest.raises(SystemExit) as excinfo:
-        run_sampler("--root", str(root), "--seed", "0",
-                    "--camera-tz", "America/New_York",
-                    "--out", str(tmp_path / "sel.json"), monkeypatch=monkeypatch)
+        run_sampler(
+            "--root",
+            str(root),
+            "--seed",
+            "0",
+            "--camera-tz",
+            "America/New_York",
+            "--out",
+            str(tmp_path / "sel.json"),
+            monkeypatch=monkeypatch,
+        )
     assert excinfo.value.code == 2
 
 
@@ -266,29 +326,53 @@ def test_png_dimensions_measured(tmp_path: Path, monkeypatch) -> None:
     snap = root / "Front Yard" / "snap"
     snap.mkdir(parents=True)
     ihdr = struct.pack(">II", 1920, 1080) + b"\x08\x02\x00\x00\x00"
-    png = (b"\x89PNG\r\n\x1a\n" + struct.pack(">I", 13) + b"IHDR" + ihdr
-           + struct.pack(">I", 0) + b"IEND")
+    png = (
+        b"\x89PNG\r\n\x1a\n"
+        + struct.pack(">I", 13)
+        + b"IHDR"
+        + ihdr
+        + struct.pack(">I", 0)
+        + b"IEND"
+    )
     (snap / "MDAlarm_20260911-120000.png").write_bytes(png)
     out = tmp_path / "sel.json"
-    run_sampler("--root", str(root), "--seed", "0",
-                "--camera-tz", "America/New_York",
-                "--per-stratum", "10", "--out", str(out),
-                monkeypatch=monkeypatch)
+    run_sampler(
+        "--root",
+        str(root),
+        "--seed",
+        "0",
+        "--camera-tz",
+        "America/New_York",
+        "--per-stratum",
+        "10",
+        "--out",
+        str(out),
+        monkeypatch=monkeypatch,
+    )
     report = json.loads(out.read_text())
     assert report["counted"]["images_seen"] == 1
     assert report["selected"][0]["path"].endswith(".png")
     assert report["selected"][0]["stratum"] == "day"
 
 
-def test_per_stratum_half_split_between_distant_and_near(tree: Path,
-                                                         tmp_path: Path,
-                                                         monkeypatch) -> None:
+def test_per_stratum_half_split_between_distant_and_near(
+    tree: Path, tmp_path: Path, monkeypatch
+) -> None:
     """A stratum's slots split distant-first, near-second, per the docstring."""
     out = tmp_path / "sel.json"
-    run_sampler("--root", str(tree), "--seed", "11",
-                "--camera-tz", "America/New_York",
-                "--per-stratum", "2", "--out", str(out),
-                monkeypatch=monkeypatch)
+    run_sampler(
+        "--root",
+        str(tree),
+        "--seed",
+        "11",
+        "--camera-tz",
+        "America/New_York",
+        "--per-stratum",
+        "2",
+        "--out",
+        str(out),
+        monkeypatch=monkeypatch,
+    )
     selected = json.loads(out.read_text())["selected"]
     day = [e for e in selected if e["stratum"] == "day"]
     # day pool holds 3 frames: 2 distant (640), 1 near (1280).

@@ -49,22 +49,30 @@ from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
 from typing import Any
 
-MIME = {"html": "text/html", "js": "application/javascript",
-        "json": "application/json", "jpg": "image/jpeg",
-        "jpeg": "image/jpeg", "png": "image/png"}
+MIME = {
+    "html": "text/html",
+    "js": "application/javascript",
+    "json": "application/json",
+    "jpg": "image/jpeg",
+    "jpeg": "image/jpeg",
+    "png": "image/png",
+}
 
 
 def parse_args() -> argparse.Namespace:
     ap = argparse.ArgumentParser(description=__doc__.splitlines()[0])
-    ap.add_argument("--root", required=True,
-                    help="Foscam upload tree root the frame paths resolve under")
-    ap.add_argument("--prebox", required=True,
-                    help="deliverable 2's pre-box COCO file")
-    ap.add_argument("--state", required=True,
-                    help="corrections state file (host-side, created if absent)")
-    ap.add_argument("--export", default=None,
-                    help="corrected COCO output path for the export "
-                         "(default: <prebox>.corrected.json)")
+    ap.add_argument(
+        "--root", required=True, help="Foscam upload tree root the frame paths resolve under"
+    )
+    ap.add_argument("--prebox", required=True, help="deliverable 2's pre-box COCO file")
+    ap.add_argument(
+        "--state", required=True, help="corrections state file (host-side, created if absent)"
+    )
+    ap.add_argument(
+        "--export",
+        default=None,
+        help="corrected COCO output path for the export (default: <prebox>.corrected.json)",
+    )
     ap.add_argument("--port", type=int, default=8765)
     return ap.parse_args()
 
@@ -111,7 +119,7 @@ class LabellingHandler(BaseHTTPRequestHandler):
     def _send_json(self, obj: Any, code: int = 200) -> None:
         self._send(code, json.dumps(obj).encode(), "application/json")
 
-    def do_GET(self) -> None:  # noqa: N802 (http.server API)
+    def do_GET(self) -> None:
         path = self.path.split("?", 1)[0]
         if path in ("/", "/index.html"):
             self._send(200, PAGE.encode(), "text/html")
@@ -123,12 +131,12 @@ class LabellingHandler(BaseHTTPRequestHandler):
             # POST from a different instance.
             self._send_json(load_state(self.state_path))
         elif path.startswith("/frame/"):
-            self._serve_frame(path[len("/frame/"):])
+            self._serve_frame(path[len("/frame/") :])
         else:
             self._send(404, b"not found", "text/plain")
 
     def _serve_frame(self, quoted: str) -> None:
-        from urllib.parse import unquote, quote
+        from urllib.parse import unquote
 
         name = unquote(quoted)
         # Only paths that appear in the pre-box COCO are servable - the
@@ -148,7 +156,7 @@ class LabellingHandler(BaseHTTPRequestHandler):
         ctype = MIME.get(frame.suffix.lower().lstrip("."), "application/octet-stream")
         self._send(200, data, ctype)
 
-    def do_POST(self) -> None:  # noqa: N802 (http.server API)
+    def do_POST(self) -> None:
         path = self.path.split("?", 1)[0]
         if path != "/state":
             self._send(404, b"not found", "text/plain")
@@ -493,8 +501,7 @@ def fold_corrections(prebox: dict, state: dict) -> dict:
                 continue
             if ann["id"] in deleted:
                 continue
-            out = {k: ann[k] for k in
-                   ("image_id", "category_id", "bbox", "area", "iscrowd")}
+            out = {k: ann[k] for k in ("image_id", "category_id", "bbox", "area", "iscrowd")}
             if ann["id"] in moved:
                 m = moved[ann["id"]]
                 out["bbox"] = m["bbox"]
@@ -514,24 +521,30 @@ def fold_corrections(prebox: dict, state: dict) -> dict:
                 categories.append({"id": next_cat, "name": cat_name})
                 next_cat += 1
             bbox = added["bbox"]
-            annotations.append({
-                "id": next_ann, "image_id": im["id"],
-                "category_id": cat_by_name[cat_name],
-                "bbox": bbox, "area": round(bbox[2] * bbox[3], 2),
-                "iscrowd": 0,
-            })
+            annotations.append(
+                {
+                    "id": next_ann,
+                    "image_id": im["id"],
+                    "category_id": cat_by_name[cat_name],
+                    "bbox": bbox,
+                    "area": round(bbox[2] * bbox[3], 2),
+                    "iscrowd": 0,
+                }
+            )
             next_ann += 1
-    return {"info": {**prebox.get("info", {}),
-                     "description": "[r309] corrected frame set for "
-                                    "[r303]'s bake-off"},
-            "licenses": prebox.get("licenses", []),
-            "categories": categories,
-            "images": prebox.get("images", []),
-            "annotations": annotations}
+    return {
+        "info": {
+            **prebox.get("info", {}),
+            "description": "[r309] corrected frame set for [r303]'s bake-off",
+        },
+        "licenses": prebox.get("licenses", []),
+        "categories": categories,
+        "images": prebox.get("images", []),
+        "annotations": annotations,
+    }
 
 
-def make_handler(root: Path, prebox: dict, state_path: Path,
-                 export_path: Path) -> type:
+def make_handler(root: Path, prebox: dict, state_path: Path, export_path: Path) -> type:
     class Handler(LabellingHandler):
         pass
 
@@ -541,14 +554,18 @@ def make_handler(root: Path, prebox: dict, state_path: Path,
     Handler.state = load_state(state_path)
     Handler.export_path = export_path
 
-    def do_EXPORT(self) -> None:  # noqa: N802
+    def do_EXPORT(self) -> None:
         Handler.state = load_state(state_path)  # reload: client just POSTed
         corrected = fold_corrections(prebox, Handler.state)
         export_path.parent.mkdir(parents=True, exist_ok=True)
         export_path.write_text(json.dumps(corrected, indent=2) + "\n")
-        self._send_json({"exported": str(export_path),
-                         "frames": len(corrected["images"]),
-                         "annotations": len(corrected["annotations"])})
+        self._send_json(
+            {
+                "exported": str(export_path),
+                "frames": len(corrected["images"]),
+                "annotations": len(corrected["annotations"]),
+            }
+        )
 
     Handler.do_EXPORT = do_EXPORT
     return Handler
@@ -558,28 +575,26 @@ def main() -> int:
     args = parse_args()
     root = Path(args.root)
     if not root.is_dir():
-        print(f"r309_label_tool: --root {root} is not a directory",
-              file=sys.stderr)
+        print(f"r309_label_tool: --root {root} is not a directory", file=sys.stderr)
         sys.exit(2)
     prebox_path = Path(args.prebox)
     if not prebox_path.is_file():
-        print(f"r309_label_tool: --prebox {prebox_path} is not a file",
-              file=sys.stderr)
+        print(f"r309_label_tool: --prebox {prebox_path} is not a file", file=sys.stderr)
         sys.exit(2)
     prebox = json.loads(prebox_path.read_text())
     if not prebox.get("images"):
-        print(f"r309_label_tool: {prebox_path} carries no frames",
-              file=sys.stderr)
+        print(f"r309_label_tool: {prebox_path} carries no frames", file=sys.stderr)
         sys.exit(2)
     state_path = Path(args.state)
-    export_path = Path(args.export) if args.export else \
-        prebox_path.with_suffix(".corrected.json")
+    export_path = Path(args.export) if args.export else prebox_path.with_suffix(".corrected.json")
 
     handler_cls = make_handler(root, prebox, state_path, export_path)
     server = ThreadingHTTPServer(("127.0.0.1", args.port), handler_cls)
-    print(f"r309_label_tool: serving http://127.0.0.1:{args.port} "
-          f"({len(prebox['images'])} frames; state {state_path}; "
-          f"export {export_path})")
+    print(
+        f"r309_label_tool: serving http://127.0.0.1:{args.port} "
+        f"({len(prebox['images'])} frames; state {state_path}; "
+        f"export {export_path})"
+    )
     print("r309_label_tool: Ctrl+C to stop; state autosaves on every action")
     try:
         server.serve_forever()
