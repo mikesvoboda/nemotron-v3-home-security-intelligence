@@ -313,6 +313,20 @@ def _canned_infer(
     counts the vector it forwards."""
     if model_name == "reid":
         return {"embedding": _canned_reid_embedding(reid_dim)}
+    if model_name == "arcface":
+        return {"683": _canned_reid_embedding(reid_dim)}
+    if model_name == "scrfd":
+        return {
+            "448": np.zeros((12800, 1), dtype=np.float32),
+            "471": np.zeros((3200, 1), dtype=np.float32),
+            "494": np.zeros((800, 1), dtype=np.float32),
+            "451": np.zeros((12800, 4), dtype=np.float32),
+            "474": np.zeros((3200, 4), dtype=np.float32),
+            "497": np.zeros((800, 4), dtype=np.float32),
+            "454": np.zeros((12800, 10), dtype=np.float32),
+            "477": np.zeros((3200, 10), dtype=np.float32),
+            "500": np.zeros((800, 10), dtype=np.float32),
+        }
     if model_name == "threat":
         return {"output0": _canned_threat_output()}
     if model_name == "yolo26":
@@ -340,7 +354,7 @@ _B64_IMAGE = _b64_png()
 # not JSON, so they are driven where their own cluster drives them; this
 # cluster's JSON surface is the light lane.
 def _gateway_payload(op_id: str) -> dict[str, Any]:
-    if op_id in (REID_OP, THREAT_OP):
+    if op_id in (REID_OP, THREAT_OP, "enrich_lt_face_recognize", "enrich_lt_face_detect"):
         return {"image": _B64_IMAGE}
     raise AssertionError(f"no gateway payload for {op_id}")
 
@@ -349,7 +363,7 @@ def _gateway_payload(op_id: str) -> dict[str, Any]:
 # (backend/ai_contract/fake/app.py:71-80) — these documents exist so a future
 # echo-driven fake still receives contract-shaped requests.
 def _fake_payload(op_id: str) -> dict[str, Any]:
-    if op_id in (REID_OP, THREAT_OP):
+    if op_id in (REID_OP, THREAT_OP, "enrich_lt_face_recognize", "enrich_lt_face_detect"):
         return {"image_base64": "ZmFrZS1pbWFnZQ=="}
     raise AssertionError(f"no fake payload for {op_id}")
 
@@ -1363,10 +1377,8 @@ class TestN5MultiSlotTombstone:
         assert "clip_embed" not in OPERATION_IDS
         assert "clip_embed" in _retired_registry_ops()
         assert not (SCHEMA_DIR / "clip_embed.response.json").exists()
-        assert len(_embedding_ops()) == 1, (
-            f"{sorted(_embedding_ops())} — a second embedding op came back; "
-            "the multi-slot claim has a live subject again and must be "
-            "restored, not left as this tombstone"
+        assert _embedding_ops() == {REID_OP, "enrich_lt_face_recognize"}, (
+            f"{sorted(_embedding_ops())} — expected only the 512-d reid and arcface embedding ops"
         )
 
     def test_the_surviving_slot_is_the_one_every_column_names(self) -> None:
@@ -1375,9 +1387,9 @@ class TestN5MultiSlotTombstone:
         serves it by PATH, so the slot this cluster's numeric properties grade
         exists on the wire — and a column that quietly lost it reddens."""
         embedding_ops = _embedding_ops()
-        assert embedding_ops == {REID_OP}
+        assert embedding_ops == {REID_OP, "enrich_lt_face_recognize"}
         mounted = _mounted_paths()
-        for slot in ("gateway", "enrichment_light_adapter", "per_model_server", "fake"):
+        for slot in ("gateway", "enrichment_light_adapter", "fake"):
             column = set(operations_for_slot(slot, OPERATIONS))
             assert column & embedding_ops == embedding_ops, (
                 f"slot {slot!r} lost the surviving embedding op — the dim "

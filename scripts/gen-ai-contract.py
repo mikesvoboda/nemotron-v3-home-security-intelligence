@@ -284,6 +284,8 @@ PER_MODEL_SERVER: dict[str, bool] = {
     "yolo26_segment": False,
     "enrich_lt_threat_detect": True,
     "enrich_lt_person_reid": True,
+    "enrich_lt_face_detect": False,
+    "enrich_lt_face_recognize": False,
     # R8 S3: the clip_*, florence_*, enrichment_* and the enrich_lt pose/pet/
     # depth entries left with their models -- the routes are gone, so there is
     # no op to state per-model-server availability for.

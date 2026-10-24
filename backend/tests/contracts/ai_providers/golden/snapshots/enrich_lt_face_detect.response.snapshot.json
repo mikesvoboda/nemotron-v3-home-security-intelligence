@@ -1,0 +1,12 @@
+{
+  "defs": ["FaceDetectionItem"],
+  "generated_by": "scripts/gen-ai-contract.py",
+  "op": "enrich_lt_face_detect",
+  "properties": {
+    "faces": "array<ref(FaceDetectionItem)>",
+    "inference_time_ms": "number",
+    "model_id": "anyOf(null,string)"
+  },
+  "required": ["inference_time_ms"],
+  "side": "response"
+}

@@ -1,0 +1,13 @@
+{
+  "defs": [],
+  "generated_by": "scripts/gen-ai-contract.py",
+  "op": "enrich_lt_face_recognize",
+  "properties": {
+    "embedding": "array<number>",
+    "embedding_dimension": "integer",
+    "inference_time_ms": "number",
+    "model_id": "anyOf(null,string)"
+  },
+  "required": ["embedding", "embedding_dimension", "inference_time_ms"],
+  "side": "response"
+}
