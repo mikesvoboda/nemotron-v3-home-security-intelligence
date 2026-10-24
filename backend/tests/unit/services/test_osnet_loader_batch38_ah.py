@@ -707,18 +707,21 @@ def test_get_reid_handle_membership():
     def swap(loaded):
         return patch.object(mz, "get_model_manager", lambda: Mgr(loaded))
 
-    with swap({"osnet-ain-x1-0": handle}):
-        assert m.get_reid_handle() is handle
-    with swap({}):
-        assert m.get_reid_handle() is None
-    with swap({"osnet-ain-x1-0": {"nope": 1}}):
-        assert m.get_reid_handle() is None
-    # NON-dict handles that CONTAIN "model": pristine's isinstance term
-    # refuses them; and/or re-associations would RETURN the raw list/str.
-    with swap({"osnet-ain-x1-0": ["model"]}):
-        assert m.get_reid_handle() is None
-    with swap({"osnet-ain-x1-0": "xmodelx"}):
-        assert m.get_reid_handle() is None
+    with patch.object(
+        m, "get_settings", autospec=True, return_value=types.SimpleNamespace(reid_backend="local")
+    ):
+        with swap({"osnet-ain-x1-0": handle}):
+            assert m.get_reid_handle() is handle
+        with swap({}):
+            assert m.get_reid_handle() is None
+        with swap({"osnet-ain-x1-0": {"nope": 1}}):
+            assert m.get_reid_handle() is None
+        # NON-dict handles that CONTAIN "model": pristine's isinstance term
+        # refuses them; and/or re-associations would RETURN the raw list/str.
+        with swap({"osnet-ain-x1-0": ["model"]}):
+            assert m.get_reid_handle() is None
+        with swap({"osnet-ain-x1-0": "xmodelx"}):
+            assert m.get_reid_handle() is None
 
 
 def test_result_to_dict_shape():
