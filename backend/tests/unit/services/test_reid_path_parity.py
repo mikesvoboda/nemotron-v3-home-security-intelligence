@@ -25,7 +25,25 @@ from fastapi import FastAPI
 from httpx import ASGITransport, AsyncClient
 from PIL import Image
 
-from backend.services.osnet_loader import build_reid_transform
+from backend.services.osnet_loader import (
+    OSNET_INPUT_HEIGHT,
+    OSNET_INPUT_WIDTH,
+    OSNET_MEAN,
+    OSNET_STD,
+)
+
+
+def build_reid_transform() -> Any:
+    """Reference torchvision resize + ImageNet normalisation matching `/person-reid`."""
+    from torchvision import transforms
+
+    return transforms.Compose(
+        [
+            transforms.Resize((OSNET_INPUT_HEIGHT, OSNET_INPUT_WIDTH)),
+            transforms.ToTensor(),
+            transforms.Normalize(mean=list(OSNET_MEAN), std=list(OSNET_STD)),
+        ]
+    )
 
 
 def _crop(seed: int = 0, width: int = 147, height: int = 311) -> Image.Image:
@@ -80,22 +98,20 @@ PARITY_GATE = 0.999
 
 @pytest.fixture(scope="module")
 def osnet() -> Any:
-    """torchreid's osnet_ain_x1_0, as the backend loader builds it, seeded weights."""
+    """Reference OSNet-AIN x1.0 (`ai.gateway.export.export_reid`), seeded weights."""
+    import importlib
+
     import torch
 
-    from backend.services import osnet_loader
-
-    osnet_loader._ensure_tensorboard_importable()
+    export_reid = importlib.import_module("ai.gateway.export.export_reid")
     torch.manual_seed(68)
-    model = osnet_loader._import_build_model()(
-        name="osnet_ain_x1_0", num_classes=1, pretrained=False
-    )
+    model = export_reid.create_osnet_ain_x1_0(num_classes=1)
     return model.eval()
 
 
 @pytest.fixture
 def triton_running(osnet: Any) -> AsyncMock:
-    """Triton's ``reid`` answered by the same module the backend path runs."""
+    """Triton's ``reid`` answered by the same module the reference path runs."""
     import torch
 
     async def infer(model_name: str, inputs: dict[str, Any], outputs: list[str]) -> dict:
@@ -119,12 +135,14 @@ class TestParityGate:
     async def test_final_vectors_agree_to_the_gate(
         self, osnet: Any, triton_running: AsyncMock, seed: int, width: int, height: int
     ) -> None:
-        from backend.services.osnet_loader import extract_person_embedding
+        import torch
+
         from backend.services.reid_gateway import embed_person_via_gateway
 
         crop = _crop(seed, width, height)
-        handle = {"model": osnet, "transform": build_reid_transform(), "model_id": "local"}
-        local = await extract_person_embedding(handle, crop)
+        with torch.inference_mode():
+            raw = osnet(build_reid_transform()(crop).unsqueeze(0)).squeeze().cpu().numpy()
+        local_emb = raw / max(float(np.linalg.norm(raw)), 1e-8)
 
         app = FastAPI()
         app.include_router(router)
@@ -136,7 +154,7 @@ class TestParityGate:
             async with AsyncClient(transport=ASGITransport(app=app), base_url="http://gw") as c:
                 remote = await embed_person_via_gateway(crop, base_url="http://gw", client=c)
 
-        cosine = float(np.dot(local.embedding, remote.embedding))
+        cosine = float(np.dot(local_emb, remote.embedding))
         assert cosine >= PARITY_GATE, f"parity {cosine:.6f} below the gate {PARITY_GATE}"
 
 

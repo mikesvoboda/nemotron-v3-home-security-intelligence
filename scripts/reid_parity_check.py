@@ -27,7 +27,6 @@ import asyncio
 import sys
 import time
 from pathlib import Path
-from typing import Any
 
 import numpy as np
 
@@ -74,17 +73,31 @@ def _crops(directory: Path) -> list[Path]:
 
 
 async def _run(args: argparse.Namespace) -> int:
+    import importlib
+
+    import torch
     from backend.services import osnet_loader, reid_gateway
     from PIL import Image
+    from torchvision import transforms
 
     paths = _crops(args.crops)
     if not paths:
         print(f"no images in {args.crops}", file=sys.stderr)
         return 2
 
-    row = osnet_loader._osnet_zoo_row()
-    handle: dict[str, Any] = await osnet_loader.load_osnet_model(
-        str(args.weights), expected_sha256=row.get("sha256") or None
+    weights_path = Path(args.weights)
+    if weights_path.is_dir():
+        weights_path = weights_path / "osnet_ain_x1_0_msmt17.pth"
+    export_reid = importlib.import_module("ai.gateway.export.export_reid")
+    model = export_reid.load_pytorch_model(str(weights_path)).eval()
+    transform = transforms.Compose(
+        [
+            transforms.Resize((osnet_loader.OSNET_INPUT_HEIGHT, osnet_loader.OSNET_INPUT_WIDTH)),
+            transforms.ToTensor(),
+            transforms.Normalize(
+                mean=list(osnet_loader.OSNET_MEAN), std=list(osnet_loader.OSNET_STD)
+            ),
+        ]
     )
     expected_id = osnet_loader.osnet_model_id()
 
@@ -97,12 +110,14 @@ async def _run(args: argparse.Namespace) -> int:
         crop = Image.open(path).convert("RGB")
 
         t0 = time.perf_counter()
-        local = await osnet_loader.extract_person_embedding(handle, crop)
+        with torch.inference_mode():
+            vec = model(transform(crop).unsqueeze(0)).squeeze().cpu().numpy()
+        local_emb = vec / max(float(np.linalg.norm(vec)), 1e-8)
         t1 = time.perf_counter()
         remote = await reid_gateway.embed_person_via_gateway(crop, base_url=args.gateway_url)
         t2 = time.perf_counter()
 
-        cos = cosine(local.embedding, remote.embedding)
+        cos = cosine(local_emb, remote.embedding)
         cosines.append(cos)
         cpu_ms.append((t1 - t0) * 1000)
         gpu_ms.append((t2 - t1) * 1000)
