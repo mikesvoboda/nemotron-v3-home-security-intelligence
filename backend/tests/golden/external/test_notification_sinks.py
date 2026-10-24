@@ -137,7 +137,6 @@ def test_the_webhook_sink_receives_the_acknowledgement_payload(
     logged_in_api: httpx.Client,
     sinks: dict[str, str],
     sink_reader: Any,
-    cameras_by_scenario: dict[str, str],
 ) -> None:
     """One webhook delivery through the outbound machinery, read back.
 
@@ -160,9 +159,10 @@ def test_the_webhook_sink_receives_the_acknowledgement_payload(
     reader.clear("/requests")
 
     # The acknowledgement needs an events.id to bind the alert to. This spec
-    # makes its OWN event (bulk-create on the harness's harness-smoke camera,
-    # same road as test_household_embeddings.py's ``no_person_event_id``) and
-    # carries a ``rejected`` verdict: AlertPipeline sees the rejected verdict
+    # makes its OWN event on its OWN camera (get-or-create "Sinks (r308a
+    # golden)" below, the same leg-owned-camera shape as test_arming.py's
+    # B4.7 camera and test_backup.py's F-101 camera) and carries a
+    # ``rejected`` verdict: AlertPipeline sees the rejected verdict
     # and raises nothing (``policy._check_verdict_and_severity`` returns None),
     # so the event cannot leak an alert into a sibling golden spec's
     # ``items == []`` assert — the collision #7390 recorded, where this spec's
@@ -171,26 +171,52 @@ def test_the_webhook_sink_receives_the_acknowledgement_payload(
     # bound its alert to that event. The event is deleted in the finally
     # (soft, then permanent, as the arming spec's teardown does).
     #
-    # The event must NOT be backdated: the delete happens ~2s after the
-    # create, and ``test_webhook_deliveries.py``'s module fixture pins its
-    # alerts to the OLDEST VERIFIED event ("the oldest verified event is the
-    # smoke event … it is never a purge target"). A backdated rejected event
-    # is verified by that filter and older than the smoke event, so the
-    # fixture binds F-250/F-251's alerts to THIS row, and the finally's
-    # delete (racing the trash spec's Empty Trash sweep) kills the row out
-    # from under them — run 40082904509, ``alerts_event_id_fkey``,
-    # ``Key (event_id)=(2)``. NOW-dated keeps the smoke event the
-    # oldest-verified pick, as test_arming.py's now-dated fixtures already
-    # do.
-    camera_id = cameras_by_scenario.get("harness-smoke")
-    assert camera_id, "harness seeded no harness-smoke camera for the webhook leg's event"
+    # The leg-owned camera is not style: every other bulk-creating golden spec
+    # either uses its own camera (arming, backup) or carries no verdict (the
+    # F-297 400 leg), so this leg is the ONLY spec putting a verified row on
+    # the harness-smoke camera — and any dating it picks loses: 2026-01-01
+    # made it the OLDEST verified row and test_webhook_deliveries.py's module
+    # fixture ("the oldest verified event is the smoke event … it is never a
+    # purge target") bound F-250/F-251's alerts to it, then the finally's
+    # delete killed the row mid-fixture (run 40082904509, alerts_event_id_fkey,
+    # Key (event_id)=(2)); NOW-dated (a2ae36ba3) it became the NEWEST verified
+    # row instead and test_household_embeddings.py's smoke_event fixture —
+    # first-verified in the same started_at DESC list — bound to it and got
+    # "Event does not contain a person detection" (run 40084759113, shard
+    # 1-of-4). The row's own consumers (the alert FK, the webhook delivery)
+    # never read the camera, so the row moves off the shared camera entirely
+    # and stops participating in either picker.
+    cams = logged_in_api.get("/api/cameras")
+    assert cams.status_code == 200, cams.text[:500]
+    cam_items = cams.json()
+    if isinstance(cam_items, dict):
+        cam_items = cam_items.get("items") or cam_items.get("cameras") or []
+    sink_camera = next(
+        (
+            str(c["id"])
+            for c in cam_items
+            if isinstance(c, dict) and c.get("name") == "Sinks (r308a golden)"
+        ),
+        None,
+    )
+    if sink_camera is None:
+        created_cam = logged_in_api.post(
+            "/api/cameras",
+            json={
+                "name": "Sinks (r308a golden)",
+                "folder_path": "/cameras/r308a_golden_sinks",
+                "status": "online",
+            },
+        )
+        assert created_cam.status_code == 201, created_cam.text[:500]
+        sink_camera = str(created_cam.json()["id"])
     bulked = logged_in_api.post(
         "/api/events/bulk",
         json={
             "events": [
                 {
                     "batch_id": f"golden-r308a-sink-{uuid.uuid4().hex[:8]}",
-                    "camera_id": camera_id,
+                    "camera_id": sink_camera,
                     "started_at": datetime.now(UTC).isoformat(),
                     "risk_score": 10,
                     "risk_level": "low",
