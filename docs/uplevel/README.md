@@ -179,7 +179,7 @@ UR-147.
 | O1.12 | ops | 1 | The hooks run in the gate (UR-37) | | done | #6901 |
 | B2.1    | backend                 | 2          | Interface bar and accepted survivors (`01` M3) |               | done     | #6921 |
 | B2.2 | backend | 2 | Re-ID on the GPU (OD-17 re-ID half) — parked: GPU path fails on GB300 (ruling 106); CPU path measured | heavy · owner | done | #6970 |
-| B2.3    | backend                 | 2          | Re-ID model bake-off                           | heavy         | not started |       |
+| B2.3    | backend                 | 2          | Re-ID model bake-off                           | heavy         | not started | #7413 |
 | F2.1    | frontend                | 2          | Golden-path harness                            |               | done        | #6976 |
 | F2.2    | frontend                | 2          | Feature inventory                              | heavy         | done        | #6941 |
 | F2.3    | frontend                | 2          | Golden paths for every working feature         |               | done        | #6997 |
