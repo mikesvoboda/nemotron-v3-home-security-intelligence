@@ -24,9 +24,7 @@ onto the template).
 
 from __future__ import annotations
 
-import hashlib
 from pathlib import Path
-from typing import ClassVar
 
 import numpy as np
 import pytest
@@ -39,7 +37,7 @@ W600K_SHA = "4c06341c33c2ca1f86781dab0e829f88ad5b64be9fba56e56bc9ebdefc619e43"
 
 
 class FakeEmbedSession:
-    """onnxruntime-session stand-in for the embedder: outputs are a pure
+    """Session stand-in for the embedder: outputs are a pure
     function of the input bytes (no RNG), shaped like w600k_r50 (single
     float32 1xD output node) - and deliberately NOT unit length, so the
     loader's own L2 step is what the test measures."""
@@ -61,12 +59,6 @@ class FakeEmbedSession:
         proj = np.tanh(buckets @ mixing.T)
         raw = proj * 37.0  # real sessions do NOT normalize
         return [raw.reshape(1, self.out_dim)]
-
-
-def write_weights(root: Path, name: str, content: bytes = b"fake-weight-bytes") -> Path:
-    weights = root / name
-    weights.write_bytes(content)
-    return weights
 
 
 @pytest.fixture
@@ -155,90 +147,158 @@ class TestExtractFaceEmbedding:
 
 
 # ---------------------------------------------------------------------------
-# Loading: weights absent OR hash mismatch -> unavailable (F12)
+# Gateway handles & SHA-256 model_id pin ([r307b], F11 + F12)
 # ---------------------------------------------------------------------------
 
 
-class _FakeOrtModule:
-    """sys.modules stand-in for onnxruntime (the sandbox/CI truth: the [face]
-    extra is optional). InferenceSession records the exact path+providers."""
-
-    last: ClassVar[dict] = {}
-
-    class InferenceSession:
-        def __init__(self, path, providers=None):
-            _FakeOrtModule.last = {"path": str(path), "providers": providers}
-            self._s = FakeEmbedSession()
-
-        def get_inputs(self):
-            return self._s.get_inputs()
-
-        def run(self, o, f):
-            return self._s.run(o, f)
-
-
-@pytest.fixture
-def fake_ort(monkeypatch):
-    import sys
-
-    monkeypatch.setitem(sys.modules, "onnxruntime", _FakeOrtModule)
-    _FakeOrtModule.last = {}
-    return _FakeOrtModule
-
-
 class TestLoadFaceRecognizer:
-    async def test_missing_weights_raises_unavailable(self, tmp_path: Path) -> None:
-        with pytest.raises(frl.FaceRecognizerUnavailable):
-            await frl.load_face_recognizer(str(tmp_path / "nothing-here" / "w600k_r50.onnx"))
-
-    async def test_hash_mismatch_raises_unavailable(self, tmp_path: Path, fake_ort) -> None:
-        """Wrong bytes are as unavailable as no bytes: a mirror that shipped a
-        different build must not run and silently fork the gallery space."""
-        weights = write_weights(tmp_path, "w600k_r50.onnx", b"someone-elses-build")
-        with pytest.raises(frl.FaceRecognizerUnavailable, match="sha256"):
-            await frl.load_face_recognizer(str(weights), expected_sha256=W600K_SHA)
-
-    async def test_hash_match_loads_cpu_provider(self, tmp_path: Path, fake_ort) -> None:
-        content = b"exact-bytes"
-        weights = write_weights(tmp_path, "w600k_r50.onnx", content)
-        model = await frl.load_face_recognizer(
-            str(weights), expected_sha256=hashlib.sha256(content).hexdigest()
+    def test_model_ids_match_pinned_catalog_rows(self) -> None:
+        assert (
+            frl.face_detector_model_id() == f"face-detector-scrfd@scrfd_10g_bnkps@{SCRFD_SHA[:12]}"
         )
-        assert model["session"] is not None
-        assert fake_ort.last["providers"] == ["CPUExecutionProvider"]  # CPU by ruling
-        assert fake_ort.last["path"].endswith("w600k_r50.onnx")
+        assert frl.face_recognizer_model_id() == f"face-recognizer@w600k_r50@{W600K_SHA[:12]}"
 
-    async def test_model_id_carries_file_and_hash(self, tmp_path: Path, fake_ort) -> None:
-        """F11 ruling 2: model_id identifies the embedding space, so it must
-        change when the weights bytes change - filename AND content hash ride
-        it, which is what makes the matcher's re-enroll rule enforceable."""
-        content = b"exact-bytes"
-        weights = write_weights(tmp_path, "w600k_r50.onnx", content)
-        sha = hashlib.sha256(content).hexdigest()
-        model = await frl.load_face_recognizer(str(weights), expected_sha256=sha)
-        assert model["model_id"] == f"face-recognizer@w600k_r50@{sha[:12]}"
+    async def test_loaders_return_gateway_handles_without_onnxruntime(self, tmp_path: Path) -> None:
+        det = await frl.load_face_detector(
+            str(tmp_path / "scrfd_10g_bnkps.onnx"), expected_sha256=SCRFD_SHA
+        )
+        rec = await frl.load_face_recognizer(
+            str(tmp_path / "w600k_r50.onnx"), expected_sha256=W600K_SHA
+        )
+        assert det["session"]["kind"] == "gateway"
+        assert det["model_id"] == f"face-detector-scrfd@scrfd_10g_bnkps@{SCRFD_SHA[:12]}"
+        assert rec["session"]["kind"] == "gateway"
+        assert rec["model_id"] == f"face-recognizer@w600k_r50@{W600K_SHA[:12]}"
+        assert rec["embedding_dim"] == 512
 
-    async def test_model_id_without_pin_still_carries_file(self, tmp_path: Path, fake_ort) -> None:
-        weights = write_weights(tmp_path, "w600k_r50.onnx")
-        model = await frl.load_face_recognizer(str(weights))
-        assert model["model_id"] == "face-recognizer@w600k_r50"
+    def test_get_face_leg_handles_defaults_to_gateway(self, monkeypatch) -> None:
+        from types import SimpleNamespace
 
-    async def test_import_error_becomes_unavailable(self, tmp_path: Path, monkeypatch) -> None:
-        """onnxruntime absent (the sandbox/CI truth) is the ruling's
-        'unavailable,' not an ImportError escaping into a batch."""
-        weights = write_weights(tmp_path, "w600k_r50.onnx")
-        import builtins
+        import backend.services.model_zoo as mz
 
-        real_import = builtins.__import__
+        monkeypatch.setattr(mz, "get_model_manager", lambda: SimpleNamespace(_loaded_models={}))
+        handles = frl.get_face_leg_handles()
+        assert handles is not None
+        det_handle, rec_handle = handles
+        assert det_handle["session"]["kind"] == "gateway"
+        assert det_handle["model_id"] == f"face-detector-scrfd@scrfd_10g_bnkps@{SCRFD_SHA[:12]}"
+        assert rec_handle["session"]["kind"] == "gateway"
+        assert rec_handle["model_id"] == f"face-recognizer@w600k_r50@{W600K_SHA[:12]}"
 
-        def no_onnx(name, *a, **k):
-            if name == "onnxruntime":
-                raise ImportError("no onnxruntime")
-            return real_import(name, *a, **k)
+    def test_gateway_detect_and_embed_preserve_model_ids(self, crop: Image.Image) -> None:
+        import httpx
 
-        monkeypatch.setattr(builtins, "__import__", no_onnx)
-        with pytest.raises(frl.FaceRecognizerUnavailable):
-            await frl.load_face_recognizer(str(weights))
+        det_id = f"face-detector-scrfd@scrfd_10g_bnkps@{SCRFD_SHA[:12]}"
+        rec_id = f"face-recognizer@w600k_r50@{W600K_SHA[:12]}"
+        seen_urls: list[str] = []
+
+        def handler(request: httpx.Request) -> httpx.Response:
+            seen_urls.append(str(request.url))
+            if request.url.path.endswith("/face-detect"):
+                return httpx.Response(
+                    200,
+                    json={
+                        "faces": [
+                            {
+                                "bbox": [10.0, 20.0, 110.0, 120.0],
+                                "confidence": 0.92,
+                                "landmarks": [
+                                    [30.0, 50.0],
+                                    [70.0, 50.0],
+                                    [50.0, 70.0],
+                                    [35.0, 95.0],
+                                    [65.0, 95.0],
+                                ],
+                            }
+                        ],
+                        "inference_time_ms": 2.1,
+                        "model_id": det_id,
+                    },
+                )
+            if request.url.path.endswith("/face-recognize"):
+                raw = [3.0] + [4.0] * 511
+                return httpx.Response(
+                    200,
+                    json={
+                        "embedding": raw,
+                        "embedding_dimension": 512,
+                        "inference_time_ms": 1.8,
+                        "model_id": rec_id,
+                    },
+                )
+            return httpx.Response(404)
+
+        client = httpx.Client(transport=httpx.MockTransport(handler))
+        det_session = {
+            "kind": "gateway",
+            "base_url": "http://ai-gateway:8090/enrich-lt",
+            "model_id": det_id,
+            "client": client,
+        }
+        rec_session = {
+            "kind": "gateway",
+            "base_url": "http://ai-gateway:8090/enrich-lt",
+            "model_id": rec_id,
+            "client": client,
+        }
+        picked = frl.extract_enrollment_vector(
+            _image(200, 200),
+            det_session=det_session,
+            rec_session=rec_session,
+            model_id=rec_id,
+            threshold=0.6,
+            min_px=40,
+            min_score=0.6,
+        )
+        assert picked is not None
+        vec, quality, out_model_id = picked
+        assert out_model_id == rec_id
+        assert len(vec) == 512
+        assert abs(float(np.linalg.norm(vec)) - 1.0) < 1e-5
+        assert quality > 0.7
+        assert seen_urls == [
+            "http://ai-gateway:8090/enrich-lt/face-detect",
+            "http://ai-gateway:8090/enrich-lt/face-recognize",
+        ]
+
+    def test_gateway_unpinned_model_id_raises_unavailable(self, crop: Image.Image) -> None:
+        import httpx
+
+        client = httpx.Client(
+            transport=httpx.MockTransport(
+                lambda _req: httpx.Response(
+                    200,
+                    json={
+                        "faces": [],
+                        "inference_time_ms": 1.0,
+                        "model_id": "fake-ai-face-detector@deterministic@not-a-checkpoint",
+                    },
+                )
+            )
+        )
+        det_session = {
+            "kind": "gateway",
+            "base_url": "http://ai-gateway:8090/enrich-lt",
+            "model_id": f"face-detector-scrfd@scrfd_10g_bnkps@{SCRFD_SHA[:12]}",
+            "client": client,
+        }
+        with pytest.raises(
+            frl.FaceRecognizerUnavailable, match="pinned face weights are not loaded"
+        ):
+            frl.detect_faces(det_session, crop)
+
+    def test_cpu_onnx_session_and_face_extra_removed(self) -> None:
+        import inspect
+        import tomllib
+
+        src = inspect.getsource(frl)
+        assert "import onnxruntime" not in src
+        assert "_load_cpu_session" not in src
+        pyproject = tomllib.loads(
+            (Path(__file__).resolve().parents[4] / "pyproject.toml").read_text()
+        )
+        optional = pyproject.get("project", {}).get("optional-dependencies", {})
+        assert "face" not in optional
 
 
 # ---------------------------------------------------------------------------
