@@ -1257,16 +1257,16 @@ lost writer, and the UR-89 review approves.
 
 **Flags:** `owner` (production's face path changes). **Assigned:** backend, after `[r307a]` passes
 (ruling 307). **Depends on:** `[r307a]`'s `RESULT: PASS`.
-**PR:** none yet. (ruling 307, record 6323846997)
+**PR:** #7414. (ruling 307, record 6323846997; ruling 329, record 6378113072)
 
 The face leg is CPU-only by an earlier choice, not a limit:
 `backend/services/face_recognizer_loader.py:19` and `:152` force `CPUExecutionProvider` to keep it
 out of the VRAM budget.
 
-- [ ] The face leg calls the gateway's SCRFD and ArcFace routes (`[r307a]`). Stored face embeddings
+- [x] The face leg calls the gateway's SCRFD and ArcFace routes (`[r307a]`). Stored face embeddings
       keep their model IDs.
-- [ ] A test pins the gateway path, red first (UR-69).
-- [ ] The CPU path (`face_recognizer_loader.py`'s ONNX sessions, the `face` extra, and
+- [x] A test pins the gateway path, red first (UR-69).
+- [x] The CPU path (`face_recognizer_loader.py`'s ONNX sessions, the `face` extra, and
       `onnxruntime` if no other kept import needs it) is removed in this PR or a follow-up it names.
 
 **Done when:** `CI Gate` is green at a ready head and the UR-89 review approves.
