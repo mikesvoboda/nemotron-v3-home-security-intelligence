@@ -171,7 +171,6 @@ The API is organized into domain-specific guides:
 | [System Operations](system-ops.md)        | Health, config, alerts, logs, notifications             |
 | [System Monitoring](system-monitoring.md) | Worker supervisor, pipeline status, Prometheus          |
 | [Real-time](realtime.md)                  | WebSocket streams for events and system status          |
-| [Calibration](calibration.md)             | User risk threshold calibration                         |
 | [Webhooks](webhooks.md)                   | External system integrations (Alertmanager)             |
 
 ## Quick Reference

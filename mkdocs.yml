@@ -166,7 +166,6 @@ nav:
           - System Monitoring: developer/api/system-monitoring.md
           - Real-time: developer/api/realtime.md
           - Webhooks: developer/api/webhooks.md
-          - Calibration: developer/api/calibration.md
           - WebSocket Contracts: developer/api/websocket-contracts.md
           - API Coverage: developer/api/coverage.md
       - Patterns:
