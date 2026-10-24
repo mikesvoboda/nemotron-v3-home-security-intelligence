@@ -193,7 +193,7 @@ def scan_corpus(root: Path) -> list[tuple[str, str]]:
             corpus.append((p.relative_to(root).as_posix(), p.read_text(errors="replace")))
         except OSError as exc:
             print(f"unlinked_pages: cannot read {p}: {exc}", file=sys.stderr)
-            raise SystemExit(1)
+            raise SystemExit(1) from exc
     return corpus
 
 
