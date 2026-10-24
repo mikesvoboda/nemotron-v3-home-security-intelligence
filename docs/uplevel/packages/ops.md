@@ -1497,7 +1497,7 @@ moves the backend to the routes this package adds.
       does: ArcFace cosine at least 0.999 (ruling 68's gate); SCRFD boxes and the five landmarks
       within a tolerance the PR states and justifies. A CPU-only CI test pins whatever graph change
       the plans need, as `[r252]`'s does.
-- [ ] The operator runs it (UR-15) and posts the stage table and `RESULT:` line; the PR records GPU
+- [x] The operator runs it (UR-15) and posts the stage table and `RESULT:` line; the PR records GPU
       memory added and latency per face.
 
 **Done when:** `RESULT: PASS` is posted at the head and the UR-89 review approves. Nothing in
