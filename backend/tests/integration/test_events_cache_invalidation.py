@@ -28,6 +28,7 @@ import pytest
 from httpx import AsyncClient
 
 from backend.models.camera import Camera
+from backend.models.detection import Detection
 from backend.models.enums import CameraStatus
 from backend.models.event import Event
 from backend.services.cache_service import CacheKeys, CacheService
@@ -247,11 +248,34 @@ class TestBulkCreateEventsCacheInvalidation:
     async def test_bulk_create_invalidates_event_list_cache(
         self,
         client_with_cache: AsyncClient,
+        db_session: AsyncSession,
         test_camera: Camera,
         cache_service: CacheService,
         cleanup_cache: None,
     ) -> None:
         """Test that bulk event creation invalidates event list cache."""
+        # Create real detections: since B4.4 the bulk route inserts EventDetection
+        # rows for detection_ids, so nonexistent ids are refused per item.
+        detection_ids = []
+        for i in range(3):
+            detection = Detection(
+                camera_id=test_camera.id,
+                file_path=f"/test/{_unique_id('det')}.jpg",
+                object_type="person",
+                confidence=0.85,
+                bbox_x=50,
+                bbox_y=50,
+                bbox_width=150,
+                bbox_height=150,
+                detected_at=datetime.now(UTC),
+            )
+            db_session.add(detection)
+            detection_ids.append(detection)
+        await db_session.commit()
+        for detection in detection_ids:
+            await db_session.refresh(detection)
+        real_detection_ids = [d.id for d in detection_ids]
+
         # Pre-populate event list cache
         cache_key = "events:list"
         cached_data = {"events": [], "count": 0}
@@ -272,7 +296,7 @@ class TestBulkCreateEventsCacheInvalidation:
                     "risk_level": "high",
                     "summary": "Test event 1",
                     "reasoning": "Test reasoning",
-                    "detection_ids": [1, 2, 3],
+                    "detection_ids": real_detection_ids,
                 },
                 {
                     "batch_id": _unique_id("batch"),
@@ -283,7 +307,7 @@ class TestBulkCreateEventsCacheInvalidation:
                     "risk_level": "medium",
                     "summary": "Test event 2",
                     "reasoning": "Test reasoning",
-                    "detection_ids": [4, 5],
+                    "detection_ids": [],
                 },
             ]
         }
@@ -747,6 +771,16 @@ class TestBulkDeleteEventsCacheInvalidation:
         # Verify all caches are populated
         for key in cache_keys.values():
             assert await cache_service.get(key) is not None
+
+        # Move event to Trash (soft delete) first: B4.4 Trash semantics
+        # (docs/uplevel/4n-trash.md) require an event to be in Trash before a
+        # permanent delete purges it.
+        trash_data = {"event_ids": [event.id], "soft_delete": True}
+        trash_response = await client_with_cache.request(
+            "DELETE", "/api/events/bulk", json=trash_data
+        )
+        assert trash_response.status_code == 207
+        assert trash_response.json()["succeeded"] == 1
 
         # Hard delete event (soft_delete=false)
         delete_data = {"event_ids": [event.id], "soft_delete": False}
