@@ -284,8 +284,9 @@ Design: [`../4n-trash.md`](../4n-trash.md), the `F4.3` parts. Covers F-087, F-08
 - [x] The build PR: Delete in `EventDetailModal`, bulk Delete on the timeline, the Undo toast;
       `permanentlyDeleteEvent` sends `?permanent=true`; Trash shows the deleted and purge dates;
       the setting under Settings › Data. — #7412
-- [ ] Golden path (Playwright) as the design gives it; it replaces the spec's API-side seeding
-      (ruling 135).
+- [x] Golden path (Playwright) as the design gives it; it replaces the spec's API-side seeding
+      (ruling 135). — #7412: `frontend/tests/golden/data-ui/trash-restore.spec.ts` (the F4.3 path
+      test, :272), witnessed green by the `Feature check (fake AI) — fan-in` job at `fb491a773`.
 
 **Done when:** steps 4–6 hold for F-087 and F-088.
 
