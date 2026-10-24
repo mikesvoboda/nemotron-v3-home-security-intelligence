@@ -66,7 +66,7 @@ Phase 2's exit (UR-10, contract rule 5).
 **Assigned:** heavy-b, once `O2.4` passes (UR-85; ruling 312 point 4), after the PR heavy-b holds
 then and after `[r307a]` (rulings 258, 260 and 307). **PR:** #7413.
 
-- [ ] Export CLIP-ReID ViT-B/16 and PersonViT ViT-S/16 through `O2.4`'s TensorRT path.
+- [x] Export CLIP-ReID ViT-B/16 and PersonViT ViT-S/16 through `O2.4`'s TensorRT path.
 - [ ] Score them with OSNet-AIN x1.0 on a labelled set of person crops from the owner's setting:
       Rank-1, mAP, a calibrated match threshold per model, and GPU milliseconds per crop. The
       labelled set (source, who labels, size) is settled with the owner as the package's first
