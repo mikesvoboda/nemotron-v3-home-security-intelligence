@@ -93,12 +93,12 @@ File Upload -> Detection -> Batching -> Specialists -> Analysis -> Event Creatio
 The zoo's loader set is what `model_zoo.py`'s `_LOADER_MAP` binds — one generic
 YOLO loader plus the resident specialist loaders:
 
-| Service                     | Purpose                                                                                        | Exported via `__init__.py`          |
-| --------------------------- | ---------------------------------------------------------------------------------------------- | ----------------------------------- |
-| `osnet_loader.py`           | Load OSNet-AIN x1.0 person re-ID embeddings                                                    | No (import directly)                |
-| `reid_gateway.py`           | Person re-ID through the gateway's `/enrich-lt/person-reid` when `REID_BACKEND=gateway` (B2.2) | No (reached through `osnet_loader`) |
-| `face_recognizer_loader.py` | Load the SCRFD face detector + ArcFace recognizer (CPU onnxruntime)                            | No (import directly)                |
-| `fast_alpr_loader.py`       | Load the FastALPR plate reader                                                                 | No (import directly)                |
+| Service                     | Purpose                                                                                                            | Exported via `__init__.py`          |
+| --------------------------- | ------------------------------------------------------------------------------------------------------------------ | ----------------------------------- |
+| `osnet_loader.py`           | Load OSNet-AIN x1.0 person re-ID embeddings                                                                        | No (import directly)                |
+| `reid_gateway.py`           | Person re-ID through the gateway's `/enrich-lt/person-reid` when `REID_BACKEND=gateway` (default; B2.2, `[r306a]`) | No (reached through `osnet_loader`) |
+| `face_recognizer_loader.py` | Load the SCRFD face detector + ArcFace recognizer (CPU onnxruntime)                                                | No (import directly)                |
+| `fast_alpr_loader.py`       | Load the FastALPR plate reader                                                                                     | No (import directly)                |
 
 The YOLO rows (`yolo26-general`, `yolo11-face`, `yolo11-license-plate`) load
 through `load_yolo_model` and the OCR row through `load_paddle_ocr`, both
@@ -533,7 +533,7 @@ get_total_vram_if_loaded(names)  # Calculate VRAM usage
 
 **Features:**
 
-- Generate embeddings from person crops via the resident OSNet zoo handle (`osnet_loader.get_reid_handle()`; no weights resident ⇒ `ReIDUnavailableError`, never a zero vector)
+- Generate embeddings from person crops via `osnet_loader.get_reid_handle()` (defaults to `REID_BACKEND=gateway`, calling `/enrich-lt/person-reid`; when `REID_BACKEND=local` and no weights are resident ⇒ `ReIDUnavailableError`, never a zero vector)
 - Provenance on every stored vector: `model_id` belt derived from the models.yml sha pin (F11), grammar `osnet-ain-x1-0@osnet_ain_x1_0_msmt17@8a07e8da3894` (`<name>@<weights>@<sha256 prefix 12>`); Redis keys partition by it so a search cannot read another space's rows
 - Pre-swap rows decode to the `legacy-unknown-provenance` sentinel and are never scored — mismatch or unprovenanced answers `unavailable (re-enroll)`; drop and re-enroll, no backfill
 - The VLM `person_reid` specialist leg (`vlm_specialists.py`) is real: it probes person crops with this resident handle and scores only same-`model_id` gallery rows
@@ -637,7 +637,7 @@ A bare vector list under the same key is also read. This matcher is a same-space
 
 **Integration with the gateway `reid` model:**
 
-The primary producer is `reid_service`, computing through the resident OSNet zoo handle. The gateway's OSNet pass — the Triton `reid` model behind `/enrich-lt/person-reid` (`http://ai-gateway:8090/enrich-lt/person-reid`) — is the same models.yml-pinned weights, so its vectors live in the one space and carry the same `model_id`; where both run, the resident pipeline's cached vector wins.
+The primary producer is `reid_service`, computing through `osnet_loader.get_reid_handle()` (which defaults to the gateway's Triton `reid` model behind `/enrich-lt/person-reid`, `http://ai-gateway:8090/enrich-lt/person-reid`, since `[r306a]`, or the resident OSNet zoo handle when `REID_BACKEND=local`) — the same models.yml-pinned weights, so its vectors live in the one space and carry the same `model_id`; where both run, the resident pipeline's cached vector wins.
 
 ### scene_change_detector.py
 
