@@ -3465,7 +3465,15 @@ asyncio.run(main())
         # no second copy of the overlay's value can drift). From inside the
         # backend container the host-side loopback URL points at the backend,
         # not the sink, which is why the two sides need different spellings.
-        if self.mode == "fake" and not self.prod_shape:
+        #
+        # B4.2 (4n-alerting.md's real-tier line): the gate is prod-shape, not
+        # fake-mode. The sinks are golden-path services, not AI fakes — render()
+        # composes the sinks overlay for EVERY non-prod-shape mode, so --real
+        # boots them too (test_feature_check.py's real-deployment pin), and a
+        # gate here that withheld the env on --real made the sink-receipt leg
+        # skip on exactly the tier the design's "runs a real verdict through to
+        # the webhook sink" clause names.
+        if not self.prod_shape:
             env["FEATURE_CHECK_SINKS_MODE"] = SINKS_MODE
             env["FEATURE_CHECK_SINK_SMTP_URL"] = self._address("mail-sink", 8025)
             env["FEATURE_CHECK_SINK_MAIL_HTTP_URL"] = self._address("mail-sink", 8026)
