@@ -30,6 +30,35 @@
 #                        4 the plan, called directly, FP16              -> precision only
 #                        5 gateway POST /enrich-lt/person-reid          -> the binding
 #
+#   layercompare       [r312a] (ruling 312): the stages sequence plus the
+#                      layer-by-layer read of WHERE the ONNX->TensorRT plan
+#                      diverges. The box text names Polygraphy; polygraphy is
+#                      absent from the image and the repo (and the probe
+#                      container runs --network none), so the compare is
+#                      implemented from what the image already carries -- the
+#                      same onnx graph rewrite marks every layer's output as a
+#                      graph output, the decomposed graph runs under ONNX
+#                      Runtime (CPU), and the TensorRT FP32 plan runs the same
+#                      marked batch per layer through the engine's debug
+#                      tensor API -- on the same 36 crops. Prints the FIRST
+#                      layer under 0.999 cosine with its op type and name.
+#                      Also adds a probe stage (6): the decomposed ONNX
+#                      served through Triton's onnxruntime backend on the GPU
+#                      (CUDA execution provider) from a runner-written
+#                      single-model repository in its own container -- a
+#                      probe only; the served repository and residency set
+#                      are untouched.
+#
+# --triton-image REF: the Triton base image to build the gateway from
+#                      ([r312a] box 2). Empty (default) builds the
+#                      Dockerfile's own default (ARG TRITON_IMAGE,
+#                      ai/gateway/Dockerfile:1); the two operator runs pass
+#                      26.01-py3 and the latest supported release explicitly,
+#                      and on the latest release the runner rebuilds the plan
+#                      with THAT release's TensorRT (the exporter reads the
+#                      image's own TRT_VERSION) before the stage table and
+#                      the layer compare.
+#
 #                      Owner run 6154659954 recorded cosine min 0.230 / mean
 #                      0.331 on 36 crops. A ~0.3 cosine is two unit vectors that
 #                      carry RELATED-BUT-DIFFERENT features, not a destroyed
@@ -49,8 +78,8 @@
 #
 # Usage:
 #   scripts/uplevel/reid_real_tier.sh --checkout <host checkout> --gpu <index> \
-#       [--port N] [--checkpoint DIR] [--crops DIR] [--head SHA] [--mode parity|stages] \
-#       [--plan-timeout SECONDS]
+#       [--port N] [--checkpoint DIR] [--crops DIR] [--head SHA] [--mode parity|stages|layercompare] \
+#       [--plan-timeout SECONDS] [--triton-image REF]
 #
 # With no --crops the runner stops after build/export/compile and prints the run
 # directory: populate <run>/crops and `touch <run>/crops-ready` (the owner's flow
@@ -79,6 +108,13 @@ MODE="parity"
 # 2026-10-13, so a ten-minute build is the failure the owner wants to SEE);
 # --plan-timeout lifts it for a run expected to be slow on a contended GPU.
 PLAN_TIMEOUT=600
+# [r312a]: the Triton base image, threaded to the Dockerfile's own ARG
+# (TRITON_IMAGE, ai/gateway/Dockerfile:1). EMPTY default: the Dockerfile's
+# default is the single place the current release lives, so the runner never
+# restates it -- an empty value OMITS --build-arg entirely and today's
+# behaviour is unchanged; the two operator runs pass 26.01-py3 and the latest
+# supported release explicitly.
+TRITON_IMAGE="${REID_TIER_TRITON_IMAGE:-}"
 IMAGE="${REID_TIER_IMAGE:-hsi-gateway:b22}"
 CTR="${REID_TIER_CONTAINER:-b22-reid-gw}"
 # models.yml `osnet-ain-x1-0.runtime_file`; the sha256 it pins is read from
@@ -110,13 +146,14 @@ while [[ $# -gt 0 ]]; do
     --head)         HEAD="$2"; shift 2 ;;
     --mode)         MODE="$2"; shift 2 ;;
     --plan-timeout) PLAN_TIMEOUT="$2"; shift 2 ;;
+    --triton-image) TRITON_IMAGE="$2"; shift 2 ;;
     -h|--help)      usage 0 ;;
     *) echo "unknown argument: $1" >&2; usage 1 ;;
   esac
 done
 
 [[ -n "$CHECKOUT" && -n "$GPU" ]] || { echo "--checkout and --gpu are required" >&2; usage 1; }
-[[ "$MODE" == parity || "$MODE" == stages ]] || { echo "--mode is parity or stages" >&2; usage 1; }
+[[ "$MODE" == parity || "$MODE" == stages || "$MODE" == layercompare ]] || { echo "--mode is parity or stages or layercompare" >&2; usage 1; }
 [[ "$GPU" =~ ^[0-9]+$ ]] || { echo "--gpu must be an index, got '$GPU'" >&2; exit 1; }
 [[ "$PORT" =~ ^[0-9]+$ ]] || { echo "--port must be a number, got '$PORT'" >&2; exit 1; }
 [[ "$PLAN_TIMEOUT" =~ ^[0-9]+$ && "$PLAN_TIMEOUT" -ge 1 ]] || { echo "--plan-timeout must be a positive number of seconds, got '$PLAN_TIMEOUT'" >&2; exit 1; }
@@ -180,6 +217,16 @@ cleanup() {
   local rc=$?
   trap - EXIT
   set +e
+  # The ORT probe container is reaped alongside the gateway. Its own launch is
+  # `--rm`-guarded (podman removes it at container exit), but that only fires
+  # when the CONTAINER exits -- a run killed between launch and teardown would
+  # otherwise leak it and fail the run with a confusing diff about a container
+  # the run itself launched. Reaping it here first makes the diff honest.
+  # Guarded on OWN_CTR: the probe's name is derived from $CTR, and the same
+  # external-container case that spares the gateway spares the probe.
+  if (( OWN_CTR )); then
+    podman rm -f "${CTR}-ortprobe" >/dev/null 2>&1 || true
+  fi
   if (( OWN_CTR )); then
     podman logs "$CTR" > "$RUN/gateway.log" 2>&1
     podman rm -f "$CTR"
@@ -264,7 +311,15 @@ nvidia-smi --query-gpu=index,name,memory.used,memory.total --format=csv | tee "$
 
 echo 'STEP 1: build'
 OWN_IMAGE=1
-podman build --no-cache -f "$RUN/src/ai/gateway/Dockerfile" -t "$IMAGE" "$RUN/src" \
+# [r312a]: --triton-image threads the Dockerfile's ARG TRITON_IMAGE
+# ([r312b]'s parameterised base); empty means the flag is OMITTED so the
+# Dockerfile's own default stands. On the latest supported release this is
+# what puts THAT release's TensorRT/ORT inside the image the exporter and the
+# probes run on -- the image env carries TRT_VERSION (11.3.0.99 on 26.09-py3,
+# 10.14.1.48+cuda13.0 on 26.01-py3), which export_reid reads to drop --fp16
+# on TRT >= 11.
+podman build --no-cache ${TRITON_IMAGE:+--build-arg TRITON_IMAGE="$TRITON_IMAGE"} \
+  -f "$RUN/src/ai/gateway/Dockerfile" -t "$IMAGE" "$RUN/src" \
   > "$RUN/build.log" 2>&1
 
 # --- 2. ONNX export from the production checkpoint --------------------------------------
@@ -615,6 +670,13 @@ BUILDERS = {
     "3": lambda: stage_plan("fp32"),
     "4": lambda: stage_plan("fp16"),
 }
+# Stage 6 is NOT in BUILDERS: the probe container's port is not published and
+# the stage-probe container runs --network none with no podman inside it, so
+# stage 6 cannot be fetched from here. The fetch lives on the HOST
+# (write_stage6_host below): the runner process owns podman and the probe's
+# container name, so only the host can `podman exec` into the probe. STAGES
+# 1..4 loop here; stage 6's stage-6.json is written host-side and the cosine
+# table reads it the same way as every other stage.
 
 for stage in STAGES:
     vectors = BUILDERS[stage]()
@@ -628,6 +690,8 @@ PROBE
 # Stage 5 runs on the host: base64 the crop, POST, read the embedding. Stdlib only,
 # so it runs on the GPU host's plain python3 with the SAME crop ordering the in-image
 # probe used (identical sort + suffix set), which keeps the per-crop cosine honest.
+# Stage 6 (below) shares that host-side shape for the same reason: the runner
+# process is the only thing that can exec into the probe container.
 write_stage5_host() {
   cat > "$RUN/stage5_host.py" <<'PY5'
 """Stage 5: embeddings from the served gateway, one per crop, on the host."""
@@ -653,6 +717,78 @@ for path in CROPS:
 (RUN / "stage-5.json").write_text(json.dumps({"names": names, "vectors": vectors}))
 print(f"stage 5: {len(vectors)} x {len(vectors[0]) if vectors else 0}")
 PY5
+}
+
+# Stage 6 runs on the host too: the probe container's port is NOT published (the
+# same topology as the served Triton's 8000), so the only way to reach it is
+# `podman exec` -- and podman lives on the host, not inside the stage-probe
+# container (--network none). One exec'd PURE program does the whole leg: the
+# runner feeds it the SAME batch the decomposer's faithfulness gate ate and the
+# measure half rebuilds (identical crops, order and transform -- batch.json is
+# written by the SAME in-image batch build that writes batch.npy), it POSTs
+# each row to the probe's own loopback, and writes stage-6.json in the SAME
+# {names, vectors} shape every other stage file uses, so the cosine table reads
+# it with no special-casing. Stdlib only, so it runs on the GPU host's plain
+# python3 -I, like stage 5 and the table. The probe's container name arrives as
+# argv (the runner owns it); no env coupling.
+write_stage6_host() {
+  cat > "$RUN/stage6_host.py" <<'PY6'
+"""Stage 6: embeddings from the ORT-probe Triton container, fetched host-side."""
+import json
+import subprocess
+import sys
+
+RUN = sys.argv[1]
+PROBE = sys.argv[2]
+
+# The infer program the probe container exec's. It is deliberately PURE: the
+# probe container mounts ONLY its model repository, so rows arrive on stdin
+# (fed by the host runner) and embeddings leave on stdout. The infer body is a
+# FLAT row-major data list (Triton's HTTP infer protocol: row-major values; a
+# (3,256,128) row through .tolist() nests and float() over the nested lists
+# raises TypeError).
+inner = (
+    "import json,sys,urllib.request;"
+    "rows=json.load(sys.stdin);"
+    "out=[];"
+    "\nfor r in rows:\n"
+    '  req=urllib.request.Request("http://localhost:8000/v2/models/reid-ort/infer",'
+    'data=json.dumps({"inputs":[{"name":"input","shape":[1,3,256,128],"datatype":"FP32","data":r}],'
+    '"outputs":[{"name":"embedding"}]}).encode(),'
+    'headers={"Content-Type":"application/json"});'
+    "emb=json.loads(urllib.request.urlopen(req,timeout=120).read())['outputs'][0]['data'];"
+    "out.append(emb)\n"
+    "json.dump(out,sys.stdout)"
+)
+# The rows: the SAME batch.npy the decomposer's faithfulness gate ate and the
+# measure half rebuilds -- batch.json is written by the batch build itself (the
+# in-image program that also writes batch.npy), so crops, order and transform
+# cannot drift from it. Read with stdlib json: the host has no numpy guarantee.
+with open(f"{RUN}/layercompare/batch.json") as fh:
+    batch = json.load(fh)
+names, rows = batch["names"], batch["rows"]
+if len(names) != len(rows) or not rows:
+    raise SystemExit(f"batch.json is malformed: {len(names)} names, {len(rows)} rows")
+proc = subprocess.run(
+    ["podman", "exec", "-i", PROBE, "python3", "-c", inner],
+    input=json.dumps(rows), capture_output=True, text=True, check=False, timeout=600,
+)
+if proc.returncode != 0 or not proc.stdout.strip():
+    raise SystemExit(
+        f"the ORT probe fetch failed (rc={proc.returncode}): "
+        f"{proc.stderr.strip()[:400]}"
+    )
+vectors = json.loads(proc.stdout)
+if len(vectors) != len(names):
+    raise SystemExit(
+        f"the probe returned {len(vectors)} embeddings for {len(names)} crops "
+        "-- the fetch wrote stage-6.json for NO stage (a partial table would "
+        "read as a measured leg)"
+    )
+with open(f"{RUN}/stage-6.json", "w") as fh:
+    json.dump({"names": names, "vectors": vectors}, fh)
+print(f"stage 6: {len(vectors)} x {len(vectors[0]) if vectors else 0}")
+PY6
 }
 
 # The cosine table is pure stdlib so it runs on the host with no numpy, reading the
@@ -691,7 +827,8 @@ names, refv = ref
 print(f"{'stage':6} {'min':>9} {'mean':>9}  {'worst crop':40}  verdict")
 first = None
 unknown = []
-for stage in "2345":
+arm6 = (run / "stage6-armed").is_file()  # the [r312a] ORT-probe leg (layercompare mode only)
+for stage in "2345" + ("6" if arm6 else ""):
     got = load(stage)
     if got is None:
         print(f"{stage:6} {'-':>9} {'-':>9}  {'(probe unavailable - see the step log)':40}  unknown")
@@ -721,6 +858,7 @@ else:
         "3": "the plan itself is wrong, independent of precision (build flag, or a layout the plan bakes in)",
         "4": "precision only - FP32 was clean, so the fix is a build flag, not a preprocessing change",
         "5": "the BINDING: tensor names, [3,256,128] layout, batch, or the adapter's preprocessing",
+        "6": "the ORT-probe leg: embeddings through Triton's onnxruntime backend (decomposed graph, GPU)",
     }[first])
     if unknown:
         print(f"  (stages {'+'.join(unknown)} were also unreadable; {first} is the first MEASURED failure)")
@@ -748,9 +886,18 @@ run_stages() {
   # because isolated mode would drop the image's ENV PYTHONPATH=/app.
   # Each stage is fault-tolerant: a stage that raises just leaves its JSON absent
   # and the cosine table reports `unknown`, never a false green.
+  # Stage 6 is fetched host-side (write_stage6_host) when the layercompare arm
+  # armed the probe: stages 1,2 always run here, stage 6's leg rides in the arm
+  # below -- stages mode never arms it, so the same run_stages serves both modes.
   podman run --rm --network none --security-opt label=disable --entrypoint python3 \
     -v "$RUN":/work -v "$RUN/zoo":/work/zoo:ro -v "$RUN/cache":/work/cache:ro \
     "$IMAGE" /work/stage_probe.py /work 1,2 || true
+  if [[ -f "$RUN/stage6-armed" ]]; then
+    # The stage-6 fetch: host-side (the runner process owns podman), its rc is
+    # contained -- a failed fetch leaves stage-6.json absent and the table reads
+    # unknown, it does not abort the arm under set -e before the layer report.
+    python3 -I "$RUN/stage6_host.py" "$RUN" "${CTR}-ortprobe" || true
+  fi
 
   # STEP S3, the ruling-180 shape: build and probe EACH precision before
   # touching the other. The owner's maui run showed why the old order was wrong:
@@ -818,6 +965,483 @@ run_stages() {
   set -e
 }
 
+# --- layercompare mode: [r312a] (ruling 312) ---------------------------------------------
+#
+# The stages sequence, then the layer-by-layer read of WHERE the plan diverges.
+# Polygraphy is named in the box text but exists nowhere in the image or the
+# repo, and the probe container runs --network none, so the compare is built
+# from what the image already carries (onnx, onnxruntime, tensorrt):
+#
+#   * the DECOMPOSED graph, never a rewrite of the cache ONNX: the decomposer
+#     rewrites its target IN PLACE (decompose_instance_norm.py tmp.replace),
+#     and the cache's model.onnx is what stage 2 measures and what both
+#     operator runs must share. So the compare stages its own COPY under
+#     $RUN/layercompare/ and decomposes that.
+#   * the decomposer's OWN exit codes gate the compare: 0 continues; 30 (the
+#     rewrite moved the graph's own function), 31 (structural refusal) and 32
+#     (sidecar still needed) STOP the compare -- a graph with no faithful
+#     decomposition has no layer table to print.
+#   * every layer's output marked: the marked graph rewrites the decomposed
+#     ONNX so each intermediate tensor is ALSO a graph output, then it is run
+#     under ORT CPU and under a diagnostic FP32 plan built from that same
+#     marked graph (trtexec via export_reid's own builder — an existing plan
+#     cannot expose per-layer outputs, and extra outputs do not change the
+#     layer compute, so per-layer divergence attribution stays valid). One ORT
+#     pass, one TRT pass, per-output per-crop cosine; rows go to layers.json
+#     at the run root (the report half reads them there).
+#   * the report is pure stdlib, like cosine_table.py, so it is CPU-testable:
+#     it prints the FIRST layer under 0.999 cosine with its op type and name,
+#     or the clean reading.
+#
+# The probe stage (6): the decomposed ONNX served through Triton's
+# onnxruntime backend on the GPU (CUDA execution provider), "as a probe
+# only". Its own container, its own model name (reid-ort), its own
+# single-model repository written under $RUN: the served repository is baked
+# into the image, entrypoint §0c only links cache dirs whose repo config
+# already exists and §0d's residency prune MOVES non-set models out, so a
+# probe model in the served repository would be an ai/triton edit (cell A's
+# files, UR-9) plus a served-footprint change. The probe's port is NOT
+# published to the host; its embeddings are fetched from inside the
+# container. A failed probe leaves its stage unknown -- the table exits 2 --
+# and never blocks the layer report.
+
+# The mode's whole sequence lives in ONE function so the pinned reads see it:
+# copy -> batch -> decompose (its own exit codes) -> the ORT probe (stage 6,
+# contained) -> run_stages (the stage table, now with its 6 row) -> the marked
+# measure -> the report. The stage-6 leg runs BEFORE run_stages because the
+# table is what prints stage 6's row; the marked measure follows the FP32 plan
+# copy (STEP S3a), the artifact it reads.
+run_layercompare() {
+  write_stage_probe
+  write_stage5_host
+  write_stage6_host
+  write_cosine_table
+  write_layer_compare
+  # The compare operates on its own COPY of the export: the decomposer
+  # rewrites its target IN PLACE (tmp.replace(model)), and the cache's
+  # model.onnx is what stage 2 measures and what both operator runs must
+  # share, so the in-place rewrite must never land on it.
+  mkdir -p "$RUN/layercompare"
+  cp "$RUN/cache/reid/1/model.onnx" "$RUN/layercompare/model.onnx"
+  # The export may externalize initializers to a relative model.onnx.data
+  # beside the proto (export_reid.py does: 217 of 251 inits on the measured
+  # export). The decomposer's first read onnx.load(str(model)) resolves that
+  # relative location against the TARGET's directory, so the target copy
+  # needs the sidecar too -- its absence is a crash (rc 1, the module's
+  # unmapped code), the failure Run 1 died on before any surgery.
+  if [[ -f "$RUN/cache/reid/1/model.onnx.data" ]]; then
+    cp "$RUN/cache/reid/1/model.onnx.data" "$RUN/layercompare/model.onnx.data"
+  fi
+  # The decomposer's pre-surgery snapshot is a DIRECTORY holding model.onnx
+  # (+ sidecar), staged separately from the target -- the module refuses a
+  # pre-dir that aliases the target (same inode), so a distinct directory is
+  # not a nicety.
+  mkdir -p "$RUN/layercompare/pre"
+  cp "$RUN/cache/reid/1/model.onnx" "$RUN/layercompare/pre/model.onnx"
+  if [[ -f "$RUN/cache/reid/1/model.onnx.data" ]]; then
+    cp "$RUN/cache/reid/1/model.onnx.data" "$RUN/layercompare/pre/model.onnx.data"
+  fi
+  # The batch: the stage probe's own transform (resize (128,256) BILINEAR,
+  # /255, ImageNet mean/std, CHW) over the run's crops, built INSIDE the image
+  # so the very code the stage probe uses produces these bytes. numpy comes
+  # from the image (probe deps), PIL too; -I is not passed so the image's
+  # ENV PYTHONPATH=/app still resolves ai.gateway.*.
+  podman run --rm --network none --security-opt label=disable --entrypoint python3 \
+    -v "$RUN":/work \
+    "$IMAGE" -c "$BATCH_PROG" > "$RUN/layercompare/batch.log" 2>&1 || true
+  if [[ ! -s "$RUN/layercompare/batch.npy" ]]; then
+    echo "layercompare: no batch could be built from $RUN/crops -- see layercompare/batch.log" >&2
+    return 1
+  fi
+  # The decomposer, invoked by ITS OWN entry point so the repo's pinned exit
+  # codes (0/30/31/32) govern: 0 continues; 30/31/32 stop the compare. The
+  # ONLY writable mount is the layercompare directory itself -- the in-place
+  # rewrite (tmp.replace) cannot reach the cache ONNX or anything else, which
+  # is the isolation the mount spec states, not just a comment's promise.
+  local drc=0
+  podman run --rm --network none --security-opt label=disable --entrypoint python3 \
+    -v "$RUN/src":/src:ro -v "$RUN/layercompare":/layercompare \
+    "$IMAGE" /src/scripts/decompose_instance_norm.py \
+      /layercompare/model.onnx /layercompare/pre \
+      /layercompare/batch.npy /layercompare/decompose.json \
+    > "$RUN/layercompare/decompose.log" 2>&1 || drc=$?
+  echo "decompose rc=$drc" >> "$RUN/layercompare/decompose.log"
+  if (( drc != 0 )); then
+    # 30/31/32 are the module's MAPPED refusals (a graph the rewrite moved,
+    # structurally refused, or whose sidecar is still needed); any other rc is
+    # the module crashing -- both stop the compare. No layer table may print
+    # for a graph whose decomposition is not faithful.
+    echo "layercompare: the decomposer refused (rc=$drc; mapped 0/30/31/32) --" >&2
+    echo "no faithful decomposed graph, so no layer table; see layercompare/decompose.log" >&2
+    return "$drc"
+  fi
+  # Box 2's probe stage FIRST (before run_stages): the stage table is what
+  # prints stage 6's row, and its cosine_table.py reads run/stage-6.json. The
+  # probe is contained -- a container that never comes up leaves the row
+  # unknown (the table exits 2) and never aborts the run.
+  mkdir -p "$RUN/ortprobe/reid-ort/1"
+  cp "$RUN/layercompare/model.onnx" "$RUN/ortprobe/reid-ort/1/model.onnx"
+  cat > "$RUN/ortprobe/reid-ort/config.pbtxt" <<'ORTCFG'
+name: "reid-ort"
+backend: "onnxruntime"
+max_batch_size: 16
+
+input [
+  {
+    name: "input"
+    data_type: TYPE_FP32
+    dims: [ 3, 256, 128 ]
+  }
+]
+
+output [
+  {
+    name: "embedding"
+    data_type: TYPE_FP32
+    dims: [ 512 ]
+  }
+]
+
+instance_group [
+  {
+    count: 1
+    kind: KIND_GPU
+    gpus: [ 0 ]
+  }
+]
+ORTCFG
+  # The probe container: tritonserver as the entrypoint (NOT the gateway's
+  # entrypoint.sh -- the served repository's link precondition and residency
+  # prune are not a probe's), its own repository mounted at the standard
+  # path, the port NOT published to the host (stage_probe's stage-6 fetch
+  # reaches it with podman exec). `|| true` on the launch: a probe that never
+  # comes up leaves its stage unknown, it does not abort the run.
+  podman run -d --name "${CTR}-ortprobe" --rm --security-opt label=disable \
+    --device nvidia.com/gpu=all -e CUDA_VISIBLE_DEVICES="$GPU" \
+    -v "$RUN/ortprobe":/models/repository:ro \
+    --entrypoint tritonserver "$IMAGE" \
+    --model-repository=/models/repository --http-port=8000 \
+    --model-control-mode=none --strict-model-config=false --exit-on-error=false \
+    > "$RUN/ortprobe/container-id.txt" 2>&1 || true
+  local ready=0
+  for (( i = 0; i < 60; i++ )); do
+    if podman exec "${CTR}-ortprobe" curl -fsS localhost:8000/v2/health/ready >/dev/null 2>&1; then
+      ready=1; break
+    fi
+    sleep 2
+  done
+  if (( ! ready )); then
+    echo "WARN: the onnxruntime probe never came up; stage 6 reads unknown" >&2
+    podman logs "${CTR}-ortprobe" 2>/dev/null | tail -n 20 || true
+    podman rm -f "${CTR}-ortprobe" >/dev/null 2>&1 || true
+  fi
+  touch "$RUN/stage6-armed"
+  # The stages sequence EXACTLY as run_stages does it -- same compiles, same
+  # probes, same containment -- with the table carrying the 6 row. run_stages
+  # captures its own table rc into `rc` the way the parity arm captures the
+  # parity check's.
+  run_stages
+  local stage_rc=$rc
+  # The marked measure only reads what STEP S3a left behind (run_stages
+  # above): the per-precision copies. Assert the FP32 one EXISTS before the
+  # measure runs -- its absence means stage 3 never measured, and the layer
+  # table would otherwise be printed over a run whose FP32 leg never ran.
+  [[ -f "$RUN/model-fp32.plan" ]] || {
+    echo "layercompare: model-fp32.plan was never copied (stage 3 never measured) -- no layer table" >&2
+    return 1
+  }
+  write_layer_compare
+  # The measure half runs IN-IMAGE (onnx, onnxruntime, tensorrt, the same
+  # GPU visibility the plan builds use); the report half runs on the HOST in
+  # --I (stdlib only, like the stage table). ONE program, two halves: the
+  # measure writes run/layers.json, the report reads it.
+  podman run --rm --network none --security-opt label=disable --device nvidia.com/gpu=all \
+    -e CUDA_VISIBLE_DEVICES="$GPU" --entrypoint python3 \
+    -v "$RUN":/work \
+    "$IMAGE" /work/layer_compare.py /work --measure \
+    > "$RUN/layercompare/measure.log" 2>&1 || true
+  # The report is the box-1 deliverable, printed whether or not the measure
+  # half survived (a dead measure is the unknown-leg shape: the report exits
+  # 2 on absent rows). Captured like the stage table's rc.
+  set +e
+  python3 -I "$RUN/layer_compare.py" "$RUN"
+  local lc_rc=$?
+  set -e
+  (( stage_rc > lc_rc )) && return "$stage_rc"
+  return "$lc_rc"
+}
+
+
+# The batch builder: the stage probe's OWN transform (resize (128,256)
+# BILINEAR, /255, ImageNet mean/std, CHW -- stage_probe.py _preprocess),
+# inlined verbatim so the layer compare's batch is byte-for-byte what stage 1
+# measured. Runs in-image (numpy, PIL), writes layercompare/batch.npy.
+BATCH_PROG='import numpy as np
+from PIL import Image
+from pathlib import Path
+SUFFIX = {".jpg", ".jpeg", ".png", ".bmp", ".webp"}
+crops = sorted(x for x in Path("/work/crops").iterdir() if x.is_file() and x.suffix.lower() in SUFFIX)
+if not crops:
+    raise SystemExit("no crops found")
+mean = np.array([0.485, 0.456, 0.406], dtype=np.float32)
+std = np.array([0.229, 0.224, 0.225], dtype=np.float32)
+def _pre(path):
+    img = Image.open(path).convert("RGB").resize((128, 256), Image.Resampling.BILINEAR)
+    arr = np.asarray(img, dtype=np.float32) / 255.0
+    arr = (arr - mean) / std
+    return np.ascontiguousarray(arr.transpose(2, 0, 1))
+batch = np.stack([_pre(p) for p in crops]).astype(np.float32)
+np.save("/work/layercompare/batch.npy", batch)
+import json as _json
+with open("/work/layercompare/batch.json", "w") as fh:
+    _json.dump({"names": [p.name for p in crops],
+                "rows": [r.reshape(-1).tolist() for r in batch]}, fh)
+print(f"layercompare batch: {batch.shape} from {len(crops)} crops")'
+
+# The layer compare: ONE program, two halves. The measure half (in-image,
+# --measure) marks every intermediate tensor of the DECOMPOSED graph as a
+# graph output, runs it under ORT CPU and under a diagnostic FP32 plan built
+# from that same marked graph, and writes per-output per-crop cosine rows to
+# run/layers.json. The report half (host, stdlib) prints the FIRST layer under
+# the gate with its op type and name -- the box-1 deliverable -- or the clean
+# reading; a missing/empty row set is the unknown-leg shape and exits 2.
+write_layer_compare() {
+  cat > "$RUN/layer_compare.py" <<'LAYERCMP'
+"""[r312a] box 1: the layer-by-layer read of where the plan diverges.
+
+Polygraphy is named in the box text but exists nowhere in the image or the
+repo, and the probe container runs --network none, so the compare is built
+from what the image already carries (onnx, onnxruntime, tensorrt): the SAME
+mark-every-output rewrite Polygraphy would perform, applied to the DECOMPOSED
+graph, run under ORT CPU and under a diagnostic FP32 plan built from that
+same marked graph. Extra outputs do not change any layer's compute, so
+per-layer divergence attribution stays valid.
+
+The report half is stdlib-only and runs on the host (the CPU-only CI test
+executes exactly this shipped half over fixture rows, like cosine_table.py).
+"""
+from __future__ import annotations
+
+import json
+import sys
+from pathlib import Path
+
+GATE = 0.999  # ruling 68, the same gate the stage table is judged by
+run = Path(sys.argv[1])
+LAYERS = run / "layers.json"
+
+
+def report() -> int:
+    """The box-1 deliverable: the FIRST layer under 0.999, with op type and name."""
+    if not LAYERS.is_file():
+        print("RESULT: INCONCLUSIVE - the layer measure never wrote layers.json")
+        return 2
+    rows = json.loads(LAYERS.read_text())
+    if not rows:
+        print("RESULT: INCONCLUSIVE - no marked layers were measured")
+        return 2
+    print(f"{'layer':6} {'name':44} {'op':14} {'min_cos':>9} {'mean_cos':>9}")
+    first = None
+    for r in rows:
+        ok = float(r["min_cos"]) >= GATE
+        print(f"{r['index']:<6} {str(r['name'])[:44]:44} {str(r['op_type'])[:14]:14} "
+              f"{float(r['min_cos']):9.6f} {float(r['mean_cos']):9.6f}  "
+              f"{'ok' if ok else 'FIRST DIVERGENCE'}")
+        if not ok and first is None:
+            first = r
+    print()
+    if first is None:
+        print("RESULT: every measured layer reads at or above 0.999 - the plan divergence")
+        print("does not enter at any marked layer on this batch")
+    else:
+        print(f"RESULT: the first layer under the gate is index {first['index']} "
+              f"({first['op_type']}, {first['name']}) at min_cos {float(first['min_cos']):.6f}")
+    return 0
+
+
+def measure() -> None:
+    """Mark every intermediate output of the decomposed graph, then measure
+    ORT-CPU vs the diagnostic FP32 plan built from the same marked graph,
+    per output per crop, and write rows to layers.json."""
+    import numpy as np
+    import onnx
+    import onnxruntime as ort
+    import torch
+    from PIL import Image
+
+    from ai.gateway.export.export_reid import MAX_BATCH, build_tensorrt_engine
+
+    LC = run / "layercompare"
+    # THE SAME batch, rebuilt from the run's own crops with the stage probe's
+    # transform (resize (128,256) BILINEAR, /255, ImageNet mean/std, CHW) --
+    # the box's "the same 36 crops", in the same sorted order the stage table's
+    # crop-order guard depends on.
+    SUFFIX = {".jpg", ".jpeg", ".png", ".bmp", ".webp"}
+    crops = sorted(x for x in (run / "crops").iterdir() if x.is_file() and x.suffix.lower() in SUFFIX)
+    if not crops:
+        raise SystemExit("no crops found")
+    mean = np.array([0.485, 0.456, 0.406], dtype=np.float32)
+    std = np.array([0.229, 0.224, 0.225], dtype=np.float32)
+
+    def _pre(path):
+        img = Image.open(path).convert("RGB").resize((128, 256), Image.Resampling.BILINEAR)
+        arr = np.asarray(img, dtype=np.float32) / 255.0
+        arr = (arr - mean) / std
+        return np.ascontiguousarray(arr.transpose(2, 0, 1))
+
+    batch = np.stack([_pre(p) for p in crops]).astype(np.float32)
+    model = onnx.load(str(LC / "model.onnx"))  # the decomposed COPY, rc 0 verified
+
+    # The marking: every tensor a node writes becomes a graph output too (the
+    # original outputs are kept -- the final embedding stays first). The same
+    # clear-output + re-add walk every marking tool performs.
+    graph = model.graph
+    final = [o.name for o in graph.output]
+    seen = set(final)
+    marked_names: list[str] = []
+    meta: list[tuple[str, str]] = []  # (tensor name, producing op_type)
+    for node in graph.node:
+        for out in node.output:
+            if out and out not in seen:
+                seen.add(out)
+                marked_names.append(out)
+                meta.append((out, node.op_type))
+    marked = onnx.ModelProto()
+    marked.CopyFrom(model)
+    # The type each marked output carries: ONNX requires graph outputs to be
+    # FULLY typed ValueInfoProtos -- an output with a name and no type is
+    # rejected by onnx.checker AND by the ORT/TensorRT loaders ("Field 'type'
+    # of 'value_info' is required but missing"). The exporter already recorded
+    # every intermediate tensor in graph.value_info (that is what the graph
+    # viewer reads), so types are copied from there by NAME; a tensor the
+    # exporter left out falls back to onnx.shape_inference on the decomposed
+    # graph. A tensor neither source types is a real bug in the marking and
+    # must fail loudly here, not silently ship a nameless-typed output.
+    del marked.graph.output[:]
+    type_by_name = {vi.name: vi for vi in graph.value_info}
+    # The ORIGINAL outputs stay marked too (the final embedding must remain a
+    # graph output): their types live in graph.output, which the marking walk
+    # is about to clear -- harvest them FIRST. infer_shapes does not help
+    # here: its inferred OUTPUTS land in the inferred graph.output, never in
+    # value_info, so a final output absent from value_info is untyped unless
+    # its original declaration is carried over.
+    for vi in graph.output:
+        type_by_name.setdefault(vi.name, vi)
+    if len(type_by_name) < len(marked_names + final):
+        inferred = onnx.shape_inference.infer_shapes(model)
+        for vi in inferred.graph.value_info:
+            type_by_name.setdefault(vi.name, vi)
+    untyped = [
+        name for name in marked_names + final
+        if name not in type_by_name
+    ]
+    if untyped:
+        raise SystemExit(
+            f"{len(untyped)} marked outputs have no type in graph.value_info "
+            f"nor from shape inference (first: {untyped[0]}) -- the marked "
+            "graph would be rejected by onnx.checker/ORT/TRT"
+        )
+    for name in marked_names + final:
+        marked.graph.output.add().CopyFrom(type_by_name[name])
+    marked_path = LC / "marked.onnx"
+    onnx.save(marked, str(marked_path))
+
+    # ORT-CPU reference over the marked graph, chunked like the stage probe.
+    sess = ort.InferenceSession(str(marked_path), providers=["CPUExecutionProvider"])
+    in_name = sess.get_inputs()[0].name
+    out_names = [o.name for o in sess.get_outputs()]
+    ref: dict[str, list] = {}
+    for i in range(0, len(batch), MAX_BATCH):
+        chunk = batch[i : i + MAX_BATCH]
+        got = sess.run(out_names, {in_name: np.ascontiguousarray(chunk, dtype=np.float32)})
+        for nm, v in zip(out_names, got):
+            ref.setdefault(nm, []).append(v)
+    ref = {nm: np.concatenate(vs) for nm, vs in ref.items()}
+
+    # The diagnostic FP32 plan from the SAME marked graph: no provenance gate
+    # (build_tensorrt_engine, not compile_plan_from_validated_onnx) because
+    # this plan is a diagnostic artifact under the run dir, never committed
+    # or served.
+    plan = LC / "marked-fp32.plan"
+    build_tensorrt_engine(str(marked_path), str(plan), precision="fp32")
+
+    # TRT leg, the repo's own binding idiom (torch CUDA tensors, addresses by
+    # name, execute_async_v3 on the current stream) -- the same shape
+    # stage_probe.py _trt_run uses.
+    import tensorrt as trt
+
+    logger = trt.Logger(trt.Logger.WARNING)
+    with open(plan, "rb") as fh:  # nosemgrep: path-traversal-open
+        engine = trt.Runtime(logger).deserialize_cuda_engine(fh.read())
+    if engine is None:
+        raise SystemExit(f"could not load {plan}")
+    context = engine.create_execution_context()
+    ins, outs = [], []
+    for i in range(engine.num_io_tensors):
+        nm = engine.get_tensor_name(i)
+        (ins if engine.get_tensor_mode(nm) == trt.TensorIOMode.INPUT else outs).append(nm)
+    if len(ins) != 1:
+        raise SystemExit(f"expected 1 input tensor on the marked plan, got {ins}")
+    got = set(outs)
+    missing = [nm for nm in marked_names + final if nm not in got]
+    if missing:
+        raise SystemExit(
+            f"{len(missing)} marked outputs are missing from the plan "
+            f"(first: {missing[0]}) -- trtexec did not keep the extra outputs"
+        )
+    stream = torch.cuda.current_stream().cuda_stream
+    trt_rows: dict[str, list] = {}
+    for i in range(0, len(batch), MAX_BATCH):
+        chunk = batch[i : i + MAX_BATCH]
+        n = chunk.shape[0]
+        context.set_input_shape(ins[0], chunk.shape)
+        dev_in = torch.from_numpy(np.ascontiguousarray(chunk, dtype=np.float32)).cuda().contiguous()
+        context.set_tensor_address(ins[0], dev_in.data_ptr())
+        chunk_out = {}
+        for nm in marked_names + final:
+            shape = tuple(context.get_tensor_shape(nm))
+            dev = torch.empty(int(np.prod(shape)) if shape else 1, dtype=torch.float32, device="cuda")
+            context.set_tensor_address(nm, dev.data_ptr())
+            chunk_out[nm] = (dev, shape)
+        if not context.execute_async_v3(stream):
+            raise SystemExit(f"execute_async_v3 failed on the marked plan at row {i}")
+        torch.cuda.synchronize()
+        for nm, (dev, shape) in chunk_out.items():
+            trt_rows.setdefault(nm, []).append(dev.cpu().numpy().reshape((n,) + shape[1:]))
+    trt_out = {nm: np.concatenate(vs) for nm, vs in trt_rows.items()}
+
+    # Per-output per-crop cosine rows. An output whose ORT view is a scalar
+    # (or otherwise not rank-2) is reshaped per crop for the comparison.
+    rows = []
+    for idx, (nm, op) in enumerate(meta):
+        a, b = ref[nm], trt_out[nm]
+        a2 = a.reshape((len(batch), -1)) if a.ndim > 1 and a.shape[0] == len(batch) else a.reshape((len(batch), -1))
+        b2 = b.reshape((len(batch), -1))
+        na = np.linalg.norm(a2, axis=1)
+        nb = np.linalg.norm(b2, axis=1)
+        dot = (a2 * b2).sum(axis=1)
+        cos = np.divide(dot, na * nb, out=np.zeros_like(dot), where=(na > 0) & (nb > 0))
+        rows.append(
+            {
+                "index": idx,
+                "name": nm,
+                "op_type": op,
+                "min_cos": float(cos.min()),
+                "mean_cos": float(cos.mean()),
+            }
+        )
+    LAYERS.write_text(json.dumps(rows))
+    print(f"layer measure: {len(rows)} marked layers x {len(batch)} crops -> layers.json")
+
+
+if __name__ == "__main__":
+    if "--measure" in sys.argv[2:]:
+        measure()
+    else:
+        sys.exit(report())
+LAYERCMP
+}
+
 # --- parity mode: #6970's command -------------------------------------------------------
 
 run_parity() {
@@ -872,6 +1496,9 @@ PY
     write_stage5_host
     write_cosine_table
     run_stages
+    ;;
+  layercompare)
+    run_layercompare
     ;;
 esac
 
