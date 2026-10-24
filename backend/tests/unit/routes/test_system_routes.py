@@ -37,6 +37,7 @@ from backend.api.schemas.system import (
 from backend.core.config import Settings, get_settings
 from backend.core.redis import RedisClient
 from backend.models.gpu_stats import GPUStats
+from backend.services import ai_health
 from backend.services.circuit_breaker import CircuitBreaker, CircuitBreakerRegistry
 from backend.services.cleanup_service import CleanupService, CleanupStats
 from backend.services.file_watcher import FileWatcher
@@ -73,6 +74,20 @@ def mock_ai_health_settings():
 
     with patch.object(system_routes, "get_settings", return_value=mock_settings, autospec=True):
         yield mock_settings
+
+
+@pytest.fixture(autouse=True)
+def _reset_ai_health_state():
+    """Reset the ai_health module (and the process-wide circuit-breaker registry) before each test.
+
+    ``scripts/vlm_probes/latency_tail.py`` leaves the process-wide "ai-vlm"
+    circuit breaker OPEN (its fault tests assert the open state and never
+    reset it), and an open breaker makes ``_check_ai_vlm_health`` report
+    ``failing`` even when a ready VLM record exists (red main 2026-10-23,
+    run 39996808038). ``reset_ai_health_state()`` clears the breaker registry
+    along with the ai_health records, restoring isolation.
+    """
+    ai_health.reset_ai_health_state()
 
 
 @pytest.mark.asyncio
