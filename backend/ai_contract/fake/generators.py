@@ -227,6 +227,12 @@ _OVERRIDES[("enrich_lt_person_reid", "embedding_dimension")] = ("const", 512)
 # osnet_model_id()'s grammar, "osnet-ain-x1-0@<weights stem>@<sha256[:12]>".
 FAKE_REID_MODEL_ID = "fake-ai-reid@deterministic@not-a-checkpoint"
 _OVERRIDES[("enrich_lt_person_reid", "model_id")] = ("const", FAKE_REID_MODEL_ID)
+FAKE_FACE_DETECTOR_MODEL_ID = "fake-ai-face-detector@deterministic@not-a-checkpoint"
+FAKE_FACE_RECOGNIZER_MODEL_ID = "fake-ai-face-recognizer@deterministic@not-a-checkpoint"
+_OVERRIDES[("enrich_lt_face_detect", "model_id")] = ("const", FAKE_FACE_DETECTOR_MODEL_ID)
+_OVERRIDES[("enrich_lt_face_recognize", "embedding")] = ("unit_embedding", 512)
+_OVERRIDES[("enrich_lt_face_recognize", "embedding_dimension")] = ("const", 512)
+_OVERRIDES[("enrich_lt_face_recognize", "model_id")] = ("const", FAKE_FACE_RECOGNIZER_MODEL_ID)
 # R8 S3 (2026-09-29, owner rulings 1 + 5) pruned every override entry keyed on
 # a retired op id: clip_embed's 768-dim CLIP embedding, the six florence
 # 4-coord bbox entries, florence_phrase_grounding's list-of-quads and

@@ -98,8 +98,8 @@ SHIPPED_LIGHT_MEMBERS = frozenset({"threat-detection-yolov8n", "osnet-ain-x1-0"}
 # threat/reid, so these two fake payloads below are shapes the shipped
 # endpoints can actually produce (ai/gateway/main.py health_check,
 # ai/gateway/adapters/enrichment_light.py health).
-KEEP_SET = frozenset({"yolo26", "reid", "threat"})
-LIGHT_ROUTER_REPORTS = frozenset({"threat", "reid"})
+KEEP_SET = frozenset({"yolo26", "reid", "threat", "scrfd", "arcface"})
+LIGHT_ROUTER_REPORTS = frozenset({"threat", "reid", "scrfd", "arcface"})
 
 # Models outside the light lane whose readiness the gateway root answers: a
 # Triton-backed one (yolo26), a 1:many Triton mapping (the stand-in below) and
@@ -225,27 +225,16 @@ def sample_model_configs() -> dict[str, ModelConfig]:
 
 @pytest.fixture
 def light_health() -> dict:
-    """The /enrich-lt router health payload — exactly threat/reid, reid NOT ready.
-
-    Mirrors ai/gateway/adapters/enrichment_light.py health(), which after the
-    S3 prune declares exactly these two models: pose/pet/depth left with the
-    pruned Triton repository, so a payload carrying them would describe a
-    surface that cannot boot.
-    """
-    return make_health({"threat": True, "reid": False})
+    """The /enrich-lt router health payload — threat/reid/scrfd/arcface, reid NOT ready."""
+    return make_health({"threat": True, "reid": False, "scrfd": True, "arcface": True})
 
 
 @pytest.fixture
 def root_health() -> dict:
-    """Gateway ROOT health payload — exactly the KEEP SET.
-
-    Mirrors ai/gateway/main.py /health iterating the ACTIVE residency set.
-    yolo26 is ready here and appears in NO router payload (it is served on the
-    gateway's own /yolo26 router), reid is not ready (matching the light router
-    fixture), and "phantom" is absent — ghost-model's Triton name is reported by
-    no payload at all.
-    """
-    return make_health({"yolo26": True, "reid": False, "threat": True})
+    """Gateway ROOT health payload — exactly the KEEP SET."""
+    return make_health(
+        {"yolo26": True, "reid": False, "threat": True, "scrfd": True, "arcface": True}
+    )
 
 
 def make_url_router_client(

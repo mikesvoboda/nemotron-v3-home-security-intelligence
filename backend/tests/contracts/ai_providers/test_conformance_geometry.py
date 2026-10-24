@@ -267,6 +267,20 @@ def _triton_mock() -> AsyncMock:
             return {"output0": _threat_output(all_below_threshold=_below[0])}
         if model_name == "reid":
             return {"embedding": REID_VECTOR[np.newaxis, :]}
+        if model_name == "arcface":
+            return {"683": REID_VECTOR[np.newaxis, :]}
+        if model_name == "scrfd":
+            return {
+                "448": np.zeros((12800, 1), dtype=np.float32),
+                "471": np.zeros((3200, 1), dtype=np.float32),
+                "494": np.zeros((800, 1), dtype=np.float32),
+                "451": np.zeros((12800, 4), dtype=np.float32),
+                "474": np.zeros((3200, 4), dtype=np.float32),
+                "497": np.zeros((800, 4), dtype=np.float32),
+                "454": np.zeros((12800, 10), dtype=np.float32),
+                "477": np.zeros((3200, 10), dtype=np.float32),
+                "500": np.zeros((800, 10), dtype=np.float32),
+            }
         raise AssertionError(f"unexpected Triton model_name {model_name!r}")
 
     _below = [False]
