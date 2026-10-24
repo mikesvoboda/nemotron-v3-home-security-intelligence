@@ -345,6 +345,7 @@ jobs:
           scripts/audit/test_battery_census.py
           scripts/audit/test_literal_groups.py
           scripts/audit/test_nav_coverage.py
+          scripts/audit/test_unlinked_pages.py
           scripts/test_shard_durations.py
           scripts/test_reachability.py
           scripts/test_r2_python_dead_list.py

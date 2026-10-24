@@ -50,6 +50,16 @@ scripts/audit/
                           cannot see awesome-pages injection). Classifies
                           disabled/record instead of dropping them.
                                                               → W3.3
+  unlinked_pages.py       living nav-missing docs pages classified by who
+                          still mentions them: linked (resolved markdown link,
+                          dir-form link, or --8<-- snippet include reaches the
+                          page, from living OR record sources), cited (no link
+                          but a bounded, case-insensitive stem mention in
+                          code/scripts/tests/record trees), nowhere (the
+                          deletion-review list). README/index candidates are
+                          needled by DIRECTORY, never the stem. Candidates come
+                          from nav_coverage.py's living_docs_missing.
+                                                              → W3.3
 ```
 
 ## Conventions (every script here)
