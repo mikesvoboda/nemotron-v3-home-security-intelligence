@@ -221,7 +221,12 @@ def main() -> int:
         # no shell, root is never interpolated into a command string — nominal
         # taint only (sys.executable + argparse root, the ratchet-check.py shape).
         proc = subprocess.run(
-            [sys.executable, str(NAV_SCRIPT), "--root", str(root)],  # nosemgrep: python.lang.security.audit.dangerous-subprocess-use-tainted-env-args
+            [
+                sys.executable,
+                str(NAV_SCRIPT),
+                "--root",
+                str(root),
+            ],  # nosemgrep: python.lang.security.audit.dangerous-subprocess-use-tainted-env-args
             capture_output=True,
             text=True,
             timeout=300,
