@@ -339,6 +339,12 @@ package tagged `[rNNN]` is a fix that ruling NNN ordered.
 | 324    | owner-partner: the nightly's PG client drift to ops-a; fixed by #7389 (record 6362943411)                   |
 | 325    | Q-193: `O2.4` done on `[r312a]`'s Run 2; `[r325a]` (record 6364638047)                                      |
 | 326    | one-off: the operator stages B4.4's store in its workspace for the owner (UR-142; record 6372335619)        |
+| 327    | no revert of #7370; frontend reviews the post-approval delta only (record 6377661937)                        |
+| 328    | O3.2: two compose bases stay + a pin test; box 3 dropped, the seven container_names stay (record 6378106167) |
+| 329    | heavy-a takes r306a, r306b, r307b from backend's queue, in that order (record 6378113072)                    |
+| 330    | autovlm: docs/auto-vlm-research/ + docs/superpowers/2026-10-23-autovlm/ are a design record, docs skips their drift audits but not their broken links (record 6378138172) |
+| 331    | [r297] (#7356) unparked; ops-a resumes it after #7408 (record 6378198868)                                    |
+| 332    | owner-partner: main's red on the stale inventory cites (F-070/F-167/F-168) to frontend, its own red-main PR (record 6380955597) |
 
 ## Owner records
 
