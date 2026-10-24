@@ -44,7 +44,6 @@ dependencies = [
     "ultralytics>=8.4.0",  # Required for YOLO26 support
     "huggingface-hub>=2.0.0",
     "transformers>=4.57.3",
-    "torchreid>=0.2.5",
     "gdown>=5.2.0",
     "piq>=0.8.0",  # BRISQUE image quality - lightweight, only needs torchvision
     "open_clip_torch>=2.29.0",
@@ -163,6 +162,7 @@ dev = [
     "onnx>=1.17",
     "onnxscript>=0.7.0",
     "onnxruntime>=1.16",
+    "torchreid>=0.2.5",
 ]
 # GPU quantization support (NEM-3373, NEM-3376)
 # Provides 4-bit and 8-bit quantization for LLMs via bitsandbytes
@@ -320,6 +320,7 @@ dev = [
     # (Its type stub, types-pyyaml, has never had a package to stand for.)
     "pyyaml>=6.0.3",
     "types-pyyaml>=6.0.12.20250915",
+    "torchreid>=0.2.5",
     {include-group = "docs"},
 ]
 

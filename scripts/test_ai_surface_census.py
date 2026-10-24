@@ -209,7 +209,10 @@ class TestRealTree:
             "fast_alpr_loader",
         }, sorted(loaders)
         inproc = sum(1 for m in loaders.values() if m["bucket"] == "INPROC-AI")
-        assert inproc >= 2, f"surviving loaders still import heavy libs in-proc, got {inproc}"
+        # [r306b] removed osnet_loader's CPU torch/torchreid path; it delegates
+        # to reid_gateway, so osnet_loader is now DOMAIN (UR-186).
+        assert mods["osnet_loader"]["bucket"] == "DOMAIN"
+        assert inproc <= 1, f"expected at most 1 INPROC-AI loader after [r306b], got {inproc}"
 
     def test_known_dead_land_dead(self, real: dict) -> None:
         mods = real["modules"]
