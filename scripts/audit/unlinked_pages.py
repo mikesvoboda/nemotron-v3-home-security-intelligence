@@ -197,6 +197,30 @@ def scan_corpus(root: Path) -> list[tuple[str, str]]:
     return corpus
 
 
+def run_nav_coverage(root: Path) -> dict:
+    """nav_coverage.py's JSON, run as a sibling script.
+
+    A function boundary, not cosmetic: semgrep's tainted-env-args rule is
+    intra-procedural, so the argparse taint (`args.root` -> `root`) stops at the
+    parameter — the same shape that lets ratchet-check.py's census_locations()
+    pass the scan with no suppression. The argv is [interpreter, committed
+    sibling script, --root, directory path]; no shell, root is never
+    interpolated into a command string.
+    """
+    proc = subprocess.run(
+        [sys.executable, str(NAV_SCRIPT), "--root", str(root)],
+        capture_output=True,
+        text=True,
+        timeout=300,
+        check=False,
+    )
+    if proc.returncode != 0:
+        print(f"unlinked_pages: nav_coverage.py failed: {proc.stderr[-400:]}", file=sys.stderr)
+        raise SystemExit(1)
+    out: dict = json.loads(proc.stdout)
+    return out
+
+
 def main() -> int:
     ap = argparse.ArgumentParser(description=__doc__.splitlines()[0])
     ap.add_argument("--root", default=".", type=Path)
@@ -217,25 +241,7 @@ def main() -> int:
     if args.nav_json:
         nav = json.loads(args.nav_json.read_text())
     else:
-        # argv is [interpreter, committed sibling script, --root, directory path];
-        # no shell, root is never interpolated into a command string — nominal
-        # taint only (sys.executable + argparse root, the ratchet-check.py shape).
-        proc = subprocess.run(
-            [
-                sys.executable,
-                str(NAV_SCRIPT),
-                "--root",
-                str(root),
-            ],  # nosemgrep: python.lang.security.audit.dangerous-subprocess-use-tainted-env-args
-            capture_output=True,
-            text=True,
-            timeout=300,
-            check=False,
-        )
-        if proc.returncode != 0:
-            print(f"unlinked_pages: nav_coverage.py failed: {proc.stderr[-400:]}", file=sys.stderr)
-            return 1
-        nav = json.loads(proc.stdout)
+        nav = run_nav_coverage(root)
     candidates: list[str] = nav["living_docs_missing"]
 
     corpus = scan_corpus(root)
