@@ -168,7 +168,7 @@ def scan_corpus(root: Path) -> list[tuple[str, str]]:
     tracked = None
     try:
         out = subprocess.run(
-            ["git", "ls-files"], cwd=root, capture_output=True, text=True, timeout=60
+            ["git", "ls-files"], cwd=root, capture_output=True, text=True, timeout=60, check=False
         )
         if out.returncode == 0:
             tracked = out.stdout.splitlines()
@@ -222,6 +222,7 @@ def main() -> int:
             capture_output=True,
             text=True,
             timeout=300,
+            check=False,
         )
         if proc.returncode != 0:
             print(f"unlinked_pages: nav_coverage.py failed: {proc.stderr[-400:]}", file=sys.stderr)
