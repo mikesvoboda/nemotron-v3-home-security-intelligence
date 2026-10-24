@@ -44,6 +44,7 @@ import json
 import os
 import time
 import uuid
+from datetime import UTC, datetime
 from typing import Any
 
 import httpx
@@ -169,6 +170,18 @@ def test_the_webhook_sink_receives_the_acknowledgement_payload(
     # arming spec's future-dated fixture inside its ~1s "newest" window and
     # bound its alert to that event. The event is deleted in the finally
     # (soft, then permanent, as the arming spec's teardown does).
+    #
+    # The event must NOT be backdated: the delete happens ~2s after the
+    # create, and ``test_webhook_deliveries.py``'s module fixture pins its
+    # alerts to the OLDEST VERIFIED event ("the oldest verified event is the
+    # smoke event … it is never a purge target"). A backdated rejected event
+    # is verified by that filter and older than the smoke event, so the
+    # fixture binds F-250/F-251's alerts to THIS row, and the finally's
+    # delete (racing the trash spec's Empty Trash sweep) kills the row out
+    # from under them — run 40082904509, ``alerts_event_id_fkey``,
+    # ``Key (event_id)=(2)``. NOW-dated keeps the smoke event the
+    # oldest-verified pick, as test_arming.py's now-dated fixtures already
+    # do.
     camera_id = cameras_by_scenario.get("harness-smoke")
     assert camera_id, "harness seeded no harness-smoke camera for the webhook leg's event"
     bulked = logged_in_api.post(
@@ -178,7 +191,7 @@ def test_the_webhook_sink_receives_the_acknowledgement_payload(
                 {
                     "batch_id": f"golden-r308a-sink-{uuid.uuid4().hex[:8]}",
                     "camera_id": camera_id,
-                    "started_at": "2026-01-01T00:00:00Z",
+                    "started_at": datetime.now(UTC).isoformat(),
                     "risk_score": 10,
                     "risk_level": "low",
                     "summary": "golden r308a webhook-leg event (rejected verdict)",

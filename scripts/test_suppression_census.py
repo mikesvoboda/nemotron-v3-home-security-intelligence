@@ -867,7 +867,8 @@ def test_real_tree_matches_spec_baselines():
         # 94→93 (2026-10-21, B3.2 #7319): test_benchmark_vram.py deleted with
         # backend/scripts/benchmark_vram.py (-1 imperative skip at :208).
         # [r308a]'s sink smoke spec (PR #7340): the sink env gate,
-        # test_notification_sinks.py:75 (now-current line; :73 at the
+        # test_notification_sinks.py:76 (now-current line; :75 before the
+        # 2026-10-24 FK-race fix added a datetime import above it, :73 at the
         # raise — the comprehension over os.environ reads sits behind a local
         # alias `missing`, the conftest.py:61/:70 local-alias shape).
         # Adjudicated environment via HOST_JUSTIFIED (b904d853f's

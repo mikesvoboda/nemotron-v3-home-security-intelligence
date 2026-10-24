@@ -124,7 +124,7 @@ HOST_JUSTIFIED: dict[str, str] = {
     # rejected-verdict event instead of grabbing the stack's newest one, so
     # the guard no longer exists — suppressions removed by the repairs are
     # the direction the ratchet exists to protect.
-    "backend/tests/golden/external/test_notification_sinks.py:75": "missing is a comprehension over os.environ reads — FEATURE_CHECK_SINK_* env absent, host state behind a local alias",
+    "backend/tests/golden/external/test_notification_sinks.py:76": "missing is a comprehension over os.environ reads — FEATURE_CHECK_SINK_* env absent, host state behind a local alias",
     # The golden webhook spec needs a real events.id (Alert.event_id is a
     # non-nullable FK); an empty events table is the stack's data state, the
     # same data-chain shape as test_risk_score_validation.py:199 above.
