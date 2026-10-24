@@ -1,7 +1,9 @@
 """Dataset converters for external datasets.
 
 This module provides utilities for converting external datasets
-to the expected_labels.json format used by the AI evaluation pipeline.
+to the expected_labels.json format used by the AI evaluation pipeline
+(converters: coco_converter.py, flir_converter.py, ccpd_converter.py,
+shanghaitech_converter.py).
 
 Example Usage:
     >>> from scripts.dataset_converters import CCPDConverter
