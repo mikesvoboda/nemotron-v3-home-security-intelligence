@@ -225,6 +225,15 @@ class AlertPipeline:
 
         existing_dec = store.decisions.get(event_id)
         if existing_dec is not None:
+            # WARNING so a silent idempotency short-circuit is diagnosable in CI
+            # runs, where the middleware logs WARNING+ only (golden red 2026-10-23,
+            # run 40033007889: the decision rows were invisible).
+            logger.warning(
+                "notify pipeline: event %s already processed (memory): notify=%s by=%s",
+                event_id,
+                bool(existing_dec.notify),
+                existing_dec.decided_by,
+            )
             return PipelineResult(
                 event_id=event_id,
                 notify=bool(existing_dec.notify),
@@ -367,6 +376,15 @@ class AlertPipeline:
             decided_by=decided_by,
             created_at=now,
         )
+        # Mirror of the db path's decision log (WARNING — see there).
+        logger.warning(
+            "notify pipeline: event %s decided notify=%s by=%s (%d alert(s), %d delivery plan(s))",
+            event.id,
+            notified,
+            decided_by,
+            len(created_alerts),
+            len(planned_deliveries),
+        )
         store.decisions[event.id] = decision
         store.committed += 1
         self._record_planned_deliveries_in_store(store, planned_deliveries, now)
@@ -428,6 +446,15 @@ class AlertPipeline:
             .first()
         )
         if existing_dec is not None:
+            # WARNING so a silent idempotency short-circuit is diagnosable in CI
+            # runs, where the middleware logs WARNING+ only (golden red 2026-10-23,
+            # run 40033007889: the decision rows were invisible).
+            logger.warning(
+                "notify pipeline: event %s already processed (db): notify=%s by=%s",
+                event_id,
+                bool(existing_dec.notify),
+                existing_dec.decided_by,
+            )
             return PipelineResult(
                 event_id=event_id,
                 notify=bool(existing_dec.notify),
@@ -437,6 +464,7 @@ class AlertPipeline:
 
         event = (await session.execute(select(Event).where(Event.id == event_id))).scalars().first()
         if event is None:
+            logger.warning("notify pipeline: event %s not found; deciding notify=False", event_id)
             return PipelineResult(event_id=event_id, notify=False, decided_by=DEFAULT_RULE_ID)
 
         vrow = (
@@ -678,6 +706,17 @@ class AlertPipeline:
 
         decided_by = (
             matches[0].rule_name if matches else (arming_suppression_reason(ctx) or DEFAULT_RULE_ID)
+        )
+        # WARNING so a silent notify=False decision (or the rule that decided
+        # notify=True) is diagnosable in CI runs — see the golden red of
+        # 2026-10-23, run 40033007889, where no decision trace existed.
+        logger.warning(
+            "notify pipeline: event %s decided notify=%s by=%s (%d alert(s), %d delivery plan(s))",
+            event.id,
+            notified,
+            decided_by,
+            len(created_alerts),
+            len(planned_deliveries),
         )
         await self._upsert_decision(
             session,
