@@ -15,7 +15,6 @@ import uuid
 import zipfile
 from datetime import UTC, datetime
 from pathlib import Path
-from typing import Any, ClassVar
 
 import pytest
 
@@ -93,7 +92,8 @@ class TestBackupServiceCreateBackup:
             manifest_data = json.loads(zf.read("manifest.json").decode("utf-8"))
 
         assert manifest_data["backup_id"] == job_id
-        assert manifest_data["version"] == "1.0"
+        assert manifest_data["version"] == "1.1"
+        assert manifest_data["installation_id"]
         assert "created_at" in manifest_data
         assert "contents" in manifest_data
 
@@ -141,50 +141,24 @@ class TestBackupServiceCreateBackup:
         assert any(pct == 100 for pct, _ in progress_updates)
 
 
-class TestBackupExportsDeferredEventColumns:
-    """[r129] ruling 127: a populated `events` table must survive a backup.
+class TestBackupExcludesEventHistoryAndExportsConfig:
+    """[B4.6] 4n-restore.md: backups export configuration tables and exclude event/alert history."""
 
-    ``Event.reasoning`` and ``Event.llm_prompt`` are ``deferred()``
-    (backend/models/event.py:70-74), so ``select(Event)`` does not load them.
-    ``_export_table`` then walks EVERY mapper column with ``getattr``
-    (backend/services/backup_service.py:324, :378), and touching an unloaded
-    deferred column makes SQLAlchemy issue a lazy load -- which raises
-    ``MissingGreenlet`` inside an ``AsyncSession``. Pre-fix every backup failed
-    as soon as one event existed, and every backup looked healthy on an empty
-    table. No test ran THIS service's ``create_backup`` over a populated
-    ``events`` table: the unit tier drives it with a ``FakeDB`` whose ``events``
-    count it asserts is 0, and the one integration file that does seed events
-    (``test_backup_restore.py:381``) exercises ``create_pg_backup``
-    (``:123`` -- a pg_dump shell-out), a different implementation. That is why
-    a 100 % real-world failure passed CI.
-
-    Asserting the VALUES, not just completion, is deliberate: the tempting
-    fix is to skip deferred columns, which would make this backup "complete
-    with every row present" while silently dropping two columns from every
-    backup forever -- a loud failure traded for permanent data loss.
-    """
-
-    # Number of event rows seeded per test.
-    N_EVENTS = 5
+    N_EVENTS = 3
 
     @pytest.fixture
     async def seeded_events(self, test_db) -> list[int]:
-        """Populate cameras + events, with the deferred columns non-NULL.
-
-        Seeding follows ``test_ai_audit_api.py::_events_for_batch``: no explicit
-        ``id`` (``Event.id`` is an autoincrement Integer, event.py:49), then
-        ``flush()`` so ``event.id`` is populated for the assertions.
-        """
+        """Populate cameras + events with deferred columns populated."""
         from backend.models.event import Event
 
-        camera_ids = [unique_id("r129_cam") for _ in range(2)]
+        camera_ids = [unique_id("b46_cam") for _ in range(2)]
         event_ids: list[int] = []
         async with test_db() as session:
             for camera_id in camera_ids:
                 session.add(
                     Camera(
                         id=camera_id,
-                        name=f"R129 Camera {camera_id[-6:]}",
+                        name=f"B46 Camera {camera_id[-6:]}",
                         folder_path=f"/export/foscam/{camera_id}",
                     )
                 )
@@ -197,10 +171,9 @@ class TestBackupExportsDeferredEventColumns:
                     started_at=datetime(2026, 1, i + 1, 12, 0, 0, tzinfo=UTC),
                     risk_score=30 + i * 10,
                     risk_level="medium",
-                    summary=f"R129 event {i}",
-                    # The two deferred columns, with sentinel payloads.
-                    reasoning=f"R129-REASONING-{i}",
-                    llm_prompt=f"R129-LLMPROMPT-{i}",
+                    summary=f"B46 event {i}",
+                    reasoning=f"B46-REASONING-{i}",
+                    llm_prompt=f"B46-LLMPROMPT-{i}",
                 )
                 session.add(event)
                 await session.flush()
@@ -209,86 +182,36 @@ class TestBackupExportsDeferredEventColumns:
         return event_ids
 
     @pytest.mark.asyncio
-    async def test_backup_of_populated_events_table_completes_with_every_row(
+    async def test_backup_excludes_events_and_alerts_and_exports_12_config_tables(
         self,
         test_db,
         backup_service: BackupService,
         seeded_events: list[int],
     ) -> None:
-        """Done-when (2): the backup completes and every event row is present."""
+        """Backups contain the 12 configuration tables and omit events/alerts/prompts."""
+        assert len(seeded_events) == self.N_EVENTS
         job_id = unique_id("backup_job")
 
         async with test_db() as session:
             result = await backup_service.create_backup(session, job_id)
 
         with zipfile.ZipFile(result.file_path, "r") as zf:
-            assert "events.json" in zf.namelist()
-            events_data = json.loads(zf.read("events.json").decode("utf-8"))
-
-        assert len(events_data) == len(seeded_events), (
-            f"[r129] backup exported {len(events_data)} of {len(seeded_events)} "
-            f"event rows; manifest count was "
-            f"{result.manifest.contents['events'].count}"
-        )
-        assert sorted(e["id"] for e in events_data) == sorted(seeded_events)
-
-    @pytest.mark.asyncio
-    async def test_backup_preserves_the_deferred_column_values(
-        self,
-        test_db,
-        backup_service: BackupService,
-        seeded_events: list[int],
-    ) -> None:
-        """The deferred columns must be IN the archive, not skipped to get there.
-
-        This is the half that separates "undefer the load" from "drop the
-        columns". A backup that completes while writing ``reasoning: null``
-        for every row passes Done-when (2) and is still data loss.
-        """
-        job_id = unique_id("backup_job")
-
-        async with test_db() as session:
-            result = await backup_service.create_backup(session, job_id)
-
-        with zipfile.ZipFile(result.file_path, "r") as zf:
-            events_data = json.loads(zf.read("events.json").decode("utf-8"))
-
-        by_id = {e["id"]: e for e in events_data}
-        assert len(by_id) == len(seeded_events)
-        for i, event_id in enumerate(seeded_events):
-            row = by_id[event_id]
-            assert row.get("reasoning") == f"R129-REASONING-{i}", (
-                f"[r129] event {event_id} lost its deferred `reasoning` in the "
-                f"backup: {row.get('reasoning')!r}"
-            )
-            assert row.get("llm_prompt") == f"R129-LLMPROMPT-{i}", (
-                f"[r129] event {event_id} lost its deferred `llm_prompt` in the "
-                f"backup: {row.get('llm_prompt')!r}"
-            )
-
-    @pytest.mark.asyncio
-    async def test_an_empty_events_table_was_never_evidence_of_a_working_backup(
-        self,
-        test_db,
-        backup_service: BackupService,
-    ) -> None:
-        """Negative control: the green path everyone relied on is the vacuous one.
-
-        With no event rows the deferred getattr never fires, so the export
-        succeeds -- proving the OLD suite's confidence was an artifact of an
-        empty table. Kept as a pin so the empty case stays working, and as
-        the documented reason the defect survived.
-        """
-        job_id = unique_id("backup_job")
-
-        async with test_db() as session:
-            result = await backup_service.create_backup(session, job_id)
-
-        with zipfile.ZipFile(result.file_path, "r") as zf:
-            events_data = json.loads(zf.read("events.json").decode("utf-8"))
-
-        assert events_data == []
-        assert result.manifest.contents["events"].count == 0
+            names = set(zf.namelist())
+            assert "events.json" not in names
+            assert "alerts.json" not in names
+            assert "prompts.json" not in names
+            assert "households.json" in names
+            assert "properties.json" in names
+            assert "areas.json" in names
+            assert "cameras.json" in names
+            assert "camera_areas.json" in names
+            assert "zones.json" in names
+            assert "activity_baselines.json" in names
+            assert "class_baselines.json" in names
+            assert "household_members.json" in names
+            assert "prompt_versions.json" in names
+            assert "settings.json" in names
+            assert "alert_rules.json" in names
 
 
 class TestBackupServiceListBackups:
@@ -395,281 +318,79 @@ class TestBackupServiceGetPath:
         assert path == result.file_path
 
 
-class TestAlertMetadataSurvivesBackupAndRestore:
-    """[r271b] Q-040: the alert payload survives backup then restore.
-
-    ``Alert`` names its payload attribute ``alert_metadata`` but maps it to the
-    table's ``metadata`` column (models/alert.py:120-121), so the mapper's
-    column key ``metadata`` has no class-bound attribute behind it. The export
-    walk reads ``getattr(record, "metadata")`` -- SQLAlchemy's reserved
-    ``MetaData`` object -- stringifies it into the JSON as
-    ``"metadata": "MetaData()"``, and the real payload is never written; the
-    restore side drops the unknown key, so the payload is lost both ways.
-    Measured at the PR base (d5c470715): exported
-    ``"metadata": "MetaData()"``, no ``alert_metadata`` key, and the restored
-    alert's ``alert_metadata`` came back ``None``.
-
-    Asserting the VALUE, not just the row count, is deliberate (r129's
-    precedent in this file): a backup that completes while silently nulling
-    every alert payload passes a count-only assertion and is still data loss.
-
-    ``Alert`` is the only walked model with this collision (census at the PR
-    base over all 8 BACKUP_TABLES models plus the lazily appended Event);
-    the tests are scoped to it.
-    """
-
-    # Sentinel payload the round trip must preserve.
-    PAYLOAD: ClassVar[dict[str, Any]] = {
-        "reason": "R271B-SENTINEL",
-        "channels_tried": ["email", "webhook"],
-    }
-
-    @pytest.fixture
-    async def seeded_alert(self, test_db) -> dict:
-        """Seed camera -> event -> alert, returning the alert's exported keys."""
-        from backend.models.alert import Alert
-        from backend.models.event import Event
-
-        camera_id = unique_id("r271b_cam")
-        async with test_db() as session:
-            session.add(
-                Camera(
-                    id=camera_id,
-                    name=f"R271B Camera {camera_id[-6:]}",
-                    folder_path=f"/export/foscam/{camera_id}",
-                )
-            )
-            await session.flush()
-            event = Event(
-                batch_id=unique_id("r271b_batch"),
-                camera_id=camera_id,
-                started_at=datetime.now(UTC),
-                risk_score=40,
-                summary=f"R271B event {camera_id[-6:]}",
-            )
-            session.add(event)
-            await session.flush()
-            alert = Alert(
-                event_id=event.id,
-                dedup_key=unique_id("r271b_dedup"),
-                alert_metadata=self.PAYLOAD,
-            )
-            session.add(alert)
-            await session.commit()
-            # Alert.id is a UUID column with a uuid7 default; read the
-            # generated value back instead of assigning a string.
-            alert_id = alert.id
-        return {"alert_id": alert_id, "camera_id": camera_id, "event_id": event.id}
+class TestLegacy10ArchiveRestoreAdapter:
+    """[B4.6] 4n-restore.md: a 1.0 archive with events and alerts skips both and restores the rest."""
 
     @pytest.mark.asyncio
-    async def test_backup_writes_alert_metadata_payload(
+    async def test_1_0_archive_skips_events_and_alerts_and_restores_cameras(
         self,
         test_db,
-        backup_service: BackupService,
-        seeded_alert: dict,
     ) -> None:
-        """Export leg: the payload is IN the archive, under ``alert_metadata``."""
-        job_id = unique_id("r271b_backup")
-
-        async with test_db() as session:
-            await backup_service.create_backup(session, job_id)
-
-        with zipfile.ZipFile(backup_service.get_backup_path(job_id), "r") as zf:
-            alerts = json.loads(zf.read("alerts.json").decode("utf-8"))
-
-        (row,) = [a for a in alerts if a["id"] == seeded_alert["alert_id"]]
-        assert row.get("alert_metadata") == self.PAYLOAD, (
-            f"[r271b] alert {seeded_alert['alert_id']} lost its payload in the "
-            f"backup: alert_metadata={row.get('alert_metadata')!r}, "
-            f"metadata={row.get('metadata')!r}"
-        )
-        # The reserved key must not carry the stringified MetaData object.
-        assert "metadata" not in row
-
-    @pytest.mark.asyncio
-    async def test_round_trip_restores_alert_metadata_payload(
-        self,
-        test_db,
-        backup_service: BackupService,
-        seeded_alert: dict,
-    ) -> None:
-        """Full round trip: seed -> backup -> restore -> payload intact."""
+        """A 1.0 archive from origin/main with events and alerts restores cameras and lists both skipped."""
         from sqlalchemy import select
 
-        from backend.models.alert import Alert
         from backend.services.restore_service import (
             RestoreService,
             reset_restore_service,
         )
 
-        job_id = unique_id("r271b_roundtrip")
-
-        async with test_db() as session:
-            result = await backup_service.create_backup(session, job_id)
-
-        reset_restore_service()
-        async with test_db() as session:
-            await RestoreService().restore_from_backup(
-                result.file_path, session, unique_id("r271b_restore")
-            )
-
-        async with test_db() as session:
-            restored = (
-                await session.execute(select(Alert).where(Alert.id == seeded_alert["alert_id"]))
-            ).scalar_one()
-            assert restored.alert_metadata == self.PAYLOAD, (
-                f"[r271b] restored alert {seeded_alert['alert_id']} came back "
-                f"with alert_metadata={restored.alert_metadata!r}; the payload "
-                f"did not survive the round trip"
-            )
-
-    @pytest.mark.asyncio
-    async def test_null_payload_stays_null_through_round_trip(
-        self,
-        test_db,
-        backup_service: BackupService,
-    ) -> None:
-        """A seeded NULL payload must not become ``{}`` or ``"MetaData()"``."""
-        from sqlalchemy import select
-
-        from backend.models.alert import Alert
-        from backend.models.event import Event
-        from backend.services.restore_service import (
-            RestoreService,
-            reset_restore_service,
+        cam_id = unique_id("v10_cam")
+        cameras_payload = json.dumps(
+            [
+                {
+                    "id": cam_id,
+                    "name": f"V10 Camera {cam_id[-6:]}",
+                    "folder_path": f"/export/foscam/{cam_id}",
+                    "status": "online",
+                }
+            ]
+        )
+        events_payload = json.dumps([{"id": 99999, "camera_id": cam_id, "risk_score": 50}])
+        alerts_payload = json.dumps(
+            [{"id": str(uuid.uuid4()), "event_id": 99999, "metadata": "MetaData()"}]
         )
 
-        camera_id = unique_id("r271b_null_cam")
-        async with test_db() as session:
-            session.add(
-                Camera(
-                    id=camera_id,
-                    name=f"R271B Null Camera {camera_id[-6:]}",
-                    folder_path=f"/export/foscam/{camera_id}",
-                )
-            )
-            await session.flush()
-            event = Event(
-                batch_id=unique_id("r271b_null_batch"),
-                camera_id=camera_id,
-                started_at=datetime.now(UTC),
-                risk_score=10,
-            )
-            session.add(event)
-            await session.flush()
-            alert = Alert(
-                event_id=event.id,
-                dedup_key=unique_id("r271b_null_dedup"),
-                # alert_metadata stays NULL: the constructor default.
-            )
-            session.add(alert)
-            await session.commit()
-            alert_id = alert.id
-
-        job_id = unique_id("r271b_null_backup")
-        async with test_db() as session:
-            result = await backup_service.create_backup(session, job_id)
-
-        reset_restore_service()
-        async with test_db() as session:
-            await RestoreService().restore_from_backup(
-                result.file_path, session, unique_id("r271b_null_restore")
-            )
-
-        async with test_db() as session:
-            restored = (
-                await session.execute(select(Alert).where(Alert.id == alert_id))
-            ).scalar_one()
-            assert restored.alert_metadata is None
-
-    @pytest.mark.asyncio
-    async def test_prefix_backup_restores_with_null_metadata_and_no_error(
-        self,
-        test_db,
-    ) -> None:
-        """A backup made BEFORE the fix restores with ``alert_metadata`` null.
-
-        The old export wrote ``"metadata": "MetaData()"`` and no
-        ``alert_metadata`` key; there is nothing to recover, so the restore
-        must accept the row without an error and leave the payload NULL --
-        not crash and not silently invent a payload.
-
-        The manifest contents name only ``alerts``, so the restore clears and
-        refills only that table; the camera and event seeded for the FK chain
-        survive it.
-        """
-        from sqlalchemy import select
-
-        from backend.models.alert import Alert
-        from backend.models.event import Event
-        from backend.services.restore_service import (
-            RestoreService,
-            reset_restore_service,
-        )
-
-        camera_id = unique_id("r271b_prefix_cam")
-        async with test_db() as session:
-            session.add(
-                Camera(
-                    id=camera_id,
-                    name=f"R271B Prefix Camera {camera_id[-6:]}",
-                    folder_path=f"/export/foscam/{camera_id}",
-                )
-            )
-            await session.flush()
-            event = Event(
-                batch_id=unique_id("r271b_prefix_batch"),
-                camera_id=camera_id,
-                started_at=datetime.now(UTC),
-                risk_score=10,
-            )
-            session.add(event)
-            await session.flush()
-            event_id = event.id
-            await session.commit()
-
-        prefix_row = {
-            "id": str(uuid.uuid4()),
-            "event_id": event_id,
-            "severity": "medium",
-            "status": "pending",
-            "dedup_key": unique_id("r271b_prefix_dedup"),
-            # Exactly what the pre-fix export wrote.
-            "metadata": "MetaData()",
-            "version_id": 1,
-            "is_high_priority": False,
-        }
         with tempfile.TemporaryDirectory() as tmpdir:
             tmpdir_path = Path(tmpdir)
-            alerts_path = tmpdir_path / "alerts.json"
-            alerts_path.write_text(json.dumps([prefix_row]), encoding="utf-8")
             manifest = BackupManifest(
-                backup_id=unique_id("r271b_prefix_backup"),
-                version=BackupService.BACKUP_FORMAT_VERSION,
+                backup_id=unique_id("v10_backup"),
+                version="1.0",
                 created_at=datetime.now(UTC),
-                app_version=None,
+                app_version="1.0.0",
                 contents={
+                    "events": BackupContentInfo(
+                        count=1,
+                        checksum=hashlib.sha256(events_payload.encode()).hexdigest(),
+                    ),
                     "alerts": BackupContentInfo(
                         count=1,
-                        checksum=hashlib.sha256(alerts_path.read_bytes()).hexdigest(),
-                    )
+                        checksum=hashlib.sha256(alerts_payload.encode()).hexdigest(),
+                    ),
+                    "cameras": BackupContentInfo(
+                        count=1,
+                        checksum=hashlib.sha256(cameras_payload.encode()).hexdigest(),
+                    ),
                 },
             )
-            backup_path = tmpdir_path / "prefix_backup.zip"
+            backup_path = tmpdir_path / "v10_backup.zip"
             with zipfile.ZipFile(backup_path, "w") as zf:
                 zf.writestr("manifest.json", json.dumps(manifest.to_dict()))
-                zf.writestr("alerts.json", json.dumps([prefix_row]))
+                zf.writestr("events.json", events_payload)
+                zf.writestr("alerts.json", alerts_payload)
+                zf.writestr("cameras.json", cameras_payload)
 
             reset_restore_service()
             async with test_db() as session:
-                await RestoreService().restore_from_backup(
-                    backup_path, session, unique_id("r271b_prefix_restore")
+                res = await RestoreService().restore_from_backup(
+                    backup_path, session, unique_id("v10_restore")
                 )
+                await session.commit()
+
+        assert res.skipped_tables == ["events", "alerts"]
+        assert res.items_restored == {"cameras": 1}
 
         async with test_db() as session:
-            restored = (
-                await session.execute(
-                    select(Alert).where(Alert.dedup_key == prefix_row["dedup_key"])
-                )
+            restored_cam = (
+                await session.execute(select(Camera).where(Camera.id == cam_id))
             ).scalar_one()
-            assert restored.alert_metadata is None
+            assert restored_cam.name == f"V10 Camera {cam_id[-6:]}"

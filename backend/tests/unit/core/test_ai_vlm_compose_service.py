@@ -626,6 +626,30 @@ class TestDockerfileFlagWiring:
             "x86 via --build-arg; the file must say so where the ARG lives"
         )
 
+    def test_cuda_base_images_and_llama_cpp_ref_pin_latest_supported(self, dockerfile: str) -> None:
+        """[r314a] (ruling 314): ai/vlm/Dockerfile pins CUDA 13.4.3 on Ubuntu 24.04
+        and llama.cpp b11819, and .env.example agrees on VLM_REQUIRED_BUILD."""
+        assert "FROM docker.io/nvidia/cuda:13.4.3-devel-ubuntu24.04 AS builder" in dockerfile, (
+            "builder stage must pin docker.io/nvidia/cuda:13.4.3-devel-ubuntu24.04"
+        )
+        assert "FROM docker.io/nvidia/cuda:13.4.3-runtime-ubuntu24.04" in dockerfile, (
+            "runtime stage must pin docker.io/nvidia/cuda:13.4.3-runtime-ubuntu24.04"
+        )
+        assert re.search(r"^ARG LLAMA_CPP_REF=b11819$", dockerfile, re.M), (
+            "LLAMA_CPP_REF default must pin b11819 ([r314a])"
+        )
+        assert "userdel -r ubuntu" in dockerfile, (
+            "Ubuntu 24.04 pre-creates uid/gid 1000 (`ubuntu`); must be removed before "
+            "creating the `llama` runtime user at uid/gid 1000"
+        )
+        env_text = ENV_EXAMPLE.read_text(encoding="utf-8")
+        assert re.search(r"^VLM_REQUIRED_BUILD=b11819$", env_text, re.M), (
+            ".env.example VLM_REQUIRED_BUILD must match ai/vlm/Dockerfile LLAMA_CPP_REF"
+        )
+        assert all(ord(ch) < 128 for ch in dockerfile), (
+            "agent-gpu build policy requires ASCII-only bytes in ai/vlm/Dockerfile"
+        )
+
 
 class TestSecurityHardeningParity:
     """ai-vlm joins the hardened set the existing security/resource tests sweep

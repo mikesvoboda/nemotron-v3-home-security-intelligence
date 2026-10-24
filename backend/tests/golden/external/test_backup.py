@@ -61,10 +61,16 @@ database does not.
 
 from __future__ import annotations
 
+import contextlib
+import fcntl
 import io
 import json
+import os
+import tempfile
 import time
 import zipfile
+from collections.abc import Iterator
+from pathlib import Path
 
 import httpx
 import pytest
@@ -87,6 +93,33 @@ POLL_INTERVAL_S = 2.0
 POLL_DEADLINE_S = 180.0
 
 TERMINAL_STATUSES = {"completed", "failed"}
+_LOCK_STATE: dict[str, int] = {"depth": 0}
+
+
+@contextlib.contextmanager
+def _backup_golden_lock() -> Iterator[None]:
+    """Serialize live-stack backup/restore golden mutations across xdist workers."""
+    if _LOCK_STATE["depth"] > 0:
+        _LOCK_STATE["depth"] += 1
+        try:
+            yield
+        finally:
+            _LOCK_STATE["depth"] -= 1
+        return
+
+    lock_dir = Path(os.environ.get("FEATURE_CHECK_RUN_DIR", tempfile.gettempdir()))
+    lock_path = lock_dir / "hsi-golden-backup.lock"
+    handle = lock_path.open("a+", encoding="utf-8")
+    fcntl.flock(handle.fileno(), fcntl.LOCK_EX)
+    _LOCK_STATE["depth"] = 1
+    try:
+        yield
+    finally:
+        _LOCK_STATE["depth"] = 0
+        try:
+            fcntl.flock(handle.fileno(), fcntl.LOCK_UN)
+        finally:
+            handle.close()
 
 
 def _start_backup(client: httpx.Client) -> str:
@@ -135,13 +168,14 @@ def _wait_for_terminal(client: httpx.Client, job_id: str) -> dict:
 
 def _create_and_wait(client: httpx.Client) -> dict:
     """Create a backup and return its terminal job body, carrying ``_job_id``."""
-    job_id = _start_backup(client)
-    job = _wait_for_terminal(client, job_id)
-    assert job["status"] == "completed", (
-        f"backup job failed: {job.get('error_message')!r} (job {job_id})"
-    )
-    job["_job_id"] = job_id
-    return job
+    with _backup_golden_lock():
+        job_id = _start_backup(client)
+        job = _wait_for_terminal(client, job_id)
+        assert job["status"] == "completed", (
+            f"backup job failed: {job.get('error_message')!r} (job {job_id})"
+        )
+        job["_job_id"] = job_id
+        return job
 
 
 @pytest.fixture(scope="module")
@@ -158,8 +192,12 @@ def test_f100_completed_backup_reports_file_and_manifest(completed_backup: dict)
     manifest = completed_backup.get("manifest")
     assert manifest is not None, f"completed backup has no manifest: {job_id}"
     assert manifest["backup_id"] == job_id, manifest
-    # The service exports one entry per table; an empty manifest would mean the
-    # ZIP is a container with nothing in it, which downloads "fine".
+    # The service exports one entry per configuration table; events and alerts
+    # are history and stay out of format 1.1 backups (B4.6 / 4n-restore.md).
+    assert manifest["version"] == "1.1", manifest
+    assert manifest.get("installation_id"), manifest
+    assert "events" not in manifest["contents"], manifest
+    assert "alerts" not in manifest["contents"], manifest
     assert manifest["contents"], manifest
     for name, entry in manifest["contents"].items():
         assert entry["checksum"], f"table {name!r} has no checksum in the manifest"
@@ -261,3 +299,328 @@ def test_f100_delete_removes_the_record_and_the_file(logged_in_api: httpx.Client
         f"download still answers {download.status_code} after DELETE — the "
         "record is gone but the file was not unlinked"
     )
+
+
+def _wait_for_restore_terminal(client: httpx.Client, job_id: str) -> dict:
+    """Poll ``GET /api/backup/restore/{job_id}`` until the job leaves pending/validating/restoring."""
+    deadline = time.monotonic() + POLL_DEADLINE_S
+    last: dict = {}
+    while time.monotonic() < deadline:
+        response = client.get(f"/api/backup/restore/{job_id}")
+        assert response.status_code == 200, response.text[:500]
+        last = response.json()
+        if last.get("status") in TERMINAL_STATUSES:
+            return last
+        time.sleep(POLL_INTERVAL_S)
+    pytest.fail(
+        f"restore job {job_id} did not reach a terminal status within "
+        f"{POLL_DEADLINE_S:.0f}s; last: {last!r}"
+    )
+
+
+def _build_zip_with_baseline(base_zip_bytes: bytes, camera_id: str) -> bytes:
+    """Ensure the archive contains at least one activity_baselines entry for camera_id."""
+    import hashlib
+
+    src = zipfile.ZipFile(io.BytesIO(base_zip_bytes), "r")
+    manifest = json.loads(src.read("manifest.json").decode("utf-8"))
+    members = {name: src.read(name) for name in src.namelist() if name != "manifest.json"}
+
+    act_rows = json.loads(members.get("activity_baselines.json", b"[]").decode("utf-8"))
+    if not any(r.get("camera_id") == camera_id for r in act_rows):
+        act_rows.append(
+            {
+                "camera_id": camera_id,
+                "hour": 14,
+                "day_of_week": 2,
+                "avg_count": 6.5,
+                "sample_count": 12,
+                "last_updated": "2026-10-22T00:00:00+00:00",
+            }
+        )
+        act_bytes = json.dumps(act_rows, indent=2).encode("utf-8")
+        members["activity_baselines.json"] = act_bytes
+        manifest["contents"]["activity_baselines"] = {
+            "count": len(act_rows),
+            "checksum": hashlib.sha256(act_bytes).hexdigest(),
+        }
+
+    out = io.BytesIO()
+    with zipfile.ZipFile(out, "w", zipfile.ZIP_DEFLATED) as zf:
+        zf.writestr("manifest.json", json.dumps(manifest, indent=2))
+        for name, data in members.items():
+            zf.writestr(name, data)
+    return out.getvalue()
+
+
+def _ensure_f101_event_camera(logged_in_api: httpx.Client) -> str:
+    """Get or create the camera the F-101 preserved-event row posts to.
+
+    Same shape as the B4.7 leg's camera: the leg owns its rows, so a stack
+    that refuses the POST falls back to an existing camera only because the
+    events the leg creates there are still its own (unique ``batch_id``).
+    """
+    cams_res = logged_in_api.get("/api/cameras")
+    assert cams_res.status_code == 200, cams_res.text[:500]
+    items = cams_res.json()
+    if isinstance(items, dict):
+        items = items.get("items") or items.get("cameras") or []
+    for cam in items:
+        if isinstance(cam, dict) and cam.get("name") == "Restore (F-101 golden)":
+            return str(cam["id"])
+
+    cam_create = logged_in_api.post(
+        "/api/cameras",
+        json={
+            "name": "Restore (F-101 golden)",
+            "folder_path": "/cameras/f101_golden_restore",
+            "status": "online",
+        },
+    )
+    if cam_create.status_code == 201:
+        return str(cam_create.json()["id"])
+    cams_retry = logged_in_api.get("/api/cameras")
+    assert cams_retry.status_code == 200, cams_retry.text[:500]
+    retry_items = cams_retry.json()
+    if isinstance(retry_items, dict):
+        retry_items = retry_items.get("items") or retry_items.get("cameras") or []
+    for cam in retry_items:
+        if isinstance(cam, dict) and cam.get("name") == "Restore (F-101 golden)":
+            return str(cam["id"])
+    pytest.fail("could not create or find the F-101 golden event camera")
+
+
+def test_f101_restore_reverts_camera_and_baseline_preserves_events_and_lists_safety_backup(
+    logged_in_api: httpx.Client,
+) -> None:
+    """F-101 golden path: create a backup; rename a camera and change a baseline;
+    restore; the name and the baseline come back, events the test owns are still
+    present, and a 'before restore' safety backup is listed.
+
+    The preserved events are rows the test creates itself through
+    ``POST /api/events/bulk`` under a unique ``batch_id``, and their ids come
+    from the 207 response. A raw ``GET /api/events?limit=20`` window is NOT
+    test-owned: another leg's disposable rows (B4.4 trash-purge soft-deletes and
+    then Empty-Trashes two 2020-dated events on its own camera) can enter the
+    window between this leg's before-read and its after-read, and their purge
+    then fails this leg's "every event is still present" assert — the 2026-10-23
+    08:47Z red ("event 4 lost during restore; assert 4 in {1, 2}") whose compose
+    log put B4.4's perm-delete at 08:47:30.7 and its Empty-Trash 404 check at
+    08:47:31.8, exactly astride this leg's before-read. Restore provably deletes
+    no events (``events`` is outside ``SHARED_BACKUP_TABLES`` and no restore
+    path deletes cameras), so the property the row names is what this spec now
+    asserts on rows it owns.
+    """
+    with _backup_golden_lock():
+        # The events this test owns: bulk-created with a unique batch_id so a
+        # re-run (or a concurrent worker) re-reads the same rows rather than
+        # inventing new ones, and the 207 result carries their ids directly —
+        # no window read between create and assert.
+        cam_id_for_event = _ensure_f101_event_camera(logged_in_api)
+        bulk_res = logged_in_api.post(
+            "/api/events/bulk",
+            json={
+                "events": [
+                    {
+                        "batch_id": "f101-golden-preserved-1",
+                        "camera_id": cam_id_for_event,
+                        "started_at": "2026-01-02T00:00:00Z",
+                        "ended_at": "2026-01-02T00:01:00Z",
+                        "risk_score": 20,
+                        "risk_level": "low",
+                        "summary": "F-101 golden preserved event 1",
+                    },
+                    {
+                        "batch_id": "f101-golden-preserved-2",
+                        "camera_id": cam_id_for_event,
+                        "started_at": "2026-01-02T00:10:00Z",
+                        "ended_at": "2026-01-02T00:11:00Z",
+                        "risk_score": 30,
+                        "risk_level": "low",
+                        "summary": "F-101 golden preserved event 2",
+                    },
+                ]
+            },
+        )
+        assert bulk_res.status_code == 207, bulk_res.text[:500]
+        bulk_items = bulk_res.json()["results"]
+        assert bulk_items and all(i["status"] == "success" for i in bulk_items), bulk_items
+        owned_ids = {int(i["id"]) for i in bulk_items}
+        assert len(owned_ids) == len(bulk_items), bulk_items
+
+        # The stack also holds the harness smoke event; prove the merge keeps
+        # it too, picked by the property smoke() guarantees — a verification
+        # verdict — rather than by position (the household-embeddings fixture's
+        # rule). Its camera is untouched by restore, so the id stands.
+        smoke_cam = None
+        cams_now = logged_in_api.get("/api/cameras")
+        assert cams_now.status_code == 200, cams_now.text[:300]
+        cam_items = cams_now.json()
+        if isinstance(cam_items, dict):
+            cam_items = cam_items.get("items") or cam_items.get("cameras") or []
+        for cam in cam_items:
+            if isinstance(cam, dict) and cam.get("id") == "harness_smoke":
+                smoke_cam = cam["id"]
+                break
+        smoke_event_id = None
+        if smoke_cam is not None:
+            smoke_resp = logged_in_api.get(
+                "/api/events", params={"camera_id": smoke_cam, "limit": 10}
+            )
+            assert smoke_resp.status_code == 200, smoke_resp.text[:300]
+            smoke_event = next(
+                (
+                    e
+                    for e in smoke_resp.json().get("items", [])
+                    if (e.get("verification") or {}).get("verdict")
+                ),
+                None,
+            )
+            if smoke_event is not None:
+                smoke_event_id = smoke_event["id"]
+
+        cameras_resp = logged_in_api.get("/api/cameras")
+        assert cameras_resp.status_code == 200, cameras_resp.text[:300]
+        cameras = cameras_resp.json().get("items", cameras_resp.json())
+        assert cameras, "expected at least one camera on the stack"
+        target_cam = cameras[0]
+        cam_id = target_cam["id"]
+        original_name = target_cam["name"]
+
+        # Create a backup and ensure target_cam has a baseline entry in the archive
+        bk_job = _create_and_wait(logged_in_api)
+        bk_id = bk_job["_job_id"]
+        dl = logged_in_api.get(f"/api/backup/{bk_id}/download")
+        assert dl.status_code == 200, dl.text[:300]
+        archive_bytes = _build_zip_with_baseline(dl.content, cam_id)
+
+        # First apply archive_bytes so the baseline is in the live DB, then take a fresh backup
+        seed_restore = logged_in_api.post(
+            "/api/backup/restore",
+            files={"file": ("seed_baseline.zip", archive_bytes, "application/zip")},
+        )
+        assert seed_restore.status_code == 202, seed_restore.text[:300]
+        seed_done = _wait_for_restore_terminal(logged_in_api, seed_restore.json()["job_id"])
+        assert seed_done["status"] == "completed", seed_done
+
+        fresh_bk = _create_and_wait(logged_in_api)
+        fresh_dl = logged_in_api.get(f"/api/backup/{fresh_bk['_job_id']}/download")
+        assert fresh_dl.status_code == 200
+
+        baseline_before = logged_in_api.get(f"/api/cameras/{cam_id}/baseline/activity").json()
+        assert len(baseline_before.get("entries", [])) >= 1, baseline_before
+
+        # Rename the camera and reset its baseline
+        temp_name = f"{original_name} [mutated]"
+        try:
+            patch_resp = logged_in_api.patch(f"/api/cameras/{cam_id}", json={"name": temp_name})
+            assert patch_resp.status_code == 200, patch_resp.text[:300]
+            reset_resp = logged_in_api.post(f"/api/cameras/{cam_id}/baseline/reset")
+            assert reset_resp.status_code == 200, reset_resp.text[:300]
+            assert (
+                logged_in_api.get(f"/api/cameras/{cam_id}/baseline/activity").json().get("entries")
+                == []
+            )
+
+            # Restore from the fresh backup
+            restore_start = logged_in_api.post(
+                "/api/backup/restore",
+                files={"file": ("restore_golden.zip", fresh_dl.content, "application/zip")},
+            )
+            assert restore_start.status_code == 202, restore_start.text[:300]
+            restore_job = _wait_for_restore_terminal(logged_in_api, restore_start.json()["job_id"])
+            assert restore_job["status"] == "completed", restore_job
+            assert restore_job.get("safety_backup_id"), restore_job
+            assert "cameras" in (restore_job.get("tables") or {}), restore_job
+
+            # Name and baseline came back
+            cam_after = logged_in_api.get(f"/api/cameras/{cam_id}").json()
+            assert cam_after["name"] == original_name, cam_after
+            baseline_after = logged_in_api.get(f"/api/cameras/{cam_id}/baseline/activity").json()
+            assert len(baseline_after.get("entries", [])) >= 1, baseline_after
+        finally:
+            logged_in_api.patch(f"/api/cameras/{cam_id}", json={"name": original_name})
+
+        # Events the test owns are still present after restore
+        events_after = logged_in_api.get("/api/events?limit=20").json().get("items", [])
+        event_ids_after = {e["id"] for e in events_after}
+        # The 20-row window can hold only the newest rows; the owned rows were
+        # created moments before the restore, but the smoke event and other
+        # legs' rows could push them past the page — so verify owned rows by
+        # their own reads, and the smoke event through the window-or-camera
+        # read it cannot outlive.
+        for eid in sorted(owned_ids):
+            if eid not in event_ids_after:
+                one = logged_in_api.get(f"/api/events/{eid}")
+                assert one.status_code == 200, (
+                    f"event {eid} (f101-golden-preserved) lost during restore: "
+                    f"{one.status_code} {one.text[:200]}"
+                )
+
+        # The harness smoke event survives the restore too — the harness
+        # guarantees a verified event exists before golden paths run.
+        if smoke_event_id is not None:
+            if smoke_event_id not in event_ids_after:
+                one = logged_in_api.get(f"/api/events/{smoke_event_id}")
+                assert one.status_code == 200, (
+                    f"smoke event {smoke_event_id} lost during restore: "
+                    f"{one.status_code} {one.text[:200]}"
+                )
+
+        # The automatic "before restore" safety backup is listed
+        listing = logged_in_api.get("/api/backup").json()
+        safety_id = restore_job["safety_backup_id"]
+        safety_entries = [b for b in listing.get("backups", []) if b["id"] == safety_id]
+        assert safety_entries, f"safety backup {safety_id} not in /api/backup list"
+        assert (safety_entries[0].get("label") or "").startswith("before restore of "), (
+            safety_entries[0]
+        )
+
+
+def test_f101_tampered_backup_fails_and_changes_nothing(
+    logged_in_api: httpx.Client, completed_backup: dict
+) -> None:
+    """F-101 golden path: a tampered backup fails and nothing changes."""
+    with _backup_golden_lock():
+        job_id = completed_backup["_job_id"]
+        dl = logged_in_api.get(f"/api/backup/{job_id}/download")
+        assert dl.status_code == 200
+
+        cameras_before = logged_in_api.get("/api/cameras").json()
+        cam_list_before = cameras_before.get("items", cameras_before)
+        names_before = {c["id"]: c["name"] for c in cam_list_before}
+
+        # Tamper with cameras.json inside the archive without updating manifest checksum
+        src = zipfile.ZipFile(io.BytesIO(dl.content), "r")
+        tampered_buf = io.BytesIO()
+        with zipfile.ZipFile(tampered_buf, "w", zipfile.ZIP_DEFLATED) as zf:
+            for name in src.namelist():
+                if name == "cameras.json":
+                    zf.writestr(
+                        name,
+                        json.dumps(
+                            [
+                                {
+                                    "id": "tampered_cam",
+                                    "name": "Tampered Camera",
+                                    "folder_path": "/export/foscam/tampered",
+                                }
+                            ]
+                        ),
+                    )
+                else:
+                    zf.writestr(name, src.read(name))
+
+        start = logged_in_api.post(
+            "/api/backup/restore",
+            files={"file": ("tampered.zip", tampered_buf.getvalue(), "application/zip")},
+        )
+        assert start.status_code == 202, start.text[:300]
+        failed_job = _wait_for_restore_terminal(logged_in_api, start.json()["job_id"])
+        assert failed_job["status"] == "failed", failed_job
+        assert "Checksum mismatch" in (failed_job.get("error_message") or ""), failed_job
+
+        cameras_after = logged_in_api.get("/api/cameras").json()
+        cam_list_after = cameras_after.get("items", cameras_after)
+        names_after = {c["id"]: c["name"] for c in cam_list_after}
+        assert names_after == names_before

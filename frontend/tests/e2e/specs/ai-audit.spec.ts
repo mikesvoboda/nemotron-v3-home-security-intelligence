@@ -173,6 +173,7 @@ test.describe('AI Audit Navigation', () => {
   });
 
   test('sidebar link is visible', async ({ page }) => {
+    await page.addInitScript(() => localStorage.setItem('ui-mode', JSON.stringify('advanced')));
     await page.goto('/');
     await page.waitForLoadState('domcontentloaded');
 
@@ -180,12 +181,13 @@ test.describe('AI Audit Navigation', () => {
     await expect(aiAuditLink).toBeVisible();
   });
 
-  test('sidebar link text says AI Audit', async ({ page }) => {
+  test('sidebar link text says AI Workbench', async ({ page }) => {
+    await page.addInitScript(() => localStorage.setItem('ui-mode', JSON.stringify('advanced')));
     await page.goto('/');
     await page.waitForLoadState('domcontentloaded');
 
     const aiAuditLink = page.locator('aside a[href="/ai-audit"]');
-    await expect(aiAuditLink).toHaveText(/AI Audit/i);
+    await expect(aiAuditLink).toHaveText(/AI Workbench/i);
   });
 });
 

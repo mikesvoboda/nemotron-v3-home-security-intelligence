@@ -126,6 +126,21 @@
  *   pay for instead. (Run 1's teardown deleted 404 rows — 5 DELETE calls that
  *   bought the NEXT run nothing.) The zero-row premise stays cheap for the
  *   same reason: EMPTY_CAMERA never holds rows to delete.
+ * - B4.4 CHANGED WHAT `soft_delete:false` MEANS, AND THE PURGE PAYS TWO CALLS
+ *   NOW. Since EventPurger landed (event_purger.py:92, shipped 2a185dfd9), a
+ *   hard delete of a LIVE row is REFUSED per-item — "Event not in Trash" —
+ *   inside a 207 whose `succeeded:0` a status-only check could not see
+ *   (routes/events.py:2010-2019). That refusal was invisible to this file's
+ *   first purge (bulkHardDelete checked only res.status) and combined with
+ *   Playwright's fresh-worker retry (beforeAll re-runs per attempt) it grew
+ *   the probe camera by 4 rows per attempt: 8→12→16 live rows produced the
+ *   9→13→17 downloaded lines of r39907729693's red. purgeCamera now moves
+ *   rows to Trash (soft_delete:true) BEFORE purging them (soft_delete:false),
+ *   verifies per-item success from the 207 body, tolerates only the two
+ *   benign refusals ("already deleted" / "not in Trash"), and ends on a
+ *   re-read that proves the camera empty — the purge can no longer no-op
+ *   silently. The afterAll teardown pays the same two-call discipline for the
+ *   4 probe rows.
  * - "downloads the file" goes through the app's client twice over: the
  *   Download button is ExportProgress :318-324 / DataManagementPage.tsx:505-512
  *   → handleDownloadJob (:421) → downloadExportFile (api.ts:3700-3748), which
@@ -380,37 +395,132 @@ async function bulkCall(method: 'POST' | 'DELETE', payload: unknown): Promise<Re
   }
 }
 
-async function bulkHardDelete(ids: number[]): Promise<void> {
+/** The shape routes/events.py:2135-2141 returns for BOTH bulk-delete branches:
+ *  207 MULTI-STATUS with per-item results, so the body's `succeeded` count is
+ *  the truth, not the status code alone — a status-only check let the very
+ *  no-op this guard exists for happen silently (see the block comment at the
+ *  soft-delete call sites below). */
+interface BulkDeleteResult {
+  succeeded?: number;
+  failed?: number;
+  results?: { status?: string; id?: number; error?: string | null }[];
+}
+
+/** Errors the fixture can legitimately cause and must tolerate: the SOFT phase
+ *  hits "Event already deleted" when a row was trashed between the read and
+ *  the call (event_service.py:89-90 surfaces that ValueError per-item,
+ *  events.py:2090-2099), and the HARD phase's EventPurger refuses "Event not
+ *  in Trash" only for rows that are somehow live again (event_purger.py:
+ *  152-162) — never for rows the soft phase just moved. Anything else fails
+ *  the fixture: the whole point is that a refused delete is LOUD. */
+const TOLERATED_DELETE_ERRORS = ['Event already deleted', 'Event not in Trash', 'Event not found'];
+
+/** One delete call against /api/events/bulk that VERIFIES per-item success.
+ *  Cited failure (r39907729693, F-052): `soft_delete:false` on LIVE rows is
+ *  refused by EventPurger ("Event not in Trash", event_purger.py:152-162) and
+ *  the route still answers 207 with succeeded:0 (events.py:2010-2019) — the
+ *  old status-only check passed that, the purge silently did nothing, and
+ *  every retry attempt re-seeded on top of the refused rows (8→12→16 live
+ *  rows = the 9→13→17 downloaded lines). Mirrors seedRows' `succeeded`
+ *  check below. */
+async function bulkDelete(
+  ids: number[],
+  softDelete: boolean
+): Promise<{ deleted: number[]; refused: { id: number; error: string }[] }> {
+  const refused: { id: number; error: string }[] = [];
+  let deleted: number[] = [];
   for (let i = 0; i < ids.length; i += 100) {
     // The route caps a request at 100 ids (api/schemas/bulk.py:182-187).
-    const res = await bulkCall('DELETE', { event_ids: ids.slice(i, i + 100), soft_delete: false });
+    const chunk = ids.slice(i, i + 100);
+    const res = await bulkCall('DELETE', { event_ids: chunk, soft_delete: softDelete });
     const text = await res.text();
     if (res.status < 200 || res.status >= 300) {
       throw new Error(
         `fixture: DELETE /api/events/bulk answered ${res.status}: ${text.slice(0, 200)}`
       );
     }
+    const bulk = JSON.parse(text) as BulkDeleteResult | null;
+    if (!bulk || bulk.succeeded !== chunk.length) {
+      const failedRows = (bulk?.results ?? [])
+        .filter((row) => row.status !== 'success')
+        .map((row) => ({ id: row.id ?? -1, error: row.error ?? 'no per-item result' }));
+      const loud = failedRows.filter(
+        (row) => !TOLERATED_DELETE_ERRORS.some((needle) => (row.error ?? '').startsWith(needle))
+      );
+      if (loud.length > 0) {
+        throw new Error(
+          `fixture: DELETE /api/events/bulk succeeded ${bulk?.succeeded ?? '?'}/${chunk.length}; ` +
+            `refused: ${loud
+              .map((row) => `${row.id}: ${row.error}`)
+              .join('; ')
+              .slice(0, 300)}`
+        );
+      }
+      refused.push(...failedRows);
+    } else {
+      deleted = deleted.concat(chunk);
+    }
   }
+  return { deleted, refused };
 }
 
+/** The purge discipline B4.4's trash semantics demand (event_purger.py:92,
+ *  refusal at :152-162): hard-delete REFUSES live rows, so a camera's rows
+ *  must move to Trash FIRST (soft_delete:true) and only then purge
+ *  (soft_delete:false). A trashed row still counts nowhere in an export
+ *  (export_service.py:766) but sits in the way of the "this camera holds zero
+ *  rows" premise, so the sweep ends with a RE-READ that proves the camera
+ *  empty — a purge that silently did nothing (the cited failure) now reddens
+ *  HERE instead of reddening a test three legs later. */
 async function purgeCamera(session: Session, cameraId: string): Promise<void> {
   const live = await api<{ items: { id: number }[] }>(
     harness,
     session,
     `/api/events?limit=100&camera_id=${encodeURIComponent(cameraId)}`
   );
-  if (live.items.length > 0) await bulkHardDelete(live.items.map((row) => row.id));
+  if (live.items.length > 0) {
+    // Phase 1 — soft-delete the live rows (bulk route's else branch,
+    // events.py:2069-2111). Rows trashed between the read and this call are
+    // tolerated; anything else is a loud failure above.
+    await bulkDelete(
+      live.items.map((row) => row.id),
+      true
+    );
+    // Phase 2 — purge them from Trash. Now EventPurger accepts every id it
+    // finds; a refusal here is a real anomaly and bulkDelete throws.
+    await bulkDelete(
+      live.items.map((row) => row.id),
+      false
+    );
+  }
   // Trash on this camera too: GET /api/events/deleted takes NO params and the
-  // camera filter below is client-side (harness.ts:745-759 documents it). A
-  // trashed row would not count in an export (export_service.py:766), but it
-  // does sit in the way of the "this camera holds zero rows" premise.
+  // camera filter below is client-side (harness.ts:745-759 documents it) —
+  // this mops up residue from earlier crashed attempts that phase 1 never saw.
   const trashed = await api<{ items: { id: number; camera_id: string }[] }>(
     harness,
     session,
     '/api/events/deleted'
   );
   const mine = trashed.items.filter((row) => row.camera_id === cameraId).map((row) => row.id);
-  if (mine.length > 0) await bulkHardDelete(mine);
+  if (mine.length > 0) await bulkDelete(mine, false);
+  // The premise, proven rather than assumed: re-read through the UNcached
+  // list route (events.py:336 — no cache; the [r223] block at :122-141 says
+  // list_events caches nothing), so read-your-writes holds after the commits
+  // the bulk route itself made (events.py:2113-2116).
+  const after = await api<{ items: { id: number }[]; pagination?: { total?: number } }>(
+    harness,
+    session,
+    `/api/events?limit=100&camera_id=${encodeURIComponent(cameraId)}`
+  );
+  if (after.items.length > 0) {
+    throw new Error(
+      `fixture: purge of ${cameraId} left ${after.items.length} live row(s) ` +
+        `(${after.items
+          .map((row) => row.id)
+          .join(', ')
+          .slice(0, 200)})`
+    );
+  }
 }
 
 /**
@@ -423,7 +533,8 @@ async function purgeCamera(session: Session, cameraId: string): Promise<void> {
  * apiWrite), waitForCameraInList for the cached list the modal's select reads,
  * one shared instant ~6 h ago, UNIQUE batch_id per row (events.batch_id is
  * UNIQUE, measured) — plus this file's own pacing discipline for the BULK
- * tier, and a teardown that hard-deletes ONLY the 4 probe rows (the pool's
+ * tier, and a teardown that purges ONLY the 4 probe rows — soft, then hard,
+ * per the B4.4 discipline (the pool's
  * retention is argued in the header; afterAll cites it too).
  */
 async function ensureCamera(session: Session, name: string, folderPath: string): Promise<string> {
@@ -510,7 +621,9 @@ async function createExportFixture(session: Session): Promise<Fixture> {
   await waitForCameraInList(harness, session, EMPTY_CAMERA);
 
   // Only the two SMALL cameras get purged — each purge is budget from the 12
-  // bulk calls per sliding minute (header cite). BULK_CAMERA's pool is topped
+  // bulk calls per sliding minute (header cite), and since B4.4 a purge of a
+  // camera holding live rows costs TWO delete calls per camera (soft, then
+  // hard — header cite "B4.4 CHANGED"). BULK_CAMERA's pool is topped
   // up below and never purged or deleted: its rows are scoped to this file's
   // camera, test 4 pins its size by live read, and every deletion here is a
   // deletion the next run's top-up would have to pay for again.
@@ -581,13 +694,25 @@ test.afterAll(async () => {
   // (reading 'probeEventIds')" AFTER beforeAll had already failed the file —
   // a cleanup hook must never add a second failure to the first real one.
   if (!fx) return;
+  // test.setTimeout INSIDE a hook sets the HOOK's timeout (Playwright's own
+  // doc, types/test.d.ts:6010), and the project default is 15 s
+  // (playwright.config.ts:165). This teardown can legitimately sleep 65 s on
+  // a 429 window wait (bulkCall), and the B4.4 purge needs TWO delete calls
+  // where one used to pass silently — give the hook room to do its work.
+  test.setTimeout(240_000);
   const session = await adminSession(harness);
   fixtureSession = session;
-  // Only this file's 4 probe rows go back in the ground. The 1200-row pool
-  // stays (header cite): camera-scoped, pinned live by test 4, and its ~12
-  // DELETE calls each cost a slot of the NEXT run's bulk budget. The zero-row
-  // camera never held rows, so nothing here can disturb that premise either.
-  await bulkHardDelete(fx.probeEventIds);
+  // Only this file's 4 probe rows go back in the ground, by the same B4.4
+  // discipline as purgeCamera above: hard-delete REFUSES live rows, so they
+  // move to Trash first and are purged second. (The cited red run taught
+  // this the hard way: the old single soft_delete:false call answered 207
+  // succeeded:0 and left every probe row live for the next attempt.) The
+  // 1200-row pool stays (header cite): camera-scoped, pinned live by test 4,
+  // and its ~12 DELETE calls each cost a slot of the NEXT run's bulk budget.
+  // The zero-row camera never held rows, so nothing here can disturb that
+  // premise either.
+  await bulkDelete(fx.probeEventIds, true);
+  await bulkDelete(fx.probeEventIds, false);
 });
 
 test.describe('F-052 export modal: opens and chooses', () => {
@@ -1036,18 +1161,10 @@ test.describe('F-052 export modal: downloads the file', () => {
     // second wave into the shared nginx bucket — the file's boot rule,
     // satisfied by navigation instead of by a re-drain.
     await bootTimeline(page, fx.probeCameraId);
-    // At 1280 wide (run 3's own screenshot) the ADMIN group renders COLLAPSED
-    // — sidebarNav.ts:131 defaultExpanded:false, and the auto-expand effect
-    // only opens the group that owns the ACTIVE route (Sidebar.tsx's location
-    // effect), so on /timeline the link is inside a max-h-0 region. Drive the
-    // shipped group header (Sidebar.tsx:106-111, aria-expanded the toggle
-    // maintains) rather than force a hidden click.
-    const adminGroup = page.getByTestId('nav-group-header-admin');
-    if ((await adminGroup.getAttribute('aria-expanded')) === 'false') {
-      await adminGroup.click();
-    }
-    await expect(adminGroup).toHaveAttribute('aria-expanded', 'true');
-    await page.getByRole('link', { name: 'Data Management', exact: true }).click(); // sidebarNav.ts:135
+    // Navigate via the Settings hub in the sidebar -> Data tab in HubTabBar (F4.9).
+    await page.getByTestId('sidebar-hub-settings').click();
+    await expect(page).toHaveURL(/\/settings\/cameras$/);
+    await page.getByTestId('settings-tab-data').click();
     await expect(page).toHaveURL(/\/data$/);
     await expect(page.getByTestId('data-management-page')).toBeVisible({ timeout: 30_000 });
     const card = page.getByTestId(`export-job-${started.job_id}`);

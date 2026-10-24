@@ -24,6 +24,14 @@ A policy rule (`alert_rules` table and the synthetic default rule, evaluated by 
 
 Background worker process (`backend/services/pipeline_workers.py`, `AnalysisQueueWorker`) that hands a closed batch to `VlmAnalyzer`, which assembles the key frames and the specialist lookups into one request for `ai-vlm`. Part of the [Pipeline](#pipeline).
 
+### Armed Camera
+
+A [Camera](#camera) that is permitted to raise non-critical [Alerts](#alert) in the active [Arming Mode](#arming-mode) (`is_armed(camera_id, at=t)` in `backend/services/arming.py`). Every camera is armed by default in `home`, `away`, and `night` unless listed in that mode's exclusions (`arming_mode_exclusions`); no camera is armed in `disarmed`. An unarmed camera still records and analyses events, and raises an alert only when the effective severity is `critical` (marked [Raised While Unarmed](#raised-while-unarmed)).
+
+### Arming Mode
+
+One of the four household security modes (`home`, `away`, `night`, or `disarmed`, stored in `arming_state` and logged in `arming_changes` by `backend/services/arming.py`). Modes gate [Alert](#alert) creation per camera (`arming_mode_exclusions`) and can be switched from the app (`/api/arming`), inbound webhooks (`/api/webhooks/inbound/{mode,arm,disarm}`), MQTT commands, or the weekly schedule (`arming_schedule`).
+
 ---
 
 ## B
@@ -170,7 +178,7 @@ An API endpoint that verifies system component status. Used by container orchest
 
 ### Hub
 
-A documentation entry point organized around a specific user persona or goal. The main hubs are Getting Started (install and first run), User Guide (use the dashboard), Operator Hub (run the system) and Developer Hub (extend the system). See [docs/README.md](../README.md).
+In documentation, an entry point organized around a specific user persona or goal (Getting Started, User Guide, Operator Hub, Developer Hub; see [docs/README.md](../README.md)). In the frontend navigation registry (`frontend/src/config/surfaces.ts`), one of the nine sidebar destinations — five Easy hubs (`Dashboard`, `Timeline & Search`, `Alerts & Rules`, `Household`, `Settings`) and four Advanced hubs (`Entities & Re-ID`, `AI Workbench`, `GPU & Models`, `Operations & Monitoring`) — each owning a primary route and an optional sub-surface tab list rendered by `HubTabBar`.
 
 ---
 
@@ -183,6 +191,10 @@ The time period after which an inactive batch is closed and sent for analysis, e
 ### Inference
 
 The process of running an AI model on input data to produce predictions. For this system: Triton runs YOLO26 detection in `ai-gateway`, `ai-vlm` turns a batch into a risk verdict, and the lookup models run in the backend process on CPU.
+
+### Installation ID
+
+A UUID stored in `system_settings` under `installation_id` and recorded in every backup manifest (`manifest.json` `installation_id`) to identify the installation that created the archive (`backend/services/backup_service.py`). Restore never overwrites it: when an archive's `installation_id` matches the local one, `households`, `properties`, `areas` and `household_members` merge by ID and existing `known_person_id` links are kept; when it differs or is absent (`1.0` archives), `households`, `properties` and `areas` match by name with foreign-key remapping and `household_members` are inserted with new IDs with their `known_person_id` links cleared and reported.
 
 ---
 
@@ -238,6 +250,10 @@ The end-to-end processing flow for security images:
 
 Timing metrics for each stage of the pipeline. Used to identify bottlenecks and monitor performance.
 
+### Purge
+
+A permanent delete of a soft-deleted [Event](#event) from Trash (`EventPurger.purge` in `backend/services/event_purger.py`), removing the event, its exclusive detections and their enrichment, any media files (`clip_path`, `thumbnail_path`, `file_path`) not referenced by surviving rows, `entities` whose `primary_detection_id` is purged, and legacy `face_detection_events` on the event's camera within its time window, while clearing enrolled reference links (`PersonEmbedding.source_event_id`, `FaceEmbedding.source_image_path`), repointing or removing affected [Alerts](#alert), and writing a content-free audit log entry.
+
 ---
 
 ## Q
@@ -253,6 +269,10 @@ Reducing a model's precision to shrink its memory footprint. The shipped VLM def
 ---
 
 ## R
+
+### Raised While Unarmed
+
+A flag (`alerts.raised_while_unarmed = true`) recorded on a `critical` [Alert](#alert) that broke through an unarmed camera (`disarmed` mode or a camera excluded from the active [Arming Mode](#arming-mode)).
 
 ### Rate Limiting
 
@@ -310,6 +330,10 @@ A numeric value from 0-100 indicating the threat level of an event, produced by 
 
 ## S
 
+### Safety Backup
+
+An automatic backup created and committed as its own `BackupJob` (`backup_jobs`, labeled `"before restore of <backup> at <time>"` in its manifest) on a separate database session before `run_restore_job` (`backend/api/routes/backup.py`) modifies any configuration row. Stored under `/app/data/backups` on the data volume (`BACKUP_DIR`) so it survives container restarts; if creating the safety backup fails, the restore aborts before touching any row. Restoring the safety backup reverts changed configuration rows and baselines, while rows added during the restore remain and are listed by name in the restore result.
+
 ### SBOM (Software Bill of Materials)
 
 A formal inventory of all software components, libraries, and dependencies used in an application. Generated during CI/CD builds for security auditing and vulnerability tracking.
@@ -361,6 +385,10 @@ A 128-bit identifier that is unique across space and time. Used extensively in t
 ### Verdict Source
 
 Which step of the three-step chain decided an [Alert](#alert) (`backend/services/alerting/verdict.py`): `local` (the local `ai-vlm` engine), `cloud` (an opt-in cloud VLM), or `detector` (the detector + Triton specialists fallback when VLM verification is unavailable).
+
+### ViewMode
+
+The active UI complexity mode (`'easy' | 'advanced'`, persisted in `localStorage['ui-mode']` via `ViewModeProvider` in `frontend/src/contexts/ViewModeContext.tsx` and toggled by `ModeSwitch`). Easy mode renders the five everyday hubs and hides operator chrome (`AdvancedOnly`); Advanced mode adds the four operator/AI hubs and operator diagnostics while keeping every route reachable by URL in both modes.
 
 ### VRAM (Video RAM)
 

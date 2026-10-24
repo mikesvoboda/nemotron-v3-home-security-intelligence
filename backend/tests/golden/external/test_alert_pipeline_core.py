@@ -113,11 +113,39 @@ def test_f050_f079_event_snooze_round_trip_and_six_pipeline_scenarios(
     """F-050 / F-079: PATCH /api/events/{id} snooze_until round-trips and writes an
     activity snooze, and all six B4.1 golden-path scenarios hold.
     """
-    events_res = logged_in_api.get("/api/events", params={"limit": 1})
+    events_res = logged_in_api.get("/api/events", params={"limit": 100})
     assert events_res.status_code == 200, events_res.text[:500]
     items = events_res.json()["items"]
     assert items, "expected at least one event on the live stack"
-    event_id = items[0]["id"]
+    # Pick the smoke event by its camera identity, not by position or
+    # list-order among verified rows. The list holds every camera's events
+    # newest-first, and golden legs run concurrently on xdist workers: the
+    # arming leg posts its own disposable events (global ids, started now)
+    # and its teardown soft-deletes them mid-run, so `verified[-1]` — the
+    # OLDEST verified row in the window — can name an arming fixture rather
+    # than the smoke event (run 40037549713, `Event with id 3 not found`).
+    # The smoke camera is a harness invariant instead: seed_cameras() posts
+    # scenario "harness-smoke" and the backend normalizes that name to the
+    # camera id `harness_smoke` (normalize_camera_id), and smoke() polls
+    # `GET /api/events?camera_id=harness_smoke` until its event carries a
+    # verification verdict before golden runs — so that (camera_id,
+    # verified) pair always exists and is never purged (the arming and
+    # trash_purge legs post to their own cameras; the smoke camera holds
+    # only the smoke event and trash_purge's disposable rows, and no leg
+    # Empty-Trashes unconditionally). Snoozing its event is also the
+    # documented round-trip target: nothing asserts the smoke camera's
+    # snooze state.
+    smoke = [
+        e
+        for e in items
+        if e.get("camera_id") == "harness_smoke" and (e.get("verification") or {}).get("verdict")
+    ]
+    assert smoke, (
+        f"expected the verified harness smoke event on camera harness_smoke, "
+        f"got {[e.get('camera_id') for e in items[:10]]!r}"
+    )
+    target_ev = smoke[0]
+    event_id = target_ev["id"]
 
     snooze_iso = (datetime.now(UTC) + timedelta(hours=1)).isoformat()
     try:

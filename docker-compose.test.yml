@@ -20,7 +20,7 @@ services:
       - /var/run/postgresql
 
   redis-test:
-    image: redis:7-alpine
+    image: redis:7.4-alpine3.21
     # Security: Read-only root filesystem with tmpfs for temp files
     read_only: true
     # Redis tuning for connection handling

@@ -267,7 +267,7 @@ fi
 log_step "[3/4] Verifying Triton model repository config files..."
 
 CONFIG_OK=true
-for model in yolo26 threat reid; do
+for model in yolo26 threat reid scrfd arcface; do
     config_path="${REPO_DIR}/${model}/config.pbtxt"
     if [ -f "$config_path" ]; then
         echo "  [OK] ${model}/config.pbtxt"
@@ -282,6 +282,43 @@ if [ "$CONFIG_OK" = false ]; then
     echo ""
     echo "  WARNING: Some config.pbtxt files are missing."
     echo "  These must be created before Triton can serve the models."
+fi
+
+# [r307a] (ruling 307): when the optional pinned buffalo_l face weights are
+# present in MODELS_ZOO/face-recognizer/, prepare their ONNX graphs and compile
+# their TensorRT plans (scrfd + arcface). Absent weights are F12's degradation
+# path, so a host without them is not counted in the base tally above.
+FACE_DET_SRC="${MODELS_ZOO}/face-recognizer/scrfd_10g_bnkps.onnx"
+FACE_REC_SRC="${MODELS_ZOO}/face-recognizer/w600k_r50.onnx"
+FACE_PLAN_PRECISION="${FACE_PLAN_PRECISION:-fp16}"
+if [ -f "$FACE_DET_SRC" ] && [ -f "$FACE_REC_SRC" ]; then
+    for role_pair in "scrfd:${FACE_DET_SRC}" "arcface:${FACE_REC_SRC}"; do
+        role="${role_pair%%:*}"
+        src="${role_pair#*:}"
+        onnx_out="${CACHE_DIR}/${role}/1/model.onnx"
+        plan_out="${CACHE_DIR}/${role}/1/model.plan"
+        if [ ! -f "$onnx_out" ]; then
+            echo "  -> Face ${role} -> ONNX..."
+            mkdir -p "$(dirname "$onnx_out")"
+            if python3 "${SCRIPT_DIR}/export_face.py" --role "$role" --model-path "$src" --output-path "$onnx_out"; then
+                echo "     OK"
+            else
+                echo "     FAILED"
+                FAIL_COUNT=$((FAIL_COUNT + 1))
+                continue
+            fi
+        fi
+        if have_trtexec && [ ! -f "$plan_out" ]; then
+            echo "  -> Face ${role} -> TensorRT plan..."
+            if python3 "${SCRIPT_DIR}/export_face.py" --role "$role" --model-path "$src" --output-path "$plan_out" --precision "$FACE_PLAN_PRECISION"; then
+                echo "     OK"
+                [ -n "$GPU_NAME" ] && printf '%s\n%s\n' "$GPU_NAME" "$FACE_PLAN_PRECISION" > "${plan_out}.device"
+            else
+                echo "     FAILED"
+                FAIL_COUNT=$((FAIL_COUNT + 1))
+            fi
+        fi
+    done
 fi
 
 # ---------------------------------------------------------------------------

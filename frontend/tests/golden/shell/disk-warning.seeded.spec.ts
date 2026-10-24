@@ -43,11 +43,9 @@ import {
   apiShell as api,
   BOOT_QUIET_MS,
   closedByGuard,
+  openShell,
   quietBootShell as quietBoot,
-  loginAsAdminShell as loginAsAdmin,
   readShellHarness,
-  seedTourDismissed,
-  type ShellHarness,
 } from '../harness';
 
 const harness = readShellHarness();
@@ -55,13 +53,6 @@ test.skip(
   !harness.ready,
   `golden path needs the feature-check stack (${harness.ready ? '' : harness.why})`
 );
-
-async function openShell(page: import('@playwright/test').Page, h: ShellHarness) {
-  await seedTourDismissed(page);
-  await loginAsAdmin(page, h);
-  await quietBoot(page, h);
-  await expect(page.getByTestId('header-branding')).toBeVisible({ timeout: 20_000 });
-}
 
 interface StorageStats {
   disk_usage_percent: number;
@@ -124,7 +115,7 @@ test.describe('golden path: header disk-usage warning @critical', () => {
     // is defaultExpanded — sidebarNav.ts:63): the in-memory store survives
     // route changes and clear() is never called, so the warning KEEPS
     // rendering on the dashboard. This is the row's "in the header" scope.
-    await page.getByTestId('nav-group-monitoring').getByRole('link', { name: 'Dashboard' }).click();
+    await page.getByTestId('sidebar-hub-dashboard').click();
     await expect(page).toHaveURL(`${h.ui}/`);
     await expect(warning).toBeVisible();
     await expect(warning).toHaveText(text);

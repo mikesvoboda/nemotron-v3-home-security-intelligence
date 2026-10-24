@@ -123,6 +123,12 @@ class Event(Base):
         DateTime(timezone=True), nullable=True, default=None
     )
 
+    # Event source (B4.7 / 4n-arming.md): 'camera' (default) or 'external' (inbound /alert webhook)
+    source: Mapped[str] = mapped_column(
+        String(32), nullable=False, default="camera", server_default="camera"
+    )
+    external_source: Mapped[str | None] = mapped_column(String(100), nullable=True, default=None)
+
     # ==========================================================================
     # Relationships (NEM-3405: Configurable lazy loading for N+1 prevention)
     # ==========================================================================

@@ -42,7 +42,7 @@ from backend.ai_contract.fake.generators import create_response_bytes, generate
 from httpx import ASGITransport, AsyncClient
 
 FAKE = "http://fake"
-PIN = "b7972"
+PIN = "b11819"
 SCHEMA_DIR = Path(__file__).resolve().parents[4] / "backend/ai_contract/schemas"
 
 

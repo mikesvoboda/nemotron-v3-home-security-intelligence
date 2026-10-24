@@ -37,6 +37,7 @@ from backend.api.schemas.system import (
 from backend.core.config import Settings, get_settings
 from backend.core.redis import RedisClient
 from backend.models.gpu_stats import GPUStats
+from backend.services import ai_health
 from backend.services.circuit_breaker import CircuitBreaker, CircuitBreakerRegistry
 from backend.services.cleanup_service import CleanupService, CleanupStats
 from backend.services.file_watcher import FileWatcher
@@ -73,6 +74,20 @@ def mock_ai_health_settings():
 
     with patch.object(system_routes, "get_settings", return_value=mock_settings, autospec=True):
         yield mock_settings
+
+
+@pytest.fixture(autouse=True)
+def _reset_ai_health_state():
+    """Reset the ai_health module (and the process-wide circuit-breaker registry) before each test.
+
+    ``scripts/vlm_probes/latency_tail.py`` leaves the process-wide "ai-vlm"
+    circuit breaker OPEN (its fault tests assert the open state and never
+    reset it), and an open breaker makes ``_check_ai_vlm_health`` report
+    ``failing`` even when a ready VLM record exists (red main 2026-10-23,
+    run 39996808038). ``reset_ai_health_state()`` clears the breaker registry
+    along with the ai_health records, restoring isolation.
+    """
+    ai_health.reset_ai_health_state()
 
 
 @pytest.mark.asyncio
@@ -2915,87 +2930,105 @@ async def test_check_yolo26_health_unexpected_error() -> None:
 # branch that only llama-server has.
 @pytest.mark.asyncio
 async def test_check_ai_vlm_health_success() -> None:
-    """Test ai-vlm health check returns healthy when service responds."""
-    with patch("httpx.AsyncClient.get", autospec=True) as mock_get:
-        mock_response = MagicMock(spec=httpx.Response(status_code=200))
-        mock_response.status_code = 200
-        mock_response.raise_for_status = MagicMock()
-        mock_get.return_value = mock_response
+    """Test ai-vlm health check reports healthy from a fresh ready VLM call.
 
+    The check is passive (B4.11): it reads ``ai_health.state("ai_vlm")`` and
+    never sends the HTTP request the patch once intercepted, so this test
+    records its own fresh ready call — otherwise a stale ``ready`` record from
+    a sibling on the same worker ages past ``vlm_sleep_idle_seconds`` and the
+    check reports ``idle`` (unhealthy) instead (red main 2026-10-23, run
+    39996808038). Reset in ``finally`` like the sibling tests below.
+    """
+    from backend.services import ai_health
+
+    ai_health.record_vlm_call("ready", "ai-vlm service ready")
+    try:
         is_healthy, error = await system_routes._check_ai_vlm_health("http://localhost:8091", 3.0)
 
         assert is_healthy is True
         assert error is None
+    finally:
+        ai_health.reset_ai_health_state()
 
 
 @pytest.mark.asyncio
 async def test_check_ai_vlm_health_loading_model() -> None:
-    """Test ai-vlm health check reports the 503 model-loading state."""
-    with patch("httpx.AsyncClient.get", autospec=True) as mock_get:
-        mock_response = MagicMock(spec=httpx.Response(status_code=503))
-        mock_response.status_code = 503
-        mock_get.return_value = mock_response
+    """Test ai-vlm health check reports the 503 model-loading state via ai_health."""
+    from backend.services import ai_health
 
+    ai_health.record_vlm_call("loading", "ai-vlm is loading its model (HTTP 503)")
+    try:
         is_healthy, error = await system_routes._check_ai_vlm_health("http://localhost:8091", 3.0)
 
         assert is_healthy is False
         assert error is not None
         assert "loading" in error.lower()
+    finally:
+        ai_health.reset_ai_health_state()
 
 
 @pytest.mark.asyncio
 async def test_check_ai_vlm_health_connection_refused() -> None:
-    """Test ai-vlm health check handles connection refused error."""
-    with patch(
-        "httpx.AsyncClient.get", side_effect=httpx.ConnectError("Connection refused"), autospec=True
-    ):
+    """Test ai-vlm health check handles connection refused error via ai_health."""
+    from backend.services import ai_health
+
+    ai_health.record_vlm_call("failing", "ai-vlm service connection refused")
+    try:
         is_healthy, error = await system_routes._check_ai_vlm_health("http://localhost:8091", 3.0)
 
         assert is_healthy is False
         assert error is not None
         assert "connection refused" in error.lower()
+    finally:
+        ai_health.reset_ai_health_state()
 
 
 @pytest.mark.asyncio
 async def test_check_ai_vlm_health_timeout() -> None:
-    """Test ai-vlm health check handles timeout error."""
-    with patch(
-        "httpx.AsyncClient.get", side_effect=httpx.TimeoutException("Timeout"), autospec=True
-    ):
+    """Test ai-vlm health check handles timeout error via ai_health."""
+    from backend.services import ai_health
+
+    ai_health.record_vlm_call("failing", "ai-vlm service request timed out")
+    try:
         is_healthy, error = await system_routes._check_ai_vlm_health("http://localhost:8091", 3.0)
 
         assert is_healthy is False
         assert error is not None
         assert "timed out" in error.lower()
+    finally:
+        ai_health.reset_ai_health_state()
 
 
 @pytest.mark.asyncio
 async def test_check_ai_vlm_health_http_error() -> None:
-    """Test ai-vlm health check handles HTTP error status."""
-    with patch("httpx.AsyncClient.get", autospec=True) as mock_get:
-        mock_response = MagicMock(spec=httpx.Response(status_code=200))
-        mock_response.status_code = 500
-        mock_response.raise_for_status.side_effect = httpx.HTTPStatusError(
-            "Internal Server Error", request=MagicMock(), response=mock_response
-        )
-        mock_get.return_value = mock_response
+    """Test ai-vlm health check handles HTTP error status via ai_health."""
+    from backend.services import ai_health
 
+    ai_health.record_vlm_call("failing", "ai-vlm service returned HTTP 500")
+    try:
         is_healthy, error = await system_routes._check_ai_vlm_health("http://localhost:8091", 3.0)
 
         assert is_healthy is False
         assert error is not None
         assert "500" in error
+    finally:
+        ai_health.reset_ai_health_state()
 
 
 @pytest.mark.asyncio
 async def test_check_ai_vlm_health_unexpected_error() -> None:
-    """Test ai-vlm health check handles unexpected error."""
-    with patch("httpx.AsyncClient.get", side_effect=RuntimeError("Unexpected"), autospec=True):
+    """Test ai-vlm health check handles unexpected error via ai_health."""
+    from backend.services import ai_health
+
+    ai_health.record_vlm_call("failing", "ai-vlm service error: Unexpected")
+    try:
         is_healthy, error = await system_routes._check_ai_vlm_health("http://localhost:8091", 3.0)
 
         assert is_healthy is False
         assert error is not None
         assert "error" in error.lower()
+    finally:
+        ai_health.reset_ai_health_state()
 
 
 @pytest.mark.asyncio

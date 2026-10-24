@@ -9,7 +9,8 @@ enabling programmatic management of alerts (create, read, update, delete).
 from datetime import datetime
 from typing import Any
 
-from pydantic import BaseModel, ConfigDict, Field, field_validator
+from pydantic import BaseModel, ConfigDict, Field, field_validator, model_validator
+from sqlalchemy import inspect as sqlalchemy_inspect
 
 from backend.api.schemas.alerts import AlertSeverity, AlertStatus, DedupKeyStr
 from backend.api.schemas.pagination import PaginationMeta
@@ -96,6 +97,7 @@ class AlertServiceResponse(BaseModel):
                 "dedup_key": "front_door:manual_alert",
                 "channels": ["pushover"],
                 "metadata": {"source": "external_system"},
+                "camera_id": "front_door",
                 "created_at": "2025-01-31T12:00:00Z",
                 "updated_at": "2025-01-31T12:00:00Z",
                 "delivered_at": None,
@@ -122,6 +124,47 @@ class AlertServiceResponse(BaseModel):
     match_count: int | None = Field(None, description="Number of folded event matches")
     last_seen_at: datetime | None = Field(None, description="Timestamp of latest folded event")
     last_event_id: int | None = Field(None, description="ID of latest folded event")
+    raised_while_unarmed: bool | None = Field(
+        None, description="Whether this alert was raised while the camera was unarmed"
+    )
+    camera_id: str | None = Field(
+        None,
+        description="Camera that produced the triggering event, read through the event "
+        "(F4.1: the Alerts page's camera column; None when the event is gone)",
+    )
+
+    @model_validator(mode="before")
+    @classmethod
+    def _pull_camera_id(cls, data: Any) -> Any:
+        """Derive camera_id from the triggering event when validating an ORM Alert.
+
+        The Alert model has no camera column — the camera lives on the event
+        the alert was raised from. Under `from_attributes`, Pydantic reads
+        attributes off the object; this validator injects the derived value as
+        an attribute first so the ordinary read finds it. Dict input (tests,
+        external payloads) passes through untouched.
+
+        When the event relationship is not loaded, camera_id stays None rather
+        than triggering an async lazy load (MissingGreenlet under AsyncSession).
+        """
+        if not isinstance(data, dict):
+            try:
+                state = sqlalchemy_inspect(data)
+            except Exception:
+                return data
+            if "event" in state.unloaded:
+                return data
+            event = getattr(data, "event", None)
+            camera_id = getattr(event, "camera_id", None) if event is not None else None
+            # Only real strings/None survive: a mock's auto-created child
+            # attribute (or any other non-string) must not validate as a str.
+            if not isinstance(camera_id, str) and camera_id is not None:
+                camera_id = None
+            try:
+                data.camera_id = camera_id
+            except AttributeError, TypeError:
+                pass
+        return data
 
     @field_validator("verdict_source", mode="before")
     @classmethod
@@ -142,6 +185,11 @@ class AlertServiceResponse(BaseModel):
     @classmethod
     def _coerce_last_event_id(cls, v: object) -> int | None:
         return v if isinstance(v, int) and not isinstance(v, bool) else None
+
+    @field_validator("raised_while_unarmed", mode="before")
+    @classmethod
+    def _coerce_raised_while_unarmed(cls, v: object) -> bool:
+        return v if isinstance(v, bool) else False
 
 
 class AlertServiceListResponse(BaseModel):

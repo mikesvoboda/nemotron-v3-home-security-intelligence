@@ -29,8 +29,10 @@ from uuid import uuid4
 
 import httpx
 import pytest
+from pydantic import ValidationError
 from sqlalchemy import and_, func, select
 
+import backend.core.url_validation as uv
 import backend.services.webhook_service as W
 import backend.services.webhook_service as webhook_service_module
 from backend.api.schemas.outbound_webhook import (
@@ -48,6 +50,7 @@ from backend.api.schemas.outbound_webhook import (
     WebhookDeliveryStatus as SchemaWebhookDeliveryStatus,
 )
 from backend.core.time_utils import utc_now
+from backend.core.url_validation import SSRFValidationError
 from backend.models.outbound_webhook import (
     IntegrationType,
     OutboundWebhook,
@@ -671,6 +674,73 @@ async def test_trigger_webhooks_no_subscribers(webhook_service, mock_db_session)
 
     # Assert
     assert len(deliveries) == 0
+
+
+@pytest.mark.asyncio
+async def test_trigger_webhooks_isolates_a_failed_webhook(
+    webhook_service, mock_db_session, sample_webhook
+):
+    """One webhook's failure must not take the other webhooks' deliveries down.
+
+    The fanout wraps each deliver_webhook in its own SAVEPOINT: a webhook
+    deleted between the fanout's SELECT and its delivery INSERT trips
+    webhook_deliveries_webhook_id_fkey and, without the savepoint, poisons
+    the shared session (PendingRollbackError) — rolling back every sibling
+    delivery already flushed in the same transaction, including rows whose
+    HTTP attempt had completed (CI run 40002172540: the F-250 golden leg's
+    terminal FAILED row vanished this way and the history poll saw zero rows
+    for 90s). The pin: the failing webhook is skipped with a warning, the
+    loop continues, and the surviving webhooks' deliveries are returned.
+    """
+    # Arrange - two subscribed webhooks; the first one's delivery raises (the
+    # FK failure a concurrent webhook deletion produces), the second succeeds.
+    first = sample_webhook
+    second = MagicMock(spec=OutboundWebhook)
+    second.id = str(uuid4())
+    second.name = "survivor"
+    second.url = "http://127.0.0.1:1/hook"
+    second.event_types = ["alert_fired"]
+    second.enabled = True
+    second.max_retries = 0
+    second.retry_delay_seconds = 1
+
+    mock_scalars = MagicMock()
+    mock_scalars.all.return_value = [first, second]
+    mock_result = MagicMock()
+    mock_result.scalars.return_value = mock_scalars
+    mock_db_session.execute = AsyncMock(return_value=mock_result)
+    mock_db_session.flush = AsyncMock()
+    mock_db_session.refresh = AsyncMock()
+
+    with patch.object(webhook_service, "deliver_webhook", new_callable=AsyncMock) as mock_deliver:
+        mock_deliver.side_effect = [
+            Exception(
+                "(sqlalchemy.dialects.postgresql.asyncpg.ForeignKeyViolationError) insert or "
+                'update on table "webhook_deliveries" violates foreign key constraint '
+                '"webhook_deliveries_webhook_id_fkey"'
+            ),
+            WebhookDelivery(
+                webhook_id=second.id,
+                event_type="alert_fired",
+                status=WebhookDeliveryStatus.PENDING,
+                attempt_count=1,
+            ),
+        ]
+
+        # Act
+        deliveries = await webhook_service.trigger_webhooks_for_event(
+            mock_db_session,
+            WebhookEventType.ALERT_FIRED,
+            {"alert_id": "test-123"},
+            event_id="evt-123",
+        )
+
+    # Assert - the survivor's delivery came back; the failed webhook's slot
+    # did not abort the fanout. Each delivery rode its own savepoint.
+    assert len(deliveries) == 1
+    assert deliveries[0].webhook_id == second.id
+    assert mock_deliver.await_count == 2
+    assert mock_db_session.begin_nested.call_count == 2
 
 
 # =============================================================================
@@ -1802,6 +1872,24 @@ async def test_get_deliveries_count_and_page_queries(webhook_service, mock_db_se
 
 
 @pytest.mark.asyncio
+async def test_get_deliveries_defaults_survive_mutation(webhook_service, mock_db_session) -> None:
+    """[B4.2] closes the #7339 test-gap survivors: get_deliveries
+    ``limit: int = 50`` and ``offset: int = 0``. Every earlier get_deliveries
+    test passes both kwargs explicitly, so a mutant flipping either default
+    (50 -> 51, 0 -> 1) kept every test green. This call omits them, so the
+    compiled page SQL carries the defaults verbatim only if they survive."""
+    wid = str(uuid4())
+    mock_db_session.execute = AsyncMock(side_effect=[_scalar_result(0), _scalars_result([])])
+    deliveries, total = await webhook_service.get_deliveries(mock_db_session, wid)
+
+    assert deliveries == []
+    assert total == 0
+    _count_sql, page_sql = [_sql(c.args[0]) for c in mock_db_session.execute.call_args_list]
+    assert "LIMIT 50" in page_sql  # default limit, not 51
+    assert "OFFSET 0" in page_sql  # default offset, not 1
+
+
+@pytest.mark.asyncio
 async def test_get_delivery_lookup_query(webhook_service, mock_db_session) -> None:
     """#2 get_delivery members: id equality survives to SQL."""
     did = str(uuid4())
@@ -2064,6 +2152,18 @@ def service() -> WebhookService:
     return WebhookService()
 
 
+@pytest.fixture(autouse=True)
+def _no_dns(monkeypatch: pytest.MonkeyPatch) -> None:
+    """F12 send-time validation resolves the URL's hostname, and this sandbox
+    resolves none of the test hosts — stub ``resolve_hostname`` where the send
+    path reads it (backend.core.url_validation; the same seam the channel
+    adapters' _no_dns fixture uses). A public IP keeps every shipped URL
+    policy-valid under the default flag."""
+    import backend.core.url_validation as uv
+
+    monkeypatch.setattr(uv, "resolve_hostname", lambda host: ["93.184.216.34"])  # noqa: ARG005
+
+
 @pytest.fixture
 def clock():
     """Patch the service module's utc_now to the measured FIXED instant."""
@@ -2091,6 +2191,27 @@ def webhook(integration: IntegrationType = IntegrationType.GENERIC, **overrides)
     }
     kwargs.update(overrides)
     return OutboundWebhook(**kwargs)
+
+
+class _AnyPinnedTransport:
+    """Equality matcher for the F12 pinning transport instance.
+
+    ``pinned_httpx_client`` wraps a real ``_PinnedResolver``; the test only
+    needs to know the client received ONE — the resolver's behaviour is
+    pinned by its own tests (test_url_validation)."""
+
+    def __eq__(self, other: object) -> bool:
+        from backend.core.url_validation import _PinnedResolver
+
+        return isinstance(other, _PinnedResolver)
+
+    __hash__ = None  # identity-free equality: hashability is irrelevant here
+
+    def __repr__(self) -> str:  # pragma: no cover - assertion output only
+        return "<any pinned transport>"
+
+
+ANY_TRANSPORT = _AnyPinnedTransport()
 
 
 class ClientSpy:
@@ -2767,10 +2888,16 @@ async def test_send_request_posts_exact_url_json_and_base_headers(service):
     """Header dict is pinned by keys AND values: the shipped base headers are
     exactly Content-Type/User-Agent and post() gets (url, json=, headers=)."""
     spy = ClientSpy(status_code=202, text="queued")
-    with patch.object(httpx, "AsyncClient", spy):
+    with (
+        patch.object(httpx, "AsyncClient", spy),
+        patch.object(uv, "resolve_hostname", lambda host: ["93.184.216.34"]),  # noqa: ARG005
+        patch.object(uv.httpx, "AsyncHTTPTransport", lambda *a, **k: object()),  # noqa: ARG005
+    ):
         result = await service._send_request(webhook(), P1)
 
-    assert spy.constructor_kwargs == [{"timeout": DEFAULT_TIMEOUT}]
+    # The URL is a hostname, so the F12 send path builds the PINNED client:
+    # timeout from the module constant plus the pinning transport wrapper.
+    assert spy.constructor_kwargs == [{"timeout": DEFAULT_TIMEOUT, "transport": ANY_TRANSPORT}]
     assert spy.calls == [((URL,), {"json": P1, "headers": BASE_HEADERS})]
     assert result == (202, "queued", 0)
 
@@ -3295,6 +3422,7 @@ class TestSelectHeadShape:
             "SELECT outbound_webhooks.id, outbound_webhooks.name, "
             "outbound_webhooks.url, outbound_webhooks.event_types, "
             "outbound_webhooks.integration_type, outbound_webhooks.enabled, "
+            "outbound_webhooks.on_local_network, "
             "outbound_webhooks.auth_config, outbound_webhooks.custom_headers, "
             "outbound_webhooks.payload_template, outbound_webhooks.max_retries, "
             "outbound_webhooks.retry_delay_seconds, outbound_webhooks.signing_secret, "
@@ -3570,6 +3698,21 @@ class _Scripted:
         return _Res(self._results[pos])
 
 
+class _Nested:
+    """SAVEPOINT stand-in: records enter/exit, lets exceptions propagate
+    (a real savepoint's ``__aexit__`` returns None and does not swallow)."""
+
+    def __init__(self, db: _DB) -> None:
+        self._db = db
+
+    async def __aenter__(self) -> _Nested:
+        self._db.nested_enters += 1
+        return self
+
+    async def __aexit__(self, *exc: Any) -> None:
+        self._db.nested_exits += 1
+
+
 class _DB:
     def __init__(self, results: list[Any]) -> None:
         self.executed: list[str] = []
@@ -3577,7 +3720,12 @@ class _DB:
         self.deleted: list[Any] = []
         self.flushes = 0
         self.refreshed: list[Any] = []
+        self.nested_enters = 0
+        self.nested_exits = 0
         self._script = _Scripted(results)
+
+    def begin_nested(self) -> _Nested:
+        return _Nested(self)
 
     async def execute(self, statement: Any, *args: Any, **kw: Any) -> Any:
         self.executed.append(_rendered(statement))
@@ -3651,6 +3799,9 @@ def _webhook(**over: Any) -> SimpleNamespace:
         "event_types": ["alert_fired"],
         "integration_type": SchemaIntegrationType.GENERIC,
         "enabled": True,
+        # B4.2 ruling 310: _send_request reads this for the F12 destination
+        # policy; False keeps every existing URL valid under the default flag.
+        "on_local_network": False,
         "auth_config": None,
         "custom_headers": {},
         "payload_template": None,
@@ -3915,6 +4066,10 @@ def _full_update() -> WebhookUpdate:
         event_types=list(_MIXED_EVENTS),
         integration_type=SchemaIntegrationType.DISCORD,
         enabled=False,
+        # F12 field present (False): the update-path effective-flag read
+        # consumes it; None would mean "not provided" and fall back to the
+        # stored flag — False is the exercised branch here.
+        on_local_network=False,
         auth=WebhookAuthConfig(type="basic", username="u", password="p"),
         custom_headers={"H": "1"},
         payload_template="pt",
@@ -3960,6 +4115,7 @@ def test_update_webhook_full() -> None:
                 "updated_fields": [
                     "name",
                     "url",
+                    "on_local_network",
                     "event_types",
                     "integration_type",
                     "enabled",
@@ -4949,6 +5105,23 @@ def _fake_httpx(transport: _CaptureTransport) -> ModuleType:
     return fake
 
 
+def _fake_pinned_client(transport: _CaptureTransport):
+    """Stub ``pinned_httpx_client`` for the hostname send path.
+
+    F12 moved the hostname path through the shared pinning transport in
+    backend.core.url_validation, whose own ``httpx`` import the ``_Env(httpx=
+    …)`` swap cannot reach. These tests pin nothing — headers, auth and
+    timing are the measured surface — so the stub connects straight through
+    the capture transport. The pinning behaviour has its own tests
+    (test_url_validation / test_channel_adapters).
+    """
+
+    def _build(url: str, pinned_ip: str, *, timeout: float):
+        return httpx.AsyncClient(timeout=timeout, transport=transport)
+
+    return _build
+
+
 _BASIC_ABSENT = base64.b64encode(b":").decode()
 
 _MATRIX: list[tuple[str, dict[str, Any], dict[str, str]]] = [
@@ -4987,7 +5160,12 @@ def test_send_request_auth_matrix() -> None:
             custom_headers={"X-C": "c1"},
             signing_secret=_SIG_SECRET,
         )
-        with _Env(httpx=_fake_httpx(transport), utc_now=_fixed_now, datetime=_FixedDT):
+        with _Env(
+            httpx=_fake_httpx(transport),
+            pinned_httpx_client=_fake_pinned_client(transport),
+            utc_now=_fixed_now,
+            datetime=_FixedDT,
+        ):
             out = asyncio.run(svc._send_request(w, payload))
         assert out == (200, "R", 0), label
         method, url, headers, content = transport.seen[-1]
@@ -5017,7 +5195,12 @@ def test_send_request_bare_request() -> None:
     payload = {"x": "y"}
     transport = _CaptureTransport()
     w = _webhook(auth_config=None, custom_headers=None, signing_secret=None)
-    with _Env(httpx=_fake_httpx(transport), utc_now=_fixed_now, datetime=_FixedDT):
+    with _Env(
+        httpx=_fake_httpx(transport),
+        pinned_httpx_client=_fake_pinned_client(transport),
+        utc_now=_fixed_now,
+        datetime=_FixedDT,
+    ):
         out = asyncio.run(svc._send_request(w, payload))
     assert out == (200, "R", 0)
     _method, _url, headers, content = transport.seen[-1]
@@ -5152,3 +5335,211 @@ def test_get_health_summary_zero_counts_and_none_avg() -> None:
         average_response_time_ms=None,
     )
     assert db.executed == _health_mirrors()
+
+
+# ==========================================================================
+# B4.2 / ruling 310 — F12 destination policy on outbound webhooks (#7336)
+#
+# The binding's test list: loopback/link-local/metadata URL → 422; a private
+# address passes only with the webhook's on_local_network flag; send-time
+# validation is exercised through the pinned-client construction below.
+# The 422s are asserted at BOTH schema layers (create/update) and the
+# service (the authoritative check), because the API returns 422 only when
+# the pydantic layer refuses.
+# ==========================================================================
+
+
+# Loopback, link-local and cloud metadata stay refused for EVERY webhook,
+# with or without the flag — these strings are the same ones the binding
+# names and the url_validation suite blocks.
+_ALWAYS_BLOCKED = [
+    "https://127.0.0.1/hook",  # loopback (IPv4)
+    "https://[::1]/hook",  # loopback (IPv6)
+    "https://169.254.10.10/hook",  # link-local (IPv4)
+    "https://[fe80::5]/hook",  # link-local (IPv6)
+    "https://169.254.169.254/latest/meta-data/",  # AWS metadata endpoint
+    "http://metadata.google.internal/computeMetadata",  # GCP metadata host
+]
+
+# RFC1918 / unique-local targets and plain HTTP: refused without the flag,
+# accepted once the webhook carries the on-this-network allowance.
+_FLAG_GATED = [
+    "https://192.168.1.50/hook",
+    "https://10.0.0.5/hook",
+    "https://[fd00::5]/hook",
+    "http://192.168.1.50/hook",  # plain HTTP on the LAN
+    "https://nas.lan/hook",  # internal domain suffix
+]
+
+
+def _try_create(url: str, **kw: Any) -> str | None:
+    """WebhookCreate's rejection reason, or None when it constructs."""
+    try:
+        WebhookCreate(name="N", url=url, event_types=["alert_fired"], **kw)
+    except ValidationError as exc:
+        return str(exc.errors()[0]["msg"])
+    return None
+
+
+def _try_update(url: str, **kw: Any) -> str | None:
+    try:
+        WebhookUpdate(url=url, **kw)
+    except ValidationError as exc:
+        return str(exc.errors()[0]["msg"])
+    return None
+
+
+@pytest.mark.parametrize("url", _ALWAYS_BLOCKED)
+@pytest.mark.parametrize("flag", [False, True], ids=["no-flag", "flag"])
+def test_f12_schema_create_blocks_loopback_metadata_linklocal(url: str, flag: bool) -> None:
+    """Create 422s loopback / link-local / metadata with or without the flag."""
+    reason = _try_create(url, on_local_network=flag)
+    assert reason is not None, f"create accepted {url} (flag={flag})"
+
+
+@pytest.mark.parametrize("url", _ALWAYS_BLOCKED)
+@pytest.mark.parametrize("flag", [False, True], ids=["no-flag", "flag"])
+def test_f12_schema_update_blocks_loopback_metadata_linklocal(url: str, flag: bool) -> None:
+    """Update 422s the always-blocked set with or without the flag."""
+    reason = _try_update(url, on_local_network=flag)
+    assert reason is not None, f"update accepted {url} (flag={flag})"
+
+
+@pytest.mark.parametrize("url", _FLAG_GATED)
+def test_f12_schema_create_refuses_private_without_flag(url: str) -> None:
+    """A private address / LAN name / plain HTTP 422s at create by default."""
+    assert _try_create(url) is not None, f"create accepted {url} without the flag"
+
+
+@pytest.mark.parametrize("url", _FLAG_GATED)
+def test_f12_schema_create_allows_private_with_flag(url: str) -> None:
+    """The same set passes create once on_local_network is set."""
+    assert _try_create(url, on_local_network=True) is None
+
+
+@pytest.mark.parametrize("url", _FLAG_GATED)
+def test_f12_schema_update_flag_is_effective(url: str) -> None:
+    """Update validates under the request's own flag: granting the flag and
+    naming the LAN host in the same request passes, refusing it does not."""
+    assert _try_update(url, on_local_network=True) is None
+    assert _try_update(url, on_local_network=False) is not None
+
+
+@pytest.mark.asyncio
+async def test_f12_service_create_authoritative_check(webhook_service, mock_db_session):
+    """The service's own policy check runs with the request's flag in hand —
+    a private URL constructs only when on_local_network rides along."""
+    mock_db_session.flush = AsyncMock()
+    mock_db_session.refresh = AsyncMock()
+
+    # Flagged private URL: accepted end to end, flag stored.
+    data = WebhookCreate(
+        name="LAN hook",
+        url="https://192.168.1.50/hook",
+        event_types=[WebhookEventType.ALERT_FIRED],
+        on_local_network=True,
+    )
+    webhook = await webhook_service.create_webhook(mock_db_session, data)
+    assert webhook.on_local_network is True
+    assert webhook.url == "https://192.168.1.50/hook"
+
+    # Unflagged private URL: the service refuses even though the schema
+    # would have (defense in depth — the schema's model_validator already
+    # 422s this; model_construct bypasses validators, the service does not).
+    smuggled = WebhookCreate.model_construct(
+        name="Smuggled",
+        url="https://192.168.1.50/hook",
+        event_types=["alert_fired"],
+        on_local_network=False,
+    )
+    with pytest.raises(SSRFValidationError):
+        await webhook_service.create_webhook(mock_db_session, smuggled)
+
+
+@pytest.mark.asyncio
+async def test_f12_service_update_effective_flag(webhook_service, mock_db_session):
+    """update_webhook validates the new URL under the EFFECTIVE flag — the
+    request's flag when it sets one, the stored flag when it does not."""
+    hook = webhook(on_local_network=True)  # stored flag is set
+    mock_db_session.execute = AsyncMock(return_value=_result(one_or_none=hook))
+
+    # Same-request grant + LAN URL: allowed.
+    data = WebhookUpdate.model_construct(url="https://192.168.1.51/hook", on_local_network=True)
+    await webhook_service.update_webhook(mock_db_session, WID, data)
+    assert hook.url == "https://192.168.1.51/hook"
+    assert hook.on_local_network is True
+
+    # Dropping the flag while the private URL stands is refused.
+    data = WebhookUpdate.model_construct(url="https://192.168.1.52/hook", on_local_network=False)
+    with pytest.raises(SSRFValidationError):
+        await webhook_service.update_webhook(mock_db_session, WID, data)
+
+    # No flag in the request: the stored flag governs (LAN URL stays legal).
+    data = WebhookUpdate.model_construct(url="https://192.168.1.53/hook")
+    await webhook_service.update_webhook(mock_db_session, WID, data)
+    assert hook.url == "https://192.168.1.53/hook"
+    assert hook.on_local_network is True
+
+
+@pytest.mark.asyncio
+async def test_f12_send_time_policy_refuses_metadata_and_records_failure(
+    webhook_service, mock_db_session
+):
+    """Send time re-validates: a webhook whose URL resolves to a blocked
+    address fails the delivery WITHOUT scheduling a retry."""
+    hook = webhook(url="http://169.254.169.254/latest/meta-data/")
+    delivery = WebhookDelivery(
+        id=str(uuid4()),
+        webhook_id=hook.id,
+        event_type=WebhookEventType.ALERT_FIRED.value,
+        status=WebhookDeliveryStatus.FAILED,
+        request_payload={"test": True},
+        attempt_count=1,
+    )
+    mock_delivery_result = MagicMock()
+    mock_delivery_result.scalar_one_or_none.return_value = delivery
+    mock_webhook_result = MagicMock()
+    mock_webhook_result.scalar_one_or_none.return_value = hook
+    mock_db_session.execute = AsyncMock(side_effect=[mock_delivery_result, mock_webhook_result])
+    mock_db_session.flush = AsyncMock()
+    mock_db_session.refresh = AsyncMock()
+
+    await webhook_service.retry_delivery(mock_db_session, delivery.id)
+
+    assert delivery.status == WebhookDeliveryStatus.FAILED
+    assert "url_policy" in (delivery.error_message or "")
+    assert delivery.next_retry_at is None  # no retry scheduled
+    assert hook.last_delivery_status == WebhookDeliveryStatus.FAILED.value
+
+
+@pytest.mark.asyncio
+async def test_f12_send_time_pins_hostname_to_validated_address(webhook_service):
+    """A hostname URL's client carries the pinning transport: the send goes
+    through _PinnedResolver, which re-resolves and refuses to dial anything
+    but the validated address (F12 — DNS rebinding cannot win)."""
+    spy = ClientSpy(status_code=200, text="ok")
+    with (
+        patch.object(httpx, "AsyncClient", spy),
+        patch.object(uv, "resolve_hostname", lambda host: ["93.184.216.34"]),  # noqa: ARG005
+        patch.object(uv.httpx, "AsyncHTTPTransport", lambda *a, **k: object()),  # noqa: ARG005
+    ):
+        await webhook_service._send_request(webhook(), P1)
+
+    # One client, built with the pinning transport wrapper.
+    assert len(spy.constructor_kwargs) == 1
+    transport = spy.constructor_kwargs[0]["transport"]
+    assert isinstance(transport, uv._PinnedResolver)
+    assert transport._pinned_ip == "93.184.216.34"
+    assert transport._hostname == "x.test"
+
+
+@pytest.mark.asyncio
+async def test_f12_send_time_literal_ip_needs_no_pin(webhook_service):
+    """A literal-IP URL dials a plain client — validation already saw the
+    address it will connect to, so there is nothing to pin."""
+    spy = ClientSpy(status_code=200, text="ok")
+    hook = webhook(url="https://93.184.216.34/hook", on_local_network=True)
+    with patch.object(httpx, "AsyncClient", spy):
+        await webhook_service._send_request(hook, P1)
+
+    assert spy.constructor_kwargs == [{"timeout": DEFAULT_TIMEOUT}]

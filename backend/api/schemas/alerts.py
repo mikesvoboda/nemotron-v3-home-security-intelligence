@@ -306,6 +306,13 @@ class AlertRuleCreate(BaseModel):
     alert_on_rejected: bool | None = Field(
         None, description="Alert even if the AI verdict is rejected"
     )
+    alert_on_rejected_modes: list[str] | None = Field(
+        None,
+        description="Arming modes in which a rejected verdict still alerts (null = every mode)",
+    )
+    sources: list[str] | None = Field(
+        None, description="Event sources this rule matches (camera, external)"
+    )
     zone_ids: list[str] | None = Field(None, description="Zone IDs to match (empty = any zone)")
     min_confidence: float | None = Field(
         None, ge=0.0, le=1.0, description="Minimum detection confidence (0.0-1.0)"
@@ -428,6 +435,12 @@ class AlertRuleUpdate(BaseModel):
     )
     alert_on_rejected: bool | None = Field(
         None, description="Alert even if the AI verdict is rejected"
+    )
+    alert_on_rejected_modes: list[str] | None = Field(
+        None, description="Arming modes in which a rejected verdict still alerts"
+    )
+    sources: list[str] | None = Field(
+        None, description="Event sources this rule matches (camera, external)"
     )
     zone_ids: list[str] | None = Field(None, description="Zone IDs to match")
     min_confidence: float | None = Field(
@@ -554,9 +567,15 @@ class AlertRuleResponse(BaseModel):
     alert_on_rejected: bool | None = Field(
         None, description="Alert even if the AI verdict is rejected"
     )
+    alert_on_rejected_modes: list[str] | None = Field(
+        None, description="Arming modes in which a rejected verdict still alerts"
+    )
+    sources: list[str] | None = Field(
+        None, description="Event sources this rule matches (camera, external)"
+    )
     zone_ids: list[str] | None = Field(None, description="Zone IDs to match")
 
-    @field_validator("excluded_camera_ids", mode="before")
+    @field_validator("excluded_camera_ids", "alert_on_rejected_modes", mode="before")
     @classmethod
     def _coerce_excluded_camera_ids(cls, v: object) -> list[str] | None:
         if v is None or isinstance(v, list):
@@ -564,6 +583,15 @@ class AlertRuleResponse(BaseModel):
         if isinstance(v, tuple):
             return list(v)
         return None
+
+    @field_validator("sources", mode="before")
+    @classmethod
+    def _coerce_sources(cls, v: object) -> list[str]:
+        if isinstance(v, list) and v:
+            return [str(s) for s in v]
+        if isinstance(v, tuple) and v:
+            return [str(s) for s in v]
+        return ["camera"]
 
     @field_validator("alert_on_rejected", mode="before")
     @classmethod
@@ -756,6 +784,9 @@ class AlertResponse(BaseModel):
     match_count: int | None = Field(None, description="Number of folded event matches")
     last_seen_at: datetime | None = Field(None, description="Timestamp of latest folded event")
     last_event_id: int | None = Field(None, description="ID of latest folded event")
+    raised_while_unarmed: bool | None = Field(
+        None, description="Whether this alert was raised while the camera was unarmed"
+    )
 
     @field_validator("verdict_source", mode="before")
     @classmethod
@@ -776,6 +807,11 @@ class AlertResponse(BaseModel):
     @classmethod
     def _coerce_last_event_id(cls, v: object) -> int | None:
         return v if isinstance(v, int) and not isinstance(v, bool) else None
+
+    @field_validator("raised_while_unarmed", mode="before")
+    @classmethod
+    def _coerce_raised_while_unarmed(cls, v: object) -> bool:
+        return v if isinstance(v, bool) else False
 
 
 class AlertListResponse(BaseModel):

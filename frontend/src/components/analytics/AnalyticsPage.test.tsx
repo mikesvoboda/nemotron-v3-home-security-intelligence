@@ -3,13 +3,13 @@
  * Tests the Grafana iframe embed implementation
  */
 
-import { render, screen, waitFor, act } from '@testing-library/react';
+import { screen, waitFor, act } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
-import { MemoryRouter } from 'react-router-dom';
 import { describe, expect, it, vi, beforeEach, afterEach } from 'vitest';
 
 import AnalyticsPage from './AnalyticsPage';
 import * as api from '../../services/api';
+import { renderWithNavigation } from '../../test-utils';
 
 // Mock the fetchConfig API
 vi.mock('../../services/api', () => ({
@@ -128,12 +128,8 @@ vi.mock('./WeekOverWeekCard', () => ({
   default: () => <div data-testid="week-over-week-card">Week Over Week Mock</div>,
 }));
 
-const renderWithRouter = () => {
-  return render(
-    <MemoryRouter>
-      <AnalyticsPage />
-    </MemoryRouter>
-  );
+const renderWithRouter = (mode: 'easy' | 'advanced' = 'advanced') => {
+  return renderWithNavigation(<AnalyticsPage />, { mode });
 };
 
 describe('AnalyticsPage', () => {
@@ -148,6 +144,18 @@ describe('AnalyticsPage', () => {
   });
 
   describe('basic rendering', () => {
+    it('defaults to native view in Easy mode and hides the Grafana view toggle (F4.9 MO6)', async () => {
+      renderWithRouter('easy');
+      await act(async () => {
+        await vi.runAllTimersAsync();
+      });
+      await waitFor(() => {
+        expect(screen.getByTestId('native-analytics-view')).toBeInTheDocument();
+      });
+      expect(screen.queryByTestId('view-mode-toggle')).not.toBeInTheDocument();
+      expect(screen.queryByTestId('grafana-iframe')).not.toBeInTheDocument();
+    });
+
     it('renders the page title', async () => {
       renderWithRouter();
       await act(async () => {

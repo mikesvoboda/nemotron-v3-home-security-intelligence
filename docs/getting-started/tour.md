@@ -248,16 +248,18 @@ After setup, here is what each part of the dashboard shows:
 
 ### Sidebar Navigation
 
-| Destination | Keyboard Shortcut | Description                       |
-| ----------- | ----------------- | --------------------------------- |
-| Dashboard   | `g d`             | Main overview with risk gauge     |
-| Timeline    | `g t`             | Historical event browser          |
-| Analytics   | `g n`             | Charts and statistics             |
-| Alerts      | `g a`             | Active alerts requiring attention |
-| Entities    | `g e`             | Tracked people and vehicles       |
-| Logs        | `g o`             | System logs for troubleshooting   |
-| System      | `g y`             | System health monitoring          |
-| Settings    | `g s`             | Configuration options             |
+In **Easy** mode (the default), the sidebar lists five hubs (`Dashboard`, `Timeline & Search`, `Alerts & Rules`, `Household`, `Settings`). Switching the header toggle to **Advanced** adds `AI Workbench`, `GPU & Models`, `Entities & Re-ID`, and `Operations & Monitoring`. The first-visit product tour highlights `Timeline & Search` (`[data-tour="timeline-link"]`) and `Settings` (`[data-tour="settings-link"]`).
+
+| Destination | Keyboard Shortcut | Description                                   |
+| ----------- | ----------------- | --------------------------------------------- |
+| Dashboard   | `g d`             | Main overview (`/`) and Trends (`/analytics`) |
+| Timeline    | `g t`             | Historical event browser (`/timeline`)        |
+| Trends      | `g n`             | Charts and statistics (`/analytics`)          |
+| Alerts      | `g a`             | Active alerts and rules (`/alerts`)           |
+| Entities    | `g e`             | Tracked people and vehicles (`/entities`)     |
+| Logs        | `g o`             | System logs (`/logs`)                         |
+| System      | `g y`             | System operations monitoring (`/operations`)  |
+| Settings    | `g s`             | Configuration options (`/settings/cameras`)   |
 
 ### Quick Stats Row
 
@@ -286,16 +288,16 @@ Learn these shortcuts to navigate faster. Press `?` anywhere to see the full lis
 
 ### Page Navigation (press `g` then the second key)
 
-| Chord | Destination |
-| ----- | ----------- |
-| `g d` | Dashboard   |
-| `g t` | Timeline    |
-| `g n` | Analytics   |
-| `g a` | Alerts      |
-| `g e` | Entities    |
-| `g o` | Logs        |
-| `g y` | System      |
-| `g s` | Settings    |
+| Chord | Destination            |
+| ----- | ---------------------- |
+| `g d` | Dashboard (`/`)        |
+| `g t` | Timeline (`/timeline`) |
+| `g n` | Trends (`/analytics`)  |
+| `g a` | Alerts (`/alerts`)     |
+| `g e` | Entities (`/entities`) |
+| `g o` | Logs (`/logs`)         |
+| `g y` | System (`/operations`) |
+| `g s` | Settings (`/settings`) |
 
 ### List Navigation (when viewing event lists)
 

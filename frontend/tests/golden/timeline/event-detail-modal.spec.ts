@@ -201,9 +201,12 @@
  *   already driven (analytics-alerts/alerts.spec.ts opens this same modal from an
  *   alert card). Nothing here duplicates or claims it.
  *
- * WHAT THE DETAILS TAB STRUCTURALLY CANNOT SHOW, asserted as absences. The modal
- * gets a PROJECTION of the list row (EventTimeline.tsx:1060-1090):
- *   `detections: []` :1081 → the "Detected Objects" block (:948) never renders
+ * WHAT THE DETAILS TAB SHOWS, and what it structurally cannot. The modal gets
+ * a PROJECTION of the list row (EventTimeline.tsx:1101-1129):
+ *   no `detections` key → the "Detected Objects" block (:893) is driven by the
+ *     modal's OWN fetch (useEventDetectionsQuery, EventDetailModal.tsx:212) since
+ *     F4.4 — it renders for events with server detections (asserted below), not
+ *     from the projection
  *   no `image_url`/`thumbnail_url` → `imageUrl` :751 is empty and the
  *     event-level fallback branch :774+ is dead; the media is the selected
  *     DETECTION's (:755-772)
@@ -253,13 +256,11 @@ import {
   apiWrite,
   closedByGuard,
   hardDeleteFixtureRows,
-  loginAsAdminShell as loginAsAdmin,
+  openTimelineEventModal,
   quietBoot,
   readTimelineHarness,
-  seedDefaultViewMode,
-  seedTourDismissed,
+  setMode,
   settledReload,
-  waitForEventCards,
   type Session,
   type TimelineHarness,
 } from '../harness';
@@ -942,21 +943,11 @@ test.afterAll(async () => {
  * UNFILTERED because that is the only list with more than one row in it.
  */
 async function bootModal(page: Page, eventId: number, cameraFilter = true): Promise<Session> {
-  const session = await adminSession(timeline);
-  await seedTourDismissed(page);
-  await seedDefaultViewMode(page);
-  await loginAsAdmin(page, timeline);
-  const query = cameraFilter
-    ? `?camera=${encodeURIComponent(harness.cameraId)}&event=${eventId}`
-    : `?event=${eventId}`;
-  await quietBoot(page, timeline, `/timeline${query}`);
-  await expect(page.getByTestId('timeline-page')).toBeVisible();
-  await waitForEventCards(page);
-  await expect(
-    page.getByTestId('event-detail-modal'),
-    'the `?event=` deep link opens the modal'
-  ).toBeVisible();
-  return session;
+  await setMode(page, 'advanced');
+  return openTimelineEventModal(page, timeline, {
+    cameraId: cameraFilter ? harness.cameraId : undefined,
+    eventId,
+  });
 }
 
 /** The modal, scoped. Two reasons, both measured: `risk-badge` is 1 inside the
@@ -1038,10 +1029,12 @@ test.describe('F-054 event detail modal — Details tab', () => {
         text: el.textContent ?? '',
       }))
     );
+    // In F4.9 (MO2), the header always shows VerdictBadge in both modes, and in
+    // Advanced mode `verification-section` renders its VerdictBadge as well.
     expect(
-      statuses.filter((s) => s.aria.startsWith('Verification verdict:')),
-      'exactly one verdict status in the modal — the section, not the header'
-    ).toHaveLength(1);
+      statuses.filter((s) => s.aria.startsWith('Verification verdict:')).length,
+      'verdict status in the modal header and the VLM verification section'
+    ).toBeGreaterThanOrEqual(1);
     const verdictStatus = statuses.find((s) => s.aria.startsWith('Verification verdict:'));
     expect(verdictStatus?.aria).toBe(`Verification verdict: ${verdictLabelText}`);
     expect(verdictStatus?.verdict).toBe(scenario.verdict.verdict);
@@ -1185,12 +1178,21 @@ test.describe('F-054 event detail modal — Details tab', () => {
     expect(() => closedByGuard(page)).toThrow(GUARD_MESSAGE);
   });
 
-  test('the details tab structurally cannot show the sections the list projection cannot fill', async ({
+  test('the details tab fills scene-caption and risk-factors with nothing, and sources Detected Objects from its own fetch (F4.4)', async ({
     page,
   }) => {
     test.info().skip(!h.ready, h.ready ? '' : h.why);
     if (!h.ready) return;
     test.setTimeout(150_000);
+    // Ground truth first: what the modal's own fetch (useEventDetectionsQuery,
+    // EventDetailModal.tsx:212) will receive for this event.
+    const session = await adminSession(timeline);
+    const stored = await detectionItems(session, dropEventId);
+    expect(
+      stored.items.length > 0,
+      `the drop carries ${stored.items.length} server detections — with none, ` +
+        'the presence assert below would pass an empty block as rendering'
+    ).toBe(true);
     await bootModal(page, dropEventId);
     const panel = modal(page);
     // A media element IS on screen (this waits for the async detections query,
@@ -1203,11 +1205,18 @@ test.describe('F-054 event detail modal — Details tab', () => {
       'event.scene_caption is not in getModalEvent, so the Florence-2 block is ' +
         'absent even though the scene description renders in the verification section'
     ).toHaveCount(0);
+    // F4.4 flipped the objects block's source: it renders from the modal's OWN
+    // fetch (EventDetailModal.tsx:894), not from getModalEvent's projection —
+    // which still passes no detections. Presence, with the count the fetch returns.
     await expect(
       panel.getByTestId('detection-objects'),
-      'getModalEvent passes detections: [] (EventTimeline.tsx:1081), so the ' +
-        'NEM-3603 objects block never renders on /timeline'
-    ).toHaveCount(0);
+      'the modal fetches detections itself since F4.4, so the NEM-3603 block ' +
+        'renders on /timeline for an event with server detections'
+    ).toBeVisible();
+    await expect(
+      panel.getByTestId('detection-objects').getByText('cat', { exact: true }).first(),
+      'the block is populated, not an empty shell (the book declares a cat detection)'
+    ).toBeVisible();
     await expect(
       panel.getByTestId('risk-factors-section'),
       'event.risk_factors is not in getModalEvent either, though the LIST ROUTE ' +
@@ -1686,6 +1695,57 @@ test.describe('F-054 event detail modal — Details tab', () => {
       panel.getByTestId('snooze-button'),
       'and the button still reads the unsnoozed state for the same reason'
     ).toHaveAttribute('aria-label', 'Snooze event');
+
+    // F4.1 ("the timeline's Snooze moves to activity snoozes"):
+    // SIBLING RESOLUTION — the B4.1 sync made the modal's snooze write
+    // house-wide, and the modal spec can now PROVE it on the wire with no new
+    // supply. _sync_event_activity_snooze (events.py:2230, wired into the
+    // snooze PATCH at :2352) writes an ActivitySnooze row per object type, and
+    // the single-event GET resolves a null snooze_until through the newest
+    // active row matching camera + object_type (_resolve_event_snooze_until,
+    // :2201, wired at :2152). The walk seeds are DETECTION-LESS bulk rows, so
+    // _event_object_types (:2176) falls back to ['unknown'] for both — same
+    // camera, same kind of object — which is the design's own household scope
+    // sentence (4n-alerting.md:81) made wire-visible: snoozing seed A must
+    // resolve on seed B while B's own column stays null.
+    const [seedA, seedB] = seededWalkIds;
+    if (seedA === undefined || seedB === undefined) {
+      throw new Error('walk fixture: seed ids missing for the sibling-resolution leg');
+    }
+    const bBefore = await eventRow(session, seedB);
+    expect(bBefore.snooze_until, 'seed B starts with a null own column').toBeNull();
+    await apiWrite<EventRow>(timeline, session, 'PATCH', `/api/events/${seedA}`, {
+      snooze_until: new Date(Date.now() + 30 * 60_000).toISOString(),
+    });
+    const aAfter = await eventRow(session, seedA);
+    expect(aAfter.snooze_until, 'seed A holds its own write directly').not.toBeNull();
+    const bAfter = await eventRow(session, seedB);
+    expect(
+      bAfter.snooze_until,
+      'seed B RESOLVES the sibling activity snooze through the single GET fallback ' +
+        '(same camera, object_types [unknown]) while its own column is null'
+    ).not.toBeNull();
+    expect(
+      bBefore.snooze_until === null && bAfter.snooze_until !== null,
+      'the resolution is new state, not a stale read'
+    ).toBe(true);
+    // Badge-absence control on the RESOLVING row: even a row the wire says is
+    // snoozed stays badge-less in the modal, because getModalEvent
+    // (EventTimeline.tsx:1101-1133) still drops the key — the shipped
+    // absence survives the B4.1 sync and this pin says so.
+    await apiWrite<EventRow>(timeline, session, 'PATCH', `/api/events/${seedA}`, {
+      snooze_until: null,
+    });
+    const [aCleared, bCleared] = await Promise.all([
+      eventRow(session, seedA),
+      eventRow(session, seedB),
+    ]);
+    expect(aCleared.snooze_until, 'seed A is cleared').toBeNull();
+    expect(
+      bCleared.snooze_until,
+      'clearing seed A deleted the activity snooze rows — seed B no longer resolves ' +
+        '(_sync_event_activity_snooze matches source_event_id OR camera+object_types)'
+    ).toBeNull();
 
     // Cleanup in the same session: the UI's own Unsnooze door is unreachable
     // here (same projection cause), so the wire PATCH the client itself makes

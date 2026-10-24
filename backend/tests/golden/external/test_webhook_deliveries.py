@@ -12,13 +12,16 @@ the route a user actually clicks (``POST /api/alerts/{id}/acknowledge`` →
 through ``GET /api/outbound-webhooks/{webhook_id}/deliveries``.
 
 Why the seed is deterministic instead of polled-forever: the webhook is created
-with ``max_retries: 0`` (``backend/api/schemas/outbound_webhook.py:158`` allows
+with ``max_retries: 0`` (``backend/api/schemas/outbound_webhook.py:181`` allows
 ``ge=0``), so ``_handle_delivery_failure`` takes its else-branch
 (``backend/services/webhook_service.py:470``) and the row lands ``failed`` on the
-first attempt with no ``next_retry_at`` to wait out. The refused loopback
-address is accepted by ``create_webhook`` — there is no SSRF or private-host
-guard on that path — and ``httpx`` fails it in milliseconds, so the only wait
-left is for the background task to commit.
+first attempt with no ``next_retry_at`` to wait out. The seed target is the
+backend container itself on a dead port with ``on_local_network: true`` —
+B4.2's destination policy refuses loopback at create even with the flag
+(``backend/core/url_validation.py:124-125``), and an in-network target is
+exactly what the flag admits — so ``create_webhook`` answers 201 and
+``httpx`` fails the connect in milliseconds, the only wait left being for
+the background task to commit.
 
 The poll tolerates a transient disconnect: CI run 39345706766 lost the leg to
 ``httpx.RemoteProtocolError: Server disconnected without sending a response.``
@@ -73,9 +76,14 @@ import pytest
 
 pytestmark = [pytest.mark.network, pytest.mark.timeout(300)]
 
-# Nothing listens on port 1, so the connect is refused rather than timed out —
-# the delivery reaches a terminal state without eating the marker's budget.
-REFUSED_URL = "http://127.0.0.1:1/golden-f250-f251-refused"
+# F12 (ruling 310) refuses loopback at create with or without the
+# ``on_local_network`` flag, so the seed cannot be 127.0.0.1 anymore. The
+# seed is the backend container itself on a port nothing listens on: the name
+# resolves in every stack shape (the golden backend is the compose service),
+# the flag admits the target, and the connect is REFUSED in milliseconds —
+# a dead port on a live host, the same shape port 1 was, without the policy
+# refusal's error wording.
+REFUSED_URL = "http://backend:8099/golden-f250-f251-refused"
 
 POLL_INTERVAL_S = 1.0
 POLL_DEADLINE_S = 90.0
@@ -137,6 +145,9 @@ def dead_webhook(logged_in_api: httpx.Client) -> dict[str, Any]:
             "name": f"golden-f250-f251-{uuid.uuid4().hex[:8]}",
             "url": REFUSED_URL,
             "event_types": ["alert_acknowledged"],
+            # The F12 flag admits the in-network seed target; loopback stays
+            # refused either way, so the seed rides the flag's real use case.
+            "on_local_network": True,
             # 0 retries is what makes the row terminal on the first attempt.
             "max_retries": 0,
             "retry_delay_seconds": 1,
@@ -147,13 +158,30 @@ def dead_webhook(logged_in_api: httpx.Client) -> dict[str, Any]:
     assert webhook_id, created.json()
 
     try:
-        events = logged_in_api.get("/api/events", params={"limit": 1})
+        events = logged_in_api.get("/api/events", params={"limit": 100})
         assert events.status_code == 200, events.text[:500]
         items = events.json()["items"]
         if not items:
             pytest.skip("no events on this stack; an alert needs a real events.id")
 
-        yield {"webhook_id": webhook_id, "event_id": items[0]["id"]}
+        # Pick by the property smoke() guarantees — a verification verdict —
+        # not by position: the list is newest-first, and other golden legs
+        # create AND PURGE disposable rows mid-run (test_arming's finally
+        # block soft-then-permanent-deletes its own NOW-dated events, and
+        # trash_purge's Empty Trash sweeps every trashed row). A newest-first
+        # position pick names the row arming just created, and when arming's
+        # teardown purges it between this pick and a test's alert POST the
+        # POST trips alerts_event_id_fkey and answers 409 (run 39989579025,
+        # `Key (event_id)=(3) is not present in table "events"`). The oldest
+        # verified event is the smoke event — feature_check asserts exactly
+        # one event, with a verdict, on the smoke camera before golden runs —
+        # and it is never a purge target, so every failed_delivery POST hangs
+        # off a stable row. Same contract as the snooze pick
+        # (test_alert_pipeline_core.py), which stopped trusting position for
+        # the same reason (run 39888773743).
+        verified = [e for e in items if (e.get("verification") or {}).get("verdict")]
+        event = verified[-1] if verified else items[-1]
+        yield {"webhook_id": webhook_id, "event_id": event["id"]}
     finally:
         deleted = logged_in_api.delete(f"/api/outbound-webhooks/{webhook_id}")
         # A leak here is not cosmetic: the webhook stays enabled and fires on

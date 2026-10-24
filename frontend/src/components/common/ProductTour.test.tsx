@@ -1,14 +1,15 @@
-import { render, screen, fireEvent, waitFor } from '@testing-library/react';
-import { BrowserRouter } from 'react-router-dom';
+import { screen, fireEvent, waitFor } from '@testing-library/react';
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 
 import ProductTour from './ProductTour';
+import { EASY_HUBS } from '../../config/surfaces';
 import {
   TOUR_COMPLETED_KEY,
   TOUR_SKIPPED_KEY,
   tourSteps,
   restartProductTour,
 } from '../../config/tourSteps';
+import { renderWithNavigation } from '../../test-utils';
 
 // Mock react-joyride
 vi.mock('react-joyride', () => ({
@@ -157,9 +158,9 @@ vi.mock('react-joyride', () => ({
   },
 }));
 
-// Helper to wrap component with router
+// Helper to wrap component with shared navigation fixture
 const renderWithRouter = (ui: React.ReactElement) => {
-  return render(<BrowserRouter>{ui}</BrowserRouter>);
+  return renderWithNavigation(ui, { useMemoryRouter: false });
 };
 
 describe('ProductTour', () => {
@@ -436,11 +437,7 @@ describe('ProductTour', () => {
       const { rerender } = renderWithRouter(<ProductTour run={false} />);
       expect(screen.queryByTestId('joyride-mock')).not.toBeInTheDocument();
 
-      rerender(
-        <BrowserRouter>
-          <ProductTour run={true} forceRun />
-        </BrowserRouter>
-      );
+      rerender(<ProductTour run={true} forceRun />);
       expect(screen.getByTestId('joyride-mock')).toBeInTheDocument();
     });
   });
@@ -504,6 +501,13 @@ describe('tourSteps configuration', () => {
     const settingsStep = tourSteps.find((step) => step.target === '[data-tour="settings-link"]');
     expect(settingsStep).toBeDefined();
     expect(settingsStep?.title).toBe('Settings');
+  });
+
+  it('sidebar tour targets in tourSteps match Easy hubs in surfaces.ts (F4.9)', () => {
+    const easyTourTargets = new Set(
+      EASY_HUBS.map((h) => h.dataTour).filter((t): t is string => Boolean(t))
+    );
+    expect(easyTourTargets).toEqual(new Set(['timeline-link', 'settings-link']));
   });
 
   it('all steps have required properties', () => {

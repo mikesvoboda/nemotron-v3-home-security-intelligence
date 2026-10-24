@@ -1,0 +1,85 @@
+# Face Detection - SCRFD-10G-KPS TensorRT on GPU (InsightFace buffalo_l det_10g.onnx)
+# [r307a] (owner ruling 307): served through TensorRT as a plan compiled on the
+#   serving GPU (`1/model.plan`, built by `ai/gateway/export/export_face.py`
+#   from the SHA-256-pinned `scrfd_10g_bnkps.onnx` / `det_10g.onnx`).
+# Input: letterboxed RGB blob `(canvas - 127.5) / 128.0`, shape (1, 3, 640, 640) FP32
+# Outputs: 9 tensors in InsightFace buffalo_l layout (strides 8, 16, 32; 2 anchors/cell):
+#   scores: 448 (12800, 1), 471 (3200, 1), 494 (800, 1)
+#   dboxes: 451 (12800, 4), 474 (3200, 4), 497 (800, 4)
+#   dkps:   454 (12800, 10), 477 (3200, 10), 500 (800, 10)
+# Provenance: `1/provenance.json` records `face-detector-scrfd`, `scrfd_10g_bnkps.onnx`,
+#   and the pinned SHA-256 `5838f7fe053675b1c7a08b633df49e7af5495cee0493c7dcf6697200b85b5b91`.
+
+name: "scrfd"
+backend: "tensorrt"
+max_batch_size: 0
+
+input [
+  {
+    name: "input.1"
+    data_type: TYPE_FP32
+    dims: [ 1, 3, 640, 640 ]
+  }
+]
+
+output [
+  {
+    name: "448"
+    data_type: TYPE_FP32
+    dims: [ 12800, 1 ]
+  },
+  {
+    name: "471"
+    data_type: TYPE_FP32
+    dims: [ 3200, 1 ]
+  },
+  {
+    name: "494"
+    data_type: TYPE_FP32
+    dims: [ 800, 1 ]
+  },
+  {
+    name: "451"
+    data_type: TYPE_FP32
+    dims: [ 12800, 4 ]
+  },
+  {
+    name: "474"
+    data_type: TYPE_FP32
+    dims: [ 3200, 4 ]
+  },
+  {
+    name: "497"
+    data_type: TYPE_FP32
+    dims: [ 800, 4 ]
+  },
+  {
+    name: "454"
+    data_type: TYPE_FP32
+    dims: [ 12800, 10 ]
+  },
+  {
+    name: "477"
+    data_type: TYPE_FP32
+    dims: [ 3200, 10 ]
+  },
+  {
+    name: "500"
+    data_type: TYPE_FP32
+    dims: [ 800, 10 ]
+  }
+]
+
+instance_group [
+  {
+    count: 1
+    kind: KIND_GPU
+    gpus: [ 0 ]
+    rate_limiter {
+      resources [
+        { name: "global" count: 1 }
+      ]
+      priority: 2
+    }
+  }
+]

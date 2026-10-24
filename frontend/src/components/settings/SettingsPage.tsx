@@ -1,177 +1,27 @@
 import { clsx } from 'clsx';
-import { AlertTriangle, ChevronLeft, ChevronRight } from 'lucide-react';
-import { useCallback, useEffect, useRef, useState } from 'react';
-import { NavLink, Outlet, useLocation } from 'react-router-dom';
+import { Outlet, useLocation } from 'react-router-dom';
 
+import { hubForPath, tabForPath } from '../../config/surfaces';
 import { DebugModeProvider } from '../../contexts/DebugModeContext';
 import { FeatureErrorBoundary, SecureContextWarning } from '../common';
-import { settingsTabs } from './settingsTabsConfig';
+import HubTabBar, { useInLayoutHubTabBar } from '../layout/HubTabBar';
 
 /**
- * ScrollableNavList component that handles horizontal nav overflow
+ * SettingsPage component (F4.9 — docs/uplevel/4n-modes.md).
  *
- * Features:
- * - Horizontal scrolling when nav items overflow the container
- * - Left/right scroll indicators (chevron buttons) when content is clipped
- * - Fade shadows to indicate scrollable content
- * - Keyboard-accessible scroll buttons
- * - Smooth scroll animation
- *
- * @see NEM-3520 - Fix Settings page tab overflow
- * @see NEM-4938 - Convert to nested sub-routes
- */
-interface ScrollableNavListProps {
-  children: React.ReactNode;
-}
-
-function ScrollableNavList({ children }: ScrollableNavListProps) {
-  const scrollContainerRef = useRef<HTMLDivElement>(null);
-  const [canScrollLeft, setCanScrollLeft] = useState(false);
-  const [canScrollRight, setCanScrollRight] = useState(false);
-
-  const updateScrollState = useCallback(() => {
-    const container = scrollContainerRef.current;
-    if (!container) return;
-
-    const { scrollLeft, scrollWidth, clientWidth } = container;
-    // Use a small threshold (2px) to account for rounding errors
-    setCanScrollLeft(scrollLeft > 2);
-    setCanScrollRight(scrollLeft < scrollWidth - clientWidth - 2);
-  }, []);
-
-  useEffect(() => {
-    const container = scrollContainerRef.current;
-    if (!container) return;
-
-    // Initial check
-    updateScrollState();
-
-    // Check on scroll
-    container.addEventListener('scroll', updateScrollState);
-
-    // Check on resize
-    const resizeObserver = new ResizeObserver(updateScrollState);
-    resizeObserver.observe(container);
-
-    return () => {
-      container.removeEventListener('scroll', updateScrollState);
-      resizeObserver.disconnect();
-    };
-  }, [updateScrollState]);
-
-  const scroll = (direction: 'left' | 'right') => {
-    const container = scrollContainerRef.current;
-    if (!container) return;
-
-    const scrollAmount = 200; // pixels to scroll
-    const newScrollLeft =
-      direction === 'left'
-        ? container.scrollLeft - scrollAmount
-        : container.scrollLeft + scrollAmount;
-
-    container.scrollTo({
-      left: newScrollLeft,
-      behavior: 'smooth',
-    });
-  };
-
-  return (
-    <div className="relative mb-8" data-testid="scrollable-tab-container">
-      {/* Left scroll indicator */}
-      {canScrollLeft && (
-        <>
-          {/* Fade shadow */}
-          <div
-            className="pointer-events-none absolute left-0 top-0 z-10 h-full w-12 bg-gradient-to-r from-[#1A1A1A] to-transparent"
-            aria-hidden="true"
-          />
-          {/* Scroll button */}
-          <button
-            type="button"
-            onClick={() => scroll('left')}
-            className="absolute left-1 top-1/2 z-20 -translate-y-1/2 rounded-full bg-[#76B900] p-1.5 text-gray-950 shadow-lg transition-all hover:bg-[#8AD000] focus:outline-none focus:ring-2 focus:ring-[#76B900] focus:ring-offset-2 focus:ring-offset-[#1A1A1A]"
-            aria-label="Scroll tabs left"
-            data-testid="scroll-left-button"
-          >
-            <ChevronLeft className="h-4 w-4" />
-          </button>
-        </>
-      )}
-
-      {/* Scrollable nav container */}
-      <div
-        ref={scrollContainerRef}
-        className="scrollbar-thin scrollbar-track-transparent scrollbar-thumb-gray-700 hover:scrollbar-thumb-gray-600 overflow-x-auto"
-      >
-        <div
-          role="tablist"
-          aria-label="Settings sections"
-          className="flex min-w-max space-x-2 rounded-lg border border-gray-800 bg-[#1A1A1A] p-1"
-        >
-          {children}
-        </div>
-      </div>
-
-      {/* Right scroll indicator */}
-      {canScrollRight && (
-        <>
-          {/* Fade shadow */}
-          <div
-            className="pointer-events-none absolute right-0 top-0 z-10 h-full w-12 bg-gradient-to-l from-[#1A1A1A] to-transparent"
-            aria-hidden="true"
-          />
-          {/* Scroll button */}
-          <button
-            type="button"
-            onClick={() => scroll('right')}
-            className="absolute right-1 top-1/2 z-20 -translate-y-1/2 rounded-full bg-[#76B900] p-1.5 text-gray-950 shadow-lg transition-all hover:bg-[#8AD000] focus:outline-none focus:ring-2 focus:ring-[#76B900] focus:ring-offset-2 focus:ring-offset-[#1A1A1A]"
-            aria-label="Scroll tabs right"
-            data-testid="scroll-right-button"
-          >
-            <ChevronRight className="h-4 w-4" />
-          </button>
-        </>
-      )}
-    </div>
-  );
-}
-
-/**
- * SettingsPage component with route-based navigation
- *
- * Contains ten settings sections accessible via nested routes:
- * - /settings/cameras: Camera configuration and management
- * - /settings/rules: Alert rules configuration
- * - /settings/processing: Event processing settings
- * - /settings/notifications: Email and webhook notification settings
- * - /settings/ambient: Ambient status awareness settings
- * - /settings/access: Household members, vehicles, and zone-based access control
- * - /settings/prompts: AI prompt template management and version history
- * - /settings/storage: Disk storage usage and file cleanup operations
- * - /settings/ai-models: Core AI models (RT-DETRv2, Nemotron) and Model Zoo status
- * - /settings/admin: Feature toggles, system config, maintenance actions, dev tools
- *
- * Note: Analytics functionality is available on the dedicated Analytics page (/analytics)
- *
- * Features:
- * - Route-based navigation with URL persistence
- * - NavLink active state styling
- * - NVIDIA dark theme styling
- * - Icons for each settings category
- * - Responsive layout
- * - Keyboard navigation support
- *
- * @see NEM-2388 - Add FileOperationsPanel to Settings page
- * @see NEM-3084 - Add AI MODELS tab integrating AIModelsSettings and ModelZooSection
- * @see NEM-3138 - Add ADMIN tab for AdminSettings component
- * @see NEM-3608 - Add ACCESS tab for zone-household access control
- * @see NEM-4938 - Convert to nested sub-routes
+ * Keeps its `<Outlet />` and providers (`DebugModeProvider`, `SecureContextWarning`);
+ * its heading comes from `hubForPath`, its tab bar gives way to `HubTabBar`, and
+ * its panel is labelled by `HubTabBar`'s active tab.
  */
 export default function SettingsPage() {
   const location = useLocation();
+  const inLayoutHubTabBar = useInLayoutHubTabBar();
 
-  // Determine the active tab based on current path
-  const activeTabId = settingsTabs.find((tab) => location.pathname === tab.path)?.id ?? 'cameras';
+  const resolved = tabForPath(location.pathname);
+  const hub = resolved?.hub ?? hubForPath('/settings');
+  const activeTabId = resolved?.tab.id ?? 'cameras';
+  const activeTabTestId = resolved?.tab.testId ?? `settings-tab-${activeTabId}`;
+  const heading = hub?.label ?? 'Settings';
 
   return (
     <DebugModeProvider>
@@ -180,7 +30,7 @@ export default function SettingsPage() {
           {/* Header */}
           <div className="mb-8 flex items-start justify-between">
             <div>
-              <h1 className="text-page-title">Settings</h1>
+              <h1 className="text-page-title">{heading}</h1>
               <p className="text-body-sm mt-2">Configure your security monitoring system</p>
             </div>
           </div>
@@ -188,40 +38,14 @@ export default function SettingsPage() {
           {/* Secure Context Warning - shown when not using HTTPS */}
           <SecureContextWarning className="mb-6" />
 
-          {/* Navigation Tabs */}
-          <ScrollableNavList>
-            {settingsTabs.map((tab) => {
-              const Icon = tab.icon;
-              const isActive = tab.id === activeTabId;
-              return (
-                <NavLink
-                  key={tab.id}
-                  to={tab.path}
-                  role="tab"
-                  aria-selected={isActive}
-                  aria-controls={`settings-panel-${tab.id}`}
-                  title={tab.description}
-                  className={clsx(
-                    'flex shrink-0 items-center justify-center gap-2 whitespace-nowrap rounded-lg px-4 py-3 text-sm font-medium transition-all duration-200',
-                    'focus:outline-none focus:ring-2 focus:ring-[#76B900] focus:ring-offset-2 focus:ring-offset-[#1A1A1A]',
-                    isActive
-                      ? 'bg-[#76B900] text-gray-950 shadow-md'
-                      : 'text-gray-200 hover:bg-gray-800 hover:text-white'
-                  )}
-                  data-testid={`settings-tab-${tab.id}`}
-                >
-                  <Icon className="h-5 w-5" aria-hidden="true" />
-                  <span>{tab.name}</span>
-                </NavLink>
-              );
-            })}
-          </ScrollableNavList>
+          {/* HubTabBar renders here when SettingsPage is mounted standalone in tests */}
+          {!inLayoutHubTabBar && <HubTabBar className="mb-8 px-0 pt-0" />}
 
           {/* Content Panel */}
           <div
             id={`settings-panel-${activeTabId}`}
             role="tabpanel"
-            aria-labelledby={`settings-tab-${activeTabId}`}
+            aria-labelledby={activeTabTestId}
             className={clsx(
               'rounded-lg border border-gray-800 bg-[#1A1A1A] p-6',
               'focus:outline-none focus:ring-2 focus:ring-[#76B900] focus:ring-offset-2 focus:ring-offset-[#121212]'
@@ -236,25 +60,25 @@ export default function SettingsPage() {
   );
 }
 
-/**
- * SettingsPage with FeatureErrorBoundary wrapper.
- *
- * Wraps the SettingsPage component in a FeatureErrorBoundary to prevent
- * errors in the Settings page from crashing the entire application.
- * The navigation should remain functional even if settings fails to load.
- */
-function SettingsPageWithErrorBoundary() {
+export function SettingsPageWithErrorBoundary() {
   return (
     <FeatureErrorBoundary
       feature="Settings"
       fallback={
-        <div className="flex min-h-screen flex-col items-center justify-center bg-[#121212] p-8">
-          <AlertTriangle className="mb-4 h-12 w-12 text-red-400" />
-          <h3 className="mb-2 text-lg font-semibold text-red-400">Settings Unavailable</h3>
-          <p className="max-w-md text-center text-sm text-gray-400">
-            Unable to load settings. Please refresh the page or try again later. You can still
-            navigate to other sections using the sidebar.
-          </p>
+        <div className="min-h-screen bg-[#121212] p-8">
+          <div className="mx-auto max-w-[1920px]">
+            <div className="mb-8">
+              <h1 className="text-page-title">Settings</h1>
+              <p className="text-body-sm mt-2">Configure your security monitoring system</p>
+            </div>
+            <div className="rounded-lg border border-red-500/30 bg-red-500/10 p-6">
+              <h3 className="text-base font-semibold text-red-400">Unable to load Settings</h3>
+              <p className="mt-1 text-sm text-gray-400">
+                An error occurred while loading settings. Please try refreshing the page. Use the
+                navigation menu to access other parts of the application.
+              </p>
+            </div>
+          </div>
         </div>
       }
     >
@@ -262,5 +86,3 @@ function SettingsPageWithErrorBoundary() {
     </FeatureErrorBoundary>
   );
 }
-
-export { SettingsPageWithErrorBoundary };

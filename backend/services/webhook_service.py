@@ -39,6 +39,7 @@ import json
 import secrets
 from datetime import UTC, datetime, timedelta
 from typing import TYPE_CHECKING, Any
+from urllib.parse import urlparse
 
 import httpx
 from jinja2 import BaseLoader, Environment, TemplateSyntaxError, UndefinedError
@@ -49,6 +50,12 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from backend.api.schemas.outbound_webhook import WebhookEventType
 from backend.core.logging import get_logger
 from backend.core.time_utils import utc_now
+from backend.core.url_validation import (
+    SSRFValidationError,
+    pinned_httpx_client,
+    validate_and_resolve_for_send,
+    validate_webhook_url,
+)
 
 if TYPE_CHECKING:
     from backend.api.schemas.outbound_webhook import (
@@ -73,6 +80,32 @@ DEFAULT_MAX_RETRIES = 4
 DEFAULT_RETRY_DELAY = 10  # seconds
 BACKOFF_MULTIPLIER = 2
 MAX_BACKOFF_SECONDS = 3600  # 1 hour maximum delay
+
+
+class WebhookURLPolicyError(Exception):
+    """The webhook URL failed the F12 destination policy at send time.
+
+    Deliberately NOT a subclass of httpx.RequestError: the callers catch
+    RequestError to schedule retries, and a refused destination is not a
+    transient failure — the send must not be retried until the URL or the
+    webhook's on_local_network flag changes.
+    """
+
+
+def _is_literal_ip(hostname: str | None) -> bool:
+    """True when the hostname is a literal IPv4/IPv6 address (no pin needed)."""
+    if not hostname:
+        return False
+    import socket
+
+    for family in (socket.AF_INET, socket.AF_INET6):
+        try:
+            socket.inet_pton(family, hostname)
+            return True
+        except OSError:
+            continue
+    return False
+
 
 # Jinja2 environment for payload templates
 # Note: autoescape=False is intentional here because we're generating JSON payloads,
@@ -132,12 +165,25 @@ class WebhookService:
         # Generate signing secret for HMAC signatures
         signing_secret = secrets.token_hex(32)
 
+        # F12 destination policy (ruling 310): the authoritative check runs here
+        # — after the schema's cheap pass, with the request's own flag in hand.
+        # A private address is accepted only when the webhook carries the
+        # on-this-network allowance; metadata and link-local are refused either
+        # way. DNS is not resolved here; the send-time check resolves and pins.
+        validate_webhook_url(
+            str(data.url),
+            allow_dev_http=False,
+            resolve_dns=False,
+            allow_local_network=data.on_local_network,
+        )
+
         webhook = OutboundWebhook(
             name=data.name,
             url=str(data.url),
             event_types=[et.value if hasattr(et, "value") else str(et) for et in data.event_types],
             integration_type=data.integration_type,
             enabled=data.enabled,
+            on_local_network=data.on_local_network,
             auth_config=data.auth.model_dump() if data.auth else None,
             custom_headers=data.custom_headers or {},
             payload_template=data.payload_template,
@@ -236,8 +282,28 @@ class WebhookService:
             updated_fields.append("name")
 
         if data.url is not None:
+            # F12 authoritative check under the webhook's EFFECTIVE flag: the
+            # request may set the flag in the same update, so a webhook being
+            # granted the on-this-network allowance may name its LAN host in
+            # the same request (and losing the flag with a private URL still
+            # standing is refused).
+            effective_flag = (
+                data.on_local_network
+                if data.on_local_network is not None
+                else webhook.on_local_network
+            )
+            validate_webhook_url(
+                str(data.url),
+                allow_dev_http=False,
+                resolve_dns=False,
+                allow_local_network=effective_flag,
+            )
             webhook.url = str(data.url)
             updated_fields.append("url")
+
+        if data.on_local_network is not None:
+            webhook.on_local_network = data.on_local_network
+            updated_fields.append("on_local_network")
 
         if data.event_types is not None:
             webhook.event_types = [
@@ -411,6 +477,24 @@ class WebhookService:
             delivery.error_message = str(e)[:500]
             await self._handle_delivery_failure(db, webhook, delivery)
 
+        except WebhookURLPolicyError as e:
+            # F12: the URL failed the destination policy at send time — a
+            # refused destination is not a transient failure, so the delivery
+            # fails WITHOUT a scheduled retry (retrying sends nothing).
+            delivery.status = WebhookDeliveryStatus.FAILED
+            delivery.error_message = str(e)[:500]
+            webhook.total_deliveries += 1
+            webhook.last_delivery_at = utc_now()
+            webhook.last_delivery_status = WebhookDeliveryStatus.FAILED.value
+
+            logger.warning(
+                f"Webhook delivery refused by URL policy: {webhook.id}",
+                extra={
+                    "webhook_id": webhook.id,
+                    "delivery_id": delivery.id,
+                },
+            )
+
         except Exception as e:
             # Unexpected error
             delivery.status = WebhookDeliveryStatus.FAILED
@@ -534,16 +618,40 @@ class WebhookService:
             },
         )
 
-        # Deliver to each webhook
+        # Deliver to each webhook. Each delivery rides its own SAVEPOINT: a
+        # webhook deleted between the SELECT above and its slot in this loop
+        # makes its delivery INSERT trip webhook_deliveries_webhook_id_fkey,
+        # and without the savepoint that one failure poisons the shared
+        # session (PendingRollbackError) and rolls back every SIBLING
+        # delivery already flushed in the same transaction — including rows
+        # whose HTTP attempt had already completed (CI run 40002172540: the
+        # F-250 golden leg's terminal FAILED row vanished because another
+        # test's webhook was deleted mid-fanout, and the history poll saw
+        # zero rows for 90s). Roll back to the savepoint, keep the loop
+        # going, and the surviving webhooks' rows survive too.
         deliveries: list[WebhookDelivery] = []
         for webhook in webhooks:
-            delivery = await self.deliver_webhook(
-                db,
-                webhook,
-                event_type,
-                event_data,
-                event_id,
-            )
+            try:
+                async with db.begin_nested():
+                    delivery = await self.deliver_webhook(
+                        db,
+                        webhook,
+                        event_type,
+                        event_data,
+                        event_id,
+                    )
+            except Exception as e:
+                # This webhook's delivery is lost (its row may no longer have
+                # an owner); the other webhooks' deliveries must not be.
+                logger.warning(
+                    f"Webhook delivery skipped, webhook gone or unusable: {webhook.id}",
+                    extra={
+                        "webhook_id": webhook.id,
+                        "event_type": event_type_value,
+                        "error": str(e)[:500],
+                    },
+                )
+                continue
             deliveries.append(delivery)
 
         return deliveries
@@ -602,11 +710,86 @@ class WebhookService:
                 error_message=str(e)[:500],
             )
 
+        except WebhookURLPolicyError as e:
+            # F12: the Test button must not bypass the destination policy.
+            return WebhookTestResponse(
+                success=False,
+                error_message=str(e)[:500],
+            )
+
         except Exception as e:
             return WebhookTestResponse(
                 success=False,
                 error_message=f"Unexpected error: {e!s}"[:500],
             )
+
+    async def resend_delivery_payload(
+        self,
+        session_factory: Any,
+        webhook_id: str,
+        delivery_id: str,
+        payload: dict[str, Any],
+    ) -> None:
+        """Send a stored payload and record the outcome on the delivery row.
+
+        The scheduled resend worker's tail: the worker has already claimed the
+        row (attempt_count incremented, status pending, next_retry_at holding
+        the lease), so this method does NOT touch the attempt bookkeeping — it
+        opens its own session (the worker holds no transaction during the
+        send), loads the delivery and its webhook, sends, and records
+        SUCCESS/FAILED exactly as the manual retry records them.
+        """
+        from backend.models.outbound_webhook import WebhookDelivery, WebhookDeliveryStatus
+
+        async with session_factory() as db:
+            result = await db.execute(
+                select(WebhookDelivery).where(WebhookDelivery.id == delivery_id)
+            )
+            delivery = result.scalar_one_or_none()
+            if delivery is None:
+                return
+            webhook = await self.get_webhook(db, webhook_id)
+            if webhook is None:
+                return
+
+            try:
+                status_code, response_body, response_time_ms = await self._send_request(
+                    webhook, payload
+                )
+
+                if 200 <= status_code < 300:
+                    delivery.status = WebhookDeliveryStatus.SUCCESS
+                    delivery.status_code = status_code
+                    delivery.response_body = response_body[:MAX_RESPONSE_BODY_LENGTH]
+                    delivery.response_time_ms = response_time_ms
+                    delivery.delivered_at = utc_now()
+                    delivery.next_retry_at = None
+                    webhook.successful_deliveries += 1
+                    webhook.last_delivery_status = WebhookDeliveryStatus.SUCCESS.value
+                else:
+                    delivery.status = WebhookDeliveryStatus.FAILED
+                    delivery.status_code = status_code
+                    delivery.response_body = response_body[:MAX_RESPONSE_BODY_LENGTH]
+                    delivery.response_time_ms = response_time_ms
+                    delivery.error_message = f"HTTP {status_code}"
+                    await self._handle_delivery_failure(db, webhook, delivery)
+
+            except httpx.RequestError as e:
+                delivery.error_message = str(e)[:500]
+                await self._handle_delivery_failure(db, webhook, delivery)
+
+            except WebhookURLPolicyError as e:
+                # F12: a refused destination is terminal for this attempt —
+                # fail without scheduling another retry.
+                delivery.status = WebhookDeliveryStatus.FAILED
+                delivery.error_message = str(e)[:500]
+                webhook.last_delivery_status = WebhookDeliveryStatus.FAILED.value
+
+            webhook.total_deliveries += 1
+            webhook.last_delivery_at = utc_now()
+
+            await db.flush()
+            await db.refresh(delivery)
 
     async def retry_delivery(
         self,
@@ -674,6 +857,13 @@ class WebhookService:
                 webhook.last_delivery_status = WebhookDeliveryStatus.FAILED.value
 
         except httpx.RequestError as e:
+            delivery.status = WebhookDeliveryStatus.FAILED
+            delivery.error_message = str(e)[:500]
+            webhook.last_delivery_status = WebhookDeliveryStatus.FAILED.value
+
+        except WebhookURLPolicyError as e:
+            # F12: a manual retry of a refused destination fails without
+            # scheduling another retry.
             delivery.status = WebhookDeliveryStatus.FAILED
             delivery.error_message = str(e)[:500]
             webhook.last_delivery_status = WebhookDeliveryStatus.FAILED.value
@@ -1123,7 +1313,32 @@ class WebhookService:
         # Send request
         start_time = datetime.now(UTC)
 
-        async with httpx.AsyncClient(timeout=DEFAULT_TIMEOUT) as client:
+        # F12: validate + resolve at SEND time and pin the connection to the
+        # validated address — the create/update check cannot close DNS
+        # rebinding (the host can resolve differently at send). The webhook's
+        # own on_local_network flag relaxes RFC1918/loopback/unique-local,
+        # internal suffixes and plain HTTP; metadata and link-local stay
+        # blocked for every webhook. A policy failure propagates as
+        # SSRFValidationError (not RequestError): the callers mark the
+        # delivery FAILED without scheduling retries — retrying a refused
+        # destination sends nothing and wins nothing.
+        try:
+            _validated, pinned_ip = validate_and_resolve_for_send(
+                webhook.url,
+                allow_local_network=webhook.on_local_network,
+            )
+        except SSRFValidationError as e:
+            raise WebhookURLPolicyError(f"url_policy: {e}") from e
+
+        # A literal-IP URL needs no pin: validation saw the address it will
+        # dial. A hostname gets the shared pinning transport (one policy, one
+        # transport — backend.core.url_validation).
+        if _is_literal_ip(urlparse(webhook.url).hostname or ""):
+            client = httpx.AsyncClient(timeout=DEFAULT_TIMEOUT)
+        else:
+            client = pinned_httpx_client(webhook.url, pinned_ip, timeout=DEFAULT_TIMEOUT)
+
+        async with client:
             response = await client.post(
                 webhook.url,
                 json=payload,

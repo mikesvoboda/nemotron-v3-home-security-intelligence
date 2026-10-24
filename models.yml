@@ -203,6 +203,8 @@ models:
     # never triggers a load, so both rows must be resident at boot. Ledger items 24 and 32.
     preload: true
     never_evict: false
+    triton_name: scrfd
+    triton_kind: KIND_GPU
 
   - name: face-recognizer
     description: 'ArcFace w600k_r50 face embedding: aligned 112x112 crop in, L2-normalized 512-d vector out (buffalo_l w600k_r50.onnx, IJB-C TAR@FAR 1e-4 97.25); CPU onnxruntime'
@@ -228,6 +230,8 @@ models:
     # the leg answering "unavailable". Ledger items 24 and 32.
     preload: true
     never_evict: false
+    triton_name: arcface
+    triton_kind: KIND_GPU
 
   - name: threat-detection-yolov8n
     description: 'YOLOv8n threat/weapon detection (knives, guns, bats)'

@@ -3,8 +3,9 @@
 ## Purpose
 
 The uplevel programme's tooling. `launch.py`, the sandbox launcher (package `O0.1`, rulings
-UR-26 and UR-28 in `docs/uplevel/`), and `reid_real_tier.sh`, the O2.4 re-ID real-tier runner
-(package `[r157]`, rulings 157 and 159), are **host tools for the owner** - no agent runs them.
+UR-26 and UR-28 in `docs/uplevel/`), `reid_real_tier.sh`, the O2.4 re-ID real-tier runner
+(package `[r157]`, rulings 157 and 159), and `face_real_tier.sh` + `scripts/face_parity_check.py`,
+the `[r307a]` face-leg TensorRT real-tier runner and parity checker (ruling 307), are **host tools for the owner / operator**.
 `prod-shape-probe.sh` and its override file are different: an agent runs those, inside a
 sandbox, as the `O2.5` Step 1 spike (ruling 144), and `docker-compose.prodshape.yml` is the same
 package's Step 2 artifact (ruling 162) - an override plus the CPU-only CI test that pins what it

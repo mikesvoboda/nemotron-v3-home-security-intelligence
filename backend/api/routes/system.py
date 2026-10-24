@@ -35,6 +35,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from backend.api.dependencies import get_baseline_service_dep, get_cache_service_dep
 from backend.api.middleware import RateLimiter, RateLimitTier
 from backend.api.middleware.auth import _key_scope, _validate_key_hash_constant_time
+from backend.api.routes.auth import get_current_admin_user
 from backend.api.schemas.baseline import (
     AnomalyConfig,
     AnomalyConfigUpdate,
@@ -76,6 +77,8 @@ from backend.api.schemas.system import (
     HealthCheckServiceStatus,
     HealthEventResponse,
     HealthResponse,
+    InfrastructureAlertItem,
+    InfrastructureAlertsResponse,
     JobTargetSummary,
     LatencyHistorySnapshot,
     LatencyHistoryStageStats,
@@ -926,6 +929,12 @@ async def _check_yolo26_health(yolo26_url: str, timeout: float) -> tuple[bool, s
         async with httpx.AsyncClient(timeout=timeout) as client:
             response = await client.get(f"{yolo26_url}/health")
             response.raise_for_status()
+            try:
+                body = response.json()
+            except Exception:
+                body = None
+            if isinstance(body, dict) and body.get("model_loaded") is False:
+                return False, "YOLO26 model loading (model_loaded is false)"
             return True, None
     except httpx.ConnectError:
         return False, "YOLO26 service connection refused"
@@ -939,35 +948,27 @@ async def _check_yolo26_health(yolo26_url: str, timeout: float) -> tuple[bool, s
 
 
 async def _check_ai_vlm_health(ai_vlm_url: str, timeout: float) -> tuple[bool, str | None]:
-    """Check ai-vlm (llama-server + mmproj, the PIPELINE_MODE=vlm verdict engine).
+    """Check ai-vlm health from passive ``ai_health`` state without HTTP probing.
 
-    llama-server's ``/health`` answers 200 when ready and 503 while it loads
-    the model. It never wakes a sleeping server (spec §6 - the wake is a real
-    completion request), so probing it costs no VRAM.
+    Any HTTP request to ``ai-vlm`` resets llama.cpp's ``--sleep-idle-seconds``
+    timer (B4.11 T4), so status is read from ``ai_health.state("ai_vlm")``.
 
     Args:
-        ai_vlm_url: Base URL for the ai-vlm service
-        timeout: Request timeout in seconds
+        ai_vlm_url: Base URL for the ai-vlm service (unused by passive check)
+        timeout: Request timeout in seconds (unused by passive check)
 
     Returns:
         Tuple of (is_healthy, error_message)
     """
-    try:
-        async with httpx.AsyncClient(timeout=timeout) as client:
-            response = await client.get(f"{ai_vlm_url}/health")
-            if response.status_code == 503:
-                return False, "ai-vlm is loading its model (HTTP 503)"
-            response.raise_for_status()
-            return True, None
-    except httpx.ConnectError:
-        return False, "ai-vlm service connection refused"
-    except httpx.TimeoutException:
-        return False, "ai-vlm service request timed out"
-    except httpx.HTTPStatusError as e:
-        return False, f"ai-vlm service returned HTTP {e.response.status_code}"
-    except (OSError, RuntimeError) as e:
-        # Network-level failures
-        return False, f"ai-vlm service error: {e!s}"
+    _ = ai_vlm_url, timeout
+    from backend.services import ai_health
+
+    vlm_state = await ai_health.state("ai_vlm", settings=get_settings())
+    if vlm_state.state == "loading":
+        return False, vlm_state.detail or "ai-vlm is loading its model (HTTP 503)"
+    if vlm_state.state == "failing":
+        return False, vlm_state.detail or "ai-vlm service unavailable"
+    return True, None
 
 
 # Timeout for individual AI service health checks (in seconds)
@@ -2499,6 +2500,12 @@ async def get_gpu_stats_history(
     )
 
 
+def _trash_retention_days(settings: Any) -> int:
+    """Read trash_retention_days preserving 0 while falling back to 30 on bare mocks."""
+    val = getattr(settings, "trash_retention_days", 30)
+    return val if isinstance(val, int) and not isinstance(val, bool) else 30
+
+
 @router.get("/config", response_model=ConfigResponse)
 async def get_config(response: Response) -> ConfigResponse:
     """Get public configuration settings.
@@ -2531,6 +2538,7 @@ async def get_config(response: Response) -> ConfigResponse:
         version=settings.app_version,
         retention_days=settings.retention_days,
         log_retention_days=settings.log_retention_days,
+        trash_retention_days=_trash_retention_days(settings),
         batch_window_seconds=settings.batch_window_seconds,
         batch_idle_timeout_seconds=settings.batch_idle_timeout_seconds,
         detection_confidence_threshold=settings.detection_confidence_threshold,
@@ -2648,6 +2656,7 @@ async def patch_config(
     old_values = {
         "retention_days": old_settings.retention_days,
         "log_retention_days": old_settings.log_retention_days,
+        "trash_retention_days": _trash_retention_days(old_settings),
         "batch_window_seconds": old_settings.batch_window_seconds,
         "batch_idle_timeout_seconds": old_settings.batch_idle_timeout_seconds,
         "detection_confidence_threshold": old_settings.detection_confidence_threshold,
@@ -2661,6 +2670,8 @@ async def patch_config(
         overrides["RETENTION_DAYS"] = str(update.retention_days)
     if update.log_retention_days is not None:
         overrides["LOG_RETENTION_DAYS"] = str(update.log_retention_days)
+    if update.trash_retention_days is not None:
+        overrides["TRASH_RETENTION_DAYS"] = str(update.trash_retention_days)
     if update.batch_window_seconds is not None:
         overrides["BATCH_WINDOW_SECONDS"] = str(update.batch_window_seconds)
     if update.batch_idle_timeout_seconds is not None:
@@ -2692,12 +2703,14 @@ async def patch_config(
     new_values = {
         "retention_days": settings.retention_days,
         "log_retention_days": settings.log_retention_days,
+        "trash_retention_days": _trash_retention_days(settings),
         "batch_window_seconds": settings.batch_window_seconds,
         "batch_idle_timeout_seconds": settings.batch_idle_timeout_seconds,
         "detection_confidence_threshold": settings.detection_confidence_threshold,
         "fast_path_confidence_threshold": settings.fast_path_confidence_threshold,
         "fast_path_enabled": settings.fast_path_enabled,
     }
+
     changes: dict[str, dict[str, Any]] = {}
     for key, old_value in old_values.items():
         new_value = new_values[key]
@@ -2731,6 +2744,7 @@ async def patch_config(
         version=settings.app_version,
         retention_days=settings.retention_days,
         log_retention_days=settings.log_retention_days,
+        trash_retention_days=_trash_retention_days(settings),
         batch_window_seconds=settings.batch_window_seconds,
         batch_idle_timeout_seconds=settings.batch_idle_timeout_seconds,
         detection_confidence_threshold=settings.detection_confidence_threshold,
@@ -4464,11 +4478,53 @@ async def get_supervisor_full_status() -> WorkerSupervisorStatusResponse:
     )
 
 
+async def _record_worker_audit(
+    *,
+    worker_name: str,
+    user: Any,
+    request: Request | None,
+    audit_status: Any,
+    phase: str,
+    error: str | None = None,
+) -> None:
+    """Write a worker restart audit entry in a short-lived database session."""
+    from backend.core.database import get_session_factory
+    from backend.models.audit import AuditAction
+    from backend.services.audit import get_db_audit_service
+
+    try:
+        session_factory = get_session_factory()
+        async with session_factory() as session:
+            details: dict[str, Any] = {"phase": phase}
+            if error:
+                details["error"] = error
+            await get_db_audit_service().log_action(
+                db=session,
+                action=AuditAction.WORKER_RESTART,
+                resource_type="worker",
+                resource_id=worker_name,
+                actor=getattr(user, "username", None) or "admin",
+                details=details,
+                request=request,
+                status=audit_status,
+            )
+            await session.commit()
+    except Exception as exc:
+        logger.warning(
+            f"Worker audit log write failed for {worker_name} ({phase}): {exc}",
+            extra={"worker_name": worker_name, "phase": phase},
+        )
+
+
 @router.post(
     "/supervisor/workers/{worker_name}/restart",
     response_model=WorkerControlResponse,
 )
-async def restart_supervisor_worker(worker_name: str) -> WorkerControlResponse:
+async def restart_supervisor_worker(
+    worker_name: str,
+    request: Request,
+    current_user: Any = Depends(get_current_admin_user),
+) -> WorkerControlResponse:
     """Manually restart a supervised worker.
 
     This stops the worker if running and starts it again with reset state.
@@ -4484,6 +4540,8 @@ async def restart_supervisor_worker(worker_name: str) -> WorkerControlResponse:
         HTTPException 404: Worker not found
         HTTPException 503: Supervisor not initialized
     """
+    from backend.models.audit import AuditStatus
+
     _validate_worker_name(worker_name)
 
     if _worker_supervisor is None:
@@ -4499,13 +4557,37 @@ async def restart_supervisor_worker(worker_name: str) -> WorkerControlResponse:
             detail=f"Worker '{worker_name}' not found",
         )
 
+    await _record_worker_audit(
+        worker_name=worker_name,
+        user=current_user,
+        request=request,
+        audit_status=AuditStatus.SUCCESS,
+        phase="restart requested",
+    )
+
     success = await _worker_supervisor.restart_worker_task(worker_name)
 
     if not success:
+        await _record_worker_audit(
+            worker_name=worker_name,
+            user=current_user,
+            request=request,
+            audit_status=AuditStatus.FAILURE,
+            phase="restart failed",
+            error=f"Worker '{worker_name}' not found",
+        )
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
             detail=f"Worker '{worker_name}' not found",
         )
+
+    await _record_worker_audit(
+        worker_name=worker_name,
+        user=current_user,
+        request=request,
+        audit_status=AuditStatus.SUCCESS,
+        phase="restart completed",
+    )
 
     logger.info(f"Manually restarted worker '{worker_name}'")
     return WorkerControlResponse(
@@ -4519,7 +4601,10 @@ async def restart_supervisor_worker(worker_name: str) -> WorkerControlResponse:
     "/supervisor/workers/{worker_name}/stop",
     response_model=WorkerControlResponse,
 )
-async def stop_supervisor_worker(worker_name: str) -> WorkerControlResponse:
+async def stop_supervisor_worker(
+    worker_name: str,
+    _current_user: Any = Depends(get_current_admin_user),
+) -> WorkerControlResponse:
     """Manually stop a supervised worker.
 
     This stops the worker's task. The worker will remain registered
@@ -4571,7 +4656,10 @@ async def stop_supervisor_worker(worker_name: str) -> WorkerControlResponse:
     "/supervisor/workers/{worker_name}/start",
     response_model=WorkerControlResponse,
 )
-async def start_supervisor_worker(worker_name: str) -> WorkerControlResponse:
+async def start_supervisor_worker(
+    worker_name: str,
+    _current_user: Any = Depends(get_current_admin_user),
+) -> WorkerControlResponse:
     """Manually start a stopped supervised worker.
 
     This starts a worker that was previously stopped. If the worker
@@ -5260,12 +5348,51 @@ async def _check_ai_service_health(  # noqa: PLR0911
             last_check=datetime.now(UTC),
         )
 
+    # ai-vlm is never HTTP-probed (probing resets llama.cpp --sleep-idle-seconds, B4.11 T4)
+    if name in ("ai-vlm", "ai_vlm"):
+        from backend.services import ai_health
+
+        vlm_state = await ai_health.state("ai_vlm", settings=settings)
+        if vlm_state.state == "failing":
+            mapped_state = ServiceHealthState.UNHEALTHY
+        elif vlm_state.state == "loading":
+            mapped_state = ServiceHealthState.DEGRADED
+        else:
+            mapped_state = ServiceHealthState.HEALTHY
+        return AIServiceHealthStatus(
+            name=name,
+            display_name=display_name,
+            status=mapped_state,
+            url=service_url,
+            error=vlm_state.detail if mapped_state != ServiceHealthState.HEALTHY else None,
+            circuit_state=circuit_state,
+            last_check=vlm_state.since or datetime.now(UTC),
+        )
+
     start_time = time.time()
     try:
         async with httpx.AsyncClient(timeout=timeout) as client:
             response = await client.get(f"{service_url}/health")
             response_time_ms = (time.time() - start_time) * 1000
             if response.status_code == 200:
+                payload: dict[str, Any] = {}
+                try:
+                    body = response.json()
+                    if isinstance(body, dict):
+                        payload = body
+                except Exception:
+                    payload = {}
+                if payload.get("model_loaded") is False:
+                    return AIServiceHealthStatus(
+                        name=name,
+                        display_name=display_name,
+                        status=ServiceHealthState.DEGRADED,
+                        url=service_url,
+                        response_time_ms=round(response_time_ms, 2),
+                        error="model_loaded is false",
+                        circuit_state=circuit_state,
+                        last_check=datetime.now(UTC),
+                    )
                 return AIServiceHealthStatus(
                     name=name,
                     display_name=display_name,
@@ -5597,3 +5724,83 @@ async def get_full_health(
         timestamp=datetime.now(UTC),
         version=settings.app_version,
     )
+
+
+@router.get(
+    "/infrastructure-alerts",
+    response_model=InfrastructureAlertsResponse,
+    summary="Get Active Firing Infrastructure Alerts",
+    description=(
+        "Proxy Alertmanager's /api/v2/alerts and return active firing alerts "
+        "in the same shape as the /ws/events infrastructure_alert message."
+    ),
+)
+async def get_infrastructure_alerts() -> InfrastructureAlertsResponse:
+    """Return active firing infrastructure alerts from Alertmanager and webhook state."""
+    from backend.api.routes.webhooks import get_active_webhook_alerts
+
+    settings = get_settings()
+    alertmanager_url = getattr(settings, "alertmanager_url", "http://alertmanager:9093")
+    by_fingerprint: dict[str, InfrastructureAlertItem] = {}
+
+    # Seed from active firing alerts received via POST /api/webhooks/alerts
+    for item in get_active_webhook_alerts():
+        fp = str(item.get("fingerprint") or "")
+        if fp:
+            by_fingerprint[fp] = InfrastructureAlertItem(**item)
+
+    # Query Alertmanager /api/v2/alerts when reachable
+    if alertmanager_url:
+        try:
+            async with httpx.AsyncClient(timeout=2.0) as client:
+                resp = await client.get(f"{alertmanager_url.rstrip('/')}/api/v2/alerts")
+                if resp.status_code == 200:
+                    data = resp.json()
+                    if isinstance(data, list):
+                        for raw in data:
+                            if not isinstance(raw, dict):
+                                continue
+                            status_obj = raw.get("status")
+                            if isinstance(status_obj, dict):
+                                state = status_obj.get("state")
+                            else:
+                                state = status_obj
+                            if state not in ("active", "firing"):
+                                continue
+                            raw_labels = raw.get("labels")
+                            labels: dict[str, Any] = (
+                                raw_labels if isinstance(raw_labels, dict) else {}
+                            )
+                            raw_annotations = raw.get("annotations")
+                            annotations: dict[str, Any] = (
+                                raw_annotations if isinstance(raw_annotations, dict) else {}
+                            )
+                            receivers = raw.get("receivers")
+                            receiver_name = "alertmanager"
+                            if isinstance(receivers, list) and receivers:
+                                first_rec = receivers[0]
+                                if isinstance(first_rec, dict) and first_rec.get("name"):
+                                    receiver_name = str(first_rec["name"])
+                                elif isinstance(first_rec, str):
+                                    receiver_name = first_rec
+                            fp = str(raw.get("fingerprint") or labels.get("alertname") or "unknown")
+                            by_fingerprint[fp] = InfrastructureAlertItem(
+                                alertname=str(labels.get("alertname", "unknown")),
+                                status="firing",
+                                severity=str(labels.get("severity", "info")),
+                                component=str(labels.get("component", "unknown")),
+                                summary=str(annotations.get("summary", "")),
+                                description=str(annotations.get("description", "")),
+                                started_at=(
+                                    str(raw["startsAt"])
+                                    if raw.get("startsAt") is not None
+                                    else None
+                                ),
+                                fingerprint=fp,
+                                receiver=receiver_name,
+                            )
+        except Exception as exc:
+            logger.debug(f"Alertmanager /api/v2/alerts proxy unavailable: {exc}")
+
+    alerts = list(by_fingerprint.values())
+    return InfrastructureAlertsResponse(alerts=alerts, total=len(alerts))

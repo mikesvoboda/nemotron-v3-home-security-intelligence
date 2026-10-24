@@ -1147,6 +1147,72 @@ class TestNotificationServicePriorityWebhook:
             assert result.success is True
             assert result.is_high_priority is True
 
+    @pytest.mark.asyncio
+    async def test_send_webhook_default_priority_not_mutated(self, service, mock_alert):
+        """[B4.2] closes the #7339 test-gap survivor: ``send_webhook``'s
+        ``is_high_priority: bool = False``. Every earlier priority test passes
+        the kwarg explicitly, so a mutant flipping the default (False -> True)
+        kept every test green. This call omits it and observes the flag at two
+        seams: the result field and the payload handed to the HTTP POST."""
+        mock_alert.is_high_priority = False
+        mock_response = AsyncMock()
+        mock_response.status_code = 200
+        mock_response.text = "OK"
+
+        mock_client = AsyncMock()
+        mock_client.post.return_value = mock_response
+
+        with (
+            patch.object(service, "_get_http_client", return_value=mock_client, autospec=True),
+            patch(
+                "backend.services.notification.validate_webhook_url_for_request",
+                return_value="https://example.com/webhook",
+                autospec=True,
+            ),
+        ):
+            result = await service.send_webhook(mock_alert)  # kwarg omitted
+
+            # Result seam: the flag must carry the untouched default.
+            assert result.success is True
+            assert result.is_high_priority is False
+            # Payload seam: what leaves the process must say not-urgent.
+            payload = mock_client.post.call_args.kwargs["json"]
+            assert payload["is_high_priority"] is False
+
+    @pytest.mark.asyncio
+    async def test_send_to_channel_default_priority_not_mutated(self, service, mock_alert):
+        """[B4.2] closes the #7339 test-gap survivor: ``_send_to_channel``'s
+        ``is_high_priority: bool = False``. The flag flows into the handler
+        lambdas, so the same no-kwarg call must yield a not-high-priority
+        delivery through the WEBHOOK handler's payload seam."""
+        mock_alert.is_high_priority = False
+        mock_response = AsyncMock()
+        mock_response.status_code = 200
+        mock_response.text = "OK"
+
+        mock_client = AsyncMock()
+        mock_client.post.return_value = mock_response
+
+        with (
+            patch.object(service, "_get_http_client", return_value=mock_client, autospec=True),
+            patch(
+                "backend.services.notification.validate_webhook_url_for_request",
+                return_value="https://example.com/webhook",
+                autospec=True,
+            ),
+        ):
+            result = await service._send_to_channel(
+                NotificationChannel.WEBHOOK,
+                mock_alert,
+                None,
+                None,  # kwarg omitted
+            )
+
+            assert result.success is True
+            assert result.is_high_priority is False
+            payload = mock_client.post.call_args.kwargs["json"]
+            assert payload["is_high_priority"] is False
+
 
 class TestNotificationServiceDeliverAlertWithPriority:
     """Tests for deliver_alert with priority flag propagation.

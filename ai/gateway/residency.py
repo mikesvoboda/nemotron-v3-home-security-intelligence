@@ -53,6 +53,8 @@ FULL_MODEL_SET: tuple[str, ...] = (
     "yolo26",
     "reid",
     "threat",
+    "scrfd",
+    "arcface",
 )
 
 # The unconditional members of the `vlm` repository: the YOLO26 gate and the
@@ -63,10 +65,17 @@ VLM_MODEL_BASE: tuple[str, ...] = ("yolo26", "reid")
 # include/not-include call; until then this flag is how it is opted in.
 VLM_THREAT_MODEL = "threat"
 
+# [r307a] (ruling 307): SCRFD + ArcFace in Triton. Opt-in via GATEWAY_ENABLE_FACE
+# until [r307b] switches production's face leg to the gateway ("Nothing in
+# production switches yet", [r307a] Done when).
+VLM_FACE_MODELS: tuple[str, ...] = ("scrfd", "arcface")
+
 _TRUTHY = {"1", "true", "yes", "on"}
 
 
-def get_model_set(name: str, *, threat_enabled: bool = False) -> tuple[str, ...]:
+def get_model_set(
+    name: str, *, threat_enabled: bool = False, face_enabled: bool = False
+) -> tuple[str, ...]:
     """The model directories the named set serves.
 
     Raises:
@@ -78,9 +87,12 @@ def get_model_set(name: str, *, threat_enabled: bool = False) -> tuple[str, ...]
             repository whose models no longer exist in the image.
     """
     if name == "vlm":
+        models: list[str] = list(VLM_MODEL_BASE)
         if threat_enabled:
-            return (*VLM_MODEL_BASE, VLM_THREAT_MODEL)
-        return VLM_MODEL_BASE
+            models.append(VLM_THREAT_MODEL)
+        if face_enabled:
+            models.extend(VLM_FACE_MODELS)
+        return tuple(models)
     raise KeyError(f"unknown GATEWAY_MODEL_SET: {name!r} (expected 'vlm')")
 
 
@@ -94,7 +106,8 @@ def resolve_active_set() -> tuple[str, ...]:
     """
     name = os.getenv("GATEWAY_MODEL_SET", "").strip().lower()
     threat = os.getenv("GATEWAY_ENABLE_THREAT", "").strip().lower() in _TRUTHY
-    return get_model_set(name, threat_enabled=threat)
+    face = os.getenv("GATEWAY_ENABLE_FACE", "").strip().lower() in _TRUTHY
+    return get_model_set(name, threat_enabled=threat, face_enabled=face)
 
 
 def apply_model_set(

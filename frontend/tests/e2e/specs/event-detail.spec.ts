@@ -401,6 +401,7 @@ test.describe.skip('Event Detail Modal - Tab Navigation', () => {
   });
 
   test('can switch to AI Audit tab', async ({ page }) => {
+    await page.getByTestId('mode-switch-advanced').click();
     const modal = page.locator('[data-testid="event-detail-modal"]');
 
     // Click AI Audit tab

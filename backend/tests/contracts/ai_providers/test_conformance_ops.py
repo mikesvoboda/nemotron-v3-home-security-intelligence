@@ -176,8 +176,14 @@ _ENRICH_LT_UNBOUND = {
     "enrich_lt_person_reid",
     "enrich_lt_threat_detect",
 }
-SENTINELS_GATEWAY = _ENRICH_LT_UNBOUND | {"yolo26_detect_batch", "yolo26_segment"}
-SENTINELS_LIGHT = set(_ENRICH_LT_UNBOUND)
+_ENRICH_LT_FACE_UNBOUND = {
+    "enrich_lt_face_detect",
+    "enrich_lt_face_recognize",
+}
+SENTINELS_GATEWAY = (
+    _ENRICH_LT_UNBOUND | _ENRICH_LT_FACE_UNBOUND | {"yolo26_detect_batch", "yolo26_segment"}
+)
+SENTINELS_LIGHT = set(_ENRICH_LT_UNBOUND | _ENRICH_LT_FACE_UNBOUND)
 SENTINELS_PER_MODEL = _ENRICH_LT_UNBOUND | {
     "llm_completion",
     "llm_chat_completion",

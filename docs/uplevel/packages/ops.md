@@ -143,17 +143,20 @@ It may stay open past Phase 2's exit (UR-10, contract rule 5).
 - [ ] Keep `B2.2`'s provenance and model-ID behaviour unchanged; `test_reid_path_parity.py` stays
       green in CI.
 
-**Done when:** the owner's host run (`B2.2`'s command, #6970) prints `RESULT: PASS` on the GB300
-host with OSNet-AIN at the PR's head, posted on the PR; the row reads `awaiting real tier` until
-then. It does not flip `REID_BACKEND`; production stays `local`.
+**Done when:** O2.4 passes as UR-85 says: `[r312a]`'s second run reads every plan stage at or above
+0.999 on all 36 crops on the image `main` serves, posted on #7238 and linked from #7002 (`[r312a]`;
+ruling 312 item 2 and point 4).
+`[r252]`'s run was spent without a pass (#7238 `6327606735`). The row reads `awaiting real tier`
+until then. It does not flip `REID_BACKEND`; production stays `local`.
 
 ### O2.5 Production-shape real tier
 
 **Flags:** none: not heavy. **Depends on:** none named; it builds on `O2.2`'s
-`feature_check.py --real` and ruling 143's Playwright container. It is on ops-a's roster queue
-(UR-52); the owner runs both runs from the maui login (rulings 256, 280).
-It gates only ruling 127's 12 real-tier rows, F-295 (ruling 219) and F-296 (ruling 222), not
-Phase 2's exit (UR-10, contract rule 5).
+`feature_check.py --real` and ruling 143's Playwright container. It was on ops-a's roster queue
+(UR-52) until ruling 323 gave its slot to `[r323a]`; the owner runs item 2 from the maui login
+(rulings 256, 280, 323).
+It gates only the rows it witnesses (F-176, F-178, F-182 and F-164–F-167, F-169, F-174; ruling
+323), not Phase 2's exit (UR-10, contract rule 5).
 
 Both test tiers run `docker-compose.ci.yml` on Docker (`feature_check.py` `--engine` defaults to
 `docker`, `:2189`). Production runs `docker-compose.prod.yml` on Podman (root `README.md:279-307`),
@@ -161,36 +164,31 @@ and no test runs that file. Its own surface goes unchecked: Grafana and the moni
 `userns_mode: keep-id`, the `:U` mounts, CDI devices, `PODMAN_SOCKET` for `backend` and `alloy`,
 nginx with TLS, and the real `runtime.env` mounts (ruling 144).
 
-- [ ] **Step 1, a spike, time-boxed to one session.** Does rootless Podman run inside an uplevel
+- [x] **Step 1, a spike, time-boxed to one session.** Does rootless Podman run inside an uplevel
       sandbox (`sudo` is available, UR-176)? Can `docker-compose.prod.yml` come up as a
       disposable project, with its own project name, ports, volumes, env file and camera directory
       (the README's **test deployment**), and with GPU services pointed at `agent-gpu`'s `ai-vlm`
       instead of CDI? The spike posts yes or no, the minimal override file it needed, and every
       blocker. **If no, the spike stops, and the owner rules on the blocker before anything is
-      built.**
-- [ ] **Step 2, if yes: two runs, split by venue (ruling 256).** `feature_check.py --prod-shape`
-      brings up that stack and runs the golden suite against it, using the Playwright container
-      from ruling 143, on a test deployment (UR-133). Since ruling 280 the owner runs both from the
-      maui login, item 2 first and then item 1, from the commands ops-a posts on #7037 (UR-140);
-      the operator reads their output (ruling 185 item 3).
-  - **Item 1, the `--real` run (the owner's on maui, after item 2; ruling 280).** `--real --prod-shape`, with no
-    GPU consumer in the stack but the VLM: `ai-vlm` served by `agent-gpu`, the fake `ai-gateway`, no
-    `dcgm-exporter`, and `backend`'s GPU reservation stripped. These are runtime transforms in
-    `as_prod_shape_deployment`, not edits to the authored override (ruling 162 item 3), and the run
-    record names each removed or stripped device. It witnesses F-102, F-115, F-117, F-164 to F-167,
-    F-169, F-174, F-295 and F-296.
-  - **Item 2, the fake-VLM run (owner, first; ruling 280).** `--prod-shape` with the fake VLM, from a host login on maui,
-    keeping production's CDI devices for `ai-gateway`, `dcgm-exporter` and `backend`. It witnesses
-    F-176, F-178 and F-182 and the CDI wiring (the stack boots with every device resolved), and its
-    stop-test states the GPU memory the run takes beside production. `ai-vlm`'s own CDI line is the
-    one GPU line neither run boots.
-  - **Venue (ruling 280).** Both runs go from the owner's maui login, where a systemd user session
+      built.** It answered yes, and ruling 162 ruled its blockers.
+- [x] **Step 2, if yes: item 2's run (rulings 256, 323).** `feature_check.py --prod-shape` brings
+      up that stack and runs the golden suite against it, using the Playwright container from
+      ruling 143, on a test deployment (UR-133). The owner runs it from the maui login, from the
+      command ops-a posts on #7037 (UR-140); the operator reads its output (ruling 185 item 3).
+  - **Item 1 is dropped (ruling 323).** It was a `--real --prod-shape` run with `agent-gpu`'s VLM.
+    None of its rows needed a real VLM: Grafana runs in item 2's stack too, and the other five rows
+    had no runnable leg on any tier. `[r323a]` retires its VLM relay, and `--real` with
+    `--prod-shape` refuses.
+  - **Item 2, the fake-VLM run (owner; ruling 280).** `--prod-shape` with the fake VLM, from a host
+    login on maui, keeping production's CDI devices for `ai-gateway`, `dcgm-exporter` and
+    `backend`. It witnesses F-176, F-178 and F-182 and the CDI wiring (the stack boots with every
+    device resolved), and F-164–F-167, F-169 and F-174 (ruling 323), and its stop-test states the
+    GPU memory the run takes beside production. `ai-vlm`'s own CDI line is the one GPU line it does
+    not boot.
+  - **Venue (ruling 280).** Item 2 runs from the owner's maui login, where a systemd user session
     delegates cgroups and runs Podman's health-check timers. The sandbox venue is closed for `O2.5`:
     rootless Podman there could not create a container cgroup through the Docker API, and with
-    `cgroups = "disabled"` it refused runc. The owner runs item 2, then item 1 from ops-a's
-    host-login command on #7037, which states how the VLM is served from the host (the `agent-gpu`
-    lease and its `AGENT_GPU_TOKEN_FILE`), which of item 1's device strips still apply there, and
-    the stop-test GPU reads.
+    `cgroups = "disabled"` it refused runc.
   - **Item 2's pass (ruling 287).** One owner run on maui at a merged `main` pin that carries the
     venue fixes below, whose run record shows: smoke and `in_run` (isolation) `ok`; the
     F-176/F-178/F-182 browser test passed; `device_changes` naming only `ai-vlm`; `postflight` and
@@ -202,6 +200,12 @@ nginx with TLS, and the real `runtime.env` mounts (ruling 144).
     the user-level `crun` and NVIDIA CDI runtime; `keep-id` for `foscam-init`; and the busybox HTTP
     health checks for the two exporters. `dcgm-exporter` runs rootful outside this stack in
     production (the `gpu-rootful` profile), so a rootless run cannot witness its device line.
+    The owner's 2026-10-21 run (`6321808086`) sampled no peak, so item 2 ran again, with its peak
+    sampled, at `9481f00cc` (ruling 315). It passed on the conditions above (record `6356637463`;
+    the smoke line `6357460139`).
+  - **The Grafana rows (ruling 323 item 3).** The spec reads a dashboard only when Grafana's health
+    answers 200. The run's own `compose.log` shows that health check and all six dashboards
+    answering 200 during the run (`6364965667`), so F-164–F-167, F-169 and F-174 count from it.
   - **F-182's rows (ruling 285).** No API path writes a GPU config version since #7309, so item 2's
     F-182 step seeds two rows in `gpu_configuration_versions` directly in the run's database,
     exercises list, compare and the JSON and YAML export, and restores the table. The F-176 and
@@ -214,7 +218,7 @@ nginx with TLS, and the real `runtime.env` mounts (ruling 144).
       listed.
 - [ ] **Unchanged:** the fake tier, the CI compose and the per-batch real tier (ruling 103) stay as
       they are.
-- [ ] **The venue fixes (ruling 287 item 3), ops-a's, ahead of `[r282]`.** From the owner's maui
+- [x] **The venue fixes (ruling 287 item 3), ops-a's, ahead of `[r282]`.** From the owner's maui
       handoff (`scratch-patch.diff`, its text `code-review.diff`, cut against `91bf685eb`), only
       what item 2's pass needs: the harness and venue settings, opt-in under `--prod-shape` (the
       handoff's items 1-7, 11, 12, 15, and whichever of 8 or 14 smoke needs); the GPU spec (item
@@ -225,19 +229,20 @@ nginx with TLS, and the real `runtime.env` mounts (ruling 144).
       venue's allow-list). If item 8 changes CI's fake-tier inputs, the PR says how the
       **Unchanged** box above still holds, or keeps the photographs to prod-shape only. Not in
       it: items 9 and 13 and item 19 and the null `risk_score` (`[r285]`, backend), and items
-      16-18 (`[r287b]`). Two or three PRs if the diff calls for it, one at a time (UR-52).
-- [ ] Ruling 127's 12 real-tier rows (F-102, F-115, F-117, F-164–F-167, F-169, F-174; F-176, F-178,
-      F-182), F-295 (ruling 219) and F-296 (ruling 222) get their witness from `O2.5`'s two runs. If
-      the spike says no, they fall back to ruling 127's original route: ops adds what they need to
-      the test deployment's compose.
+      16-18 (`[r287b]`). Two or three PRs if the diff calls for it, one at a time (UR-52). They
+      merged in #7320.
+- [x] **Where ruling 127's 12 real-tier rows, F-295 and F-296 get their witness (ruling 323).**
+      F-176, F-178, F-182 and F-164–F-167, F-169, F-174 come from item 2's run. F-102, F-115 and
+      F-117 come from the Monitoring package's golden path (`packages/frontend.md`). F-295 and
+      F-296 come from `[r323b]`.
 
 **Done when:** the spike's answer (yes or no, the minimal override file, every blocker) is posted;
-on yes, both Step 2 runs have posted: item 1 witnesses its 11 rows and item 2 its 3 rows and the
-CDI wiring, as item 2's pass above sets it, together ruling 127's 12 rows, F-295 and F-296
-(rulings 185, 188, 219, 222, 256, 280, 287); on no, the owner has ruled on the
-blocker (ruling 144; the spike's blockers are ruled by ruling 162). When it merges, the owning lanes rewrite the real-tier commands of `F1.2`
-(#6909, frontend; the owner runs it) and `O1.11` (#6930, ops-a; the operator runs it) onto the
-sandbox run's deployment, in a comment on each PR (rulings 154 and 256).
+on yes, item 2's pass and the Grafana check have posted, witnessing F-176, F-178, F-182 and the CDI
+wiring and F-164–F-167, F-169, F-174 (rulings 185, 188, 256, 280, 287, 323); on no, the
+owner has ruled on the blocker (ruling 144; the spike's blockers are ruled by ruling 162). When it
+merges, the owning lanes rewrite the real-tier commands of `F1.2` (#6909, frontend; the owner runs
+it) and `O1.11` (#6930, ops-a; the operator runs it) onto the sandbox run's deployment, in a comment
+on each PR (rulings 154 and 256).
 
 ## Phase 3 — The tree matches the rulings
 
@@ -269,17 +274,17 @@ image builds, and the golden paths stay green.
 
 ### O3.2 Compose base and overlays
 
-**Flags:** none. **Depends on:** `R2`; both `O2.5` runs posted (ruling 260).
-**Assigned:** heavy-b, after `O3.3`, once both `O2.5` runs have posted (ruling 260).
-**PR:** none yet. (rulings 241 and 260)
+**Flags:** none. **Depends on:** `R2`; `O2.5`'s item 2 posted (rulings 260, 323).
+**Assigned:** heavy-b, after `O3.3` (ruling 260); `O2.5`'s run has posted (ruling 323).
+**PR:** #7400. (rulings 241 and 260)
 
-- [ ] The prod file is the base; the CI stack and the fake AI are overlays. No service is defined in
+- [x] The prod file is the base; the CI stack and the fake AI are overlays. No service is defined in
       two files.
-- [ ] Settle image-version drift: one version per image.
+- [x] Settle image-version drift: one version per image.
 - [ ] Drop the seven fixed `container_name`s, so a test deployment can run every service beside a
       live stack (`O2.2` excludes them until then). Find and update every reference to those names
       first: scripts, dashboards, docs.
-- [ ] Cut comments to what an operator needs (42% of the prod file is comments today).
+- [x] Cut comments to what an operator needs (42% of the prod file is comments today).
 
 **Done when:** every supported combination renders with `podman compose ... config`, the deploy
 tool's tests pass, and the golden paths stay green.
@@ -1379,7 +1384,7 @@ Notes for the lane, from the plan PR's round-4 and round-5 reviews (#7316):
 
 **Flags:** `owner` (it changes what `CI Gate (Required Checks)` runs, UR-119, and a security check,
 UR-98). **Assigned:** `uplevel-ops-a`, after `[r291]` (ruling 294). **Depends on:** none.
-**PR:** none yet. (ruling 294, record 6307203645)
+**PR:** #7337. (ruling 294, record 6307203645)
 
 `main` went red at 01:36Z on 2026-10-21 on `Security - Trivy / Scan Backend Image`: `certifi`
 2026.6.17 with GHSA-6q48-6c7w-9gw2 (CRITICAL), in pip's own bundle in the base image (raise
@@ -1392,7 +1397,7 @@ package gives them `[r291]`'s design, and follows it where the two meet: the coo
 the routing (UR-185). Until it merges, Trivy stays in the gate as it is, and a Trivy finding turns
 `main` red.
 
-- [ ] **The gate mode** for both vulnerability scans in `trivy.yml`, with `ci.yml`'s
+- [x] **The gate mode** for both vulnerability scans in `trivy.yml`, with `ci.yml`'s
       `security-trivy` call job selecting it (UR-122: ruling 294 orders the edit). The head and the
       base are scanned in the same job, against the same Trivy database; for the image, the base
       side is the base commit's backend image (built in the job, or taken from where `main`
@@ -1402,17 +1407,17 @@ the routing (UR-185). Until it merges, Trivy stays in the gate as it is, and a T
       counts as adding that finding. A scan error on either side fails closed. The filesystem scan
       may skip when `[r291]`'s skip applies and the change does not touch `.trivyignore`; the image
       scan always runs.
-- [ ] **The full scans:** today's two scans run unchanged, with `check-trivyignore-expiry.sh`'s
+- [x] **The full scans:** today's two scans run unchanged, with `check-trivyignore-expiry.sh`'s
       dates, as `trivy.yml`'s own run on every push to `main`, daily (the Monday cron becomes daily)
       and on `workflow_dispatch`. They are not a job in `CI`, because a red job in `CI` reads as red
       `main` (`[r291]`'s notes), and `CI Gate (Required Checks)` does not read them (UR-119).
       `Config/IaC Security Scan` is unchanged: it checks the repository's own configuration.
-- [ ] **Tests, red first (UR-69),** on recorded Trivy JSON: a finding in both base and head passes
+- [x] **Tests, red first (UR-69),** on recorded Trivy JSON: a finding in both base and head passes
       the gate (one case built from run `39528289094`'s `certifi` finding); a head-only finding
       fails; removing a `.trivyignore` entry whose finding remains fails; an added entry with a past
       or missing review date fails; a scan error on either side fails; and the full mode gives
       today's results.
-- [ ] **Proof in the PR body:** one CI run of the gate mode on this PR and one `workflow_dispatch`
+- [x] **Proof in the PR body:** one CI run of the gate mode on this PR and one `workflow_dispatch`
       run of the full scans on its branch, both green, with the run links.
 
 **Done when:** the tests pass in CI at a ready head, the PR body shows the proof, and the gate reads
@@ -1480,19 +1485,19 @@ The owner's maui discovery for `O2.5` item 2 (attempt 8, `hsi-check-202610202055
 306 item 1), which proves the TensorRT parity path: `[r252]`'s run was spent without one, and
 `[r312a]`'s second run, reading every plan stage at or above 0.999 on all 36 crops on the image
 `main` serves, is O2.4's evidence (ruling 312 point 4).
-**PR:** none yet. (ruling 307, record 6323846997)
+**PR:** #7396. (ruling 307, record 6323846997)
 
 Every small model the product runs on the GPU is served by Triton (UR-86). The face leg runs on the
 CPU today by an earlier choice (`backend/services/face_recognizer_loader.py:19`, `:152`); `[r307b]`
 moves the backend to the routes this package adds.
 
-- [ ] Serve SCRFD (`det_10g.onnx`) and ArcFace (`w600k_r50.onnx`), the same pinned files, in Triton
+- [x] Serve SCRFD (`det_10g.onnx`) and ArcFace (`w600k_r50.onnx`), the same pinned files, in Triton
       as TensorRT plans built for the serving GPU, behind gateway routes as `reid` is.
-- [ ] Parity against the CPU ONNX path on a fixed face set, stage by stage as `[r157]`'s runner
+- [x] Parity against the CPU ONNX path on a fixed face set, stage by stage as `[r157]`'s runner
       does: ArcFace cosine at least 0.999 (ruling 68's gate); SCRFD boxes and the five landmarks
       within a tolerance the PR states and justifies. A CPU-only CI test pins whatever graph change
       the plans need, as `[r252]`'s does.
-- [ ] The operator runs it (UR-15) and posts the stage table and `RESULT:` line; the PR records GPU
+- [x] The operator runs it (UR-15) and posts the stage table and `RESULT:` line; the PR records GPU
       memory added and latency per face.
 
 **Done when:** `RESULT: PASS` is posted at the head and the UR-89 review approves. Nothing in
@@ -1563,7 +1568,7 @@ approves.
 
 **Flags:** none. **Assigned:** ops-b, first on its queue, as `[r252]` was (ruling 312). Where it
 edits `ai/gateway/` (cell A's files), UR-9 applies. **Depends on:** none.
-**PR:** none yet. (ruling 312, record 6329693164)
+**PR:** #7355. (rulings 312 and 325, records 6329693164 and 6364638047)
 
 Run 188.18 (`6327606735`) read 1.000000 under ONNX Runtime on CPU on the decomposed export, and
 0.346321 at its FP32 plan, as 188.17 did on the raw graph. The divergence sits inside the
@@ -1588,33 +1593,150 @@ only. If the latest release's plan reads every stage at or above 0.999 on all 36
 O2.4's evidence once `[r312b]` ships the image; any other outcome goes to the owner through the
 coordinator before more spend.
 
-**Done when:** both runs are posted, each naming the first diverging layer or reading every plan
-stage at or above 0.999; and the UR-89 review approves.
+**Ruling 325 closes it on Run 2.** Run 2 (`6353368002`, on `26.09-py3`, the image on `main` since
+#7343) read every stage at or above 0.999 on all 36 crops, so it is O2.4's evidence and `O2.4` is
+done. Run 1's half, naming the `26.01-py3` divergence, is waived: that image is retired. The layer
+measure was INCONCLUSIVE on both images ("40 marked outputs have no type in graph.value_info"), a
+defect in the marking walk that `[r325a]` fixes.
+
+**Done when:** Run 2 is posted reading every plan stage at or above 0.999 (ruling 325), CI is
+green, and the UR-89 review approves.
 
 ### [r312b] The AI stack on its latest supported releases, the Triton image first
 
 **Flags:** `heavy`, `owner` (it changes what ships, UR-98); label `cell:heavy-b`. **Assigned:**
 heavy-b, after `O3.7`, ahead of `[r307a]` and `B4.6` (ruling 312). **Depends on:** none.
-**PR:** none yet. (ruling 312, records 6329693164 and 6331303299)
+**PR:** #7343. (ruling 312, records 6329693164 and 6331303299)
 
 UR-187 starts here: the gateway built on `nvcr.io/nvidia/tritonserver:26.01-py3`
 (`ai/gateway/Dockerfile:1`), on which ONNX Runtime's CUDA execution provider had failed on the GB300
 (ruling 106).
 
-- [ ] An inventory of the AI stack's pinned components, each with its pinned version, its latest
+- [x] An inventory of the AI stack's pinned components, each with its pinned version, its latest
       supported release for the GB300 and the host driver, and its source, in the PR body; it is
-      the list UR-187 tracks.
-- [ ] The gateway's Triton image moves to the latest supported release; every model it serves is
+      the list UR-187 tracks. #7343's body, section 1.
+- [x] The gateway's Triton image moves to the latest supported release; every model it serves is
       rebuilt for it (plans and engines on the serving host, as today), and the tests pinning
-      `26.01-py3` follow.
-- [ ] Any further component the inventory shows behind is upgraded in the PR or named as its own
-      follow-up package.
+      `26.01-py3` follow. #7343 moved it to `26.09-py3` (Triton 2.73.0, TensorRT 11.3).
+- [x] Any further component the inventory shows behind is upgraded in the PR or named as its own
+      follow-up package. The two it named are `[r314a]` and `[r314b]` (ruling 314).
 - [x] If the release needs a newer host driver than the owner's host runs, the PR stops there and
       puts the driver step to the owner; changing the host is the owner's act. It needs none: the
       operator's run at `f1e7fa50c` served every model on `26.09-py3` through the image's
-      forward-compatibility libraries (run 39702868586, operator `6330800872`, review
-      `6330317376`; ruling 312's amendment, record 6331303299).
+      forward-compatibility libraries (CI run 39702868586, operator `6330800872`, review
+      `6330317376`; ruling 312's amendment, record 6331303299). NVIDIA documents that path, a
+      newer CUDA on an older data-center driver through the `cuda-compat` libraries, in "CUDA
+      Compatibility" (https://docs.nvidia.com/deploy/cuda-compatibility/).
 
 **Done when:** CI is green; the operator's real-tier run on the GB300 shows every served model
 loading and answering; and the UR-89 and UR-95 reviews approve. Re-ID's parity read on the new image
 is `[r312a]`'s second run and O2.4's, not this package's (the amendment, record 6331303299).
+
+### [r313] The npm audit checker fails closed on a failed audit
+
+**Flags:** `owner` (a security check that `CI Gate (Required Checks)` runs, UR-98, as `[r291]`).
+**Assigned:** ops-a (ruling 313's correction). **Depends on:** none.
+**PR:** #7348. (ruling 313, records 6332025973 and 6332789646)
+
+On 2026-10-22 at 02:57Z `main`'s full dependency audit read GHSA-vfj7-8cjw-p6xm (`braces`) as a
+stale exemption. Ruling 313 first routed the entry's removal. Its correction replaced that: the
+step had run five minutes, npm's `fetch-timeout`, and `run_audit()` read npm's error object as an
+audit with no findings. The finding was current, so the entry stays. In the gate's delta mode the
+same flaw failed open: a timed-out audit of the change's own tree read "none added by the change".
+
+- [x] `run_audit()` treats a payload with no `auditReportVersion`, or with an `error` key, as a
+      failed audit and exits 1 with npm's message, on the registry check and on both sides of the
+      gate's delta (#7348).
+- [x] It retries only that shape, at most twice, never a parsed report (#7348).
+- [x] Tests on the reproduced timeout payload, red first (UR-69), cover each path (#7348).
+- [x] The PR body says whether a failed `pip-audit` can reach its checker as an empty report. It
+      cannot: pip-audit writes nothing to stdout on an error, and `load_audit()` exits 1 on that.
+
+**Done when:** the PR's gate and a `workflow_dispatch` full dependency audit on its branch are
+green, the review approves, and the delegated approval is posted. CI run 39724646879, dispatch run
+39725520649, review `6333277172`, approval `6333563511`; #7348 merged 2026-10-22 at 06:07Z.
+
+### [r314a] `ai-vlm` on its latest supported CUDA base and `llama.cpp` release
+
+**Flags:** `heavy`, `owner` (it changes what ships, UR-98); label `cell:heavy-b`. **Assigned:**
+heavy-b, after `B4.6`'s real-tier revision (ruling 314). **Depends on:** none to build; its merge
+waited on `O2.5` until ruling 323 lifted the hold.
+**PR:** #7360. (ruling 314, record 6342032031)
+
+UR-187's first follow-up, named in #7343's inventory. `ai/vlm/Dockerfile` builds on
+`docker.io/nvidia/cuda:13.3.1-devel-ubuntu22.04` and `13.3.1-runtime-ubuntu22.04` (`:19`, `:86`)
+with `llama.cpp` at `b7972` (`:46`); the inventory found `13.4.3` and `b11803`. #7343 held it out
+because `O2.5`'s runs use the retained `ai-vlm:c61a573d1` image, which `ai/vlm`'s tree tags.
+
+- [x] The builder and runtime bases move to the latest `nvidia/cuda` release that runs on the GB300
+      on the host's driver: Ubuntu 24.04 if it runs, 22.04 if not, and the PR says which and why.
+      If the release needs a newer host driver, the PR stops there and puts the driver step to the
+      owner; changing the host is the owner's act.
+- [x] `LLAMA_CPP_REF` moves to the latest release tag at build time, still built for `sm_103`.
+- [x] Tests and docs that pin the old tags or ref follow, the docs lane's files in the same PR, as
+      #7343's were (UR-9, UR-81).
+- [x] It merges only after both `O2.5` runs are posted, unless the owner lifts the hold. Ruling 323
+      item 8 lifted it by name, and #7360 merged on 2026-10-23.
+
+**Done when:** CI is green; the UR-89 and UR-95 reviews approve; the operator's GB300 run builds the
+image `--no-cache`, loads the VLM model production serves in `llama-server` and has it answer one
+image-and-text request through the backend's client path, posting tokens per second and peak GPU
+memory beside the current image's on the same request (no bar is set; the review and the owner read
+the two); and the delegated approval (ruling 281) is posted.
+
+### [r314b] The synthbench renderer on its latest supported base
+
+**Flags:** `heavy`; label `cell:heavy-b`. **Assigned:** heavy-b, after `[r314a]` (ruling 314); a
+gated item that becomes claimable goes ahead of it. **Depends on:** none.
+**PR:** #7363. (ruling 314, record 6342032031)
+
+UR-187's second follow-up, named in #7343's inventory. It is lane tier: synthbench does not ship.
+
+- [x] `synthbench/generate/comfy/Containerfile:3` moves from `nvcr.io/nvidia/pytorch:26.08-py3` to
+      the latest supported release (the inventory found `26.09-py3`), and `COMFYUI_REF` and
+      `TORCHAUDIO_REF` move to the latest releases that build on it.
+- [x] Renders already made stay as they are; the change affects only later renders.
+
+**Done when:** CI is green, the UR-89 review approves, and the operator's GB300 run builds the image
+`--no-cache` and renders one frame of an existing scene.
+
+### [r323a] Retire the VLM relay; the Grafana spec requires Grafana on prod-shape runs
+
+**Flags:** none. **Assigned:** ops-a, first on its queue, in `O2.5`'s slot (ruling 323).
+**Depends on:** none.
+**PR:** #7382. (ruling 323, record 6356971214)
+
+Ruling 323 dropped `O2.5`'s item 1, the only user of the two-hop VLM relay (#7364). Item 1's stack
+never came up: Podman 4.9 split the relay sidecar's healthcheck at every space, so `python3 -c` ran
+`import` alone, and `backend` never started. `grafana-embeds.spec.ts` reads a dashboard only when
+Grafana's health answers 200, so on a stack without Grafana it still passes.
+
+- [ ] Retire the VLM relay: `VlmRelay`, `vlm_relay.py`, `PROD_SHAPE_VLM_RELAY` and their tests.
+      `--real` with `--prod-shape` refuses, naming ruling 323. Removing the rest of that
+      combination's code is optional.
+- [ ] The run's harness file says when a run is `--prod-shape`. On such runs
+      `grafana-embeds.spec.ts` requires Grafana's health to be 200 and each dashboard's uid. CI's
+      fake tier is unchanged: the spec keeps its 502 branch there.
+
+**Done when:** CI is green and the UR-89 review approves. The PR is lane tier, with one review: its
+author's (UR-32).
+
+### [r325a] The layer compare's marking walk types every marked output
+
+**Flags:** none. **Assigned:** ops-b, last on its queue; it gates nothing (ruling 325).
+**Depends on:** none.
+**PR:** none yet. (ruling 325, record 6364638047)
+
+`[r312a]`'s layer measure was INCONCLUSIVE on both Triton images with the same error: "40 marked
+outputs have no type in graph.value_info nor from shape inference (first: mean1_in1_5)". The
+measure's own check refuses the marked graph, which `onnx.checker`, ONNX Runtime and TensorRT would
+reject, so `layers.json` is never written.
+
+- [ ] The marking walk gives every marked output a type in `graph.value_info`, so that
+      `onnx.checker` and ONNX Runtime accept the marked graph.
+- [ ] A CPU-only test reproduces today's 40-output failure on the decomposed graph, red first
+      (UR-69), and passes after the fix.
+
+No GPU spend: the layer compare runs on the real tier again only if a future plan diverges.
+
+**Done when:** CI is green and the UR-89 review approves.

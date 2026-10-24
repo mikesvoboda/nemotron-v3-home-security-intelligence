@@ -1,126 +1,74 @@
 /**
- * CommandPalette - cmd+k style command palette
+ * CommandPalette - cmd+k style command palette (F4.9 — docs/uplevel/4n-modes.md).
  *
- * Provides quick navigation and actions using the cmdk library.
- * Supports:
- * - Fuzzy search for navigation items
- * - Keyboard navigation with arrow keys
- * - Displays keyboard shortcuts for each action
+ * Lists the current mode's hubs and tabs from `config/surfaces.ts` with their
+ * keywords and shortcuts, and offers "Switch to Advanced" or "Switch to Easy".
  */
 
 import { Command } from 'cmdk';
-import {
-  LayoutDashboard,
-  Clock,
-  BarChart3,
-  Bell,
-  Users,
-  FileText,
-  Activity,
-  Settings,
-  Brain,
-  ClipboardList,
-} from 'lucide-react';
-import { useCallback, useEffect, useRef } from 'react';
+import { SlidersHorizontal } from 'lucide-react';
+import { useCallback, useEffect, useMemo, useRef, type ComponentType } from 'react';
 import { useNavigate } from 'react-router-dom';
 
-import type { LucideIcon } from 'lucide-react';
+import { EASY_HUBS, HUBS, type Hub } from '../../config/surfaces';
+import { useViewMode } from '../../contexts/ViewModeContext';
 
-/**
- * Navigation item definition
- */
-interface NavigationItem {
-  /** Display name */
+interface PaletteNavigationItem {
   name: string;
-  /** Route path */
   path: string;
-  /** Keyboard shortcut (chord) */
   shortcut: string;
-  /** Icon component */
-  icon: LucideIcon;
-  /** Optional keywords for search */
+  icon: ComponentType<{ className?: string }>;
   keywords?: string[];
 }
 
-/**
- * Navigation items available in the command palette
- */
-const NAVIGATION_ITEMS: NavigationItem[] = [
-  {
-    name: 'Dashboard',
-    path: '/',
-    shortcut: 'g d',
-    icon: LayoutDashboard,
-    keywords: ['home', 'main', 'overview', 'cameras'],
-  },
-  {
-    name: 'Timeline',
-    path: '/timeline',
-    shortcut: 'g t',
-    icon: Clock,
-    keywords: ['events', 'history', 'time'],
-  },
-  {
-    name: 'Analytics',
-    path: '/analytics',
-    shortcut: 'g n',
-    icon: BarChart3,
-    keywords: ['charts', 'graphs', 'statistics', 'stats'],
-  },
-  {
-    name: 'Alerts',
-    path: '/alerts',
-    shortcut: 'g a',
-    icon: Bell,
-    keywords: ['notifications', 'warnings'],
-  },
-  {
-    name: 'Entities',
-    path: '/entities',
-    shortcut: 'g e',
-    icon: Users,
-    keywords: ['people', 'objects', 'detection'],
-  },
-  {
-    name: 'Logs',
-    path: '/logs',
-    shortcut: 'g o',
-    icon: FileText,
-    keywords: ['system', 'debug', 'output'],
-  },
-  {
-    name: 'System',
-    path: '/system',
-    shortcut: 'g y',
-    icon: Activity,
-    keywords: ['monitoring', 'health', 'status', 'performance'],
-  },
-  {
-    name: 'AI Performance',
-    path: '/ai',
-    shortcut: '',
-    icon: Brain,
-    keywords: ['model', 'inference', 'gpu', 'nemotron', 'rtdetr'],
-  },
-  {
-    name: 'Audit Log',
-    path: '/audit',
-    shortcut: '',
-    icon: ClipboardList,
-    keywords: ['history', 'changes', 'tracking'],
-  },
-  {
-    name: 'Settings',
-    path: '/settings',
-    shortcut: 'g s',
-    icon: Settings,
-    keywords: ['preferences', 'configuration', 'options'],
-  },
-];
+function buildPaletteItems(hubs: readonly Hub[]): PaletteNavigationItem[] {
+  const items: PaletteNavigationItem[] = [];
+  const seenPaths = new Set<string>();
 
-/**
- * Props for CommandPalette component
- */
+  for (const hub of hubs) {
+    // Include a hub-level entry only when the hub has its own exact path (e.g.
+    // "Settings" -> "/settings") or when its first tab is "/" ("Dashboard" -> "/").
+    if (hub.id === 'dashboard' && hub.tabs.length > 0) {
+      const firstTab = hub.tabs[0];
+      items.push({
+        name: 'Dashboard',
+        path: '/',
+        shortcut: firstTab.shortcut ?? '',
+        icon: hub.icon,
+        keywords: firstTab.keywords,
+      });
+      seenPaths.add('/');
+    } else if (hub.exactPaths && hub.exactPaths.length > 0 && hub.tabs.length > 0) {
+      const firstTab = hub.tabs[0];
+      const hubPath = hub.exactPaths[0];
+      items.push({
+        name: hub.label,
+        path: hubPath,
+        shortcut: firstTab.shortcut ?? '',
+        icon: hub.icon,
+        keywords: firstTab.keywords,
+      });
+      seenPaths.add(hubPath);
+    }
+
+    for (const tab of hub.tabs) {
+      if (seenPaths.has(tab.path)) {
+        continue;
+      }
+      seenPaths.add(tab.path);
+      items.push({
+        name: tab.label,
+        path: tab.path,
+        shortcut: tab.shortcutPath ? '' : (tab.shortcut ?? ''),
+        icon: tab.icon ?? hub.icon,
+        keywords: Array.from(new Set([...(tab.keywords ?? []), hub.label.toLowerCase()])),
+      });
+    }
+  }
+
+  return items;
+}
+
 export interface CommandPaletteProps {
   /** Whether the palette is open */
   open: boolean;
@@ -128,19 +76,21 @@ export interface CommandPaletteProps {
   onOpenChange: (open: boolean) => void;
 }
 
-/**
- * CommandPalette component
- *
- * Provides a searchable command palette for quick navigation.
- */
 export default function CommandPalette({ open, onOpenChange }: CommandPaletteProps) {
   const navigate = useNavigate();
+  const { mode, setMode } = useViewMode();
   const inputRef = useRef<HTMLInputElement>(null);
 
-  // Focus input when opened
+  const navigationItems = useMemo(
+    () => buildPaletteItems(mode === 'advanced' ? HUBS : EASY_HUBS),
+    [mode]
+  );
+
+  const switchLabel = mode === 'easy' ? 'Switch to Advanced' : 'Switch to Easy';
+  const nextMode = mode === 'easy' ? 'advanced' : 'easy';
+
   useEffect(() => {
     if (open && inputRef.current) {
-      // Small delay to ensure the dialog is rendered
       setTimeout(() => {
         inputRef.current?.focus();
       }, 0);
@@ -154,6 +104,11 @@ export default function CommandPalette({ open, onOpenChange }: CommandPalettePro
     },
     [navigate, onOpenChange]
   );
+
+  const handleToggleMode = useCallback(() => {
+    setMode(nextMode);
+    onOpenChange(false);
+  }, [setMode, nextMode, onOpenChange]);
 
   const handleKeyDown = useCallback(
     (e: React.KeyboardEvent) => {
@@ -188,20 +143,16 @@ export default function CommandPalette({ open, onOpenChange }: CommandPalettePro
         onKeyDown={handleKeyDown}
         loop
         filter={(value, search, keywords) => {
-          // Custom filter for case-insensitive fuzzy matching
-          // Combine value with keywords for search (similar to cmdk's default behavior)
           const combinedValue =
             keywords && keywords.length > 0 ? `${value} ${keywords.join(' ')}` : value;
           const normalizedValue = combinedValue.toLowerCase();
           const normalizedSearch = search.toLowerCase();
 
-          // Check if any word in the value starts with the search term
           const words = normalizedValue.split(' ');
           if (words.some((word) => word.startsWith(normalizedSearch))) {
             return 1;
           }
 
-          // Check if the value contains the search term
           if (normalizedValue.includes(normalizedSearch)) {
             return 0.5;
           }
@@ -243,46 +194,36 @@ export default function CommandPalette({ open, onOpenChange }: CommandPalettePro
             heading="Navigation"
             className="px-2 [&_[cmdk-group-heading]]:mb-2 [&_[cmdk-group-heading]]:px-2 [&_[cmdk-group-heading]]:text-xs [&_[cmdk-group-heading]]:font-medium [&_[cmdk-group-heading]]:uppercase [&_[cmdk-group-heading]]:tracking-wide [&_[cmdk-group-heading]]:text-[#666]"
           >
-            {NAVIGATION_ITEMS.map((item) => (
+            {navigationItems.map((item) => (
               <Command.Item
-                key={item.path}
+                key={`${item.name}-${item.path}`}
                 value={item.name}
                 keywords={item.keywords}
                 onSelect={() => handleSelect(item.path)}
-                className="flex cursor-pointer items-center justify-between rounded-lg px-3 py-2 text-sm text-[#999] transition-colors hover:bg-[#2a2a2a] hover:text-white aria-selected:bg-[#2a2a2a] aria-selected:text-white"
+                className="flex cursor-pointer items-center gap-3 rounded-lg px-3 py-2.5 text-sm text-white transition-colors aria-selected:bg-[#76B900]/20 aria-selected:text-[#76B900]"
               >
-                <div className="flex items-center gap-3">
-                  <item.icon className="h-4 w-4" aria-hidden="true" />
-                  <span>{item.name}</span>
-                </div>
+                <item.icon className="h-4 w-4 text-[#888]" />
+                <span className="flex-1">{item.name}</span>
                 {item.shortcut && (
-                  <kbd className="rounded bg-[#333] px-2 py-0.5 text-xs text-[#ccc]">
+                  <kbd className="rounded bg-[#2a2a2a] px-2 py-0.5 text-xs text-[#888]">
                     {item.shortcut}
                   </kbd>
                 )}
               </Command.Item>
             ))}
+
+            <Command.Item
+              key={switchLabel}
+              value={switchLabel}
+              keywords={['mode', 'view', 'easy', 'advanced', 'blueprint']}
+              onSelect={handleToggleMode}
+              className="flex cursor-pointer items-center gap-3 rounded-lg px-3 py-2.5 text-sm text-white transition-colors aria-selected:bg-[#76B900]/20 aria-selected:text-[#76B900]"
+            >
+              <SlidersHorizontal className="h-4 w-4 text-[#888]" />
+              <span className="flex-1">{switchLabel}</span>
+            </Command.Item>
           </Command.Group>
         </Command.List>
-
-        {/* Footer hint */}
-        <div className="flex items-center justify-between border-t border-[#2a2a2a] px-4 py-2 text-xs text-[#999]">
-          <div className="flex items-center gap-4">
-            <span className="flex items-center gap-1">
-              <kbd className="rounded bg-[#2a2a2a] px-1.5 py-0.5 text-[#ccc]">↑</kbd>
-              <kbd className="rounded bg-[#2a2a2a] px-1.5 py-0.5 text-[#ccc]">↓</kbd>
-              <span>Navigate</span>
-            </span>
-            <span className="flex items-center gap-1">
-              <kbd className="rounded bg-[#2a2a2a] px-1.5 py-0.5 text-[#ccc]">↵</kbd>
-              <span>Select</span>
-            </span>
-          </div>
-          <span className="flex items-center gap-1">
-            <kbd className="rounded bg-[#2a2a2a] px-1.5 py-0.5 text-[#ccc]">?</kbd>
-            <span>Shortcuts help</span>
-          </span>
-        </div>
       </Command>
     </div>
   );

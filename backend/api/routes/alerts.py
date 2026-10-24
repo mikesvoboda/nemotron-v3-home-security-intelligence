@@ -224,6 +224,8 @@ async def create_rule(
         camera_ids=rule_data.camera_ids,
         excluded_camera_ids=rule_data.excluded_camera_ids,
         alert_on_rejected=bool(rule_data.alert_on_rejected),
+        alert_on_rejected_modes=rule_data.alert_on_rejected_modes,
+        sources=rule_data.sources or ["camera"],
         zone_ids=rule_data.zone_ids,
         min_confidence=rule_data.min_confidence,
         schedule=schedule,
@@ -298,6 +300,7 @@ def _apply_rule_updates(rule: AlertRule, rule_data: AlertRuleUpdate, update_dict
         "object_types",
         "camera_ids",
         "excluded_camera_ids",
+        "alert_on_rejected_modes",
         "zone_ids",
         "min_confidence",
         "channels",
@@ -324,6 +327,8 @@ def _apply_rule_updates(rule: AlertRule, rule_data: AlertRuleUpdate, update_dict
         rule.cooldown_seconds = rule_data.cooldown_seconds
     if "alert_on_rejected" in update_dict and rule_data.alert_on_rejected is not None:
         rule.alert_on_rejected = rule_data.alert_on_rejected
+    if "sources" in update_dict and rule_data.sources is not None:
+        rule.sources = rule_data.sources
 
     # Pydantic model fields that need conversion
     if "schedule" in update_dict:

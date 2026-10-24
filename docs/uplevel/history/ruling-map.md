@@ -325,6 +325,20 @@ package tagged `[rNNN]` is a fix that ruling NNN ordered.
 | 310    | #7336 (F-246's outbound webhooks) fixed inside `B4.2` (record 6327324775)                                   |
 | 311    | arming: `B4.7`, `B4.8`, `F4.5`, `[r311a]`, `[r311b]`; sensitivity leaves MQTT (record 6328311780)           |
 | 312    | UR-187; packages `[r312a]`, `[r312b]`; amended: #7343 merges on its smoke (records 6329693164, 6331303299)  |
+| 313    | package `[r313]`: the npm audit checker fails closed; corrected (records 6332025973, 6332789646)            |
+| 314    | packages `[r314a]`, `[r314b]`: UR-187's two follow-ups to heavy-b (record 6342032031)                       |
+| 315    | `O2.5` item 2 runs again with its peak sampled, at item 1's pin (record 6345740728)                         |
+| 316    | docs closes `[r262]`; `W3.2` and `W3.3` first on its queue (record 6346660761)                              |
+| 317    | P2 designs (scene changes, exports, status); `B4.9`–`B4.11`, `F4.6`–`F4.8` (record 6347331324)              |
+| 318    | owner-partner: red `main` (real-sleep gate) to backend; fixed by #7368 (record 6349548111)                  |
+| 319    | OD-36 keep, admin-only: every `/api/debug/*` route behind the admin session (record 6349900914)             |
+| 320    | `[r320]`: Q-192 to heavy-a; moot, its spec left `main` in #7311 (records 6354896020, 6355421498)            |
+| 321    | modes and debug tools designs; `F4.9`, `B4.12`, `F4.10`; `F4.8` owner tier (record 6355356496)              |
+| 322    | owner-partner: red `main` (PG 18 client vs PG 16) to ops-a; fixed by #7379 (record 6356617873)              |
+| 323    | `O2.5` is item 2 alone; item 1 and its VLM relay dropped; `[r323a]`, `[r323b]` (record 6356971214)          |
+| 324    | owner-partner: the nightly's PG client drift to ops-a; fixed by #7389 (record 6362943411)                   |
+| 325    | Q-193: `O2.4` done on `[r312a]`'s Run 2; `[r325a]` (record 6364638047)                                      |
+| 326    | one-off: the operator stages B4.4's store in its workspace for the owner (UR-142; record 6372335619)        |
 
 ## Owner records
 

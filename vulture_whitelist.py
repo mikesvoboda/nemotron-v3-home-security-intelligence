@@ -67,6 +67,8 @@ _.clean_seed_data
 _.clean_tables
 _.clean_cameras
 _.clean_detections
+_.clean_deliveries
+_.clean_webhooks
 _.clean_events
 _.clean_full_stack
 _.clean_logs
@@ -173,3 +175,10 @@ _.RegisterRequest
 # zero behavior change).
 _.clock
 _.session_arg
+
+# The relay failed-arm test's listen stub mirrors socket.socket.listen(backlog);
+# the stub only raises, the parameter exists for the mirrored signature
+# (measured 2026-10-22, PR #7364 Dead Code job 119937262928: 100%-confidence
+# false positive on a signature-required parameter).
+_.backlog
+_.address

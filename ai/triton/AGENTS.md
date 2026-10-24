@@ -184,6 +184,8 @@ gateway-consolidation follow-up:
 | demographics_gender | onnxruntime | 8               |
 | pet                 | onnxruntime | 8               |
 | reid                | tensorrt    | 16              |
+| scrfd               | tensorrt    | 0 (static 1)    |
+| arcface             | tensorrt    | 16              |
 | depth               | onnxruntime | 0 (static 1)    |
 | pose                | onnxruntime | 0 (static 1)    |
 | threat              | onnxruntime | 0 (static 1)    |

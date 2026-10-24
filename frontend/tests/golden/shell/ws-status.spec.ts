@@ -152,15 +152,7 @@
 import type { Response } from '@playwright/test';
 
 import { GUARD_MESSAGE, expect, test } from '../guard';
-import {
-  BOOT_QUIET_MS,
-  closedByGuard,
-  loginAsAdminShell as loginAsAdmin,
-  quietBootShell as quietBoot,
-  readShellHarness,
-  seedTourDismissed,
-  type ShellHarness,
-} from '../harness';
+import { BOOT_QUIET_MS, closedByGuard, openShell, readShellHarness, setMode } from '../harness';
 
 const harness = readShellHarness();
 test.skip(
@@ -177,13 +169,6 @@ const TIME_SINCE = /^(No messages yet|Just now|\d+s ago|\d+m ago|\d+h ago)$/;
  *  probe. Carried here verbatim because the reload boots the app, not just the
  *  document. */
 const WARM = ['/api/auth/setup-status', '/api/cameras', '/api/auth/me'];
-
-async function openShell(page: import('@playwright/test').Page, h: ShellHarness) {
-  await seedTourDismissed(page);
-  await loginAsAdmin(page, h);
-  await quietBoot(page, h);
-  await expect(page.getByTestId('header-branding')).toBeVisible({ timeout: 20_000 });
-}
 
 /** What the shipped worker reports about itself (offline-cache.spec.ts:144
  *  shape — same instrument, this dir's own copy). */
@@ -274,6 +259,7 @@ test.describe('golden path: WebSocket status and disconnect banner @critical', (
     // 30 s (it covers the SECOND hook instance — see comment) + tooltip/feed
     // ~35 s ≈ 117 s of poll ceilings ⇒ 150 s wall.
     test.setTimeout(150_000);
+    await setMode(page, 'advanced');
     await openShell(page, h);
     await expectBothChannelsConnected(page);
 
@@ -359,6 +345,7 @@ test.describe('golden path: WebSocket status and disconnect banner @critical', (
     test.setTimeout(300_000);
 
     // --- ONLINE: boot connected, and witness the negative control first. ---
+    await setMode(page, 'advanced');
     await openShell(page, h);
     await expectBothChannelsConnected(page);
     // Bounded, not the 3 s default: the chip is HEADER's hook instance, the

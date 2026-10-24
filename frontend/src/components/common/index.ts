@@ -1,6 +1,9 @@
 export { default as Button } from './Button';
 export type { ButtonProps, ButtonVariant, ButtonSize } from './Button';
 
+export { default as AdvancedOnly } from './AdvancedOnly';
+export type { AdvancedOnlyProps } from './AdvancedOnly';
+
 export { default as ConnectionStatusBanner } from './ConnectionStatusBanner';
 export type { ConnectionStatusBannerProps } from './ConnectionStatusBanner';
 
