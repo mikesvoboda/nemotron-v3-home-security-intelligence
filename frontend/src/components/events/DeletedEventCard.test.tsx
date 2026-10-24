@@ -154,6 +154,37 @@ describe('DeletedEventCard', () => {
     expect(screen.getByText(/Deleted 2 days ago/i)).toBeInTheDocument();
   });
 
+  // F4.3 (spec 4n-trash.md: "Trash shows that date"): the purge date rides
+  // the Deleted chip as a second span. The page owns the clock math — the
+  // card only renders what it is handed.
+  describe('purge date chip (F4.3)', () => {
+    it('renders the preformatted purge date when provided', () => {
+      render(
+        <DeletedEventCard
+          event={createMockDeletedEvent()}
+          onRestore={mockOnRestore}
+          onPermanentDelete={mockOnPermanentDelete}
+          purgeDate="Jul 10, 2025"
+        />
+      );
+
+      expect(screen.getByTestId('purge-date-1')).toHaveTextContent('Purged: Jul 10, 2025');
+    });
+
+    it('renders no purge date when none is provided (config not loaded)', () => {
+      render(
+        <DeletedEventCard
+          event={createMockDeletedEvent()}
+          onRestore={mockOnRestore}
+          onPermanentDelete={mockOnPermanentDelete}
+        />
+      );
+
+      expect(screen.queryByTestId('purge-date-1')).not.toBeInTheDocument();
+      expect(screen.getByText(/Deleted 2 days ago/i)).toBeInTheDocument();
+    });
+  });
+
   it('has reduced opacity styling', () => {
     const event = createMockDeletedEvent();
 
