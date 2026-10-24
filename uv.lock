@@ -1271,9 +1271,6 @@ docs = [
     { name = "tree-sitter-python" },
     { name = "tree-sitter-typescript" },
 ]
-face = [
-    { name = "onnxruntime" },
-]
 quantization = [
     { name = "bitsandbytes" },
 ]
@@ -1409,7 +1406,6 @@ requires-dist = [
     { name = "nvidia-ml-py", specifier = ">=12.560.30,<14.0.0" },
     { name = "onnx", marker = "extra == 'dev'", specifier = ">=1.17" },
     { name = "onnxruntime", marker = "extra == 'dev'", specifier = ">=1.16" },
-    { name = "onnxruntime", marker = "extra == 'face'", specifier = ">=1.16" },
     { name = "onnxscript", marker = "extra == 'dev'", specifier = ">=0.7.0" },
     { name = "onvif-zeep", specifier = ">=0.2.12" },
     { name = "open-clip-torch", specifier = ">=2.29.0" },
@@ -1478,7 +1474,7 @@ requires-dist = [
     { name = "watchdog", specifier = ">=6.0.0" },
     { name = "wsdiscovery", specifier = ">=2.1.2" },
 ]
-provides-extras = ["dev", "quantization", "docs", "alpr", "face"]
+provides-extras = ["dev", "quantization", "docs", "alpr"]
 
 [package.metadata.requires-dev]
 benchmark = [

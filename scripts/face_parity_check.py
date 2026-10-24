@@ -216,14 +216,26 @@ async def _run_gateway_parity(args: argparse.Namespace) -> int:
         print(f"no images in {args.images}", file=sys.stderr)
         return 2
 
-    det_handle = await frl.load_face_detector(
-        str(args.detector_weights),
-        expected_sha256=args.detector_sha256 or None,
+    import onnxruntime as ort
+
+    det_session = ort.InferenceSession(
+        str(args.detector_weights), providers=["CPUExecutionProvider"]
     )
-    rec_handle = await frl.load_face_recognizer(
-        str(args.recognizer_weights),
-        expected_sha256=args.recognizer_sha256 or None,
+    rec_session = ort.InferenceSession(
+        str(args.recognizer_weights), providers=["CPUExecutionProvider"]
     )
+    det_handle = {
+        "session": det_session,
+        "model_id": frl._model_id(
+            "face-detector-scrfd", Path(args.detector_weights), args.detector_sha256 or None
+        ),
+    }
+    rec_handle = {
+        "session": rec_session,
+        "model_id": frl._model_id(
+            "face-recognizer", Path(args.recognizer_weights), args.recognizer_sha256 or None
+        ),
+    }
     expected_det_id = str(det_handle["model_id"])
     expected_rec_id = str(rec_handle["model_id"])
 
