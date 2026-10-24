@@ -57,8 +57,9 @@
  *   CHORD_ROUTES (:19-29) navigates (:143-164). 'g t' → /timeline and
  *   'g a' → /alerts are the pinned jumps; then 'g', a 1.2 s sleep past the
  *   window, 'a' — the URL MUST NOT move, which pins the timeout branch itself,
- *   not just the happy path. 'g y' (System) is deliberately untested: the row
- *   hands /system to F-019.
+ *   not just the happy path. 'g y' → /operations is F-019's leg below
+ *   (F4.9 pointed the System entry at /operations; CHORD_ROUTES builds it
+ *   from the tab's `shortcut` at surfaces.ts:597-605).
  * - Every chord/palette hop also asserts not-found-page is count 0: App.tsx
  *   ends in a catch-all `*` → NotFoundPage (data-testid at NotFoundPage.tsx
  *   :36), so without this, navigating to an unregistered path would still
