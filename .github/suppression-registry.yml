@@ -1137,24 +1137,6 @@ pytest_skip_imperative:
     tracking: UNTRACKED:AUTH-ROUTE-IMPLEMENTATION
     expires: '2026-12-31'
     reason: Auth router not implemented yet (expected in TDD RED phase)
-  - id: backend/tests/unit/services/test_osnet_loader.py:1360
-    kind: environment
-    owner: mikesvoboda
-    tracking: null
-    expires: null
-    reason: torch.utils.tensorboard not importable in this env
-  - id: backend/tests/unit/services/test_osnet_loader.py:1387
-    kind: todo
-    owner: mikesvoboda
-    tracking: UNTRACKED:GENERAL
-    expires: '2026-12-31'
-    reason: pinned OSNet weights not present (AGENT_GPU_DIR unset)
-  - id: backend/tests/unit/services/test_osnet_loader.py:1398
-    kind: environment
-    owner: mikesvoboda
-    tracking: null
-    expires: null
-    reason: torch/torchreid not installed
   - id: backend/tests/unit/setup_lib/test_ssl_certs.py:927
     kind: environment
     owner: mikesvoboda
@@ -1619,12 +1601,6 @@ unspecced_patch:
     tracking: nightly-full-gate.yml
     expires: null
     reason: null
-  - id: backend/tests/integration/services/test_model_loaders.py::TestOSNetLoaderIntegration.test_osnet_load_success_with_torchreid::k1
-    kind: todo
-    owner: mikesvoboda
-    tracking: R-WP4.1-SWEEP-RESIDUAL
-    expires: '2026-12-31'
-    reason: and there is no real signature to enforce anyway.
   - id: backend/tests/integration/test_admin_api.py::debug_client::k5
     kind: todo
     owner: mikesvoboda

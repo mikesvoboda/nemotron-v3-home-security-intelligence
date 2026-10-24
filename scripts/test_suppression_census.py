@@ -883,7 +883,14 @@ def test_real_tree_matches_spec_baselines():
         # baseline lowered in this same commit. Removal path: a suppression
         # deleted by the defect's repair, the direction the ratchet exists to
         # protect.
-        "pytest_skip_imperative": 94,
+        # 94→92 (2026-10-24, [r306b] PR #7416): test_osnet_loader.py's three
+        # CPU torchreid/weights skips (:1360/:1387/:1398) removed with the
+        # backend's CPU OSNet path (95→92 on main's own history; the merged
+        # history composes the two removals from a shared 95).
+        # 92→91 (2026-10-24, PR #7390 merge of main [r306b]): the merged tree
+        # MEASURES 91 — main's 92 minus the one skip the webhook fix deletes;
+        # baseline lowered to the measured value in this merge.
+        "pytest_skip_imperative": 91,
         # 51→49 (2026-10-21, roll 10 of #7246) then main's r285 +3 sites landed
         # inside files the F3.2 cut had already deleted (useMonitoringTargets,
         # ReidHistoryPanel tests): the merged tree MEASURES 49, so main's 52

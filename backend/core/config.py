@@ -1470,12 +1470,11 @@ class Settings(BaseSettings):
         description="Maximum retry attempts for ReID embedding generation on transient failures. "
         "Uses exponential backoff (2^attempt seconds). Default: 3 attempts.",
     )
-    reid_backend: Literal["local", "gateway"] = Field(
+    reid_backend: Literal["gateway"] = Field(
         default="gateway",
-        description="Where person re-ID embeddings are computed (B2.2, [r306a]; owner rulings 68, 306, 325). "
-        "'gateway': the AI gateway's GPU 'reid' model at ENRICHMENT_LIGHT_URL/person-reid, "
-        "the same network and weights (default after O2.4's parity pass in [r312a] Run 2). "
-        "'local': the backend's resident OSNet copy (rollback until [r306b] removes it).",
+        description="Where person re-ID embeddings are computed (B2.2, [r306a], [r306b]; owner rulings 68, 306, 325). "
+        "'gateway': the AI gateway's GPU 'reid' model at ENRICHMENT_LIGHT_URL/person-reid; "
+        "the backend's CPU OSNet copy was removed in [r306b] (UR-85).",
     )
 
     # Face auto-enrollment settings (NEM-4941)

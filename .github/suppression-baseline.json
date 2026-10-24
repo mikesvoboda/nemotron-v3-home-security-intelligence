@@ -10,9 +10,9 @@
   "golden_fixme": 2,
   "golden_skip": 0,
   "pytest_skip": 22,
-  "pytest_skip_imperative": 94,
+  "pytest_skip_imperative": 91,
   "pytest_skipif": 58,
   "pytest_xfail": 4,
   "tpa_slow_list": 6,
-  "unspecced_patch": 78
+  "unspecced_patch": 77
 }
