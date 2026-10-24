@@ -1265,9 +1265,9 @@ def test_committed_boundary_list_and_caps_are_pinned():
       lane roots from cap 500 to cap 300, moves the over-cap set, and reddens
       nothing here because derive() rebuilt `roots` from the same edited set.
       That is the review-blind edit the docstring above is about.
-    - The tier CENSUS of the committed list. The report's `measured == 38`
-      says every listed path resolved to a file; it does not say the 38 still SORT
-      1/7/30. A lane root that loses its AGENTS.md, or a boundary renamed out of
+    - The tier CENSUS of the committed list. The report's `measured == 37`
+      says every listed path resolved to a file; it does not say the 37 still SORT
+      1/7/29. A lane root that loses its AGENTS.md, or a boundary renamed out of
       a lane root, silently moves files between caps.
     - The census is asserted against boundary_tier(), the module's own
       classifier, which is the right way round for a pin: the literals fix HOW
@@ -1388,11 +1388,11 @@ def test_real_tree_scanned_count_floor(real_run):
 @pytest.mark.timeout(180)
 def test_real_tree_caps_arm_denominator(real_run):
     """W2.1's own denominator, pinned on the REAL run rather than only on
-    fixtures. test_line_caps_report_every_tier_and_never_fail proves the arm
+    fixtures. test_line_caps_report_every_tier_and_baseline_fails proves the arm
     works on a built tree; nothing until here proves it is measuring THIS one.
     The three numbers are the non-vacuity claim the PR body makes — "measured ==
-    boundaries == 38 is what makes the list non-vacuous" — and a report that
-    quietly measured 30 of 38 would have said so here instead of in review.
+    boundaries == 37 is what makes the list non-vacuous" — and a report that
+    quietly measured 30 of 37 would have said so here instead of in review.
 
     What is asserted is the arm's ARITHMETIC on the real tree, recomputed here
     from the filesystem — not its SIZE. The over-cap count (29 at adoption) is
@@ -1411,12 +1411,12 @@ def test_real_tree_caps_arm_denominator(real_run):
     a change in HOW lines are counted; it is aimed at the join — config path ->
     scanned file -> tier -> cap -> over — which is where a rename, a mis-tiered
     directory, or an off-by-one comparison would hide, and which no fixture
-    covers because a fixture cannot be the real 38 files.
+    covers because a fixture cannot be the real 37 files.
 
     The expected tier below is spelled out from the LITERALS, not from
     v.boundary_tier(). The first draft of this test called the module for it, and
     a mutation run caught the cost: deleting boundary_tier's root case failed
-    test_line_caps_report_every_tier_and_never_fail and the pin test, but NOT
+    test_line_caps_report_every_tier_and_baseline_fails and the pin test, but NOT
     this test — asking the module what tier it used and checking the module's
     answer against the module's answer is the vacuous comparison this file's
     header calls the laundering case. Checking tier/cap per entry against the

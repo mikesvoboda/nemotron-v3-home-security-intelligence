@@ -25,10 +25,11 @@ POLICY = "docs/uplevel/01-mutation-policy.md"
 
 # (relative path, how many opening lines the banner must live within). The three
 # superseded docs landed their banners with the design; the L ledger's is O1.1's add.
+# The two mutation-80 goal prompts carried banners too, until W3.3 deleted them
+# (they are retired entries in scripts/retired_paths.txt now) — their rows left
+# with the files.
 SUPERSEDED_DOCS = [
     ("docs/plans/2026-09-29-mutation-ladder-85-goal-prompt.md", 8),
-    ("docs/goal-prompt-mutation-80-2026-09-22.txt", 3),
-    ("docs/goal-prompt-mutation-80-2026-09-23.txt", 3),
     ("docs/plans/2026-09-12-context-map-doc-updates.md", 8),
 ]
 

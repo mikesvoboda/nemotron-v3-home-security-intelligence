@@ -38,7 +38,10 @@ What is NOT living text (records keep their references — the package says so:
       above, so an exemption for them would exempt the text that names them.
       Their own historical prose is preserved as a dated note in the file that
       mentioned them, not as a tree the scanner never looks at.
-    - Files named ``docs/goal-prompt-*.txt`` — dated goal prompts, records.
+    - Files named ``docs/goal-prompt-*.txt`` were dated goal prompts, records —
+      until W3.3 deleted the five and made them retired entries (#7411). The
+      ``_is_excluded_file`` arm for them went with the files: a deleted tree's
+      exemption is dead quarantine.
     - The six ``backend/tests/unit/scripts/data/uplevel-cites/*.md`` — byte-frozen
       snapshots of the pre-reorg plan tree (``git show de661e070^``), committed by the
       #7064 cite gate because a CI checkout has no history to read. They are records by
@@ -373,8 +376,6 @@ def _terms_pattern(terms: tuple[str, ...]) -> re.Pattern[str]:
 
 def _is_excluded_file(rel: str) -> bool:
     if rel in EXCLUDED_FILES:
-        return True
-    if rel.startswith("docs/goal-prompt-") and rel.endswith(".txt"):
         return True
     return any(rel.startswith(prefix) for prefix in EXCLUDED_PREFIXES)
 

@@ -265,9 +265,9 @@ jobs:
       # clause ("the CI audit fails on a fixture advisory that is not on the
       # dismissal list") — a Done-when that only runs locally is a Done-when
       # that rots, same doctrine as every other suite in this argv.
-      # O1.7 (rule 3): the five committed measurement scanners joined the
+      # O1.7 (rule 3): the committed measurement scanners joined the
       # list — a census nobody runs in CI is a census that rots, and these
-      # five produce the [C] baselines B3.3, W1.1, W3.3, O3.3, BB.1 and
+      # produce the [C] baselines B3.3, W1.1, W3.3, O3.3, BB.1 and
       # Phase 4 measure against. scripts/audit/AGENTS.md has the doctrine;
       # the comment lives HERE (outside the folded scalar) per the WP0.1
       # lesson: a `#` inside `>-` becomes a bash comment mid-command and
@@ -344,6 +344,8 @@ jobs:
           scripts/audit/test_env_dead_vars.py
           scripts/audit/test_battery_census.py
           scripts/audit/test_literal_groups.py
+          scripts/audit/test_nav_coverage.py
+          scripts/audit/test_unlinked_pages.py
           scripts/test_shard_durations.py
           scripts/test_reachability.py
           scripts/test_r2_python_dead_list.py

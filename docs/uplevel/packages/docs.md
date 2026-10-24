@@ -87,12 +87,11 @@ agent has approved its own files.
 **Flags:** none. **Assigned:** docs, after `W3.2`: backend's, then frontend's, one PR per lane
 (ruling 316).
 **Depends on:** `R2`; the target lane's Phase 3 `done`.
-**PR:** none yet. (ruling 241)
+**PR:** #7411. (ruling 241)
 
-- [ ] Delete the 30 redirect stubs in `docs/development/` (**DECIDE** whether mkdocs needs
-      redirects for external links), the `docs/goal-prompt-*.txt` files and the goal prompts in
-      `docs/plans/`, and the pages in no nav and linked from nowhere (54 at `d6ba78d5`; review the
-      list in the PR).
+- [ ] Delete the 29 redirect stubs in `docs/development/` — no redirects (ruling 335), the
+      `docs/goal-prompt-*.txt` files and the goal prompts in `docs/plans/`, and the pages in no nav
+      and linked from nowhere (54 at `d6ba78d5`; review the list in the PR).
 - [ ] Bring living docs in line with the code: retired components appear in 20 living pages, and
       in `CHANGELOG.md` and `llms.txt`.
 - [ ] Rebuild the mkdocs nav to cover every living doc.
