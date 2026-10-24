@@ -235,6 +235,55 @@ line_caps:
   root: 600 # the root file; the standard says it is the longest
   lane_root: 500 # the seven lane roots
   package: 300 # every other boundary file
+# W3.2 per-file line baselines (ruling 33): the caps arm's FAILING comparison.
+# One number per boundary file, may only FALL — measured above a file's
+# baseline fails the run naming it; a raise is a hand edit here that a human
+# reviews (ratchet-check.py doctrine). The tier caps stay the rewrite target
+# and stay REPORTING-only (the frontend files over cap are the frontend lane's
+# own W3.2 work — failing on them from a backend PR would gate one lane's
+# tree on another lane's rewrite). Measured with the validator's splitlines
+# rule in the backend W3.2 PR with all seven backend rewrites in place; the
+# other lanes' numbers fall in their own W3.2 PRs. backend/* numbers are the
+# post-rewrite counts (backend root 150, core 177, services 168, models 129,
+# api 127, routes 112, schemas 106).
+line_caps_baseline:
+  'AGENTS.md': 509 # root
+  '.github/AGENTS.md': 355 # lane_root
+  'ai/AGENTS.md': 442 # lane_root
+  'backend/AGENTS.md': 150 # lane_root
+  'frontend/AGENTS.md': 676 # lane_root
+  'monitoring/AGENTS.md': 383 # lane_root
+  'scripts/AGENTS.md': 1214 # lane_root
+  'setup_lib/AGENTS.md': 167 # package
+  'synthbench/AGENTS.md': 40 # lane_root
+  'ai/gateway/AGENTS.md': 45 # package
+  'backend/ai_contract/AGENTS.md': 34 # package
+  'backend/api/AGENTS.md': 127 # package
+  'backend/core/AGENTS.md': 177 # package
+  'backend/models/AGENTS.md': 129 # package
+  'backend/services/AGENTS.md': 168 # package
+  'frontend/src/AGENTS.md': 961 # package
+  'synthbench/contract/AGENTS.md': 35 # package
+  '.github/codeql/custom-queries/AGENTS.md': 381 # package
+  'ai/gateway/export/AGENTS.md': 27 # package
+  'backend/api/routes/AGENTS.md': 112 # package
+  'backend/api/schemas/AGENTS.md': 106 # package
+  'frontend/src/hooks/AGENTS.md': 2149 # package
+  'frontend/src/pages/AGENTS.md': 123 # package
+  'frontend/src/services/AGENTS.md': 931 # package
+  'frontend/src/types/AGENTS.md': 406 # package
+  'frontend/src/utils/AGENTS.md': 521 # package
+  'frontend/src/components/ai/AGENTS.md': 416 # package
+  'frontend/src/components/analytics/AGENTS.md': 400 # package
+  'frontend/src/components/common/AGENTS.md': 1102 # package
+  'frontend/src/components/dashboard/AGENTS.md': 512 # package
+  'frontend/src/components/developer-tools/AGENTS.md': 318 # package
+  'frontend/src/components/events/AGENTS.md': 515 # package
+  'frontend/src/components/face-recognition/AGENTS.md': 280 # package
+  'frontend/src/components/jobs/AGENTS.md': 308 # package
+  'frontend/src/components/settings/AGENTS.md': 393 # package
+  'frontend/src/components/system/AGENTS.md': 361 # package
+  'frontend/src/components/zones/AGENTS.md': 430 # package
 # Linear configuration (used by agents_md_linear_sync.py)
 linear:
   team_id: '998946a2-aa75-491b-a39d-189660131392'
