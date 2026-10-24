@@ -254,7 +254,7 @@ def main() -> int:
         )
 
     # Distant is a flag on top of the two strata, applied at sample time.
-    rng = random.Random(args.seed)
+    rng = random.Random(args.seed)  # noqa: S311 (seeded reproducible sampling, not crypto)
     selection: list[dict] = []
     for stratum in ("day", "night_ir"):
         pool = buckets[stratum]

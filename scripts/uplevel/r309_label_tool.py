@@ -550,7 +550,7 @@ def make_handler(
     class Handler(LabellingHandler):
         export_path: Path
 
-        def do_EXPORT(self) -> None:  # noqa: N802 (http.server API)
+        def do_EXPORT(self) -> None:
             state = load_state(state_path)  # reload: client just POSTed
             corrected = fold_corrections(prebox, state)
             export_path.parent.mkdir(parents=True, exist_ok=True)

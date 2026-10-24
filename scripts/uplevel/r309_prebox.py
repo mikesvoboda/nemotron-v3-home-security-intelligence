@@ -127,7 +127,10 @@ def load_owlv2(model_dir: str | None, device: str) -> OwlV2Like:
                 )[0]
             out: list[tuple[str, list[float], float]] = []
             for score, label, box in zip(
-                results["scores"].tolist(), results["labels"].tolist(), results["boxes"].tolist()
+                results["scores"].tolist(),
+                results["labels"].tolist(),
+                results["boxes"].tolist(),
+                strict=True,
             ):
                 text = queries[label]
                 x1, y1, x2, y2 = box
