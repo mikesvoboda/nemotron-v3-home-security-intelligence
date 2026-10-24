@@ -86,7 +86,10 @@
  * same words this header uses.
  *   - THE ROW'S "OR VIDEO" DISJUNCT, NOW SUPPLIED. The book dir carries
  *     r323b-video-clip.mp4 (5 s H.264/yuv420p, backend/ai_contract/fake/
- *     scenario_fixtures/), and its drop rides the watcher's video branch end
+ *     scenario_fixtures/, COMMITTED — the first CI head shipped it as a
+ *     local-only 8 KB file behind .gitignore's *.mp4 rule, so CI's checkout
+ *     had no clip and both video legs skipped; .gitignore now negates this
+ *     one path), and its drop rides the watcher's video branch end
  *     to end: is_video_file (.mp4, file_watcher.py:93) → the queue worker's
  *     video branch extracts frames (measured EXACTLY 1 frame through the
  *     shipped ffmpeg command — the probe, not the formula, is the authority)
@@ -1194,7 +1197,7 @@ test.describe('F-059 download media', () => {
    * legacy scenario drop nor any pipeline run, and its own fixture pins
    * already proved the row is an image with a serving image route.
    */
-  test("the video supply is real: the clip drop produced a video detection, its video route serves the clip bytes, and an image detection is refused by the route's own 400 guard", async ({
+  test("F-296 the video supply is real: the clip drop produced a video detection, its video route serves the clip bytes, and an image detection is refused by the route's own 400 guard", async ({
     page,
   }) => {
     test.info().skip(!h.ready, h.ready ? '' : h.why);
