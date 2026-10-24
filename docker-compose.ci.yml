@@ -112,6 +112,40 @@ services:
       # watcher a writable (empty) tree, which is all CI needs: the other
       # composes bind-mount real camera folders.
       - /cameras
+      # The transcoding service is a request-scoped dependency singleton whose
+      # constructor mkdirs its cache dir (transcoding_service.py:277-297,
+      # default 'data/transcoded_cache' — no Settings field exists for it,
+      # config.py carries only the NVENC knobs). Under read_only: true that
+      # mkdir raises [Errno 30] at FIRST REQUEST, so every
+      # GET /api/detections/{id}/video answers 500 from the dependency before
+      # the handler body runs (the download-media.spec.ts supply-witness leg,
+      # the pre-[r323b] one, measured exactly that). [r323b] turns that 500
+      # into a serving route:
+      # the constructor now succeeds, and get_or_transcode short-circuits
+      # .mp4 sources anyway (is_transcoding_needed is extension-only,
+      # transcoding_service.py:371-375), so an already-browser-compatible
+      # clip streams without a single transcode. Prod is untouched — it
+      # bind-mounts ./backend/data:/app/data (docker-compose.prod.yml), where
+      # the mkdir already succeeds on a writable bind.
+      - /app/data/transcoded_cache
+      # The video pipeline's frame extractor mkdirs a {video_stem}_frames/
+      # subdir under data/thumbnails for its ffmpeg output
+      # (video_processor.py:719-721). /app/data/thumbnails is baked into the
+      # image and appuser-owned (backend/Dockerfile:113), so the VideoProcessor
+      # ctor's own mkdir (:205-230) succeeds — but a NEW SUBDIR under
+      # read_only: true raises [Errno 30] EROFS, the worker logs a warning and
+      # returns with an empty frame list (pipeline_workers.py video branch),
+      # and the video job silently yields NO event. A tmpfs covers frame
+      # extraction; /app/data/clips stays read-only (video-clip.spec.ts's
+      # running 500 pin needs it — a writable clip generator would break that
+      # leg's witness). The seeded orphan fixture at
+      # /app/data/thumbnails/seeded-orphan.jpg keeps working: a writable tmpfs
+      # accepts the plant, the cleanup scan root follows
+      # settings.video_thumbnails_dir (cleanup_service.py:847-848) and the
+      # storage route's data_dir is thumbnail_dir.parent = /app/data —
+      # unchanged (system.py:3762-3764). Storage specs assert the API's own
+      # numbers (storage-file-operations.spec.ts:150-175), so no count breaks.
+      - /app/data/thumbnails
     ports:
       - '8000:8000'
     environment:
