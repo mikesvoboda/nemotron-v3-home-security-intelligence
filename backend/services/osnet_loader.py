@@ -225,7 +225,7 @@ def get_reid_handle() -> dict[str, Any] | None:
     the belt is the ID the gateway reports on each embedding, never assumed.
     """
     settings = get_settings()
-    if getattr(settings, "reid_backend", "local") == "gateway":
+    if getattr(settings, "reid_backend", "gateway") == "gateway":
         return {"kind": "gateway", "base_url": settings.enrichment_light_url, "model_id": None}
 
     from backend.services.model_zoo import get_model_manager
