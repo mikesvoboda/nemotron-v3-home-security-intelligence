@@ -74,8 +74,21 @@ from pathlib import Path
 # Extensions scanned for mentions (citations can live in code, configs and tests, not
 # just markdown). Everything else is skipped; binary-ish suffixes are never grepped.
 TEXT_SUFFIXES = {
-    ".md", ".txt", ".yml", ".yaml", ".py", ".toml", ".sh", ".ts", ".tsx", ".json",
-    ".html", ".css", ".cfg", ".ini", ".env",
+    ".md",
+    ".txt",
+    ".yml",
+    ".yaml",
+    ".py",
+    ".toml",
+    ".sh",
+    ".ts",
+    ".tsx",
+    ".json",
+    ".html",
+    ".css",
+    ".cfg",
+    ".ini",
+    ".env",
 }
 # Markdown link: [text](target). Anchors (#) are stripped before resolution; external
 # schemes and pure-fragment links are not file references.
@@ -140,9 +153,7 @@ def mention_pattern(needle: str) -> re.Pattern[str]:
     naming an identifier, not the page). Both sides get the same custom class so
     a compound cannot cite a page by sharing its prefix or suffix.
     """
-    return re.compile(
-        r"(?<![A-Za-z0-9_])" + re.escape(needle) + r"(?![A-Za-z0-9_])", re.IGNORECASE
-    )
+    return re.compile(r"(?<![A-Za-z0-9_])" + re.escape(needle) + r"(?![A-Za-z0-9_])", re.IGNORECASE)
 
 
 def scan_corpus(root: Path) -> list[tuple[str, str]]:
@@ -176,14 +187,14 @@ def scan_corpus(root: Path) -> list[tuple[str, str]]:
             if any(part in skip for part in p.parts):
                 continue
             files.append(p)
-    out = []
+    corpus: list[tuple[str, str]] = []
     for p in files:
         try:
-            out.append((p.relative_to(root).as_posix(), p.read_text(errors="replace")))
+            corpus.append((p.relative_to(root).as_posix(), p.read_text(errors="replace")))
         except OSError as exc:
             print(f"unlinked_pages: cannot read {p}: {exc}", file=sys.stderr)
             raise SystemExit(1)
-    return out
+    return corpus
 
 
 def main() -> int:
@@ -208,7 +219,9 @@ def main() -> int:
     else:
         proc = subprocess.run(
             [sys.executable, str(NAV_SCRIPT), "--root", str(root)],
-            capture_output=True, text=True, timeout=300,
+            capture_output=True,
+            text=True,
+            timeout=300,
         )
         if proc.returncode != 0:
             print(f"unlinked_pages: nav_coverage.py failed: {proc.stderr[-400:]}", file=sys.stderr)
@@ -273,7 +286,9 @@ def main() -> int:
         "nav_source": nav.get("nav_source"),
         "candidates": len(candidates),
         "counts": counts,
-        "pages": [{"path": k, "cls": v["cls"], "refs": v["refs"]} for k, v in sorted(classes.items())],
+        "pages": [
+            {"path": k, "cls": v["cls"], "refs": v["refs"]} for k, v in sorted(classes.items())
+        ],
     }
     json.dump(result, sys.stdout, indent=2)
     sys.stdout.write("\n")
