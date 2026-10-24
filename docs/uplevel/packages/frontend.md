@@ -1025,7 +1025,7 @@ skip themselves under CI.
 
 **Flags:** none. **Assigned:** frontend, last on its queue; it gates nothing (ruling 323).
 **Depends on:** none.
-**PR:** none yet. (ruling 323, record 6356971214)
+**PR:** #7418. (ruling 323, record 6356971214)
 
 Neither run of `O2.5` could witness these two rows. F-295's push cannot be driven inside any golden
 run: the summary job runs once at boot, then sleeps 3600 s. F-296's two legs are `test.fixme`,

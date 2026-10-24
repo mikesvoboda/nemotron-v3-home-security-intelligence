@@ -92,6 +92,11 @@ BINARY_SUFFIXES = {
     ".db",
     ".onnx",
     ".pt",
+    # [r323b] F-296: the committed scenario-fixtures clip is the repo's first
+    # tracked .mp4 — the *.mp4 rule only ever covered gitignored data-corpus
+    # media. (And the read below catches UnicodeDecodeError anyway, so an
+    # unlisted binary fails safe instead of failing the walk.)
+    ".mp4",
 }
 
 HISTORY_PREFIXES = (
@@ -146,7 +151,9 @@ def find_unreferenced_scripts(root: Path) -> list[str]:
             continue
         try:
             contents[rel] = p.read_text(encoding="utf-8")
-        except OSError:
+        except (OSError, UnicodeDecodeError):
+            # Not all binaries are suffix-listed — decode failures exclude a
+            # file from the referrer corpus the same way OSError does.
             continue
 
     corpus_items = list(contents.items())

@@ -224,24 +224,63 @@ describe('useSummaries', () => {
   });
 
   describe('WebSocket update triggers refetch', () => {
-    it('invalidates cache when summary_update message is received', async () => {
+    /**
+     * [r323b] F-295's frontend witness (ruling 323 item 6, "a `useSummaries`
+     * unit test shows the refetch on that frame"; UR-14's golden-path bar is
+     * waived for this row alone). The frame it feeds is the shape the backend
+     * actually ships: `{ type: 'summary_update', data: { hourly, daily } }`
+     * where both entries are the SummaryResponse fields
+     * (jobs/summary_job.py:81-129 builds it via SummaryResponse.model_dump;
+     * types/summary.ts:104-108 declares it, :193 guards it). The hook IGNORES
+     * the frame's payload — handleMessage only invalidates
+     * (useSummaries.ts:131-145); the fresh data comes from the refetch the
+     * invalidation triggers. So the witness asserts BOTH halves: the frame
+     * fires a second fetchSummaries, AND the hook's returned hourly/daily
+     * become that second response — the first half alone would pass with a
+     * stub re-answering identical data, and a payload-carrying reading of the
+     * frame would be a fiction the hook does not implement.
+     */
+    it('refetches on a summary_update frame: invalidation fires and the refetched data reaches the hook', async () => {
+      // Distinct second response so the refetch's EFFECT is observable in the
+      // hook's return, not just in the mock's call count.
+      const refetchedHourly: Summary = {
+        ...mockHourlySummary,
+        id: 11,
+        content: 'The second hourly summary, fetched after the frame.',
+        eventCount: 2,
+      };
+      const refetchedDaily: Summary = {
+        ...mockDailySummary,
+        id: 12,
+        content: 'The second daily summary, fetched after the frame.',
+        eventCount: 3,
+      };
+      const mockSecondResponse: SummariesLatestResponse = {
+        hourly: refetchedHourly,
+        daily: refetchedDaily,
+      };
+      (api.fetchSummaries as ReturnType<typeof vi.fn>)
+        .mockResolvedValueOnce(mockSummariesResponse)
+        .mockResolvedValueOnce(mockSecondResponse);
+
       const { result } = renderHook(() => useSummaries({ enabled: true, enableWebSocket: true }), {
         wrapper: createQueryWrapper(),
       });
 
-      // Wait for initial fetch
+      // The initial fetch answered the first response.
       await waitFor(() => {
-        expect(result.current.isLoading).toBe(false);
+        expect(result.current.hourly).toEqual(mockHourlySummary);
+        expect(result.current.daily).toEqual(mockDailySummary);
       });
-
       expect(api.fetchSummaries).toHaveBeenCalledTimes(1);
 
-      // Simulate receiving a WebSocket summary_update message
+      // The frame the SummaryJob broadcast ships (the shipped shape, and the
+      // payload the hook is designed to IGNORE — see the docblock).
       const wsMessage = {
         type: 'summary_update',
         data: {
-          hourly: { ...mockHourlySummary, eventCount: 2 },
-          daily: { ...mockDailySummary, eventCount: 3 },
+          hourly: refetchedHourly,
+          daily: refetchedDaily,
         },
       };
 
@@ -250,9 +289,15 @@ describe('useSummaries', () => {
         mockOnMessage?.(wsMessage);
       });
 
-      // Should trigger a refetch via cache invalidation
+      // Half 1: the frame fired a refetch via cache invalidation.
       await waitFor(() => {
         expect(api.fetchSummaries).toHaveBeenCalledTimes(2);
+      });
+
+      // Half 2: the refetched data IS what the hook now returns.
+      await waitFor(() => {
+        expect(result.current.hourly).toEqual(refetchedHourly);
+        expect(result.current.daily).toEqual(refetchedDaily);
       });
     });
 

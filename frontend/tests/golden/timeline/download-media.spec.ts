@@ -7,61 +7,61 @@
  * THE SHIPPED CHAIN, CLAIM BY CLAIM — every claim cites the file:line read at
  * this head, and a leg asserts the behaviour those lines promise:
  *   - How the modal opens at all (both doors here are the app's own): the URL
- *     door — selectedEventForModal starts null (EventTimeline.tsx:131) and the
- *     ?event= effect sets it (EventTimeline.tsx:329-334); and the CARD door —
+ *     door — selectedEventForModal starts null (EventTimeline.tsx:147) and the
+ *     ?event= effect sets it (EventTimeline.tsx:360-366); and the CARD door —
  *     leg 4 clicks an EventCard instance spread from getEventCardProps, which is
  *     the only way a grid card gets a click handler: getEventCardProps carries
- *     onClick: handleEventCardClick (:790) → setSelectedEventForModal (:751-753).
- *     The card instance leg 4 aims at is the DEFAULT grid's (:1862) — viewMode
+ *     onClick: handleEventCardClick (:934) → setSelectedEventForModal (:900-902).
+ *     The card instance leg 4 aims at is the DEFAULT grid's (:2043) — viewMode
  *     and groupBy both ship as 'grid'/'time' (:115, :124), which is the branch
- *     :1741-1744's condition leaves open — with :1793 as the same-shaped card in
+ *     that condition leaves open — with :1974 as the same-shaped card in
  *     the groupBy=camera/risk branch this file never selects.
  *     The card's own click fires it unless the point clicked is inside a button
  *     or link (EventCard.tsx:358-366, wired to the card div at :390; testid
  *     event-card-{id} at :388). A THIRD door, the live-activity rail, has its own
- *     inline onEventClick at :1104 — a DIFFERENT line from the grid card's setter,
+ *     inline onEventClick at :1873 — a DIFFERENT line from the grid card's setter,
  *     and leg 4 does NOT ride it (it clicks a grid CARD, so the setter it reaches
- *     is :753, not :1104). A bare /timeline with neither of leg 1/4's doors opens
+ *     is :902, not :1873). A bare /timeline with neither of leg 1/4's doors opens
  *     NOTHING — this file never claims a modal it did not open through a shipped
  *     door, and names the right shipped line for whichever door a leg rides.
- *   - The button. `onDownloadMedia &&` guards it (EventDetailModal.tsx:1313-1323):
- *     aria-label="Download media" (:1318), label 'Download Media' ↔ 'Downloading...'
- *     while in flight (:1321), disabled={isDownloading} (:1316). It has NO
+ *   - The button. `onDownloadMedia &&` guards it (EventDetailModal.tsx:1257-1266):
+ *     aria-label="Download media" (:1262), label 'Download Media' ↔ 'Downloading...'
+ *     while in flight (:1265), disabled={isDownloading} (:1260). It has NO
  *     data-testid — the aria-label is the shipped handle; the two OTHER Download
  *     affordances on /timeline name themselves differently ("Download video
- *     clip", EventCard.tsx:653; "Download clip", EventVideoPlayer.tsx:280), so
- *     the role locator cannot double-match. EventTimeline.tsx:1912 always passes
+ *     clip", EventCard.tsx:661; "Download clip", EventVideoPlayer.tsx:280), so
+ *     the role locator cannot double-match. EventTimeline.tsx:2092 always passes
  *     onDownloadMedia={handleDownloadMedia}, so the button rides EVERY modal.
  *   - The click. The modal's handler sets isDownloading, awaits
- *     onDownloadMedia(event.id), and resets in `finally` (EventDetailModal.tsx:294-306,
- *     reset at :304) — so "the label came back" is an observable of the awaited
+ *     onDownloadMedia(event.id), and resets in `finally` (EventDetailModal.tsx:279-291,
+ *     reset at :290) — so "the label came back" is an observable of the awaited
  *     chain settling, on the success path AND the rejected one.
- *   - The service. downloadEventMedia (api.ts:3309-3373): fetchEvent (api.ts:2300)
- *     → `event.detection_ids ?? []` (:3314) → EMPTY throws `new ApiError(404,
- *     'Event has no associated media to download')` CLIENT-side (:3316-3318; the
+ *   - The service. downloadEventMedia (api.ts:3242-3306): fetchEvent (api.ts:2250)
+ *     → `event.detection_ids ?? []` (:3247) → EMPTY throws `new ApiError(404,
+ *     'Event has no associated media to download')` CLIENT-side (:3249-3251; the
  *     server never answers 404 for a media-less event's GET — this string is the
  *     app's own diagnosis, and ApiError's message is its 2nd ctor arg,
- *     api.ts:619-635). Non-empty: detectionId = detection_ids[0] (:3321 — the
+ *     api.ts:619-635). Non-empty: detectionId = detection_ids[0] (:3254 — the
  *     row's "first detection"), then fetchEventDetections(eventId,{limit:1})
- *     (api.ts:2598, called :3324) supplies media_type and `items?.[0]` (:3326).
- *     media_type 'video' → /api/detections/{id}/video (api.ts:3269-3271); else
- *     `/api/detections/{id}/image?full=true` (api.ts:3255-3257, called :3335).
- *     BASE_URL is '' (api.ts:880): the media fetch is SAME-ORIGIN, a real
+ *     (api.ts:2576, called :3257) supplies media_type and `items?.[0]` (:3259).
+ *     media_type 'video' → /api/detections/{id}/video (api.ts:3202-3204); else
+ *     `/api/detections/{id}/image?full=true` (api.ts:3188-3190, called :3268).
+ *     BASE_URL is '' (api.ts:853): the media fetch is SAME-ORIGIN, a real
  *     network request through the UI's nginx — not a mock, not a memory blob.
  *   - The byte source. full=true reads the source file raw and returns
  *     Response(content=image_data, media_type="image/jpeg") with NO
- *     Content-Disposition (get_detection_image signature detections.py:1211;
- *     branch :1256-1263; body :1111-1133), so the client's generated name
- *     stands: api.ts:3347-3355's regex override needs the header; the default is
- *     `event_${eventId}_media.jpg` (:3348). What downloads therefore has exactly
- *     the dropped scenario file's bytes, length and name.
+ *     Content-Disposition (detections.py:1457-1467 sends only Cache-Control),
+ *     so the client's generated name stands: api.ts:3282-3288's regex override
+ *     needs the header; the default is `event_${eventId}_media.jpg` (:3281
+ *     image arm; the video arm is `event_${eventId}_media.mp4`). What downloads
+ *     therefore has exactly the dropped scenario file's bytes, length and name.
  *   - The delivery. blob → createObjectURL → a.download = filename → click →
- *     remove → revoke (api.ts:3358-3366) = the browser download event
+ *     remove → revoke (api.ts:3290-3299) = the browser download event
  *     Playwright catches with waitForEvent('download'), armed BEFORE the click
  *     (repo precedent e2e/specs/event-export.spec.ts:482; golden precedent
  *     identity/zones.spec.ts:499-521).
- *   - The report. EventTimeline.tsx:906-919: success → toastSuccess('Media
- *     download started') (:911); failure → toastError(err.message) (:914),
+ *   - The report. EventTimeline.tsx:1036-1050: success → toastSuccess('Media
+ *     download started') (:1041); failure → toastError(err.message) (:1044),
  *     sonner — `[data-sonner-toast]`, the sibling idiom (event-detail.spec.ts:314).
  *
  * WHY THE MIRROR IS THE LEG (UR-128). The row names a VALUE — the first
@@ -74,61 +74,62 @@
  * pinned too (which camera chip, which risk value, which row id the download
  * name carries), so a modal for the wrong row fails the leg, not just the bytes.
  *
- * TWO CLAUSES OF THIS ROW THIS TIER CANNOT EXECUTE, AND HOW THEY SIT ON THE
- * RECORD: each has a `test.fixme` leg written for the shape it needs — held as
- * skipped, the sibling precedent (event-reevaluate.spec.ts:259/:329 for
- * F-061/F-062, event-detail.spec.ts's read-back leg for F-057) — so the file's
- * GREEN count claims only what it executed, and a skipped leg reads as
- * not-yet-proven instead of as coverage. Next to each fixme runs a leg that
- * MEASURES why the fixme cannot pass yet, so the pair is evidence plus tripwire,
- * never a guess. The suite's shape is therefore FIVE green legs + TWO fixme, and
- * the report says so in the same words the header uses.
- *   - THE ROW'S "OR VIDEO" DISJUNCT. `detection.media_type === 'video'`
- *     (api.ts:3332) is UNREACHABLE by sanctioned supply: the book ships one IMAGE
- *     per scenario, no video (backend/ai_contract/fake/scenario_fixtures/
- *     scenarios.json — seven scenarios since [F4.4], each detections:[one] or
- *     less of one exception — f4.4-gold-high carries two image detections —
- *     image: *.jpg for all;
- *     asserted against the STORED detection, not the book alone). The branch's
- *     endpoint IS a live route and its shipped refusal is 400 "Detection {id} is
- *     not a video (media_type: image)" (detections.py:1390, guard :1432, f-string
- *     :1435) — but ON THIS STACK the app itself never hears it: the route's
- *     transcoding dependency (detections.py:1395 → dependencies.py:1155 →
- *     TranscodingService.__init__) mkdirs its cache dir under the WORKING DIR
- *     (transcoding_service.py :277-280, :284) and the baked image's root
- *     filesystem is read-only, so __init__ re-raises (:288-297) and FastAPI
- *     answers 500 — the envelope naming "[Errno 30] Read-only file system:
- *     'data/transcoded_cache'" — BEFORE the handler body runs. So the video leg is
- *     a fixme, the supply-witness pins THAT measured 500 (status, envelope code,
- *     cache-dir sentence, and the ABSENCE of the HTTPException detail key, which
- *     names the layer that answered), and the fixme's own docblock says what would
- *     turn it green. The witness is honest about what it does NOT prove: it opens
- *     no page, clicks nothing, exercises no shipped client code, and would stay
- *     green if the video branch were deleted — which is exactly why the clause
- *     needs the fixme and not a passing leg. The branch's IMAGE side is genuinely
- *     pinned by legs 1/4: with `isVideo` inverted or the two URL builders swapped
- *     (api.ts:3332-3335), the click would fetch the video route, hit that 500 at
- *     api.ts:3343-3344 and produce NO download — legs 1 and 4 both die.
- *   - "FIRST" WITH MORE THAN ONE DETECTION. Same book fact — at most one
- *     detection per event via sanctioned supply — and there is no client-called
- *     write that attaches a second detection to an event (the app's detection
- *     reads are GET-only; the detection route's POST/PATCH/DELETE are not shipped
- *     UI affordances), so a ≥2-selection has no honest data source and is NOT
- *     faked by DDL (bulk rows carry ZERO detections: events.py's bulk path builds
- *     no Detection). It is a fixme, with the two measured reasons in its docblock.
- *     What leg 5 pins instead, WITHOUT leaning on a comparison that one row makes
- *     trivial: (a) the ANCHOR — the id the app calls "first", event.detection_ids
- *     [0] (api.ts:3321, from Event.detections/detection_id_list, events.py:189-202)
- *     is the id whose bytes legs 1/4 mirrored and whose id the download name
- *     carried; and (b) that the ordering knob is LIVE rather than ignored, which
- *     IS observable at one detection because the created_at branch joins the
- *     junction table and surfaces association_created_at (events.py:2241-2249,
- *     schema :228-232) where the default branch leaves it null (:2292-2299) — plus
- *     the route 400s a value outside VALID_DETECTION_ORDER_BY (:2170, :2214-2219)
- *     instead of silently defaulting. What leg 5 deliberately does NOT assert is
- *     "the two orderings pick the same row": with one detection that is green for
- *     ANY ORDER BY, including a deleted one, and writing it as a pin on the knob
- *     would be a false claim — the fixme holds that half.
+ * THE TWO CLAUSES THE OLD HEAD COULD NOT EXECUTE, AND HOW [r323b] (ruling 323
+ * item 6) SUPPLIED BOTH: the tier used to hold each clause as a `test.fixme`
+ * (the sibling precedent, event-reevaluate.spec.ts:259/:329 for F-061/F-062) —
+ * a skipped leg is a claim of NOT-YET-PROVEN — with a witness leg beside it
+ * MEASURING why it could not pass. [r323b] added the two supplies the clauses
+ * needed and both legs RUN now; the supply docblocks sit at the videoDrop
+ * constant (the clip) and the ordering fixture (the crossed detections), and
+ * the reworked witness leg stands beside the video leg as the supply's own
+ * proof. The suite's shape is SEVEN running legs; the report says so in the
+ * same words this header uses.
+ *   - THE ROW'S "OR VIDEO" DISJUNCT, NOW SUPPLIED. The book dir carries
+ *     r323b-video-clip.mp4 (5 s H.264/yuv420p, backend/ai_contract/fake/
+ *     scenario_fixtures/, COMMITTED — the first CI head shipped it as a
+ *     local-only 8 KB file behind .gitignore's *.mp4 rule, so CI's checkout
+ *     had no clip and both video legs skipped; .gitignore now negates this
+ *     one path), and its drop rides the watcher's video branch end
+ *     to end: is_video_file (.mp4, file_watcher.py:93) → the queue worker's
+ *     video branch extracts frames (measured EXACTLY 1 frame through the
+ *     shipped ffmpeg command — the probe, not the formula, is the authority)
+ *     → the fake detector's literal script answers 3 detections for the frame
+ *     → every one lands media_type="video" (detector_client.py:1176-1182).
+ *     Two compose tmpfs mounts (docker-compose.ci.yml) made the tier able to
+ *     run that pipeline AND serve the route: the transcoding cache dir the
+ *     request-scoped dependency mkdirs (transcoding_service.py:277-297) and
+ *     /app/data/thumbnails, where the frame extractor writes its
+ *     {video_stem}_frames/ subdirs (video_processor.py:719-721) that a
+ *     read-only rootfs cannot hold. get_or_transcode short-circuits an
+ *     already-browser-compatible .mp4 (is_transcoding_needed is
+ *     extension-only, transcoding_service.py:353-375), so the streamed bytes
+ *     are the dropped file's own. The video leg (leg 2) boots the modal on the
+ *     clip's event, clicks Download Media, and mirrors the bytes against a
+ *     Node read of /api/detections/{id}/video and the clip file itself. The
+ *     route's handler-side 400 guard for a NON-video id
+ *     (detections.py:1593-1597, detail :1596 "Detection {id} is not a video
+ *     (media_type: ...)") is pinned from the other side by the witness leg —
+ *     the scenario drop's IMAGE detection refused with that detail.
+ *   - "FIRST" WITH MORE THAN ONE DETECTION, NOW SUPPLIED. The ordering
+ *     fixture bulk-creates TWO detections with crossed detected_at values
+ *     (POST /api/detections/bulk takes detected_at verbatim,
+ *     detections.py:1857-1900; DetectionBulkCreateItem carries no media_type,
+ *     so both rows are media_type "image" via the column default,
+ *     models/detection.py:57) and one event whose junction rows are written
+ *     in the request's list order (POST /api/events/bulk,
+ *     events.py:1748-1779). The result: detection_ids[0] is the LATER-detected
+ *     row while the DEFAULT ordering (Detection.detected_at asc,
+ *     events.py:2656) puts the EARLIER one first — the two candidate "firsts"
+ *     genuinely disagree, and the client fetches the URL from
+ *     detection_ids[0] (api.ts:3254) while reading media_type from the
+ *     default-ordered items[0] (api.ts:3257-3265). The ordering leg asserts
+ *     the BYTES: what downloads is detection_ids[0]'s image, NOT the
+ *     default-ordered first row's (the fixture's byte mirrors, read through
+ *     the same full=true route, are asserted distinct in beforeAll so a
+ *     fixture drift cannot make the pin vacuous). The junction order is
+ *     OBSERVED, not promised by a schema order_by (models/event.py:181-187),
+ *     so the fixture re-reads all three orderings as precondition pins and
+ *     fails loudly if the disagreement did not hold.
  *
  * THE DROP, AND THE RESOURCE CLAIM BEHIND IT. The book's bytes are a stack-wide
  * SHA256 dedupe with 300 s TTL in Redis, Redis-only in the body (dedupe.py:164,
@@ -285,6 +286,67 @@ function readDropHarness(): DropHarness {
 
 const drop = readDropHarness();
 
+/** The video supply [r323b] added (ruling 323 item 6): the book dir carries a
+ *  tiny H.264/yuv420p MP4 (r323b-video-clip.mp4, 5 seconds at 128×96, encoded
+ *  by the same ffmpeg the backend image ships — backend/Dockerfile:73), so a
+ *  drop of it rides the watcher's video branch end to end: is_video_file
+ *  (.mp4, file_watcher.py:93) → is_valid_video (1KB floor, :306/:329-330) → the queue
+ *  worker's video branch extracts frames at the shipped 4 s interval
+ *  (config.py:1975). The formula (video_processor.py:708) would compute 2
+ *  frames for a 5 s clip, but the CI image's ffmpeg command measured EXACTLY 1
+ *  frame — the probe is the authority, not the formula. The fake detector's
+ *  literal script answers 3 detections for that frame (generators.py:402 — an
+ *  ffmpeg-generated frame matches no book digest, so the literal path runs)
+ *  and every one lands media_type="video" (detector_client.py:1176-1182 —
+ *  video_path is non-None for the whole call). The route that serves it no
+ *  longer 500s on CI: docker-compose.ci.yml mounts tmpfs at the transcoding
+ *  cache dir the dependency constructor mkdirs AND at /app/data/thumbnails,
+ *  where the frame extractor writes {video_stem}_frames/ subdirs
+ *  (video_processor.py:719-721) that a read-only rootfs cannot hold; and
+ *  get_or_transcode short-circuits an already-browser-compatible .mp4 anyway
+ *  (is_transcoding_needed is extension-only, transcoding_service.py:371-375),
+ *  so the streamed bytes are the dropped file's own. */
+const VIDEO_CLIP_NAME = 'r323b-video-clip.mp4';
+const VIDEO_CAMERA_NAME = 'r323b-video-probe';
+const VIDEO_CAMERA_FOLDER = '/cameras/r323b_video_probe';
+
+interface VideoHarness {
+  ready: true;
+  /** Absolute host path of the book-dir clip — the byte mirror's local side. */
+  clipPath: string;
+  /** Absolute container path the drop helper reports (its print) — asserted
+   *  against the detection's file_path basename, not reused verbatim. */
+  clipTail: string;
+}
+
+function readVideoHarness(): VideoHarness | { ready: false; why: string } {
+  const bookPath = process.env.FEATURE_CHECK_SCENARIOS;
+  if (!bookPath) return { ready: false, why: 'missing FEATURE_CHECK_SCENARIOS' };
+  const clipPath = path.join(path.dirname(bookPath), VIDEO_CLIP_NAME);
+  if (!existsSync(clipPath)) return { ready: false, why: `no video clip at ${clipPath}` };
+  return { ready: true, clipPath, clipTail: VIDEO_CLIP_NAME };
+}
+
+const videoDrop = readVideoHarness();
+
+/** The drop helper runs ON THE HOST (feature_check.py's `drop` subcommand
+ *  requires FEATURE_CHECK_CAMERA_ROOT — :4499-4511): this env var is the host
+ *  run_dir the helper copies into, so the video arm and the ordering arm both
+ *  gate on it rather than ever defaulting. A '/cameras' fallback here would be
+ *  a path inside the container — useless to a host-side exec. */
+const cameraRootEnv = process.env.FEATURE_CHECK_CAMERA_ROOT;
+
+/** The second-image supply the ordering leg rides: TWO book scenario images
+ *  dropped on the probe camera put two byte-distinct files under the watched
+ *  folder, and the ordering fixture bulk-creates detections whose file_path
+ *  point at THOSE stored files (deterministic container paths — the drop
+ *  helper copies to `{root}/{camera}/{name}`, feature_check.py:4252-4265), so
+ *  the full=true reads the legs mirror are real bytes of two different
+ *  images. The drops' own events are a side effect this file purges; only the
+ *  FILES matter to the supply. */
+const ORDER_IMAGE_A = 'cat-on-porch.jpg';
+const ORDER_IMAGE_B = 'person-at-door.jpg';
+
 /** scripts/feature-check.sh lives at the repo root: FOUR up from
  *  frontend/tests/golden/timeline (dashboard-drop.spec.ts:126 is three up — this
  *  file is one level deeper, so the literal is '../../../..'). */
@@ -306,8 +368,7 @@ interface DetectionItem {
   id: number;
   media_type: string | null;
   file_path: string | null;
-  /** Populated ONLY by the created_at ordering branch (schemas/detections.py:
-   *  228-232; the route's junction query events.py:2244-2249). The default
+  /** Populated ONLY by the created_at ordering branch (schemas/detections.py:228; the route's junction query events.py:2602-2608). The default
    *  branch leaves it null, which is what makes the knob's effect observable
    *  even at one detection — leg 5's live-knob pair rides exactly this. */
   association_created_at?: string | null;
@@ -318,6 +379,15 @@ interface CameraRow {
   name: string;
 }
 
+/** The bulk routes' verdict shape — re-declared because harness.ts's own
+ *  BulkResult/BulkBody (:1549-1560) are module-private. `error` is None on a
+ *  success item and a string on a failure (detections.py:1889-1896 /
+ *  events.py:2030-2037), hence `string | null`. */
+interface BulkResultShape {
+  succeeded: number;
+  results: { status: string; id: number | null; error?: string | null }[];
+}
+
 const eventRow = (session: Session, id: number) =>
   api<EventRow>(harness, session, `/api/events/${id}`);
 const detectionItems = (session: Session, id: number, query = '?limit=10') =>
@@ -326,7 +396,7 @@ const detectionItems = (session: Session, id: number, query = '?limit=10') =>
 /** A route read with no status gate and no body parsing — the shape the byte
  *  mirror and the negative-status probes need (the harness's `api()` THROWS on
  *  non-200, harness.ts:114-123, so it cannot witness a 400 or a 500). Media
- *  routes are auth-exempt in prose (api.ts:3250-3251 comment); the cookie rides
+ *  routes are auth-exempt in prose (api.ts:3196-3197 comment); the cookie rides
  *  anyway so the read is at worst the app's own identity. */
 async function rawGet(session: Session, route: string): Promise<Response> {
   return fetch(`${harness.api}${route}`, {
@@ -486,7 +556,7 @@ async function seedMedialessRow(session: Session): Promise<number> {
   if (row.detection_ids.length !== 0 || row.detection_count !== 0) {
     throw new Error(
       `media-less seed arrived WITH media: detection_ids=${JSON.stringify(row.detection_ids)} — ` +
-        'the negative leg needs the client-side empty-ids branch (api.ts:3314-3318)'
+        'the negative leg needs the client-side empty-ids branch (api.ts:3247-3251)'
     );
   }
   return id;
@@ -501,6 +571,17 @@ let dropDetection: { id: number; mediaType: string; sourceBytes: Buffer };
 /** The drop leg's real elapsed time — REPORTED in leg 1, never asserted (no
  *  sleep floors on this tier; ~35 s is what this stack measured). */
 let dropElapsedMs = 0;
+/* --- the [r323b] supplies --- */
+let videoProbeCameraId = '';
+let videoEventId = 0;
+let videoDetection: { id: number; fileBytes: Buffer } | null = null;
+/** The ordering fixture: one event whose two detections make the two shipped
+ *  orderings disagree. first = the row detection_ids[0] names (junction join
+ *  order, the id the download URL rides); second = the row the DEFAULT
+ *  detected_at ordering puts first. Both carry their own byte mirror. */
+let orderEventId = 0;
+let orderFirst: { id: number; sourceBytes: Buffer } | null = null;
+let orderSecond: { id: number; sourceBytes: Buffer } | null = null;
 
 test.beforeAll(async () => {
   // Drop + fake-VLM verdict + seed is real work; inside beforeAll this sets the
@@ -513,6 +594,271 @@ test.beforeAll(async () => {
   probeCameraId = await ensureCamera(session);
   await purgeProbeRows(session); // a re-run starts from its own rows only
   medialessEventId = await seedMedialessRow(session);
+
+  // ---- [r323b] video supply: the clip drop, polled to a video detection ----
+  // Independent of the scenario drop below (its skips gate only its own legs);
+  // it needs the book dir (for the clip bytes) and a watched folder.
+  if (videoDrop.ready && cameraRootEnv) {
+    test.setTimeout(600_000); // two pipelines (video + images) inside one hook
+    // The clip's camera, in ensureCamera's idiom (the id is the name's fold;
+    // the 409 arm re-reads and confirms — the same measured shape as above).
+    const videoListed = await api<CameraRow[] | { items: CameraRow[] }>(
+      harness,
+      session,
+      '/api/cameras'
+    );
+    const videoRows = Array.isArray(videoListed) ? videoListed : videoListed.items;
+    const knownVideo = videoRows.find((row) => row.name === VIDEO_CAMERA_NAME);
+    if (knownVideo) videoProbeCameraId = knownVideo.id;
+    else {
+      try {
+        const created = await apiWrite<{ id: string }>(harness, session, 'POST', '/api/cameras', {
+          name: VIDEO_CAMERA_NAME,
+          folder_path: VIDEO_CAMERA_FOLDER,
+        });
+        videoProbeCameraId = created.id;
+      } catch (error) {
+        if (!String(error).includes('409')) throw error;
+        const again = await api<CameraRow[] | { items: CameraRow[] }>(
+          harness,
+          session,
+          '/api/cameras'
+        );
+        const found = (Array.isArray(again) ? again : again.items).find(
+          (row) => row.name === VIDEO_CAMERA_NAME
+        );
+        if (!found) throw error;
+        videoProbeCameraId = found.id;
+      }
+    }
+    // Purge this camera's own rows so the poll below can only match a detection
+    // that came from a clip drop. (A re-run inside the watcher's 300 s content
+    // TTL after a purge still drops one event short — the same space-runs
+    // discipline the scenario drop's error names.)
+    const staleVideo = await api<{ items: { id: number }[] }>(
+      harness,
+      session,
+      `/api/events?limit=100&camera_id=${encodeURIComponent(videoProbeCameraId)}`
+    );
+    await hardDeleteRows(
+      session,
+      staleVideo.items.map((row) => row.id)
+    );
+
+    execFileSync(
+      path.join(repoRoot, 'scripts/feature-check.sh'),
+      ['drop', videoDrop.clipPath, 'r323b_video_probe'],
+      {
+        cwd: repoRoot,
+        env: { ...process.env, FEATURE_CHECK_CAMERA_ROOT: cameraRootEnv },
+        encoding: 'utf8',
+        timeout: 30_000,
+      }
+    );
+
+    // Poll for the clip's event like the scenario drop's mirror: the event on
+    // this camera whose first detection is a VIDEO whose file_path ends with
+    // the clip's name. The watcher's video branch shares one file_path across
+    // the frame detections (detector_client.py:1179), so the tail match keys
+    // the whole clip; the media_type read is the supply's own claim.
+    const videoDeadline = Date.now() + 240_000;
+    while (Date.now() < videoDeadline && !videoDetection) {
+      const vlist = await api<{ items: EventRow[] }>(
+        harness,
+        session,
+        `/api/events?limit=50&camera_id=${encodeURIComponent(videoProbeCameraId)}`
+      );
+      for (const vrow of vlist.items) {
+        const vdets = await detectionItems(session, vrow.id, '?limit=1');
+        const vfirst = vdets.items[0];
+        if (!vfirst || vfirst.media_type !== 'video') continue;
+        if (!(vfirst.file_path ?? '').endsWith(videoDrop.clipTail)) continue;
+        videoEventId = vrow.id;
+        videoDetection = { id: vfirst.id, fileBytes: readFileSync(videoDrop.clipPath) };
+        break;
+      }
+      if (videoDetection) break;
+      await sleep(5_000);
+    }
+    if (!videoDetection) {
+      throw new Error(
+        `golden fixture: no event on camera ${videoProbeCameraId} carries a VIDEO detection ` +
+          `whose file_path ends with ${videoDrop.clipTail} inside 240 s — the video pipeline ` +
+          '(ffmpeg frame extraction, or the fake detector on the frame) did not run'
+      );
+    }
+  }
+
+  // ---- [r323b] ordering supply: two images + a bulk event whose two
+  // orderings disagree ----
+  // Needs the probe camera's folder watched (it is — the same tree the scenario
+  // drop rides); the drops' EVENTS are side effects the purge handles; what the
+  // fixture keeps is the FILES at their deterministic container paths, which
+  // the bulk-created detections below point at.
+  if (h.ready && cameraRootEnv) {
+    // The book dir — where the drop images and the clip live — is the
+    // scenarios.json file's directory (FEATURE_CHECK_SCENARIOS points AT the
+    // file; feature_check.py:3462). The existsSync filter below covers a
+    // missing dir, so no ternary is needed here.
+    const bookDir = path.dirname(process.env.FEATURE_CHECK_SCENARIOS ?? '');
+    const orderImages = [ORDER_IMAGE_A, ORDER_IMAGE_B]
+      .map((name) => path.join(bookDir, name))
+      .filter((p) => existsSync(p));
+    if (orderImages.length === 2) {
+      for (const image of orderImages) {
+        execFileSync(
+          path.join(repoRoot, 'scripts/feature-check.sh'),
+          ['drop', image, 'fe3_media_probe'],
+          {
+            cwd: repoRoot,
+            env: { ...process.env, FEATURE_CHECK_CAMERA_ROOT: cameraRootEnv },
+            encoding: 'utf8',
+            timeout: 30_000,
+          }
+        );
+      }
+      // The drops need their FILES on disk only — synchronous copies through
+      // the drop helper, visible in-container via the bind mount. The image
+      // route the byte mirror below rides reads file_path FROM DISK inside the
+      // container, so no pipeline wait is needed for these files to serve; the
+      // drops' own events are side effects this file purges via
+      // purgeProbeRows. The mirror asserts below carry the proof the files
+      // serve: a detection route cannot be exercised until a detection
+      // references them, and these bulk detections reference exactly them.
+      // The two bulk detections, crossed: FIRST gets the LATER detected_at,
+      // SECOND the earlier one — so the DEFAULT ordering (detected_at asc)
+      // puts SECOND first while the junction join (detection_ids, ascending
+      // id: bulk ids assign in request order) puts FIRST first. That is the
+      // fixme's disagreement, made deterministic by the shipped bulk routes
+      // (POST /api/detections/bulk takes detected_at verbatim,
+      // detections.py:1858; POST /api/events/bulk writes the junction in list
+      // order, events.py:1778-1779) — no schema extension, no DDL.
+      const tEarly = new Date(Date.now() - 20 * 60_000).toISOString();
+      const tLate = new Date(Date.now() - 5 * 60_000).toISOString();
+      const orderDets = await apiWrite<BulkResultShape>(
+        harness,
+        session,
+        'POST',
+        '/api/detections/bulk',
+        {
+          detections: [
+            {
+              camera_id: probeCameraId,
+              object_type: 'cat',
+              confidence: 0.91,
+              detected_at: tLate,
+              file_path: `/cameras/fe3_media_probe/${ORDER_IMAGE_A}`,
+              bbox_x: 20,
+              bbox_y: 20,
+              bbox_width: 120,
+              bbox_height: 200,
+            },
+            {
+              camera_id: probeCameraId,
+              object_type: 'person',
+              confidence: 0.93,
+              detected_at: tEarly,
+              file_path: `/cameras/fe3_media_probe/${ORDER_IMAGE_B}`,
+              bbox_x: 40,
+              bbox_y: 30,
+              bbox_width: 110,
+              bbox_height: 220,
+            },
+          ],
+        }
+      );
+      const orderIds = orderDets.results.map((r) => r.id).filter((id): id is number => id !== null);
+      if (orderDets.succeeded !== 2 || orderIds.length !== 2) {
+        throw new Error(
+          `golden fixture: ordering detections bulk succeeded ${orderDets.succeeded}/2 — ` +
+            String(orderDets.results.find((r) => r.status !== 'success')?.error).slice(0, 200)
+        );
+      }
+      const orderBulk = await apiWrite<BulkResultShape>(
+        harness,
+        session,
+        'POST',
+        '/api/events/bulk',
+        {
+          events: [
+            {
+              batch_id: `fe3f296-${Date.now()}`, // events.batch_id is UNIQUE
+              camera_id: probeCameraId,
+              started_at: tEarly,
+              risk_score: 61,
+              risk_level: 'medium',
+              summary: 'FE-3 F-296 ordering fixture: two orderings disagree',
+              detection_ids: orderIds, // list order = junction insertion order
+            },
+          ],
+        }
+      );
+      const orderEvent = orderBulk.results[0]?.id;
+      if (orderBulk.succeeded !== 1 || orderEvent === null || orderEvent === undefined) {
+        throw new Error(
+          `golden fixture: ordering event bulk failed — ` +
+            String(orderBulk.results[0]?.error).slice(0, 200)
+        );
+      }
+      orderEventId = orderEvent;
+      // THE ORDERING PINS — the fixture's own preconditions, read back through
+      // the two shipped orderings so the leg below cannot ride a coincidence.
+      // (1) The junction row order: GET /api/events/{id} reports detection_ids
+      // in junction join order — order is OBSERVED, not promised by a schema
+      // order_by (models/event.py:181-187), so pin it: the id the download
+      // URL rides must be orderIds[0], the LATER detected_at.
+      const orderedRow = await eventRow(session, orderEventId);
+      if (orderedRow.detection_ids[0] !== orderIds[0]) {
+        throw new Error(
+          `golden fixture: junction detection_ids[0]=${orderedRow.detection_ids[0]} is not ` +
+            `${orderIds[0]} — insertion order did not hold; the ordering leg's premise is void`
+        );
+      }
+      // (2) The DEFAULT ordering (detected_at asc) puts the EARLIER row first
+      // (orderIds[1] = D2/person), the reverse of the junction's pick.
+      const defaultOrder = await detectionItems(session, orderEventId, '?limit=2');
+      if (defaultOrder.items[0]?.id !== orderIds[1]) {
+        throw new Error(
+          `golden fixture: default ordering answered items[0]=${defaultOrder.items[0]?.id}, ` +
+            `not orderIds[1]=${orderIds[1]} — detected_at asc did not put the earlier row first`
+        );
+      }
+      // (3) The created_at ordering (the knob) puts the JUNCTION's first row
+      // first: association-created order = junction insertion order because
+      // EventDetection.created_at defaults per-row at flush
+      // (models/event_detection.py:37/:79).
+      const junctionOrder = await detectionItems(
+        session,
+        orderEventId,
+        '?limit=2&order_detections_by=created_at'
+      );
+      if (junctionOrder.items[0]?.id !== orderIds[0]) {
+        throw new Error(
+          `golden fixture: created_at ordering answered items[0]=${junctionOrder.items[0]?.id}, ` +
+            `not orderIds[0]=${orderIds[0]} — the junction order this leg rides did not hold`
+        );
+      }
+      // Mirror both sides NOW: the bytes the full=true route serves for each
+      // bulk detection, read from the route the app itself fetches.
+      const a = await mediaRead(session, `/api/detections/${orderIds[0]}/image?full=true`);
+      const b = await mediaRead(session, `/api/detections/${orderIds[1]}/image?full=true`);
+      if (a.status !== 200 || b.status !== 200) {
+        throw new Error(
+          `golden fixture: the ordering detections' image routes answered ` +
+            `${a.status}/${b.status} — the drop files are not where the fixture's ` +
+            'file_path claims; the byte mirror would mirror nothing real'
+        );
+      }
+      orderFirst = { id: orderIds[0], sourceBytes: Buffer.from(await a.arrayBuffer()) };
+      orderSecond = { id: orderIds[1], sourceBytes: Buffer.from(await b.arrayBuffer()) };
+      if (orderFirst.sourceBytes.equals(orderSecond.sourceBytes)) {
+        throw new Error(
+          'golden fixture: the two ordering detections mirror IDENTICAL bytes — ' +
+            'the two orderings could not be told apart by what downloads'
+        );
+      }
+    }
+  }
 
   if (!drop.ready) return; // the file-level + per-test skips cover the legs; this
   // keeps the hook from dereferencing a { ready: false } on odd collection paths.
@@ -595,14 +941,31 @@ test.beforeAll(async () => {
 });
 
 test.afterAll(async () => {
-  // Hard delete, exactly this file's rows: the media-less probe row and THE ONE
-  // drop event this file selected (the detection goes with it). Deliberately not
-  // a camera sweep on car_in_driveway — a neighbour lane's row there stays
+  // Hard delete, exactly this file's rows: the media-less probe row, THE ONE
+  // drop event this file selected (the detection goes with it), and the video
+  // camera's rows — the clip's event(s) plus any watcher side events the two
+  // ordering-image drops made on fe3_media_probe. Deliberately not a camera
+  // sweep on car_in_driveway — a neighbour lane's row there stays
   // (event-reevaluate.spec.ts:141-146 keeps the same discipline).
   const session = await adminSession(harness);
   const mine = [dropEventId, medialessEventId].filter((id) => id);
   await hardDeleteRows(session, mine);
   await purgeProbeRows(session).catch(() => undefined); // belt: probe-camera residue
+  // The video camera: every row it carries is this file's (the folder is
+  // private to the clip drop). The purge unlinks the detection's file_path —
+  // the camera-folder COPY of the clip, not the book original — and a later
+  // run re-drops it past the 300 s TTL.
+  if (videoProbeCameraId) {
+    const staleVideo = await api<{ items: { id: number }[] }>(
+      harness,
+      session,
+      `/api/events?limit=100&camera_id=${encodeURIComponent(videoProbeCameraId)}`
+    );
+    await hardDeleteRows(
+      session,
+      staleVideo.items.map((row) => row.id)
+    );
+  }
 });
 
 /* --------------------------------- boots ----------------------------------- */
@@ -628,7 +991,7 @@ async function bootWithModal(page: Page, cameraId: string, eventId: number): Pro
   await waitForEventCards(page);
   await expect(
     page.getByTestId('event-detail-modal'),
-    'the ?event= door opens the modal (EventTimeline.tsx:329-334)'
+    'the ?event= door opens the modal (EventTimeline.tsx:360-366)'
   ).toBeVisible();
   // The camera filter is part of the door: the row behind it must BE the named
   // camera's (mirrors event-feedback.spec.ts:150's shape + this pin).
@@ -652,7 +1015,7 @@ test.describe('F-059 download media', () => {
     // Server-side preconditions that make "no toast? a file!" a judgement:
     // the row has media, and its first detection is an IMAGE on this tier. Read
     // from the SAME endpoint the app calls (fetchEventDetections → /api/events/
-    // {id}/detections, api.ts:2598, called :3324) BEFORE the click, so a
+    // {id}/detections, api.ts:2576, called :3257) BEFORE the click, so a
     // premise change names the branch instead of timing out. A 'video' answer
     // would mean the header's blocked clause moved — leg 2 pins that wire.
     const button = downloadButton(page);
@@ -664,12 +1027,12 @@ test.describe('F-059 download media', () => {
     expect(stored.items[0]?.media_type, 'the first detection is an image on this tier').toBe(
       'image'
     );
-    expect(stored.items[0]?.id, 'items[0] is detection_ids[0] — the first, per api.ts:3321').toBe(
+    expect(stored.items[0]?.id, 'items[0] is detection_ids[0] — the first, per api.ts:3254').toBe(
       row.detection_ids[0]
     );
 
     // Node's read of the exact URL the app will fetch (same-origin to Chromium,
-    // ''+path at api.ts:880 + :3255-3257; Node rides the API origin). The
+    // ''+path at api.ts:853 + :3188-3190; Node rides the API origin). The
     // mirror compares ACROSS instruments — Chromium's download channel vs this
     // fetch — each pinned against the dropped file.
     const serverRead = await mediaRead(
@@ -689,7 +1052,7 @@ test.describe('F-059 download media', () => {
     const landed = await clickAndCatchDownload(page, button);
 
     // The NAME the app chose: no Content-Disposition ships on this route
-    // (detections.py:1111-1133 sends only Cache-Control), so api.ts:3348's
+    // (detections.py:1457-1467 sends only Cache-Control), so api.ts:3281's
     // default stands — a wrong FILE also fails the name, and vice versa.
     expect(landed.filename, 'the app suggests its own default media name for THIS row').toBe(
       `event_${dropEventId}_media.jpg`
@@ -708,7 +1071,7 @@ test.describe('F-059 download media', () => {
     );
 
     // The success report and the isDownloading reset — the label returning is
-    // EventDetailModal.tsx:304's finally, observable only once the awaited
+    // EventDetailModal.tsx:290's finally, observable only once the awaited
     // chain settled.
     await expect(toast, 'the success toast is the shipped copy').toBeVisible();
     await expect(button, 'the button exits its downloading state').toHaveText('Download Media');
@@ -721,82 +1084,164 @@ test.describe('F-059 download media', () => {
   });
 
   /**
-   * THE FIXME'S WITNESS, NOT THE ROW'S COVERAGE. This leg proves NO video
-   * downloads — the fixme below holds that clause. What this leg executes is the
-   * two measured facts that make the clause unreachable on this tier, so the
-   * fixme is evidence and not a guess, plus the tripwire that tells whoever
-   * changes the supply that a real leg is now owed:
-   *   1. No detection this supply produced is a video — the premise of
-   *      "unreachable". If a future book ships one, this reddens and the clause
-   *      gets its real leg; until then no reader can mistake this for one.
-   *   2. GET /api/detections/{id}/video answers on THIS stack with the
-   *      transcoding-dependency 500 (header: read-only image root,
-   *      transcoding_service.py:277-297) — NOT a 404, which proves the URL the
-   *      video branch builds (api.ts:3269-3271) is a real route; and NOT the
-   *      handler's own 400 detail (detections.py:1432-1435), whose ABSENCE is
-   *      asserted here so the layer that answered is named. If this stack ever
-   *      gains a writable working dir, the 500 flips to that 400 and this leg
-   *      goes red in a way that points exactly at the flip.
-   * WHAT THIS LEG DOES NOT DO, stated so it cannot be misread as a green for the
-   * row's "or video": it opens no page and clicks nothing — there is nothing to
-   * click that could make a video exist — so it exercises no shipped client code,
-   * and deleting downloadEventMedia's video branch (api.ts:3332-3334) would leave
-   * every assert below still green. The client's media-type branch is pinned only
-   * on its IMAGE side, by legs 1 and 4: with `isVideo` inverted or the two URL
-   * builders swapped, the click would fetch the video route, the 500 above would
-   * reach api.ts:3343-3344 and no download would land — legs 1 and 4 die. The
-   * branch's video side is the fixme's, and this file claims nothing for it.
+   * THE ROW'S "OR VIDEO" DISJUNCT, NOW RUNNING (ruling 323 item 6, F-296).
+   * [r323b] supplied what the old fixme measured as missing: the book dir
+   * carries r323b-video-clip.mp4, whose drop rides the watcher's video branch
+   * end to end (the supply docblock at the videoDrop constant) and lands an
+   * event whose first detection is a VIDEO. This leg boots the modal on that
+   * event, clicks Download Media, and asserts the mirror: what lands in
+   * Chromium's download channel equals, byte for byte, a Node read of
+   * /api/detections/{id}/video — which equals the dropped clip's own bytes
+   * (get_or_transcode short-circuits an already-browser-compatible .mp4, so
+   * the route streams the source file untouched; transcoding_service.py:
+   * 534-568 short-circuit, :353-375 extension check). The suggested name is
+   * the app's own default `event_${eventId}_media.mp4` (api.ts's video arm of
+   * the name builder) — no Content-Disposition ships on this route
+   * (detections.py:1658-1687 sends Content-Length/Accept-Ranges/
+   * Cache-Control only), so the default stands exactly as the image leg's
+   * does. Reddening: serve a re-encoded or wrong-detection's bytes, put the
+   * wrong id in the name, or stop the video branch from fetching — each flips
+   * an equality, the same way leg 1's do.
    */
-  test.fixme("F-296 the first detection's VIDEO downloads (the row's second disjunct) — UNPROVEN on this tier", async ({
-    page,
-  }) => {
-    // Written, NOT executed; shows as "skipped" in the feature-check `golden
-    // paths:` dict. Why it cannot run is measured by the leg above and stated in
-    // this file's header. WHAT MAKES IT GREEN: a scenario book entry whose
-    // detection is a video (book + fake-VLM writer: detector_client.py:1281),
-    // after which this leg boots the modal, clicks Download Media, and asserts
-    // the landed bytes equal a Node read of
-    // `/api/detections/${detectionId}/video` and that the suggested name ends
-    // `_media.mp4` (api.ts:3348's video arm) — the same mirror shape as leg 1.
-    if (!drop.ready) return; // narrows `drop` for the type gate; fixme never runs.
-    await bootWithModal(page, drop.cameraId, dropEventId);
-    const landed = await clickAndCatchDownload(page, downloadButton(page));
-    expect(landed.filename.endsWith('_media.mp4')).toBe(true);
-    expect(() => closedByGuard(page)).toThrow(GUARD_MESSAGE);
-  });
-
-  test('the supply-witness for that fixme: no detection this drop produced is a video, and the clip route the video branch builds is live but answered by its transcoding dependency (500) before the handler 400 guard', async ({
+  test("F-296 the first detection's VIDEO downloads byte-identical to the server read of the app's own video route", async ({
     page,
   }) => {
     test.info().skip(!h.ready, h.ready ? '' : h.why);
-    test.info().skip(!drop.ready, drop.ready ? '' : drop.why);
-    if (!h.ready || !drop.ready) return;
+    test.info().skip(!videoDrop.ready, videoDrop.ready ? '' : videoDrop.why);
+    if (!h.ready || !videoDrop.ready || !videoEventId || !videoDetection) return;
+    test.setTimeout(180_000);
+    const session = await bootWithModal(page, videoProbeCameraId, videoEventId);
+
+    // Server-side preconditions BEFORE the click, leg 1's shape: the row has
+    // media, its first detection IS the video the fixture polled for, and
+    // items[0] is detection_ids[0] — the id the client's branch will name.
+    const button = downloadButton(page);
+    await expect(button, 'the modal footer carries the Download Media button').toBeVisible();
+    const row = await eventRow(session, videoEventId);
+    expect(row.detection_ids.length, 'the video event has at least one detection').toBeGreaterThan(
+      0
+    );
+    const stored = await detectionItems(session, videoEventId);
+    expect(
+      stored.items[0]?.media_type,
+      'the first detection is the video the supply promised'
+    ).toBe('video');
+    expect(stored.items[0]?.id, 'items[0] is detection_ids[0] — the id the branch fetches').toBe(
+      row.detection_ids[0]
+    );
+    expect(stored.items[0]?.id, 'items[0] is the detection the fixture polled').toBe(
+      videoDetection.id
+    );
+
+    // Node's read of the exact URL the app will fetch, BEFORE the click. The
+    // video route streams the .mp4 source untouched (get_or_transcode
+    // short-circuits it), so the mirror is against the dropped clip itself.
+    const serverRead = await mediaRead(session, `/api/detections/${videoDetection.id}/video`);
+    expect(serverRead.status, 'the video route answers Node-side').toBe(200);
+    const serverBytes = Buffer.from(await serverRead.arrayBuffer());
+    expect(sha256(serverBytes), 'the server read is the dropped clip BYTE-FOR-BYTE').toBe(
+      sha256(readFileSync(videoDrop.clipPath))
+    );
+    expect(serverBytes.length, 'the server read is the whole clip, not a truncated stream').toBe(
+      readFileSync(videoDrop.clipPath).length
+    );
+
+    // THE CLICK, with the toast armed first (leg 1's idiom).
+    const toast = page.locator('[data-sonner-toast]').filter({ hasText: 'Media download started' });
+    const landed = await clickAndCatchDownload(page, button);
+
+    // The NAME: the video arm's default (no Content-Disposition ships on this
+    // route — detections.py:1658-1687).
+    expect(landed.filename, 'the app suggests its own default video name for THIS row').toBe(
+      `event_${videoEventId}_media.mp4`
+    );
+    expect(landed.bytes.length, 'the download matches the server read in LENGTH').toBe(
+      serverBytes.length
+    );
+    expect(landed.bytes.equals(serverBytes), 'the download is the server read BYTE-FOR-BYTE').toBe(
+      true
+    );
+    expect(
+      landed.bytes.equals(readFileSync(videoDrop.clipPath)),
+      'what landed is the dropped clip itself'
+    ).toBe(true);
+
+    await expect(toast, 'the success toast is the shipped copy').toBeVisible();
+    await expect(button, 'the button exits its downloading state').toHaveText('Download Media');
+    await expect(button).toBeEnabled();
+    console.log(
+      `[F-296] video download mirrored (event ${videoEventId}, detection ${videoDetection.id}, ` +
+        `${landed.bytes.length} bytes)`
+    );
+    expect(() => closedByGuard(page)).toThrow(GUARD_MESSAGE);
+  });
+
+  /**
+   * THE SUPPLY WITNESS, REWORKED WITH THE LEG IT WITNESSED (ruling 323 item
+   * 6: "the supply-witness leg at :768 changes with them"). The old witness
+   * pinned the tier's ABSENCE of video supply (no video detection + the
+   * route's dependency 500); [r323b] supplies the video, so this leg now
+   * witnesses the PRESENCE: the video detection this file's fixture polled is
+   * real — it carries media_type 'video' and a file_path ending in the
+   * clip's name — and the video route it rides serves 200 with the clip's own
+   * bytes to a plain read (the server-side half of the download leg's mirror,
+   * asserted standalone so the supply's health is visible even when the
+   * browser leg's skips gate it out). The 400 guard's OTHER branch — a
+   * non-video detection id sent to the video route — is a DIFFERENT clause,
+   * still pinned: the ORDERING FIXTURE's person image (orderSecond, a bulk
+   * route image detection, media_type 'image' by column default) refused 400
+   * "Detection {id} is not a video (media_type: image)"
+   * (detections.py:1593-1597), proving the route's media-type guard works
+   * from the handler, not just the dependency. Refusing orderSecond keeps
+   * this leg's inputs to the [r323b] supplies alone — it needs neither the
+   * legacy scenario drop nor any pipeline run, and its own fixture pins
+   * already proved the row is an image with a serving image route.
+   */
+  test("F-296 the video supply is real: the clip drop produced a video detection, its video route serves the clip bytes, and an image detection is refused by the route's own 400 guard", async ({
+    page,
+  }) => {
+    test.info().skip(!h.ready, h.ready ? '' : h.why);
+    test.info().skip(!videoDrop.ready, videoDrop.ready ? '' : videoDrop.why);
+    if (!h.ready || !videoDrop.ready || !videoEventId || !videoDetection || !orderSecond) return;
     test.setTimeout(90_000);
     const session = await adminSession(harness);
-    expect(drop.scenario.detections.length, 'the claimed scenario declares one detection').toBe(1);
-    const stored = await detectionItems(session, dropEventId);
-    const types = new Set(stored.items.map((d) => d.media_type));
-    expect(types, 'no detection this drop produced is a video').not.toContain('video');
 
-    const refusal = await mediaRead(session, `/api/detections/${dropDetection.id}/video`);
+    // The supply's own claim, re-read live: the event's first detection is
+    // the video, its file_path ends with the clip's name.
+    const stored = await detectionItems(session, videoEventId);
+    expect(stored.items[0]?.media_type, 'the supply produced a VIDEO detection').toBe('video');
+    expect(
+      (stored.items[0]?.file_path ?? '').endsWith(videoDrop.clipTail),
+      'the video detection rides the dropped clip file'
+    ).toBe(true);
+
+    // The route serves the clip's own bytes (200, whole file, no truncation)
+    // — the tmpfs at /app/data/thumbnails made frame extraction possible, and
+    // the .mp4 short-circuit means the streamed bytes are the source's.
+    const served = await mediaRead(session, `/api/detections/${videoDetection.id}/video`);
+    expect(served.status, 'the video route answers 200 for the video detection').toBe(200);
+    const servedBytes = Buffer.from(await served.arrayBuffer());
+    expect(sha256(servedBytes), 'the served bytes are the dropped clip BYTE-FOR-BYTE').toBe(
+      sha256(readFileSync(videoDrop.clipPath))
+    );
+
+    // The handler's own 400 guard (detections.py:1593-1597): an IMAGE
+    // detection id sent to the video route is refused by the HANDLER, naming
+    // the media_type — the route is guarded, not just reachable. The refused
+    // row is the ordering fixture's person image (orderSecond): media_type
+    // 'image' by the bulk route's column default, its image route already
+    // proven serving by the fixture's byte mirror.
+    const refusal = await mediaRead(session, `/api/detections/${orderSecond.id}/video`);
     const body = (await refusal.json().catch(() => null)) as {
       detail?: string;
-      error?: { code?: string; message?: string };
     } | null;
-    expect(
-      refusal.status,
-      'the clip route answers 500 (its transcoding dependency cannot init on the read-only ' +
-        'image root) — NOT 404, so the URL the video branch builds is a real route'
-    ).toBe(500);
-    expect(body?.error?.code, 'the 500 rides the app’s error envelope').toBe('INTERNAL_ERROR');
-    expect(
-      body?.error?.message ?? '',
-      'the message names the read-only transcoding cache dir — the layer that answered'
-    ).toContain("Read-only file system: 'data/transcoded_cache'");
-    expect(
-      body?.detail,
-      'the handler’s 400 detail (detections.py:1435) never ran — the dependency answered first'
-    ).toBeUndefined();
+    expect(refusal.status, 'an image detection id on the video route is the handler’s 400').toBe(
+      400
+    );
+    expect(body?.detail ?? '', 'the 400 detail names the detection’s image media_type').toContain(
+      'is not a video (media_type: image)'
+    );
+
     // The page fixture exists to keep the file's guard contract uniform; this
     // leg navigates nothing (stated above), and closedByGuard still proves the
     // patch is armed.
@@ -814,7 +1259,7 @@ test.describe('F-059 download media', () => {
     const button = downloadButton(page);
     await expect(
       button,
-      'the button rides EVERY modal — media or not (EventDetailModal.tsx:1313)'
+      'the button rides EVERY modal — media or not (EventDetailModal.tsx:1257)'
     ).toBeVisible();
     const row = await eventRow(session, medialessEventId);
     expect(row.detection_ids, 'the row is media-less at the server').toEqual([]);
@@ -828,8 +1273,8 @@ test.describe('F-059 download media', () => {
       .catch(() => null);
     await button.click();
 
-    // The failure VERBATIM from the client-side ApiError (api.ts:3317 via
-    // EventTimeline.tsx:914) — not a generic "failed". The server never
+    // The failure VERBATIM from the client-side ApiError (api.ts:3250 via
+    // EventTimeline.tsx:1044) — not a generic "failed". The server never
     // produced this string; the app diagnosed its own empty detection_ids.
     await expect(
       page.locator('[data-sonner-toast]').filter({
@@ -838,7 +1283,7 @@ test.describe('F-059 download media', () => {
       'the toast names the shipped no-media sentence'
     ).toBeVisible();
     // isDownloading resets on the REJECTED path too (the same finally,
-    // EventDetailModal.tsx:303-305): the button is retryable, not bricked.
+    // EventDetailModal.tsx:288-291): the button is retryable, not bricked.
     await expect(button, 'the label returns after the failure too').toHaveText('Download Media');
     expect(await probe, 'no download event fired for a media-less event').toBeNull();
 
@@ -953,11 +1398,11 @@ test.describe('F-059 download media', () => {
     // the two orderings would be green on a broken knob and must not be written as
     // if it were a pin (the review measured exactly this vacuity). What IS
     // non-trivially red-able at count 1 is that the knob is LIVE: it routes to a
-    // DIFFERENT query branch (events.py:2241-2249 joins the event_detections
+    // DIFFERENT query branch (events.py:2600-2608 joins the event_detections
     // junction and orders by EventDetection.created_at; the default branch
-    // :2292-2299 orders Detection.detected_at) and that branch surfaces the
+    // :2651-2656 orders Detection.detected_at) and that branch surfaces the
     // junction column as association_created_at, which the default branch leaves
-    // null (schema: schemas/detections.py:228-232). Measured on this stack: the
+    // null (schema: schemas/detections.py:228). Measured on this stack: the
     // default read answers null for this row, the created_at read answers a
     // timestamp. So a knob that was ignored, or whose junction branch stopped
     // reading the junction, reddens THIS leg — while the ordering CLAIM ("which
@@ -983,15 +1428,15 @@ test.describe('F-059 download media', () => {
     // reaching its own branch.
     expect(
       detectedAt.items[0]?.association_created_at ?? null,
-      'the DEFAULT ordering does not populate the junction timestamp (events.py:2292-2299 branch)'
+      'the DEFAULT ordering does not populate the junction timestamp (events.py:2651-2656 branch)'
     ).toBeNull();
     expect(
       createdAt.items[0]?.association_created_at ?? null,
-      'the created_at ordering DOES populate the junction timestamp, so the knob routes to its own branch (events.py:2241-2249)'
+      'the created_at ordering DOES populate the junction timestamp, so the knob routes to its own branch (events.py:2600-2608)'
     ).not.toBeNull();
     // The knob is validated, not free-form: an out-of-set value is refused by the
     // shipped route rather than silently falling back to the default
-    // (events.py:2170's VALID_DETECTION_ORDER_BY, the 400 at :2214-2219). A
+    // (events.py:2528's VALID_DETECTION_ORDER_BY, the 400 at :2572-2576). A
     // fallback-instead-of-400 would let a typo'd client param mean "default"
     // forever; this pins that it does not.
     const bogus = await mediaRead(
@@ -1012,67 +1457,94 @@ test.describe('F-059 download media', () => {
     expect(() => closedByGuard(page)).toThrow(GUARD_MESSAGE);
   });
 
-  /* --------------------------------- fixme ---------------------------------- */
-  /* The clause this tier has no honest data source for, held on the record as
-   * `test.fixme` (the shape event-reevaluate.spec.ts:259/:329 established for
-   * F-061/F-062, and what the inventory's F-057 read-back leg does too): a
-   * skipped leg is a claim of NOT-YET-PROVEN, where a passing leg would be a
-   * false one. It shows as "skipped" in the feature-check `golden paths:` dict,
-   * which is the UR-128 witness — so the suite never reads as proving the
-   * multi-detection ordering or a video download it has not executed. */
+  /* ------------------------------ the ordering leg -------------------------- */
+  /* The clause the tier previously had no honest data source for, now supplied
+   * by the ordering fixture [r323b] built (the beforeAll's ordering supply
+   * block): ONE event whose two detections make the two shipped orderings
+   * disagree — bulk-created with crossed detected_at values (the LATER
+   * timestamp on the row detection_ids[0] names), so the DEFAULT ordering
+   * (Detection.detected_at asc) puts the OTHER row first. The fixture's own
+   * precondition pins (read back after the bulk writes) prove the disagreement
+   * held on the stack that ran this: junction order = orderIds[0], default
+   * items[0] = orderIds[1], created_at items[0] = orderIds[0]. */
 
   /**
-   * THE UNPROVEN HALF OF "THE FIRST DETECTION". With ONE detection per event,
-   * detection_ids[0] and items[0] cannot disagree, so the ordering claim is
-   * vacuous — and the review measured that no red is possible for it here. This
-   * leg is what the claim needs: an event with TWO detections whose
-   * detected_at and event_detections.created_at DISAGREE about which is first.
-   *
-   * WHY IT CANNOT RUN ON THIS TIER (both halves measured, not assumed):
-   *   1. SANCTIONED SUPPLY MAKES ONE DETECTION PER DROP — by scenario, not by
-   *      declaration count. The book's five r287-era scenarios each carried
-   *      detections:[one] ([F4.4] added f4.4-gold-high with TWO person
-   *      detections and f4.4-gold-rejected with one — but a drop still writes
-   *      ONE EVENT; the fake VLM writes exactly the detections the matched
-   *      scenario declares (detector_client.py:1281 is the Detection writer),
-   *      all attached to that single event). The claim here needs one EVENT
-   *      whose detected_at disagrees with a junction created_at ACROSS two of
-   *      its detections; a multi-detection scenario like f4.4-gold-high writes
-   *      both its rows from the same verdict session (created_at within one
-   *      transaction), so detected_at-vs-created_at ordering stays coherent —
-   *      the mismatch this leg needs has no scenario. Two drops to one camera
-   *      folder make TWO EVENTS, not one
-   *      event with two detections — the watcher keys events per file.
-   *   2. THERE IS NO CLIENT-CALLED WRITE THAT ATTACHES A SECOND DETECTION. The
-   *      app's own detection reads are GET-only (api.ts:2598 fetchEventDetections;
-   *      api.ts has no POST/PATCH that attaches a detection to an event), and the
-   *      detection route's only POST/PATCH/DELETE are not affordances the shipped
-   *      UI calls, so exercising them would be inventing server behaviour — the
-   *      thing this file's contract forbids. Bulk rows carry ZERO detections
-   *      (events.py's bulk path builds no Detection), and direct DDL is out of
-   *      bounds for the same reason the header gives for not purging a shared
-   *      camera.
-   *
-   * WHAT MAKES IT GREEN: a supply path the app itself drives that lands two
-   * detections on one event with disagreeing timestamps — i.e. either a scenario
-   * book entry declaring detections:[two] (backend ships the shape; the fake VLM
-   * would then write both), or a sanctioned fixture hook that inserts a second
-   * event_detections row. THEN this leg asserts that clicking Download Media
-   * fetches the image whose id is detection_ids[0] (api.ts:3321) and NOT
-   * items[0] of the default ordering when those two disagree — which is precisely
-   * the seam a ≥2 event could break, and the reason this belongs on the record.
+   * THE FIRST-DETECTION SEAM, EXECUTED. The shipped client names the download
+   * target as event.detection_ids[0] (api.ts:3254 at this head) and separately
+   * reads `items?.[0]` of a default-ordered detection list to pick the
+   * media_type (api.ts:3257-3265). With ONE detection those two agree whatever
+   * the backend does — the old fixme's measured vacuity. This fixture's event
+   * makes them DISAGREE: detection_ids[0] is the LATER-detected image (the cat
+   * drop), the default ordering puts the EARLIER one first (the person drop).
+   * So `isVideo` is decided from the person row while the URL fetches the cat
+   * row — and THIS leg asserts the click downloads the CAT's bytes (the
+   * detection_ids[0] row), NOT the person's. Reddening it: a client that
+   * switches to items[0].id for the URL, or a server that reorders the
+   * junction, or an app that guesses media_type from the URL row — each flips
+   * an equality below. The filename carries the EVENT id either way
+   * (`event_${eventId}_media.jpg`), so the name alone could not tell the two
+   * rows apart — the BYTES are the pin.
    */
-  test.fixme('F-296 with two detections whose two orderings disagree, Download takes detection_ids[0]', async ({
+  test('F-296 with two detections whose two orderings disagree, Download takes detection_ids[0] — the cat image, not the default-ordered person image', async ({
     page,
   }) => {
-    // Never executed on this tier — see the docblock's two measured reasons.
-    // The click itself is legs 1/4's; the NEW assertion is the byte target's
-    // identity, and it is written here so the shape exists for whoever lands
-    // the supply.
-    if (!drop.ready) return; // narrows `drop` for the type gate; fixme never runs.
-    await bootWithModal(page, drop.cameraId, dropEventId);
-    const landed = await clickAndCatchDownload(page, downloadButton(page));
-    expect(landed.filename).toBe(`event_${dropEventId}_media.jpg`);
+    test.info().skip(!h.ready, h.ready ? '' : h.why);
+    if (!h.ready || !orderEventId || !orderFirst || !orderSecond) return;
+    test.setTimeout(180_000);
+    const session = await bootWithModal(page, probeCameraId, orderEventId);
+
+    // Premise, re-read live at leg time: the two orderings still disagree
+    // (the fixture's beforeAll pins assert the same reads; a drift between
+    // fixture time and leg time — another writer touching the row — must
+    // fail HERE, naming the seam, not in the byte compare as a mystery).
+    const row = await eventRow(session, orderEventId);
+    expect(row.detection_ids.length, 'the ordering event holds two detections').toBe(2);
+    const defaultOrder = await detectionItems(session, orderEventId, '?limit=2');
+    expect(
+      defaultOrder.items[0]?.id,
+      'the DEFAULT ordering still puts the EARLIER row (person) first'
+    ).toBe(orderSecond.id);
+    expect(row.detection_ids[0], 'the junction still names the LATER row (cat) first').toBe(
+      orderFirst.id
+    );
+    // The client's media_type read comes from the default-ordered items[0] —
+    // the person row — so the premise that isVideo is decided by a DIFFERENT
+    // row than the URL fetches is pinned server-side too.
+    expect(
+      defaultOrder.items[0]?.media_type,
+      'the default-ordered first item is an image (the media_type the client reads)'
+    ).toBe('image');
+
+    const button = downloadButton(page);
+    await expect(button, 'the modal footer carries the Download Media button').toBeVisible();
+
+    // THE CLICK — the same shipped chain as legs 1/4, on an event where the
+    // two candidate "firsts" differ.
+    const toast = page.locator('[data-sonner-toast]').filter({ hasText: 'Media download started' });
+    const landed = await clickAndCatchDownload(page, button);
+
+    // The name carries the EVENT id (both rows would produce the same
+    // filename — the name cannot discriminate; the BYTES do).
+    expect(landed.filename, 'the app’s default name for THIS event').toBe(
+      `event_${orderEventId}_media.jpg`
+    );
+    // THE PIN: what landed is detection_ids[0]'s image (the cat drop) and is
+    // byte-distinct from the default-ordered first row's (the person drop).
+    expect(
+      landed.bytes.equals(orderFirst.sourceBytes),
+      'the download is detection_ids[0]’s image — the junction order won'
+    ).toBe(true);
+    expect(
+      landed.bytes.equals(orderSecond.sourceBytes),
+      'the download is NOT the default-ordered first row’s image'
+    ).toBe(false);
+
+    await expect(toast, 'the success toast is the shipped copy').toBeVisible();
+    await expect(button, 'the button exits its downloading state').toHaveText('Download Media');
+    console.log(
+      `[F-296] ordering seam mirrored (event ${orderEventId}: ids[${row.detection_ids[0]}] ` +
+        `vs items[0]=${defaultOrder.items[0]?.id})`
+    );
     expect(() => closedByGuard(page)).toThrow(GUARD_MESSAGE);
   });
 });

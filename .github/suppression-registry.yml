@@ -37,6 +37,7 @@ flake_allowlist: []
 frontend_only: []
 frontend_todo: []
 golden_skip: []
+golden_fixme: []
 frontend_quarantine: []
 collection_allowlist:
   - id: backend/tests/integration/test_helpers.py
@@ -416,23 +417,6 @@ frontend_skip:
     tracking: UNTRACKED:GENERAL
     expires: '2026-12-31'
     reason: null
-golden_fixme:
-  - id:
-      frontend/tests/golden/timeline/download-media.spec.ts::F-296 the first detection's VIDEO downloads (the row's
-      second disjunct) — UNPROVEN on this tier
-    kind: todo
-    owner: mikesvoboda
-    tracking: R-222-F296
-    expires: '2026-12-31'
-    reason: F-296 the first detection's VIDEO downloads (the row's second disjunct) — UNPROVEN on this tier
-  - id:
-      frontend/tests/golden/timeline/download-media.spec.ts::F-296 with two detections whose two orderings disagree,
-      Download takes detection_ids[0]
-    kind: todo
-    owner: mikesvoboda
-    tracking: R-222-F296
-    expires: '2026-12-31'
-    reason: F-296 with two detections whose two orderings disagree, Download takes detection_ids[0]
 pytest_skip:
   - id: backend/tests/integration/test_alembic_migrations.py::TestAlembicMigrationUpgradeDowngrade
     kind: retired

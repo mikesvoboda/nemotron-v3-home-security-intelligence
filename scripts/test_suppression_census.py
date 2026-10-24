@@ -807,6 +807,20 @@ def test_real_tree_matches_spec_baselines():
     HOST_JUSTIFIED (b904d853f) — registry + baseline raised inside the PR,
     the mirror raised THIS commit after the PR's first-round local gates
     missed it; Collection Sanity caught the drift exactly as designed.
+    golden_fixme 2→0 (2026-10-24, [r323b] PR #7418): the first fall of this
+    category, and the fall the [r173] entry above anticipated — ruling 323
+    item 6 supplied what both F-296 test.fixme legs were waiting on (the
+    fake tier's video detection via its own watched camera, and a bulk
+    event whose junction order and default detected_at ordering disagree),
+    so both legs became RUNNING tests and the supply-witness leg re-aimed
+    from absence+500 to presence+guard. The ratchet's two R-222-F296
+    registry rows died with their sites (STALE named both); the baseline
+    fell via the sanctioned ratchet-check --update path; and the fall
+    exposed a generator gap — golden_fixme was not in ALWAYS_PRESENT, so
+    the regenerated registry dropped the category key entirely and the
+    ratchet read that as `REGISTRY: category golden_fixme absent` ("a
+    category may not hide"). suppression-registry-gen.py gains the key in
+    the same commit; this mirror moves with it. Decrease path.
     """
     got = run_census(REPO_ROOT)
     expected = {
@@ -943,7 +957,15 @@ def test_real_tree_matches_spec_baselines():
         # [r173] ruling 173 — the new arm, measured (see the docstring's
         # 0→2 entry). Asserted here as well as in the baseline file so a golden
         # test.fixme added later trips this mirror AND the ratchet.
-        "golden_fixme": 2,
+        # 2→0 (2026-10-24, [r323b] PR #7418): ruling 323 supplied what both
+        # fixme legs needed — the fake tier's video detection and the
+        # two-orderings-disagree event — and the legs became RUNNING tests;
+        # the registry rows died with their sites (the ratchet's STALE
+        # listing named both), the baseline fell via the sanctioned
+        # ratchet-check --update path, and suppression-registry-gen.py grew
+        # golden_fixme in ALWAYS_PRESENT so an emptied category keeps its
+        # registry key ("a category may not hide" — the ratchet reads it).
+        "golden_fixme": 0,
         "golden_skip": 0,
     }
     stale = {k: (got.get(k), v) for k, v in expected.items() if got.get(k) != v}

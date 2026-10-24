@@ -55,6 +55,11 @@ docs-output/
 *.db
 *.sqlite
 *.mp4
+# The [r323b] F-296 video supply: a committed 8 KB test fixture clip the
+# golden suite drops through feature-check.sh (backend/ai_contract/fake/
+# scenario_fixtures/ tracks its media — every .jpg there is committed). The
+# *.mp4 rule is for the regenerable data-corpus media, not this fixture.
+!backend/ai_contract/fake/scenario_fixtures/r323b-video-clip.mp4
 backend/data/thumbnails/*
 !backend/data/thumbnails/.gitkeep
 backend/data/security.db
