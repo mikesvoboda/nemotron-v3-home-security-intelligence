@@ -1485,19 +1485,19 @@ The owner's maui discovery for `O2.5` item 2 (attempt 8, `hsi-check-202610202055
 306 item 1), which proves the TensorRT parity path: `[r252]`'s run was spent without one, and
 `[r312a]`'s second run, reading every plan stage at or above 0.999 on all 36 crops on the image
 `main` serves, is O2.4's evidence (ruling 312 point 4).
-**PR:** none yet. (ruling 307, record 6323846997)
+**PR:** #7396. (ruling 307, record 6323846997)
 
 Every small model the product runs on the GPU is served by Triton (UR-86). The face leg runs on the
 CPU today by an earlier choice (`backend/services/face_recognizer_loader.py:19`, `:152`); `[r307b]`
 moves the backend to the routes this package adds.
 
-- [ ] Serve SCRFD (`det_10g.onnx`) and ArcFace (`w600k_r50.onnx`), the same pinned files, in Triton
+- [x] Serve SCRFD (`det_10g.onnx`) and ArcFace (`w600k_r50.onnx`), the same pinned files, in Triton
       as TensorRT plans built for the serving GPU, behind gateway routes as `reid` is.
-- [ ] Parity against the CPU ONNX path on a fixed face set, stage by stage as `[r157]`'s runner
+- [x] Parity against the CPU ONNX path on a fixed face set, stage by stage as `[r157]`'s runner
       does: ArcFace cosine at least 0.999 (ruling 68's gate); SCRFD boxes and the five landmarks
       within a tolerance the PR states and justifies. A CPU-only CI test pins whatever graph change
       the plans need, as `[r252]`'s does.
-- [ ] The operator runs it (UR-15) and posts the stage table and `RESULT:` line; the PR records GPU
+- [x] The operator runs it (UR-15) and posts the stage table and `RESULT:` line; the PR records GPU
       memory added and latency per face.
 
 **Done when:** `RESULT: PASS` is posted at the head and the UR-89 review approves. Nothing in

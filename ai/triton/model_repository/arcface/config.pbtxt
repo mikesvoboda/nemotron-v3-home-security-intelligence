@@ -1,0 +1,47 @@
+# Face Recognition - ArcFace w600k_r50 TensorRT on GPU (InsightFace buffalo_l w600k_r50.onnx)
+# [r307a] (owner ruling 307): served through TensorRT as a plan compiled on the
+#   serving GPU (`1/model.plan`, built by `ai/gateway/export/export_face.py`
+#   from the SHA-256-pinned `w600k_r50.onnx`).
+# Input: aligned 112x112 RGB face crop `(x - 127.5) / 127.5`, shape (B, 3, 112, 112) FP32
+# Output: raw 512-d embedding (B, 512) FP32 (L2-normalized by the gateway adapter)
+# Provenance: `1/provenance.json` records `face-recognizer`, `w600k_r50.onnx`,
+#   and the pinned SHA-256 `4c06341c33c2ca1f86781dab0e829f88ad5b64be9fba56e56bc9ebdefc619e43`.
+
+name: "arcface"
+backend: "tensorrt"
+max_batch_size: 16
+
+input [
+  {
+    name: "input.1"
+    data_type: TYPE_FP32
+    dims: [ 3, 112, 112 ]
+  }
+]
+
+output [
+  {
+    name: "683"
+    data_type: TYPE_FP32
+    dims: [ 512 ]
+  }
+]
+
+instance_group [
+  {
+    count: 1
+    kind: KIND_GPU
+    gpus: [ 0 ]
+    rate_limiter {
+      resources [
+        { name: "global" count: 1 }
+      ]
+      priority: 2
+    }
+  }
+]
+
+dynamic_batching {
+  preferred_batch_size: [1, 4, 8]
+  max_queue_delay_microseconds: 100000
+}
