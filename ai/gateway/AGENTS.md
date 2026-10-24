@@ -15,12 +15,12 @@ Backend (8000) -> AI Gateway (8090, FastAPI) -> Triton (8001 gRPC, same containe
 | `main.py`                 | FastAPI app; mounts adapter routers under `/yolo26`, `/clip`, `/florence`, `/enrichment`, `/enrich-lt`; `/health` + `/metrics` |
 | `triton_client.py`        | Async gRPC client wrapper (pooling, timeout, numpy <-> InferInput)                                                             |
 | `utils.py`                | Shared image decode/preprocess helpers (base64, letterbox, normalize)                                                          |
-| `adapters/`               | One router module per legacy service (see `adapters/AGENTS.md`)                                                                |
+| `adapters/`               | Router modules (`yolo26.py`, `enrichment_light.py`) calling `triton_client.py`                                                 |
 | `export/`                 | Model export pipeline (see `export/AGENTS.md`)                                                                                 |
 | `entrypoint.sh`           | Starts Triton, waits ready, then uvicorn; SIGTERM cleanup                                                                      |
 | `patch_triton_configs.py` | Rewrites `config.pbtxt` instance_group from models.yml before boot                                                             |
 | `Dockerfile`              | Based on `nvcr.io/nvidia/tritonserver:26.09-py3`                                                                               |
-| `tests/`                  | Unit tests (see `tests/AGENTS.md`)                                                                                             |
+| `tests/`                  | Unit tests (mock `triton_client`; no GPU needed)                                                                               |
 
 ## Environment Variables
 
@@ -42,4 +42,4 @@ Backend (8000) -> AI Gateway (8090, FastAPI) -> Triton (8001 gRPC, same containe
 
 ## Related
 
-- `../AGENTS.md` (pipeline overview), `../triton/AGENTS.md`, `docs/plans/triton-migration.md`
+- `../AGENTS.md` (pipeline overview), `docs/plans/triton-migration.md`

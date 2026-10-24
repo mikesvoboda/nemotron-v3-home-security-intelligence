@@ -425,18 +425,18 @@ podman compose -f docker-compose.prod.yml up -d ai-gateway
 curl http://localhost:8090/health
 ```
 
-For detailed documentation, see `triton/AGENTS.md` and `docs/plans/triton-migration.md`.
+For detailed documentation, see `docs/plans/triton-migration.md` (`ai.triton` has no production consumer, guarded by `backend/tests/contracts/ai_providers/test_conformance_vocabulary.py`).
 
 ## Entry Points
 
 1. **Pipeline overview**: This file
-2. **YOLO26 engine builder**: `yolo26/AGENTS.md` and `yolo26/build_engine.py`
+2. **YOLO26 engine builder**: `yolo26/build_engine.py`
 3. **Gateway**: `gateway/AGENTS.md` (routers `/yolo26` + `/enrich-lt`)
 4. **VLM serving**: `vlm/Dockerfile` (the ai-vlm build context) and, on the
    backend side, `../backend/services/vlm_client.py` /
    `../backend/services/vlm_analyzer.py`
 5. **Model Zoo (backend-side)**: `../backend/services/model_zoo.py` + repo-root
    `models.yml`
-6. **Triton model repository**: `triton/AGENTS.md` and
+6. **Triton model repository**:
    `triton/model_repository/*/config.pbtxt`
 7. **Backend integration**: `backend/services/` directory

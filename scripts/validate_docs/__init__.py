@@ -1,7 +1,8 @@
 """Documentation validation script for checking code citations.
 
 This package validates architecture documentation by checking code citations
-(file:line references) against the actual codebase.
+(file:line references) against the actual codebase (entry point: cli.py;
+configuration and citation dataclasses: config.py).
 
 Validation Levels:
 1. File Exists & Line Bounds - Basic existence checks
