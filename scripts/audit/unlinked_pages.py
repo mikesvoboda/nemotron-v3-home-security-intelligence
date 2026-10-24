@@ -217,7 +217,7 @@ def main() -> int:
     if args.nav_json:
         nav = json.loads(args.nav_json.read_text())
     else:
-        proc = subprocess.run(
+        proc = subprocess.run(  # nosemgrep: python.lang.security.audit.dangerous-subprocess-use-tainted-env-args - argv is [interpreter, committed sibling script, --root, directory path]; no shell, root is never interpolated into a command string
             [sys.executable, str(NAV_SCRIPT), "--root", str(root)],
             capture_output=True,
             text=True,
