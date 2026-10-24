@@ -209,10 +209,11 @@ class TestRealTree:
             "fast_alpr_loader",
         }, sorted(loaders)
         inproc = sum(1 for m in loaders.values() if m["bucket"] == "INPROC-AI")
-        # [r306b] removed osnet_loader's CPU torch/torchreid path; it delegates
-        # to reid_gateway, so osnet_loader is now DOMAIN (UR-186).
+        # [r307b] moved face_recognizer_loader from INPROC-AI to HTTP-AI, and
+        # [r306b] moved osnet_loader from INPROC-AI to DOMAIN (UR-186: 2 -> 1 -> 0).
+        assert mods["face_recognizer_loader"]["bucket"] == "HTTP-AI"
         assert mods["osnet_loader"]["bucket"] == "DOMAIN"
-        assert inproc <= 1, f"expected at most 1 INPROC-AI loader after [r306b], got {inproc}"
+        assert inproc == 0, f"expected 0 INPROC-AI loaders after [r307b] + [r306b], got {inproc}"
 
     def test_known_dead_land_dead(self, real: dict) -> None:
         mods = real["modules"]

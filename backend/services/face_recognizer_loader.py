@@ -1,48 +1,25 @@
-"""Face-leg loaders — SCRFD + w600k_r50 on CPU onnxruntime (rev 6/7, F11 + F12).
+"""Face-leg gateway client + geometry — SCRFD + w600k_r50 via Triton ([r307b], F11 + F12).
 
-The face leg loads EXACTLY TWO ONNX files from the InsightFace buffalo_l
-pack — never the insightface package's FaceAnalysis, which drags in all five
-pack models (that loader, on GPU, is where the old "~1.5 GB VRAM" figure came
-from):
+Ruling 307 (`[r307a]`, `[r307b]`; UR-86) moves the face leg onto the GPU
+through the AI gateway's `/enrich-lt/face-detect` (Triton `scrfd` TensorRT plan)
+and `/enrich-lt/face-recognize` (Triton `arcface` TensorRT plan) routes while
+keeping every F11/F12 invariant except "CPU":
 
-- ``scrfd_10g_bnkps.onnx`` (SCRFD-10G-KPS): face boxes + 5 landmarks; the
-  landmarks drive the ArcFace 5-point alignment (F12: yolo11-face gives boxes
-  only, so its crops can't be aligned and quietly lose embedder accuracy).
-- ``w600k_r50.onnx``: the embedder behind the F11 interface — aligned
-  112x112 crop in, L2-normalized 512-d vector out.
-
-Both files are pinned by SHA-256 in their models.yml rows and the pin is
-enforced HERE: wrong bytes are reported exactly like missing bytes —
-``FaceRecognizerUnavailable`` (F12: absent weights mean unavailable; a mirror
-shipping a different build must not silently fork the gallery's embedding
-space). CPU-only by ruling (S4: out of the VRAM budget) — the provider list
-``["CPUExecutionProvider"]`` is the enforcement, no CUDA ever.
-
-F11 ruling 2 (one embedding space end to end): ``model_id`` embeds the
-weights filename AND content hash, so changing the bytes changes the id and
-every stored ``FaceEmbedding`` carrying the old id stops matching — the
-matcher surfaces "unavailable (re-enroll)" instead of a score. The dim guard
-in ``extract_face_embedding`` is the same doctrine at the vector level.
-
-House style follows fast_alpr_loader.py / osnet_loader.py: async ``load_*``
-bound in ``model_zoo._LOADER_MAP``, the optional dep behind an extras
-(``uv sync --extra face``), blocking work off the event loop. The decode math
-is a numpy port of insightface's scrfd.py (blob (x-127.5)/128 RGB, strides
-8/16/32, distance decode, greedy NMS 0.4) — the reference kept for the shapes
-only; the package itself is never a dependency.
-
-Usage:
-    det = await load_face_detector(settings path)      # or raises Unavailable
-    faces = detect_faces(det["session"], image)        # boxes + landmarks
-    rec = await load_face_recognizer(settings path)    # or raises Unavailable
-    crop = align_face_crop(image, faces[0].landmarks)
-    vec = extract_face_embedding(rec["session"], crop)
+- Exactly two SHA-256-pinned ONNX files in `models.yml` (`scrfd_10g_bnkps.onnx`
+  and `w600k_r50.onnx`), never `insightface.FaceAnalysis`.
+- Stored face embeddings keep their model IDs (`face-detector-scrfd@scrfd_10g_bnkps@5838f7fe0536`
+  and `face-recognizer@w600k_r50@4c06341c33c2`).
+- The gateway response's `model_id` is verified against the `models.yml` SHA-256
+  pin before any detection or vector is accepted: a gateway without the pinned
+  weights (or the fake-AI stack's unpinned sentinel) raises
+  `FaceRecognizerUnavailable`, so the specialist stage degrades to
+  `unavailable` and enrollment refuses rather than storing unverified vectors.
 """
 
 from __future__ import annotations
 
-import asyncio
-import hashlib
+import base64
+import io
 from dataclasses import dataclass
 from pathlib import Path
 from typing import TYPE_CHECKING, Any
@@ -70,6 +47,9 @@ FACE_EMBEDDING_DIM = 512
 #: have ALIGNED (align_face_crop), not the extractor's to fix.
 FACE_INPUT_SIZE = (112, 112)
 
+#: Per-request gateway timeout (matches reid_gateway.py).
+DEFAULT_TIMEOUT_SECONDS = 3.0
+
 #: The ArcFace 5-point reference template (left eye, right eye, nose, left
 #: mouth, right mouth) in the 112x112 crop — the insightface/InsightFace
 #: standard landmark template used to train w600k_r50's crop distribution.
@@ -87,16 +67,18 @@ _SCRFD_FMC = 3
 _SCRFD_STRIDES = (8, 16, 32)
 _SCRFD_ANCHORS_PER_CELL = 2
 
+_DETRACTOR_NAME = "face-detector-scrfd"
+_RECOGNIZER_NAME = "face-recognizer"
+
 
 class FaceRecognizerError(Exception):
-    """The leg is present but something about it is wrong (unreadable ONNX,
+    """The leg is present but something about it is wrong (unreadable image,
     wrong output space, inference failure)."""
 
 
 class FaceRecognizerUnavailable(FaceRecognizerError):
     """The ruling's "unavailable": weights absent, weights that fail the
-    sha256 pin, or onnxruntime not installed (the sandbox/CI truth — the
-    ``[face]`` extra).
+    sha256 pin, or gateway unreachable.
 
     Callers render this as the face specialist's "unavailable" outcome; it
     must never block a VLM verdict (spec §6) and never impersonate "unknown"."""
@@ -112,49 +94,8 @@ class ScrfdFace:
 
 
 # ---------------------------------------------------------------------------
-# Loading (shared): path -> hash-pinned CPU session
+# Provenance & gateway handles ([r307b], F11 + F12)
 # ---------------------------------------------------------------------------
-
-
-def _sha256(path: Path) -> str:
-    digest = hashlib.sha256()
-    with path.open("rb") as fh:
-        for chunk in iter(lambda: fh.read(1 << 20), b""):
-            digest.update(chunk)
-    return digest.hexdigest()
-
-
-async def _load_cpu_session(weights: Path, expected_sha256: str | None) -> Any:
-    """Hash-check (when pinned), then build a CPU-only InferenceSession off
-    the loop. Absence / hash miss / ImportError all mean UNAVAILABLE (F12)."""
-    if not weights.is_file():
-        raise FaceRecognizerUnavailable(f"face weights absent: {weights}")
-    if expected_sha256:
-        actual = await asyncio.get_running_loop().run_in_executor(None, _sha256, weights)
-        if actual != expected_sha256:
-            raise FaceRecognizerUnavailable(
-                f"face weights sha256 mismatch for {weights.name}: "
-                f"got {actual}, pinned {expected_sha256} — the file is not the "
-                "buffalo_l build models.yml pins (treated as unavailable, never run)"
-            )
-
-    try:
-        import onnxruntime as ort
-    except ImportError as e:  # the sandbox/CI truth: no onnxruntime install
-        raise FaceRecognizerUnavailable(
-            "onnxruntime not installed — face leg unavailable (install with: uv sync --extra face)"
-        ) from e
-
-    loop = asyncio.get_running_loop()
-
-    def _build() -> Any:
-        # CPU per the ruling, exactly: the provider list is the enforcement.
-        return ort.InferenceSession(str(weights), providers=["CPUExecutionProvider"])
-
-    try:
-        return await loop.run_in_executor(None, _build)
-    except Exception as e:
-        raise FaceRecognizerError(f"failed to load face weights {weights.name}: {e}") from e
 
 
 def _model_id(role: str, weights: Path, expected_sha256: str | None) -> str:
@@ -165,40 +106,134 @@ def _model_id(role: str, weights: Path, expected_sha256: str | None) -> str:
     return f"{base}@{expected_sha256[:12]}" if expected_sha256 else base
 
 
+def _zoo_row(name: str) -> dict[str, Any]:
+    """Read a row directly from models.yml (avoids importing model_zoo at module level)."""
+    import yaml
+
+    models_yml = Path(__file__).resolve().parents[2] / "models.yml"
+    entries: list[dict[str, Any]] = yaml.safe_load(models_yml.read_text())["models"]
+    for entry in entries:
+        if entry.get("name") == name:
+            return entry
+    return {}
+
+
+def face_detector_model_id() -> str:
+    """The pinned SCRFD model ID derived from `models.yml` (`face-detector-scrfd@scrfd_10g_bnkps@5838f7fe0536`)."""
+    row = _zoo_row(_DETRACTOR_NAME)
+    weights_file = str(row.get("runtime_file") or "scrfd_10g_bnkps.onnx")
+    sha = str(row.get("sha256") or "")
+    return _model_id(_DETRACTOR_NAME, Path(weights_file), sha or None)
+
+
+def face_recognizer_model_id() -> str:
+    """The pinned ArcFace model ID derived from `models.yml` (`face-recognizer@w600k_r50@4c06341c33c2`)."""
+    row = _zoo_row(_RECOGNIZER_NAME)
+    weights_file = str(row.get("runtime_file") or "w600k_r50.onnx")
+    sha = str(row.get("sha256") or "")
+    return _model_id(_RECOGNIZER_NAME, Path(weights_file), sha or None)
+
+
+def _gateway_session(base_url: str, model_id: str) -> dict[str, Any]:
+    return {"kind": "gateway", "base_url": base_url, "model_id": model_id}
+
+
+def _encode_image_png_b64(image: Any) -> str:
+    """Lossless RGB PNG base64 so the gateway receives the exact pixels."""
+    import numpy as np
+    from PIL import Image as PILImage
+
+    if isinstance(image, PILImage.Image):
+        rgb = image.convert("RGB") if image.mode != "RGB" else image
+    else:
+        rgb = PILImage.fromarray(np.ascontiguousarray(np.asarray(image, dtype=np.uint8))).convert(
+            "RGB"
+        )
+    buf = io.BytesIO()
+    rgb.save(buf, format="PNG")
+    return base64.b64encode(buf.getvalue()).decode("ascii")
+
+
+def _post_gateway(
+    session: dict[str, Any],
+    route: str,
+    payload: dict[str, Any],
+    *,
+    role: str,
+    expected_model_id: str,
+) -> dict[str, Any]:
+    """POST to `{base_url}/{route}` and enforce the F12 SHA-256 `model_id` pin."""
+    import httpx
+
+    base_url = str(session.get("base_url") or "").rstrip("/")
+    url = f"{base_url}/{route.lstrip('/')}"
+    timeout = float(session.get("timeout") or DEFAULT_TIMEOUT_SECONDS)
+    client: httpx.Client | None = session.get("client")
+    try:
+        if client is None:
+            with httpx.Client(timeout=timeout) as owned:
+                response = owned.post(url, json=payload)
+        else:
+            response = client.post(url, json=payload, timeout=timeout)
+        response.raise_for_status()
+        body: dict[str, Any] = response.json()
+    except httpx.HTTPStatusError as e:
+        if e.response.status_code < 500:
+            raise FaceRecognizerError(f"{role} gateway rejected request: {e}") from e
+        raise FaceRecognizerUnavailable(
+            f"face extractor unavailable: the pinned face weights are not loaded ({role} gateway HTTP {e.response.status_code})"
+        ) from e
+    except (httpx.HTTPError, ValueError) as e:
+        raise FaceRecognizerUnavailable(
+            f"face extractor unavailable: the pinned face weights are not loaded ({role} gateway unavailable: {e})"
+        ) from e
+
+    reported_id = body.get("model_id")
+    if reported_id != expected_model_id:
+        raise FaceRecognizerUnavailable(
+            f"face extractor unavailable: the pinned face weights are not loaded "
+            f"({role} gateway reported model_id={reported_id!r}, expected {expected_model_id!r})"
+        )
+    return body
+
+
 async def load_face_recognizer(
     model_path: str, expected_sha256: str | None = None
 ) -> dict[str, Any]:
-    """Load the w600k_r50 embedder (models.yml face-recognizer row passes
-    ``expected_sha256`` from the row).
+    """Build the gateway handle for the w600k_r50 embedder ([r307b])."""
+    from backend.core.config import get_settings
 
-    Returns ``{"session", "input_name", "model_id", "embedding_dim": 512}``.
-    Raises FaceRecognizerUnavailable (absent / hash miss / no onnxruntime) or
-    FaceRecognizerError (unreadable ONNX) — never a bare ImportError.
-    """
     weights = Path(model_path)
-    session = await _load_cpu_session(weights, expected_sha256)
-    inputs = session.get_inputs()
-    logger.info(
-        f"face-recognizer loaded (model_id={_model_id('face-recognizer', weights, expected_sha256)}, provider=CPU)"
+    model_id = (
+        _model_id(_RECOGNIZER_NAME, weights, expected_sha256)
+        if expected_sha256
+        else face_recognizer_model_id()
     )
+    base_url = get_settings().enrichment_light_url
+    logger.info(f"face-recognizer configured (model_id={model_id}, provider=gateway)")
     return {
-        "session": session,
-        "input_name": inputs[0].name if inputs else "input.1",
-        "model_id": _model_id("face-recognizer", weights, expected_sha256),
+        "session": _gateway_session(base_url, model_id),
+        "input_name": "input.1",
+        "model_id": model_id,
         "embedding_dim": FACE_EMBEDDING_DIM,
     }
 
 
 async def load_face_detector(model_path: str, expected_sha256: str | None = None) -> dict[str, Any]:
-    """Load SCRFD-10G-KPS (models.yml face-detector-scrfd row). Same
-    degradation contract and shape as load_face_recognizer."""
+    """Build the gateway handle for SCRFD-10G-KPS ([r307b])."""
+    from backend.core.config import get_settings
+
     weights = Path(model_path)
-    session = await _load_cpu_session(weights, expected_sha256)
-    inputs = session.get_inputs()
+    model_id = (
+        _model_id(_DETRACTOR_NAME, weights, expected_sha256)
+        if expected_sha256
+        else face_detector_model_id()
+    )
+    base_url = get_settings().enrichment_light_url
     return {
-        "session": session,
-        "input_name": inputs[0].name if inputs else "input.1",
-        "model_id": _model_id("face-detector-scrfd", weights, expected_sha256),
+        "session": _gateway_session(base_url, model_id),
+        "input_name": "input.1",
+        "model_id": model_id,
     }
 
 
@@ -226,20 +261,31 @@ def preprocess_face_crop(crop: Image.Image) -> Any:
 def extract_face_embedding(session: Any, crop: Image.Image) -> list[float]:
     """Embed one aligned face crop: **the** L2-normalized 512-d vector.
 
-    Synchronous pure function (session.run is CPU-bound; async callers wrap
-    it in run_in_executor like every other specialist here). The loader does
-    the L2 step itself — real sessions do NOT normalize — and guards the
-    output dimension before normalizing, so a wrong-space model fails loud.
+    When `session` is a gateway handle dict (`kind == "gateway"`), calls
+    `POST {base_url}/face-recognize` ([r307b]). Also supports duck-typed
+    `.run()` sessions for unit/contract tests.
     """
     import numpy as np
 
-    feed = preprocess_face_crop(crop)
-    try:
-        raw = session.run(None, {"input.1": feed})
-    except Exception as e:
-        raise FaceRecognizerError(f"face-recognizer inference failed: {e}") from e
+    if isinstance(session, dict) and session.get("kind") == "gateway":
+        expected_id = str(session.get("model_id") or face_recognizer_model_id())
+        body = _post_gateway(
+            session,
+            "face-recognize",
+            {"image": _encode_image_png_b64(crop)},
+            role="face-recognizer",
+            expected_model_id=expected_id,
+        )
+        raw_vec = body.get("embedding") or []
+    else:
+        feed = preprocess_face_crop(crop)
+        try:
+            raw = session.run(None, {"input.1": feed})
+        except Exception as e:
+            raise FaceRecognizerError(f"face-recognizer inference failed: {e}") from e
+        raw_vec = raw[0]
 
-    vector = np.asarray(raw[0], dtype=np.float32).reshape(-1)
+    vector = np.asarray(raw_vec, dtype=np.float32).reshape(-1)
     if vector.shape[0] != FACE_EMBEDDING_DIM:
         raise FaceRecognizerError(
             f"face-recognizer emitted {vector.shape[0]}-d, gallery space is "
@@ -313,13 +359,41 @@ def detect_faces(
 ) -> list[ScrfdFace]:
     """Run SCRFD: boxes + 5 landmarks in original-image coordinates.
 
-    Decode is the insightface reference math (numpy port): per stride,
-    anchor-cell centers x stride, distance-decoded boxes (l,t,r,b) and 5x2
-    landmark offsets, scores >= threshold; then score-ordered greedy NMS and
-    the letterbox inverse. Outputs are read in the real buffalo layout:
-    net_outs = [scores x3, dboxes x3, dkps x3], flat (anchors, C) rows in
-    cell-major order, 2 anchors per cell."""
+    When `session` is a gateway handle dict (`kind == "gateway"`), calls
+    `POST {base_url}/face-detect` ([r307b]). Also supports duck-typed
+    `.run()` sessions for unit/parity tests."""
     import numpy as np
+
+    if isinstance(session, dict) and session.get("kind") == "gateway":
+        expected_id = str(session.get("model_id") or face_detector_model_id())
+        body = _post_gateway(
+            session,
+            "face-detect",
+            {
+                "image": _encode_image_png_b64(image),
+                "threshold": float(threshold),
+                "nms_iou": float(nms_iou),
+            },
+            role="face-detector",
+            expected_model_id=expected_id,
+        )
+        out: list[ScrfdFace] = []
+        for item in body.get("faces") or []:
+            bx = item.get("bbox") or [0.0, 0.0, 0.0, 0.0]
+            kps_raw = item.get("landmarks")
+            landmarks = (
+                np.asarray(kps_raw, dtype=np.float32).reshape(5, 2)
+                if kps_raw is not None and len(kps_raw) == 5
+                else None
+            )
+            out.append(
+                ScrfdFace(
+                    bbox=(float(bx[0]), float(bx[1]), float(bx[2]), float(bx[3])),
+                    score=float(item.get("confidence", 0.0)),
+                    landmarks=landmarks,
+                )
+            )
+        return out
 
     blob, scale = _scrfd_blob(image, input_size)
     try:
@@ -464,35 +538,40 @@ def alignment_transform_from_to(src: Any, dst: Any) -> _Similarity:
 
 
 def get_face_leg_handles() -> tuple[dict[str, Any], dict[str, Any]] | None:
-    """The two loaded face-leg handles (detector, recognizer), or None when
-    the leg cannot run.
+    """The two face-leg handles (detector, recognizer).
 
-    The private-dict read is the shipped resident-model pattern (what
-    enrichment uses for `stgcn-plus-plus`); the rows are resident
-    (`enabled: true`), so this is a membership read, never a load trigger.
-    A deploy without the two ONNX files has no entries (their load raised
-    at boot and the manager kept going) — F12's degradation path, deploy-
-    side, never a batch failure.
-
-    The import is lazy because `model_zoo` imports this module: a module-
-    level import would be a cycle. Lives here (not in the specialist stage)
-    because BOTH consumers of the leg — the specialist stage and server-side
-    enrollment — must read the same handles and therefore report the same
-    ``model_id``; two lookups that can drift is exactly the bug class the
-    one-embedding-space rule exists to prevent.
+    If `model_zoo`'s registry holds preloaded handles (e.g. in unit tests),
+    returns them; otherwise returns gateway handles pointing at
+    `settings.enrichment_light_url` (`/enrich-lt/face-detect` and
+    `/enrich-lt/face-recognize`, [r307b]) with the `models.yml`-pinned
+    `model_id` values (`face-detector-scrfd@scrfd_10g_bnkps@5838f7fe0536` and
+    `face-recognizer@w600k_r50@4c06341c33c2`).
     """
+    from backend.core.config import get_settings
     from backend.services.model_zoo import get_model_manager
 
     loaded = get_model_manager()._loaded_models
     det = loaded.get(_DETRACTOR_NAME)
     rec = loaded.get(_RECOGNIZER_NAME)
-    if det is None or rec is None:
-        return None
-    return det, rec
+    if det is not None and rec is not None:
+        return det, rec
 
-
-_DETRACTOR_NAME = "face-detector-scrfd"
-_RECOGNIZER_NAME = "face-recognizer"
+    base_url = get_settings().enrichment_light_url
+    det_id = face_detector_model_id()
+    rec_id = face_recognizer_model_id()
+    return (
+        {
+            "session": _gateway_session(base_url, det_id),
+            "input_name": "input.1",
+            "model_id": det_id,
+        },
+        {
+            "session": _gateway_session(base_url, rec_id),
+            "input_name": "input.1",
+            "model_id": rec_id,
+            "embedding_dim": FACE_EMBEDDING_DIM,
+        },
+    )
 
 
 def passes_quality_gate(*, face_px: float, score: float, min_px: int, min_score: float) -> bool:
