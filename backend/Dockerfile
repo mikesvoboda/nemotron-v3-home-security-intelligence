@@ -143,11 +143,11 @@ CMD ["uvicorn", "backend.main:app", "--host", "0.0.0.0", "--port", "8000", "--re
 FROM base AS builder
 
 # Install production dependencies only (no dev/test deps)
-# --extra face: onnxruntime (CPU) for the F12 face leg - it is in no base
-# dependency, so without it the face rows can never load in this image.
+# [r307b]: the face leg calls the gateway's /enrich-lt/face-detect and
+# /enrich-lt/face-recognize routes, so the CPU [face] extra (onnxruntime) is retired.
 # Use BuildKit cache mount to cache uv downloads between builds (~5-10x faster)
 RUN --mount=type=cache,target=/root/.cache/uv \
-    uv sync --frozen --no-dev --no-install-project --extra face
+    uv sync --frozen --no-dev --no-install-project
 
 # =============================================================================
 # Production target: minimal runtime image without build tools
