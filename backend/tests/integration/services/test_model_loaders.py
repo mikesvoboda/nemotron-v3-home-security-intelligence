@@ -297,10 +297,11 @@ class TestModelLoaderErrorHandling:
             await load_osnet_model("/etc/shadow")
 
     @pytest.mark.asyncio
-    async def test_osnet_missing_weights_error(self) -> None:
-        """An allowed directory with no weights raises, not silently degrades."""
-        with pytest.raises(RuntimeError, match="No model weights found"):
-            await load_osnet_model("/tmp/osnet-absent-weights-dir")  # noqa: S108
+    async def test_osnet_returns_gateway_handle_without_local_weights(self) -> None:
+        """[r306b]: load_osnet_model returns a gateway handle without requiring local weights."""
+        handle = await load_osnet_model("/tmp/osnet-absent-weights-dir")  # noqa: S108
+        assert handle["kind"] == "gateway"
+        assert handle["embedding_dim"] == 512
 
 
 # =============================================================================
@@ -309,73 +310,20 @@ class TestModelLoaderErrorHandling:
 
 
 class TestOSNetLoaderIntegration:
-    """Integration tests for OSNet person re-ID model loader (functional API)."""
+    """Integration tests for OSNet person re-ID gateway handle loader ([r306b])."""
 
     @pytest.mark.asyncio
-    async def test_osnet_load_success_with_torchreid(self, mock_transformers, monkeypatch):
-        """Test OSNet model loads successfully with torchreid."""
-        import sys
-
-        # Mock torchvision
-        mock_torchvision = MagicMock()
-        mock_transforms = MagicMock()
-        mock_torchvision.transforms = mock_transforms
-        monkeypatch.setitem(sys.modules, "torchvision", mock_torchvision)
-        monkeypatch.setitem(sys.modules, "torchvision.transforms", mock_transforms)
-
-        # Mock torchreid
-        mock_torchreid = MagicMock()
-        mock_model = MagicMock()
-        mock_model.parameters = MagicMock(return_value=iter([MagicMock()]))
-        mock_model.eval = MagicMock(return_value=mock_model)
-        # load_state_dict returns (missing_keys, unexpected_keys)
-        mock_model.load_state_dict = MagicMock(return_value=([], []))
-        mock_torchreid.models.build_model.return_value = mock_model
-
-        monkeypatch.setitem(sys.modules, "torchreid", mock_torchreid)
-        monkeypatch.setitem(sys.modules, "torchreid.models", mock_torchreid.models)
-
-        # Mock Path.glob to return a weights file and torch.load
-        # Use /tmp which is in allowed directories for security validation
-        from unittest.mock import patch
-
-        mock_weights = {"state_dict": {"conv1.weight": MagicMock()}}
-        with (
-            patch("pathlib.Path.exists", return_value=True, autospec=True),
-            patch("pathlib.Path.glob", return_value=[MagicMock()], autospec=True),
-            # No autospec: the mock_transformers fixture has already replaced
-            # sys.modules["torch"] with a MagicMock, so the patch target's
-            # parent IS a Mock -- create_autospec refuses (InvalidSpecError)
-            # and there is no real signature to enforce anyway.
-            patch("torch.load", return_value=mock_weights),
-        ):
-            result = await load_osnet_model("/tmp/osnet_model")  # noqa: S108
+    async def test_osnet_load_returns_gateway_handle(self):
+        """Test load_osnet_model returns a gateway handle after [r306b] removed CPU torchreid."""
+        result = await load_osnet_model("/tmp/osnet_model")  # noqa: S108
 
         assert result is not None
-        assert "model" in result
-        assert "transform" in result
+        assert result["kind"] == "gateway"
+        assert result["embedding_dim"] == 512
+        assert result["model_id"].startswith("osnet-ain-x1-0@")
 
     @pytest.mark.asyncio
-    async def test_osnet_missing_weights_error(self, mock_transformers, monkeypatch):
-        """Test OSNet loader raises error for missing weights."""
-        import sys
-
-        # Mock torchvision
-        mock_torchvision = MagicMock()
-        mock_transforms = MagicMock()
-        mock_torchvision.transforms = mock_transforms
-        monkeypatch.setitem(sys.modules, "torchvision", mock_torchvision)
-        monkeypatch.setitem(sys.modules, "torchvision.transforms", mock_transforms)
-
-        # Mock torchreid
-        mock_torchreid = MagicMock()
-        monkeypatch.setitem(sys.modules, "torchreid", mock_torchreid)
-        monkeypatch.setitem(sys.modules, "torchreid.models", mock_torchreid.models)
-
-        # Mock Path.glob to return no files and exists to return False
-        from unittest.mock import patch
-
-        with patch("pathlib.Path.exists", return_value=False, autospec=True):
-            with patch("pathlib.Path.glob", return_value=[], autospec=True):
-                with pytest.raises(RuntimeError, match="Failed to load OSNet"):
-                    await load_osnet_model("/nonexistent/path")
+    async def test_osnet_invalid_path_error(self):
+        """Test OSNet loader raises error for path traversal."""
+        with pytest.raises(RuntimeError, match="Invalid model path"):
+            await load_osnet_model("/tmp/../etc/passwd")  # noqa: S108
