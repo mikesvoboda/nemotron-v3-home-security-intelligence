@@ -2821,10 +2821,22 @@ async def test_send_request_posts_exact_url_json_and_base_headers(service):
     """Header dict is pinned by keys AND values: the shipped base headers are
     exactly Content-Type/User-Agent and post() gets (url, json=, headers=)."""
     spy = ClientSpy(status_code=202, text="queued")
+    # The third tuple element is response_time_ms, measured across the send —
+    # a real clock made this flaky under xdist load (CI run 39890525041 shard
+    # 2/4: the two now() calls straddled a millisecond boundary and the pin
+    # `(202, "queued", 0)` met `(202, "queued", 2)`). The module's own
+    # _patched_clock idiom (C21's formula killer above) pins the delta instead:
+    # a 0-ms scripted gap keeps the truncation behavior this test asserts on
+    # while the wall clock can no longer move the result.
+    steps = [
+        datetime(2026, 1, 1, tzinfo=UTC),
+        datetime(2026, 1, 1, tzinfo=UTC),
+    ]
     with (
         patch.object(httpx, "AsyncClient", spy),
         patch.object(uv, "resolve_hostname", lambda host: ["93.184.216.34"]),  # noqa: ARG005
         patch.object(uv.httpx, "AsyncHTTPTransport", lambda *a, **k: object()),  # noqa: ARG005
+        patch.object(W, "datetime", _patched_clock(steps)),
     ):
         result = await service._send_request(webhook(), P1)
 
