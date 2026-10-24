@@ -104,7 +104,7 @@ face and re-ID data that can be traced to it. Anything left in Trash is purged w
     `B4.2` and `B4.4` lands second carries the deliveries' removal;
   - the general audit log records each purge without content: the event id, the time, the reason.
 - **frontend (`F4.3`):** Delete in `EventDetailModal`, bulk Delete on the timeline, the Undo
-  toast; `permanentlyDeleteEvent` (`frontend/src/services/api.ts:2514`) sends
+  toast; `permanentlyDeleteEvent` (`frontend/src/services/api.ts:2566`) sends
   `?permanent=true`; `TrashPage` shows the deleted and purge dates; the setting appears under
   Settings › Data.
 
