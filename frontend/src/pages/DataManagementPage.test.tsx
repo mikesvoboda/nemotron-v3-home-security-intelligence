@@ -9,7 +9,8 @@
  * @see NEM-3177
  */
 
-import { screen, waitFor } from '@testing-library/react';
+import { fireEvent, screen, waitFor } from '@testing-library/react';
+import userEvent from '@testing-library/user-event';
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 
 import DataManagementPage from './DataManagementPage';
@@ -28,8 +29,40 @@ vi.mock('../services/api', async (importOriginal) => {
     cancelExportJob: vi.fn(),
     getExportStatus: vi.fn(),
     downloadExportFile: vi.fn(),
+    // F4.3: Trash retention settings (Settings › Data)
+    fetchConfig: vi.fn(),
+    updateConfig: vi.fn(),
   };
 });
+
+// The Trash retention card toasts on save/failure (no <Toaster> mounts in
+// tests, so sonner renders nothing — assert on the hook's calls instead).
+const mockShowSuccess = vi.fn();
+const mockShowError = vi.fn();
+vi.mock('../hooks/useToast', () => ({
+  useToast: () => ({
+    success: mockShowSuccess,
+    error: mockShowError,
+    info: vi.fn(),
+    warning: vi.fn(),
+  }),
+}));
+
+// Minimal SystemConfig for the Trash retention card; other fields are filler.
+const mockSystemConfig = {
+  app_name: 'Home Security Intelligence',
+  batch_idle_timeout_seconds: 30,
+  batch_window_seconds: 90,
+  debug: false,
+  detection_confidence_threshold: 0.5,
+  fast_path_confidence_threshold: 0.9,
+  fast_path_enabled: false,
+  grafana_url: '/grafana',
+  log_retention_days: 7,
+  retention_days: 30,
+  trash_retention_days: 30,
+  version: '0.1.0',
+};
 
 // ============================================================================
 // Test Data
@@ -438,6 +471,122 @@ describe('DataManagementPage', () => {
       await waitFor(() => {
         expect(screen.getByTestId('data-management-page')).toBeInTheDocument();
       });
+    });
+  });
+
+  // F4.3 (spec 4n-trash.md): the trash_retention_days setting lives under
+  // Settings › Data — this page. 0 disables the Trash clock; the backend
+  // validates ge=0, le=365.
+  describe('Trash Retention (F4.3)', () => {
+    beforeEach(() => {
+      (api.listExportJobs as ReturnType<typeof vi.fn>).mockResolvedValue(emptyJobList);
+      (api.fetchConfig as ReturnType<typeof vi.fn>).mockResolvedValue(mockSystemConfig);
+    });
+
+    it('renders the current trash_retention_days from config', async () => {
+      renderWithProviders(<DataManagementPage />);
+
+      await waitFor(() => {
+        expect(screen.getByTestId('trash-retention-value')).toHaveTextContent('30 days');
+      });
+    });
+
+    it('enables Save only after the slider moves and sends a partial PATCH', async () => {
+      const user = userEvent.setup();
+      // The PATCH answers, then the invalidated config query refetches and
+      // the server reports the new value.
+      (api.updateConfig as ReturnType<typeof vi.fn>).mockResolvedValue(mockSystemConfig);
+      (api.fetchConfig as ReturnType<typeof vi.fn>)
+        .mockResolvedValueOnce(mockSystemConfig)
+        .mockResolvedValueOnce({ ...mockSystemConfig, trash_retention_days: 14 });
+
+      renderWithProviders(<DataManagementPage />);
+
+      const save = await screen.findByTestId('trash-retention-save');
+      expect(save).toBeDisabled();
+
+      // Move the slider 30 → 14 (fireEvent for the range input; userEvent
+      // does not synthesize native range drags reliably here).
+      const slider = screen.getByTestId('trash-retention-slider');
+      fireEvent.change(slider, { target: { value: '14' } });
+
+      expect(save).toBeEnabled();
+      expect(screen.getByTestId('trash-retention-value')).toHaveTextContent('14 days');
+
+      await user.click(save);
+
+      await waitFor(() => {
+        expect(api.updateConfig).toHaveBeenCalledWith({ trash_retention_days: 14 });
+      });
+      // Partial PATCH only — no other config key travels.
+      expect(api.updateConfig).toHaveBeenCalledTimes(1);
+      expect(mockShowSuccess).toHaveBeenCalledWith('Trash retention updated to 14 days');
+      // The card refetched config after the PATCH: the header shows the
+      // server's new value and Save is clean (disabled) again.
+      await waitFor(() => {
+        expect(screen.getByTestId('trash-retention-value')).toHaveTextContent('14 days');
+      });
+      expect(save).toBeDisabled();
+    });
+
+    it('Reset returns the slider to the server value without a request', async () => {
+      const user = userEvent.setup();
+
+      renderWithProviders(<DataManagementPage />);
+
+      const save = await screen.findByTestId('trash-retention-save');
+      fireEvent.change(screen.getByTestId('trash-retention-slider'), { target: { value: '90' } });
+      expect(save).toBeEnabled();
+
+      await user.click(screen.getByTestId('trash-retention-reset'));
+
+      expect(screen.getByTestId('trash-retention-value')).toHaveTextContent('30 days');
+      expect(save).toBeDisabled();
+      expect(api.updateConfig).not.toHaveBeenCalled();
+    });
+
+    it('with trash_retention_days = 0 the copy names the disabled clock', async () => {
+      (api.fetchConfig as ReturnType<typeof vi.fn>).mockResolvedValue({
+        ...mockSystemConfig,
+        trash_retention_days: 0,
+      });
+
+      renderWithProviders(<DataManagementPage />);
+
+      await waitFor(() => {
+        expect(screen.getByTestId('trash-retention-value')).toHaveTextContent('0 days');
+      });
+      expect(screen.getByText(/0 disables the Trash clock/i)).toBeInTheDocument();
+    });
+
+    it('states the setting is unavailable when the backend omits the field', async () => {
+      // Spread drops trash_retention_days entirely: pre-B4.4 backend.
+      const { trash_retention_days: _omitted, ...withoutTrash } = mockSystemConfig;
+      (api.fetchConfig as ReturnType<typeof vi.fn>).mockResolvedValue(withoutTrash);
+
+      renderWithProviders(<DataManagementPage />);
+
+      await waitFor(() => {
+        expect(screen.getByText(/does not report a Trash retention setting/i)).toBeInTheDocument();
+      });
+      expect(screen.queryByTestId('trash-retention-slider')).not.toBeInTheDocument();
+    });
+
+    it('toasts an error when the save fails and keeps the edit armed', async () => {
+      const user = userEvent.setup();
+      (api.updateConfig as ReturnType<typeof vi.fn>).mockRejectedValue(new Error('disk full'));
+
+      renderWithProviders(<DataManagementPage />);
+
+      const save = await screen.findByTestId('trash-retention-save');
+      fireEvent.change(screen.getByTestId('trash-retention-slider'), { target: { value: '14' } });
+      await user.click(save);
+
+      await waitFor(() => {
+        expect(mockShowError).toHaveBeenCalledWith('disk full');
+      });
+      // The edit stays armed — the operator can retry or Reset.
+      expect(save).toBeEnabled();
     });
   });
 });

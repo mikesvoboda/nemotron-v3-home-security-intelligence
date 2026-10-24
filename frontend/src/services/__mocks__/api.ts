@@ -973,6 +973,19 @@ export const updateEvent: Mock = vi.fn().mockResolvedValue({});
 export const bulkUpdateEvents: Mock = vi.fn().mockResolvedValue({ updated_count: 0 });
 export const searchEvents: Mock = vi.fn().mockResolvedValue({ results: [], total: 0 });
 
+// Trash endpoints (F4.3)
+export const fetchDeletedEvents: Mock = vi.fn().mockResolvedValue({ events: [], total: 0 });
+export const restoreEvent: Mock = vi.fn().mockResolvedValue({});
+export const softDeleteEvent: Mock = vi.fn().mockResolvedValue(undefined);
+export const bulkSoftDeleteEvents: Mock = vi.fn().mockResolvedValue({
+  total: 0,
+  succeeded: 0,
+  failed: 0,
+  skipped: 0,
+  results: [],
+});
+export const permanentlyDeleteEvent: Mock = vi.fn().mockResolvedValue(undefined);
+
 // Detection endpoints
 export const fetchEventDetections: Mock = vi.fn().mockResolvedValue({ detections: [], total: 0 });
 export const fetchDetectionStats: Mock = vi.fn().mockResolvedValue({});

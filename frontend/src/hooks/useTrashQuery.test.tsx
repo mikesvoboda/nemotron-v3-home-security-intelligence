@@ -13,10 +13,12 @@ import {
   useDeletedEventsQuery,
   useRestoreEventMutation,
   usePermanentDeleteMutation,
+  useSoftDeleteEventMutation,
+  useBulkSoftDeleteMutation,
 } from './useTrashQuery';
 import * as api from '../services/api';
 
-import type { DeletedEvent, Event } from '../services/api';
+import type { DeletedEvent, Event, BulkOperationResponse } from '../services/api';
 import type { ReactNode } from 'react';
 
 // Mock the API module
@@ -24,6 +26,8 @@ vi.mock('../services/api', () => ({
   fetchDeletedEvents: vi.fn(),
   restoreEvent: vi.fn(),
   permanentlyDeleteEvent: vi.fn(),
+  softDeleteEvent: vi.fn(),
+  bulkSoftDeleteEvents: vi.fn(),
 }));
 
 // Helper to create a test QueryClient
@@ -384,6 +388,146 @@ describe('usePermanentDeleteMutation', () => {
 
     await waitFor(() => {
       expect(result.current.error).toBeNull();
+    });
+  });
+});
+
+// ============================================================================
+// F4.3: useSoftDeleteEventMutation - Move an event to Trash (ruling 131)
+// ============================================================================
+
+describe('useSoftDeleteEventMutation', () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+  });
+
+  afterEach(() => {
+    vi.restoreAllMocks();
+  });
+
+  it('soft deletes an event successfully', async () => {
+    vi.mocked(api.softDeleteEvent).mockResolvedValueOnce(undefined);
+
+    const queryClient = createTestQueryClient();
+    const invalidateSpy = vi.spyOn(queryClient, 'invalidateQueries');
+
+    const { result } = renderHook(() => useSoftDeleteEventMutation(), {
+      wrapper: ({ children }) => (
+        <QueryClientProvider client={queryClient}>{children}</QueryClientProvider>
+      ),
+    });
+
+    await result.current.mutateAsync(5);
+
+    expect(api.softDeleteEvent).toHaveBeenCalledWith(5);
+    expect(api.softDeleteEvent).toHaveBeenCalledTimes(1);
+
+    // Undo window: the deleted list must refetch (the event now appears in Trash)
+    // and the main events list must drop the row.
+    expect(invalidateSpy).toHaveBeenCalled();
+  });
+
+  it('handles soft delete error', async () => {
+    const error = new Error('Soft delete failed');
+    vi.mocked(api.softDeleteEvent).mockRejectedValueOnce(error);
+
+    const { result } = renderHook(() => useSoftDeleteEventMutation(), {
+      wrapper: createWrapper(),
+    });
+
+    await expect(result.current.mutateAsync(5)).rejects.toThrow('Soft delete failed');
+
+    await waitFor(() => {
+      expect(result.current.error).toBeTruthy();
+    });
+  });
+
+  it('reset clears mutation state', async () => {
+    vi.mocked(api.softDeleteEvent).mockRejectedValueOnce(new Error('fail'));
+
+    const { result } = renderHook(() => useSoftDeleteEventMutation(), {
+      wrapper: createWrapper(),
+    });
+
+    try {
+      await result.current.mutateAsync(5);
+    } catch {
+      // Expected error
+    }
+
+    await waitFor(() => {
+      expect(result.current.error).toBeTruthy();
+    });
+
+    result.current.reset();
+
+    await waitFor(() => {
+      expect(result.current.error).toBeNull();
+    });
+  });
+});
+
+// ============================================================================
+// F4.3: useBulkSoftDeleteMutation - Bulk Delete on the timeline selection bar
+// ============================================================================
+
+describe('useBulkSoftDeleteMutation', () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+  });
+
+  afterEach(() => {
+    vi.restoreAllMocks();
+  });
+
+  function createMockBulkResponse(
+    overrides: Partial<BulkOperationResponse> = {}
+  ): BulkOperationResponse {
+    return {
+      total: 2,
+      succeeded: 2,
+      failed: 0,
+      skipped: 0,
+      results: [
+        { index: 0, status: 'success', id: 7, error: null },
+        { index: 1, status: 'success', id: 8, error: null },
+      ],
+      ...overrides,
+    };
+  }
+
+  it('bulk soft deletes events and returns the 207 response', async () => {
+    const response = createMockBulkResponse();
+    vi.mocked(api.bulkSoftDeleteEvents).mockResolvedValueOnce(response);
+
+    const queryClient = createTestQueryClient();
+    const invalidateSpy = vi.spyOn(queryClient, 'invalidateQueries');
+
+    const { result } = renderHook(() => useBulkSoftDeleteMutation(), {
+      wrapper: ({ children }) => (
+        <QueryClientProvider client={queryClient}>{children}</QueryClientProvider>
+      ),
+    });
+
+    const out = await result.current.mutateAsync([7, 8]);
+
+    expect(api.bulkSoftDeleteEvents).toHaveBeenCalledWith([7, 8]);
+    expect(out).toEqual(response);
+    expect(invalidateSpy).toHaveBeenCalled();
+  });
+
+  it('handles bulk soft delete error', async () => {
+    const error = new Error('Bulk delete failed');
+    vi.mocked(api.bulkSoftDeleteEvents).mockRejectedValueOnce(error);
+
+    const { result } = renderHook(() => useBulkSoftDeleteMutation(), {
+      wrapper: createWrapper(),
+    });
+
+    await expect(result.current.mutateAsync([7])).rejects.toThrow('Bulk delete failed');
+
+    await waitFor(() => {
+      expect(result.current.error).toBeTruthy();
     });
   });
 });

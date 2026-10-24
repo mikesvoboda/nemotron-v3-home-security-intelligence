@@ -21,11 +21,18 @@ import EmptyState from '../components/common/EmptyState';
 import LoadingSpinner from '../components/common/LoadingSpinner';
 import DeletedEventCard from '../components/events/DeletedEventCard';
 import ConfirmDialog from '../components/jobs/ConfirmDialog';
+import { useSystemConfigQuery } from '../hooks/useSystemConfigQuery';
 import {
   useDeletedEventsQuery,
   useRestoreEventMutation,
   usePermanentDeleteMutation,
 } from '../hooks/useTrashQuery';
+import {
+  DEFAULT_TRASH_RETENTION_DAYS,
+  formatPurgeDate,
+  purgeDeadlineForEvent,
+  TRASH_RETENTION_DISABLED,
+} from '../utils/trashPurge';
 
 // ============================================================================
 // Types
@@ -184,6 +191,15 @@ export default function TrashPage() {
   const { deletedEvents, isLoading, error, isEmpty, refetch } = useDeletedEventsQuery();
   const restoreMutation = useRestoreEventMutation();
   const permanentDeleteMutation = usePermanentDeleteMutation();
+
+  // The purge clock comes from /api/system/config (F4.3): the card chip and the
+  // cleanup notice must both show the configured value, never a hardcoded 30.
+  const { data: config } = useSystemConfigQuery();
+  // trash_retention_days is optional in ConfigResponse — absent means the
+  // backend predates B4.4, which runs the documented default of 30.
+  const trashRetentionDays = config?.trash_retention_days ?? DEFAULT_TRASH_RETENTION_DAYS;
+  const retentionDays = config?.retention_days;
+  const purgeConfig = retentionDays === undefined ? null : { retentionDays, trashRetentionDays };
 
   // Bulk selection state
   const [selectedIds, setSelectedIds] = useState<Set<number>>(new Set());
@@ -391,7 +407,11 @@ export default function TrashPage() {
         <EmptyState
           icon={Trash2}
           title="Trash is empty"
-          description="Deleted events will appear here. You can restore them within 30 days before they are permanently removed."
+          description={
+            trashRetentionDays > TRASH_RETENTION_DISABLED
+              ? `Deleted events will appear here. You can restore them within ${trashRetentionDays} days before they are permanently removed.`
+              : 'Deleted events will appear here. They are removed when their general retention expires.'
+          }
           variant="muted"
         />
       )}
@@ -405,8 +425,9 @@ export default function TrashPage() {
             <div>
               <p className="font-medium text-blue-300">Automatic cleanup</p>
               <p className="mt-1 text-sm text-blue-200/80">
-                Events in trash are automatically deleted after 30 days. Restore important events
-                before they are permanently removed.
+                {trashRetentionDays > TRASH_RETENTION_DISABLED
+                  ? `Events in trash are automatically deleted after ${trashRetentionDays} days. Restore important events before they are permanently removed.`
+                  : 'Events in trash are automatically deleted when their general retention expires. Restore important events before they are permanently removed.'}
               </p>
             </div>
           </div>
@@ -456,6 +477,15 @@ export default function TrashPage() {
               <DeletedEventCard
                 key={event.id}
                 event={event}
+                // Spec (4n-trash.md): "Trash shows that date" — the purge
+                // deadline computed by the same rule the daily job runs.
+                purgeDate={
+                  purgeConfig === null
+                    ? undefined
+                    : formatPurgeDate(
+                        purgeDeadlineForEvent(event.deleted_at, event.started_at, purgeConfig)
+                      )
+                }
                 onRestore={handleRestore}
                 onPermanentDelete={handlePermanentDelete}
                 isRestoring={restoreMutation.isPending}
