@@ -294,6 +294,8 @@ def _load_triton_name_map() -> dict[str, tuple[str, ...]]:
 
     result: dict[str, tuple[str, ...]] = {}
     for entry in entries:
+        if entry.get("service") == "backend":
+            continue
         names = [
             str(t["triton_name"])
             for t in entry.get("triton_models") or []

@@ -1,0 +1,35 @@
+{
+  "description": "Response from ArcFace w600k_r50 face recognition ([r307a]).",
+  "properties": {
+    "embedding": {
+      "items": {
+        "type": "number"
+      },
+      "title": "Embedding",
+      "type": "array"
+    },
+    "embedding_dimension": {
+      "title": "Embedding Dimension",
+      "type": "integer"
+    },
+    "inference_time_ms": {
+      "title": "Inference Time Ms",
+      "type": "number"
+    },
+    "model_id": {
+      "anyOf": [
+        {
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Model Id"
+    }
+  },
+  "required": ["embedding", "embedding_dimension", "inference_time_ms"],
+  "title": "FaceRecognizeResponse",
+  "type": "object"
+}

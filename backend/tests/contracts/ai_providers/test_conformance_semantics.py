@@ -100,9 +100,9 @@ SIBLING_MODULES = {
 # true, and its header records both historical cite sets.
 RETIRED_ANALYZER_SRC = SUITE_DIR / "retired_providers.py"
 
-# The nine operations, read from the generated registry.
+# The 11 operations (9 post-S3 + 2 [r307a] face routes), read from the generated registry.
 OP_IDS = set(OPERATION_IDS)
-assert len(OP_IDS) == 9, f"expected 9 operations, got {sorted(OP_IDS)}"
+assert len(OP_IDS) == 11, f"expected 11 operations, got {sorted(OP_IDS)}"
 
 # The COCO-17 body-keypoint table, in canonical order (pose_estimation.py
 # KEYPOINT_NAMES is the same list; s1a pins the DB comment against it).
@@ -363,6 +363,18 @@ _threat_scores[0, 0] = 0.9
 GATEWAY_THREAT_ROWS = np.vstack((_threat_boxes, _threat_scores))[np.newaxis, :, :]
 assert GATEWAY_THREAT_ROWS.shape == (1, 8, _THREAT_ANCHORS), GATEWAY_THREAT_ROWS.shape
 ENRICH_LT_EMBEDDING = np.zeros((1, 512), dtype=np.float32)
+ENRICH_LT_ARCFACE_EMBEDDING = np.ones((1, 512), dtype=np.float32)
+_SCRFD_CANNED_SHAPES = {
+    "448": (12800, 1),
+    "471": (3200, 1),
+    "494": (800, 1),
+    "451": (12800, 4),
+    "474": (3200, 4),
+    "497": (800, 4),
+    "454": (12800, 10),
+    "477": (3200, 10),
+    "500": (800, 10),
+}
 
 
 def _fake_triton() -> AsyncMock:
@@ -385,6 +397,10 @@ def _canned_for(model_name: Any, outputs: Any) -> dict[str, Any]:
     for name in names:
         if model_name == "reid":
             out[name] = ENRICH_LT_EMBEDDING
+        elif model_name == "arcface":
+            out[name] = ENRICH_LT_ARCFACE_EMBEDDING
+        elif model_name == "scrfd":
+            out[name] = np.zeros(_SCRFD_CANNED_SHAPES.get(name, (1, 1)), dtype=np.float32)
         elif model_name == "threat":
             out[name] = GATEWAY_THREAT_ROWS
         else:
@@ -780,9 +796,8 @@ class TestS2EmbeddingSpaceTag:
                 "properties", {}
             )
         }
-        assert embedding_ops == {"enrich_lt_person_reid"}, (
-            f"a second embedding-producing op is back ({sorted(embedding_ops)}); the "
-            "two-space cosine hazard is live again and must be re-driven, not tombstoned"
+        assert embedding_ops == {"enrich_lt_person_reid", "enrich_lt_face_recognize"}, (
+            f"unexpected embedding-producing ops ({sorted(embedding_ops)})"
         )
         assert "clip_embed" not in OP_IDS and "clip_similarity" not in OP_IDS
         for dead in ("clip", "clip_text"):
@@ -1160,6 +1175,7 @@ class TestS6ConfidenceRangeThrow:
         }
         conf_ops = schema_named | bare_dict
         assert conf_ops == {
+            "enrich_lt_face_detect",
             "enrich_lt_threat_detect",
             "yolo26_detect",
             "yolo26_detect_batch",
@@ -1782,8 +1798,8 @@ class TestS9CompositeEnrich:
                 and any(op.path.startswith(f"{prefix}/") for prefix in mounted_prefixes)
             }
         )
-        # 5 registry POST ops on the two prefixes (3 yolo + 2 enrich-lt).
-        assert len(routes) == 5, f"the mounted POST census changed: {routes}"
+        # 7 registry POST ops on the two prefixes (3 yolo + 4 enrich-lt).
+        assert len(routes) == 7, f"the mounted POST census changed: {routes}"
         with ExitStack() as stack:
             for target in GATEWAY_PATCH_TARGETS:
                 recorder = _fake_triton()
@@ -1803,7 +1819,7 @@ class TestS9CompositeEnrich:
             "a route reaching a model its adapter does not declare is a composite "
             "coming back, and this tombstone must be re-driven"
         )
-        assert len(called) == 3, (
+        assert len(called) == 5, (
             f"the residency set moved to {sorted(called)}; one Triton model per route is "
             "the bound this tombstone rests on"
         )
@@ -1874,6 +1890,8 @@ class TestS9CompositeEnrich:
             )
         assert string_ops == {"llm_slots"}, f"the string-golden carve-out moved: {string_ops}"
         assert golden_obj == {
+            "enrich_lt_face_detect",
+            "enrich_lt_face_recognize",
             "enrich_lt_person_reid",
             "enrich_lt_threat_detect",
             "llm_chat_completion",
@@ -2035,7 +2053,7 @@ def _provider_ops(pid: ProviderId) -> dict[str, Any]:
 # with no bound client method gets the shared NOT-WIRED sentinel instead of a
 # callable. NOT a hand list - a field read.
 NOT_WIRED_OPS = {op_id for op_id, op in OPERATIONS.items() if not op.client_methods}
-assert len(NOT_WIRED_OPS) == 7, f"the not-wired census changed: {sorted(NOT_WIRED_OPS)}"
+assert len(NOT_WIRED_OPS) == 9, f"the not-wired census changed: {sorted(NOT_WIRED_OPS)}"
 _NOT_WIRED_QUALNAME = "_not_wired"
 
 # Which factory builds each provider's callables, read out of ``_register_all``'s
@@ -2230,7 +2248,12 @@ class TestSemanticsMatrixGuards:
         if pid is ProviderId.GATEWAY:
             assert {"yolo26_detect", "yolo26_segment", "enrich_lt_threat_detect"} <= present
         elif pid is ProviderId.GATEWAY_LIGHT:
-            assert present == {"enrich_lt_person_reid", "enrich_lt_threat_detect"}, present
+            assert present == {
+                "enrich_lt_face_detect",
+                "enrich_lt_face_recognize",
+                "enrich_lt_person_reid",
+                "enrich_lt_threat_detect",
+            }, present
         elif pid is ProviderId.PER_MODEL_HTTP:
             assert {"yolo26_detect", "vlm_assess", "llm_completion"} <= present, present
         elif pid is ProviderId.FAKE:

@@ -26,6 +26,7 @@ entries = [
   # --- ai/ build and export entry points (O3.1, ruling 210) ---
   "ai/gateway/patch_triton_configs.py",
   "ai/gateway/export/copy_yolo26_engine.py",
+  "ai/gateway/export/export_face.py",
   "ai/gateway/export/export_reid.py",
   "ai/gateway/export/export_yolo26.py",
   "ai/gateway/export/export_yolo_threat.py",

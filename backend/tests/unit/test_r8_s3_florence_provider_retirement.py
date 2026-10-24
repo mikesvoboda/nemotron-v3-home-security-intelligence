@@ -82,7 +82,7 @@ PRUNED_MODELS = [
     "pose",
     "stgcn_action",
 ]
-KEPT_MODELS = ["yolo26", "reid", "threat"]
+KEPT_MODELS = ["yolo26", "reid", "threat", "scrfd", "arcface"]
 
 # Ruling 4's sweep targets: the standalone per-model serving dirs, already out
 # of every compose file since S2b.
@@ -144,6 +144,8 @@ SURVIVING_OP_IDS = [
     "yolo26_detect",
     "yolo26_detect_batch",
     "yolo26_segment",
+    "enrich_lt_face_detect",
+    "enrich_lt_face_recognize",
     "enrich_lt_person_reid",
     "enrich_lt_threat_detect",
     "llm_completion",
@@ -278,10 +280,17 @@ class TestFlorenceProviderRowRetired:
                 "yolo26_detect",
                 "yolo26_detect_batch",
                 "yolo26_segment",
+                "enrich_lt_face_detect",
+                "enrich_lt_face_recognize",
                 "enrich_lt_person_reid",
                 "enrich_lt_threat_detect",
             ],
-            "enrichment_light_adapter": ["enrich_lt_person_reid", "enrich_lt_threat_detect"],
+            "enrichment_light_adapter": [
+                "enrich_lt_face_detect",
+                "enrich_lt_face_recognize",
+                "enrich_lt_person_reid",
+                "enrich_lt_threat_detect",
+            ],
             "per_model_server": [
                 "yolo26_detect",
                 "yolo26_detect_batch",
@@ -419,7 +428,7 @@ class TestTritonRepositoryPruned:
         from ai.gateway.residency import FULL_MODEL_SET
 
         assert set(FULL_MODEL_SET) == set(KEPT_MODELS)
-        assert len(FULL_MODEL_SET) == 3
+        assert len(FULL_MODEL_SET) == len(KEPT_MODELS)
         for pruned in PRUNED_MODELS:
             assert pruned not in FULL_MODEL_SET
 
