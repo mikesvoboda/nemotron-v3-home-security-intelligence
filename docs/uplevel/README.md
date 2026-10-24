@@ -198,7 +198,7 @@ UR-147.
 | F3.2    | frontend                | 3          | Unreachable files and the knip gate            |               | done        | #7246 |
 | F3.3    | frontend                | 3          | Quarantined tests                              |               | done        | #7325 |
 | O3.1    | ops                     | 3          | Prune `ai/` to what ships                      |               | done        | #7256 |
-| O3.2    | ops                     | 3          | Compose base and overlays                      |               | not started | #7400 |
+| O3.2    | ops                     | 3          | Compose base and overlays                      |               | done        | #7400 |
 | O3.3    | ops                     | 3          | `models.yml` and env truth                     |               | done        | #7281 |
 | O3.4    | ops                     | 3          | Reachability gates in CI                       |               | done        | #7324 |
 | O3.5    | ops                     | 3          | Weekly mutation scorer and history (`01` M2)   |               | done        | #7317 |

@@ -1,75 +1,15 @@
-# Production Docker Compose
-#
-# This uses optimized builds with multi-stage Dockerfiles.
-# Compatible with Docker and Podman on Linux and macOS.
-#
-# Usage:
-#   Docker:  docker compose -f docker-compose.prod.yml up -d
-#   Podman:  podman-compose -f docker-compose.prod.yml up -d
-#
-# GPU Requirements:
-#   - NVIDIA GPU with CUDA support required for AI services
-#   - nvidia-container-toolkit must be installed
-#
-# Credential Management (Choose One Approach):
-#
-#   OPTION 1: Environment Variables (Default)
-#   - POSTGRES_PASSWORD: Database password (REQUIRED - no default for security)
-#     Generate with: openssl rand -base64 32
-#
-#   OPTION 2: Docker Secrets (Recommended for Production)
-#   - Enhanced security: secrets stored separately from environment variables
-#   - Credentials not visible in 'docker inspect' output
-#   - Easier credential rotation without image rebuild
-#   - See DOCKER_SECRETS_SETUP section below for setup instructions
-#
-# Environment Variables (Optional):
-#   - AI_MODELS_PATH: Base path for AI models (default: /export/ai_models)
-#   - FRONTEND_HTTP_PORT: Host port for frontend HTTP (default: 8080)
-#   - FRONTEND_HTTPS_PORT: Host port for frontend HTTPS (default: 8444)
-#   - FRONTEND_INTERNAL_PORT: Container port for nginx (default: 8080, used for health checks)
-#   - YOLO26_CONFIDENCE: YOLO26 detection confidence threshold (default: 0.5)
-#   - VLM_GPU_LAYERS: Number of GPU layers for the ai-vlm serve (default: auto = fit to available VRAM)
-#   - CTX_SIZE: backend prompt-budget context window (default: 262144, 8 slots × 32K each)
-#   - HF_CACHE: HuggingFace cache directory (default: uses hf_cache volume)
-#   - HF_HUB_OFFLINE: Enable offline mode for HuggingFace Hub (default: 0, set to 1 for production)
-#   - REDIS_PASSWORD: Redis authentication password (optional, for production use)
-#   - GF_ADMIN_PASSWORD: Grafana admin password (default: admin, anonymous access enabled)
-#
-# GPU Assignment (configured in .env - single source of truth):
-#   - GPU_LLM: GPU for the ai-vlm serve (default: 0)
-#   - GPU_AI_SERVICES: GPU for AI Gateway / Triton (default: 1)
+# Production Compose base (Podman / Docker). Configure ports and paths in .env (.env.example).
 
-# [r162 → r243] The engine socket follows the orchestrator setting (owner
-# rulings 186, 6181436641, and 243, 6222454848). Compose has no conditional
-# volume item, and the nightly's compose v2.38.2 rejects ANY `include:` that
-# redeclares a service (`services.backend conflicts with imported resource`),
-# so the MOUNT now lives inline in `backend` below and the condition splits in
-# two, both measured on v5.5.1, v2.38.2 and podman-compose 1.6.0 (#7222):
-#   * the LOUD FAILURE stays in a filename — the two files included here are
-#     SERVICE-FREE markers (they declare no service, so 2.38.2's conflict rule
-#     never fires), and their names still interpolate the flag: a spelling
-#     pydantic accepts but no marker carries (`1`, `yes`, `False`, …) fails the
-#     render with "no such file" instead of booting a shape nobody wrote down.
-#   * the MOUNT itself drops out through an overlay the deploy tooling selects
-#     as a second `-f`: `docker-compose.engine-false.yml` re-lists backend's
-#     volumes `!override`, without the socket. The tooling adds it when the
-#     flag is exactly `false` (setup_lib/deploy.py); a hand-booted OFF
-#     deployment passes the same `-f` itself (docs/operator/deployment/README.md).
-# The `:-true` default is deliberate and unchanged (ruling 243 item 1): prod.yml
-# is the deployment contract, and the live host must keep its socket if an env
-# file omits the variable — unset includes marker-true and mounts the socket.
+# ORCHESTRATOR_ENABLED=false uses '-f docker-compose.prod.yml -f docker-compose.engine-false.yml'.
 include:
   - docker-compose.marker-${ORCHESTRATOR_ENABLED:-true}.yml
 
 services:
+  # Read-only rootfs; keeps CHOWN/DAC_OVERRIDE for data dir initialization
   postgres:
-    # Security hardening: Read-only root filesystem (NEM-4978)
     read_only: true
     security_opt:
       - no-new-privileges:true
-    # NOTE: Postgres needs CHOWN/DAC_OVERRIDE for data directory initialization
-    # Other capabilities are dropped for security
     cap_drop:
       - NET_RAW
       - SYS_ADMIN
@@ -78,32 +18,16 @@ services:
     tmpfs:
       - /tmp
       - /var/run/postgresql
-    # NEM-4496: Bind to localhost only to prevent external network access
     ports:
       - '127.0.0.1:${POSTGRES_PORT:-5432}:5432'
     volumes:
       - postgres_data:/var/lib/postgresql/data
     environment:
       - POSTGRES_USER=${POSTGRES_USER:-security}
-      # SECURITY: No default password - must be explicitly set via environment or secrets
-      # Option 1: Set POSTGRES_PASSWORD environment variable (e.g., in .env file)
-      # Option 2: Use Docker secrets (uncomment secrets section below)
+      # Required: set POSTGRES_PASSWORD in .env
       - POSTGRES_PASSWORD=${POSTGRES_PASSWORD:?POSTGRES_PASSWORD must be set - run ./setup.sh or set manually}
       - POSTGRES_DB=${POSTGRES_DB:-security}
-    # Uncomment to use Docker secrets instead of environment variables:
-    # secrets:
-    #   - postgres_password
-    # environment:
-    #   - POSTGRES_PASSWORD_FILE=/run/secrets/postgres_password
-    # PostgreSQL server-side query logging (NEM-3054)
-    # Logs slow queries (>1s) to container stdout, collected by Alloy -> Loki
-    # - log_min_duration_statement: Log queries exceeding 1000ms (1 second)
-    # - log_duration: Include query duration in all logged statements
-    # - log_line_prefix: Timestamp, PID, user@database for correlation
-    # - log_statement: 'ddl' logs only schema changes (not all queries)
-    # - log_checkpoints: Log checkpoint activity for performance analysis
-    # - log_connections/disconnections: Track connection lifecycle
-    # - log_lock_waits: Log queries waiting >1s for locks (deadlock detection)
+    # Log slow queries (>1s), DDL, checkpoints, and lock waits to stdout for Alloy/Loki
     command:
       - postgres
       - -c
@@ -139,29 +63,9 @@ services:
           cpus: '2'
           memory: 1G
 
-  # =============================================================================
-  # VLM Server (vision-language verification; spec §2, Phase 1.2)
-  # =============================================================================
-  # llama-server + GGUF + mmproj serving the vlm_assess op over
-  # /v1/chat/completions with response_format json_schema (constrained
-  # decoding; the enforcement probe in scripts/vlm_probes/s2_multimodal_schema.py
-  # proves the pin actually enforces). It ships in the default `up` (O1.3,
-  # UR-18): the verdict engine starts with the rest of the stack. The backend
-  # NEVER hard-depends_on it, so this service failing never takes the rest of
-  # the stack down - degradation is the §6 ladder's job in vlm_analyzer (1.3),
-  # not a compose edge.
-  # vlm mode REPLACED the legacy LLM on the GPU (spec VRAM table); R8 S2
-  # deleted that serving path, so this is the GPU's only LLM.
-  #
-  # NO GPU ON THIS MACHINE: ai-vlm fails at start - the CDI device line below
-  # has nothing to map. Nothing depends_on it and it depends_on nothing (pinned
-  # in backend/tests/unit/core/test_ai_vlm_compose_service.py), so the rest of
-  # the stack comes up without it; name the services you want and leave it out.
-  # That is the interim GPU-less path until O2.1's explicit fake-AI overlay
-  # lands. Expect the risk gauge to stay at 0: the backend reports the engine's
-  # runtime state rather than hiding it (UR-18).
+  # VLM Server (llama.cpp llama-server + Qwen3-VL GGUF/mmproj on port 8098; UR-18 default set)
   ai-vlm:
-    # NOTE: read_only not set — nvidia-cdi-hook needs write access for GPU passthrough
+    # Writable rootfs required by nvidia-cdi-hook for GPU passthrough
     security_opt:
       - no-new-privileges:true
       - label=disable
@@ -176,104 +80,47 @@ services:
       context: ./ai/vlm
       dockerfile: Dockerfile
       args:
-        # ONE Dockerfile, two hosts (1.2 scope call, no per-host fork):
-        # GB300 dev builds -CUDA_ARCHITECTURES=103 (aarch64), the A5500
-        # bring-up (1.7) builds =86 (x86) from this same context.
+        # Build arg: 103 for GB300 (aarch64), 86 for RTX A5500 (x86_64)
         CUDA_ARCHITECTURES: ${CUDA_ARCHITECTURES:-}
-    # Podman CDI device passthrough (rootless GPU access)
+    # Podman CDI GPU passthrough
     devices:
       - nvidia.com/gpu=${GPU_LLM:-0}
     ports:
-      # NEM-4486 pattern: localhost only - AI services are internal.
-      # Host var declared in .env.example FIRST (AI_VLM_PORT); the
-      # CONTAINER port is fixed at 8098 below (PORT=8098) so the internal
-      # URL http://ai-vlm:8098 never depends on the host-side mapping.
       - '127.0.0.1:${AI_VLM_PORT:-8098}:8098'
     volumes:
       - ${AI_MODELS_PATH:-/export/ai_models}/vlm:/models:ro
-      # Persistent CUDA kernel cache (llama.cpp compilation cache) - same
-      # named volumes shared with the llama.cpp profiling story: same
-      # binary shape, content-addressed caches.
+      # Persistent CUDA/llama.cpp compilation caches
       - llama-cache:/home/llama/.cache
       - llama-nv-cache:/home/llama/.nv
     environment:
       - SERVICE_NAME=ai-vlm
       - CUDA_VISIBLE_DEVICES=${GPU_LLM:-0}
-      # Container-side listen port; see the ports block above.
+      # Host-mounted GGUF model + multimodal projector
       - PORT=8098
-      # Weights are host-mounted (never baked); names live in .env.example.
-      # prod.yml style - ${VAR:-default}, no hardcoded literals.
       - MODEL_PATH=${VLM_MODEL_PATH:-/models/Qwen3VL-8B-Instruct-Q4_K_M.gguf}
       - MMPROJ_PATH=${VLM_MMPROJ_PATH:-/models/mmproj-Qwen3VL-8B-Instruct-Q8_0.gguf}
       - MODEL_ALIAS=${VLM_MODEL_ALIAS:-Qwen3VL-8B}
-      # All layers on GPU; auto = llama.cpp --fit decides by free VRAM.
       - GPU_LAYERS=${VLM_GPU_LAYERS:-auto}
-      # Each still costs at most the 1280 vision tokens the client reserves
-      # for it (vlm_client._IMAGE_TOKENS_PER_FRAME; pinned). Uncapped, Qwen3-VL
-      # spends ~1 token per 32x32 px: four 2 MP stills were 8,509 tokens, not
-      # 5,120, and a fitted batch overflowed the 16,384 slot (A5500 2026-09-28).
-      # llama-server reads LLAMA_ARG_* itself; it also bounds encoder VRAM.
+      # Cap vision tokens at 1280 per frame to fit the 16,384-token per-slot budget
       - LLAMA_ARG_IMAGE_MAX_TOKENS=1280
-      # Context budget (spec §2 "sized for 4 images + ~6K text + output" — the
-      # file with the earlier worked-out copy was retired by O1.2 / UR-17): the backend divides
-      # CTX_SIZE by PARALLEL itself (config.py nemotron_context_window
-      # precedent), so per-slot budget = 32768/2 = 16384 tokens >= the
-      # ~12.2K a worst-case vlm_assess needs (4 images x <=1280 tokens +
-      # ~6K prompt + ~1K verdict). PARALLEL=2 per spec §2.
-      # ERRATUM (ledger 2026-09-27): the "~6K prompt" half of that sizing does
-      # NOT describe the shipped worst case. Detections arrive at ~61 tokens a
-      # row (measured with the repo's own token counter) and batch_max_detections
-      # is 500, so a full batch is ~30K text tokens on its own - the 6K figure
-      # holds at about 90 rows. The slot is still the right size, because the
-      # client now FITS the prompt to it (vlm_client._fitted_prompt drops the
-      # weakest rows and says so) instead of trusting the arithmetic. Sizing and
-      # fitting are both load-bearing; the spec's number is the sizing rule, not
-      # a bound the detector honors.
+      # 32,768 context across 2 parallel slots (16,384 tokens/slot)
       - CTX_SIZE=${VLM_CTX_SIZE:-32768}
       - PARALLEL=${VLM_PARALLEL:-2}
       - THREADS=${VLM_THREADS:-4}
       - BATCH_SIZE=${VLM_BATCH_SIZE:-2048}
       - UBATCH_SIZE=${VLM_UBATCH_SIZE:-512}
-      # KV quantization halves the 32K-pool footprint. The pool is a function
-      # of the ARCHITECTURE and the
-      # ctx/slot numbers above, not of the weights' size: the 4B and the 8B
-      # share block_count 36 / head_count 32 (GGUF headers, ledger item 34),
-      # so shipping the 8B bought no KV relief and this line's arithmetic is
-      # unchanged. MEASURED (A5500, 2026-09-28, ledger item 39): llama-server's
-      # own line for this 32768/2 pool was `size = 4608.00 MiB ( 16384 cells,
-      # 36 layers, 2/2 seqs), K (f16), V (f16)` - the WHOLE pool (2 x 16384
-      # cells, ~144KB/token), and f16 because until then ai/vlm/Dockerfile
-      # never passed these two vars to llama-server (the bake-off's 4608 MiB
-      # row is the same f16 pool). q8_0 halves it; the "~73KB/token, ~2.4GB"
-      # older prose was the q8_0 figure all along.
+      # q8_0 KV cache quantization halves the 32K pool footprint
       - CACHE_TYPE_K=${VLM_CACHE_TYPE_K:-q8_0}
       - CACHE_TYPE_V=${VLM_CACHE_TYPE_V:-q8_0}
       - FLASH_ATTENTION=${VLM_FLASH_ATTENTION:-true}
-      # Residency (spec §2 --sleep-idle-seconds): llama.cpp sleep mode
-      # releases the weights to CPU RAM after this much idleness; wake is
-      # a RAM->VRAM copy of the whole pair - 5,027,784,800 B main +
-      # 752,289,728 B mmproj for the shipped 8B (sha256-pinned in ledger item
-      # 35), against 2,497,281,664 + 453,974,304 for the 4B pair it replaces:
-      # 2.0x the bytes to copy back. No wake time is measured here and none is
-      # claimed: the client's budget is AI_VLM_WAKE_TIMEOUT_SECONDS=90.0 and
-      # the A5500 handout records the actual against it. 300 s = bursty camera
-      # traffic stays warm, an idle night yields the VRAM. 1.4's residency
-      # control consumes, not replaces, this. Set empty to disable sleeping
-      # entirely.
+      # Offload weights to CPU RAM after 300s idle (set empty to disable sleep)
       - SLEEP_IDLE_SECONDS=${VLM_SLEEP_IDLE_SECONDS:-300}
     healthcheck:
       test: ['CMD', 'curl', '-f', 'http://localhost:8098/health']
       interval: 10s
       timeout: 5s
       retries: 3
-      # 120s is not an estimate: it mirrors the image's own HEALTHCHECK
-      # --start-period=120s (ai/vlm/Dockerfile:133) so the two never disagree
-      # about when a cold serve is allowed to answer. Whether the shipped 8B
-      # pair clears it is UNMEASURED - the earlier reason on this line was a
-      # 4B-vs-30B anecdote, not a reading - so the A5500 handout carries
-      # "record the 8B's actual load time against this window". If it does not
-      # clear it, both numbers move together or the server is torn down for
-      # being slow when it is only early.
+      # Matches ai/vlm/Dockerfile HEALTHCHECK --start-period=120s
       start_period: 120s
     restart: unless-stopped
     networks:
@@ -286,17 +133,11 @@ services:
         reservations:
           memory: 4G
           devices:
-            # Specific GPU assignment for podman-compose compatibility
             - driver: nvidia
               device_ids: ['${GPU_LLM:-0}']
               capabilities: [gpu]
 
-  # =============================================================================
-  # AI Gateway (Triton + FastAPI)
-  # =============================================================================
-  # Serves the shipped Triton models (YOLO26 detection, plus the light lane's
-  # re-ID and threat rows) via Triton Inference Server with a FastAPI gateway
-  # for HTTP routing.
+  # AI Gateway (Triton Inference Server + FastAPI router for /yolo26 and /enrich-lt)
   ai-gateway:
     security_opt:
       - no-new-privileges:true
@@ -306,11 +147,7 @@ services:
     build:
       context: .
       dockerfile: ai/gateway/Dockerfile
-    # Podman CDI device passthrough (rootless GPU access)
-    # Pass ALL GPUs via CDI so /dev/nvidia0 and /dev/nvidia1 both exist.
-    # CUDA_VISIBLE_DEVICES restricts Triton to only the AI services GPU.
-    # Using nvidia.com/gpu=N only creates /dev/nvidiaN which CUDA can't
-    # use if N>0 (it expects /dev/nvidia0 for the first visible device).
+    # Pass all GPUs via CDI so /dev/nvidia0 exists when CUDA_VISIBLE_DEVICES selects GPU > 0
     devices:
       - nvidia.com/gpu=all
     ports:
@@ -320,30 +157,16 @@ services:
       - ${AI_MODELS_PATH:-/export/ai_models}/model-zoo:/models/zoo:ro
       - ${AI_MODELS_PATH:-/export/ai_models}/triton:/models/cache
       - ${AI_MODELS_PATH:-/export/ai_models}/quantized:/models/quantized:ro
-      # Persistent CUDA kernel cache (survives container redeploys)
       - triton-kernel-cache:/root/.nv
-      # TensorRT temp artifacts cache (compilation intermediates)
       - triton-tmp-cache:/tmp
-      # HuggingFace model cache (pre-downloaded models, avoids network downloads)
       - ${HF_CACHE_PATH:-/home/ubuntu/.cache/huggingface}:/root/.cache/huggingface
     environment:
       - SERVICE_NAME=ai-gateway
       - GATEWAY_PORT=8090
-      # Rev-6 residency selector: which Triton model dirs stay in the repo
-      # (pruned by ai.gateway.residency before Triton starts). 1.5 flipped
-      # the shipped default to `vlm` in the SAME slice as PIPELINE_MODE=vlm
-      # (owner ruling, ledger 1.4 review item 2) — the two defaults AGREE,
-      # so a deployment never boots the vlm analyzer against a full-mode
-      # gateway (or vice versa). `full` serves only the legacy pipeline and
-      # is deleted with R8. The agreement is pinned:
-      # test_gateway_model_set_compose.py.
+      # Residency set pruned by ai.gateway.residency at startup (must match backend PIPELINE_MODE)
       - GATEWAY_MODEL_SET=${GATEWAY_MODEL_SET:-vlm}
       - GATEWAY_ENABLE_THREAT=${GATEWAY_ENABLE_THREAT:-false}
-      # All GPUs are passed via CDI (nvidia.com/gpu=all) so /dev/nvidia0 and
-      # /dev/nvidia1 both exist. CUDA_VISIBLE_DEVICES restricts Triton to only
-      # the AI services GPU (default: GPU 1 = A400).
       - CUDA_VISIBLE_DEVICES=${GPU_AI_SERVICES:-1}
-      # Use pre-downloaded HF cache, disable network downloads
       - HF_HOME=/root/.cache/huggingface
       - HF_HUB_OFFLINE=${HF_HUB_OFFLINE:-1}
     healthcheck:
@@ -351,9 +174,7 @@ services:
       interval: 15s
       timeout: 10s
       retries: 5
-      # The shipped `vlm` set (yolo26 + reid, plus threat when
-      # GATEWAY_ENABLE_THREAT=true) initializes in seconds; the 180s covers a
-      # cold TensorRT engine build on first start
+      # Covers cold TensorRT engine build on first start
       start_period: 180s
     restart: unless-stopped
     networks:
@@ -370,12 +191,10 @@ services:
               device_ids: ['${GPU_AI_SERVICES:-1}']
               capabilities: [gpu]
 
-  # Ensures FOSCAM_BASE_PATH is writable by host user (seed-events.py runs outside containers)
   foscam-init:
+    # Ensures FOSCAM_BASE_PATH is writable by host user
     image: docker.io/library/alpine:3.19
     volumes:
-      # :z - first container to touch the camera root on a fresh host; without
-      # the relabel SELinux denies this chown on a usr_t dir (A5500, 2026-09-28).
       - ${FOSCAM_BASE_PATH:-/export/foscam}:/cameras:z
     command: sh -c "chown -R $${HOST_UID:-1000}:$${HOST_GID:-1000} /cameras 2>/dev/null || true"
     environment:
@@ -386,10 +205,9 @@ services:
       - security-net
 
   backend:
-    # Run as host user for Podman socket and data dir access; keep-id preserves UID across namespace
     user: '${HOST_UID:-1000}:${HOST_GID:-1000}'
+    # Run as host UID/GID with keep-id for Podman socket and data dir access
     userns_mode: keep-id
-    # NOTE: read_only not set — nvidia-cdi-hook needs write access for GPU device passthrough
     tmpfs:
       - /tmp
       - /home/appuser/.cache
@@ -397,217 +215,81 @@ services:
       context: .
       dockerfile: backend/Dockerfile
       target: prod
-    # NEM-4486: Bind to localhost only - backend accessed via frontend nginx proxy
     ports:
       - '127.0.0.1:${API_PORT:-8000}:8000'
     volumes:
-      # :U tells Podman to recursively chown the volume to match container user (appuser)
-      # Docker ignores the :U flag, making this backward compatible
+      # :U chowns volume to container user under Podman; :z relabels for SELinux inotify watch
       - ./backend/data:/app/data:z,U
-      # :z - the file watcher must inotify-WATCH this tree; SELinux lets
-      # container_t read a usr_t dir but not watch it, so without the relabel
-      # the watcher starts "successfully" and never sees an upload.
       - ${FOSCAM_BASE_PATH:-/export/foscam}:/cameras:z
       - ${AI_MODELS_PATH:-/export/ai_models}/model-zoo:/models/model-zoo:ro,z
-      # Pre-downloaded HuggingFace model cache (matches ai-gateway mount).
-      # For any model whose loader uses from_pretrained() with a HuggingFace
-      # repo ID.
-      # HF_HOME in environment points here so HF_HUB_OFFLINE=1 can serve models
-      # without network access.
       - ${HF_CACHE_PATH:-/home/ubuntu/.cache/huggingface}:/models/huggingface-cache:ro
-      # Podman socket for container orchestrator auto-recovery (NEM-4xxx).
-      # [r243] back inline: the [r162] shape put it in docker-compose.engine-true.yml
-      # behind an interpolated `include:`, and compose v2.38.2 (the nightly runner)
-      # refuses ANY included redeclaration of services.backend. The OFF state now
-      # drops this one mount with a `!override` re-list overlay
-      # (docker-compose.engine-false.yml) that the deploy tooling selects as a
-      # second `-f` — see the top of this file. Keep this list and that overlay's
-      # in lockstep; scripts/test_orchestrator_engine_socket.py fails a drift in
-      # either direction by comparing the two renders' backend target SETS.
+      # Podman socket for orchestrator (dropped by docker-compose.engine-false.yml when off)
       - ${PODMAN_SOCKET:?PODMAN_SOCKET must be set}:/var/run/podman/podman.sock
-      # Docker compose file for dynamic service discovery by orchestrator
       - ./docker-compose.prod.yml:/app/docker-compose.prod.yml:ro
     environment:
-      # Environment setting: defaults to 'development' for local deploys
-      # Override with ENVIRONMENT=production for actual production deployments
       - ENVIRONMENT=${ENVIRONMENT:-development}
-      # Per-event pipeline (spec §2, rev 5): vlm is the default and the
-      # ONLY supported mode. `legacy` parses (its code stays until R8) but
-      # is UNSUPPORTED — not deployed, not measured, not a rollback target,
-      # and the settings validator logs it loudly at boot. Must AGREE with
-      # GATEWAY_MODEL_SET above (pinned together in
-      # test_gateway_model_set_compose.py).
+      # Per-event pipeline mode (vlm is the only supported mode; matches GATEWAY_MODEL_SET)
       - PIPELINE_MODE=${PIPELINE_MODE:-vlm}
-      # Specialist residency: the boot sweep that loads the face + re-ID
-      # rows is gated on this, and the backend has no env_file:, so without
-      # this line setup.py's .env value never reached the container
-      # (test_ai_vlm_compose_service.TestSpecialistResidencyReachesTheBackend).
+      # Preload resident backend lookup models at boot when true
       - BACKEND_MODEL_PRELOAD=${BACKEND_MODEL_PRELOAD:-false}
-      # Logging verbosity: WARNING (default) suppresses all INFO/DEBUG pipeline messages.
-      # Set LOG_LEVEL=INFO in .env to see file watcher queuing, detection, and event creation.
-      # Set LOG_LEVEL=DEBUG for full trace including debounce and deduplication decisions.
       - LOG_LEVEL=${LOG_LEVEL:-WARNING}
-      # Redirect torch hub cache to the persistent model-zoo mount so weights
-      # (e.g. piq BRISQUE SVR) downloaded during setup.py survive container restarts.
-      # Path must be writable by appuser (UID 1000) inside the container.
+      # Persistent model-zoo/tiktoken/HuggingFace caches (offline mode enforced at runtime)
       - TORCH_HOME=/models/model-zoo/.torch_cache
-      # Point tiktoken to the pre-downloaded BPE encoding cache (persistent host
-      # directory).  tiktoken.get_encoding() downloads ~1.7 MB from OpenAI's CDN on
-      # first call using synchronous requests.get(), which blocks the asyncio event
-      # loop and causes health-check failures.  setup.py pre-downloads the file and
-      # sets this variable so the container never reaches the network at runtime.
       - TIKTOKEN_CACHE_DIR=/models/model-zoo/.tiktoken_cache
-      # Point HuggingFace to the pre-downloaded model cache (persistent host directory
-      # mounted at /models/huggingface-cache below).  This avoids re-downloading on
-      # every container restart and lets HF_HUB_OFFLINE=1 work correctly.
       - HF_HOME=/models/huggingface-cache
-      # Enforce offline mode — all HuggingFace weights must be pre-downloaded to
-      # HF_CACHE_PATH on the host before the container starts.  Any from_pretrained()
-      # or open_clip hf-hub: call that cannot find the model in the local cache will
-      # raise an OSError immediately rather than attempting a network download at
-      # runtime.  Override with HF_HUB_OFFLINE=0 only during initial model setup.
       - HF_HUB_OFFLINE=${HF_HUB_OFFLINE:-1}
-      # Belt-and-suspenders: also covers Transformers-specific offline check
       - TRANSFORMERS_OFFLINE=${TRANSFORMERS_OFFLINE:-1}
-      # Prevent ultralytics from attempting to install packages (e.g. CLIP from GitHub)
-      # at runtime via check_requirements(). The container has no git and no PyPI access,
-      # so these attempts block for tens of seconds before failing, which causes GIL
-      # contention in the thread pool that starves the asyncio event loop.
       - ULTRALYTICS_OFFLINE=1
       - YOLO_VERBOSE=False
-      # SECURITY: Uses same POSTGRES_PASSWORD as postgres service (must be set)
       - DATABASE_URL=postgresql+asyncpg://${POSTGRES_USER:-security}:${POSTGRES_PASSWORD:?POSTGRES_PASSWORD must be set}@postgres:5432/${POSTGRES_DB:-security}
       - REDIS_URL=redis://redis:6379
-      # SECURITY: Redis password authentication (optional, for production use)
-      # Must match REDIS_PASSWORD set in the redis service
       - REDIS_PASSWORD=${REDIS_PASSWORD:-}
-      # Rootless Podman bind mounts don't propagate inotify events reliably.
-      # Use polling mode for file watcher to detect new camera images.
-      # inotify is event-driven (no scanning loop, minimal GIL).  Polling was
-      # only needed for Docker Desktop/macOS volume mounts; on Linux/podman
-      # bind-mounts inotify works correctly.  Override with
-      # FILE_WATCHER_POLLING=true in .env if running on macOS/Docker Desktop.
+      # Set FILE_WATCHER_POLLING=true only on macOS/Docker Desktop where bind-mount inotify lags
       - FILE_WATCHER_POLLING=${FILE_WATCHER_POLLING:-false}
-      # Pyroscope continuous profiling (enabled by default, set PYROSCOPE_ENABLED=false to disable)
       - PYROSCOPE_ENABLED=${PYROSCOPE_ENABLED:-true}
       - PYROSCOPE_URL=http://pyroscope:4040
       - PYROSCOPE_SAMPLE_RATE=${PYROSCOPE_SAMPLE_RATE:-100}
-      # Memory allocation profiling (alloc_objects, alloc_space) for leak detection
       - PYROSCOPE_MEMORY_ENABLED=${PYROSCOPE_MEMORY_ENABLED:-true}
-      # ── vlm_assess client wire (Phase 1.5, M1 review fix) ──────────────────
-      # PIPELINE_MODE=vlm (above) makes the backend dial the profiled ai-vlm
-      # service, but the SERVER half of that wire was all compose carried: no
-      # client var reached the container, and no compose file declares
-      # env_file:, so Settings' dev default http://localhost:8098 won inside a
-      # container that shares no network namespace with ai-vlm — every call
-      # connection-refused, every event verification_failed with a NULL score,
-      # breaker reporting a model outage that was a config gap. Interpolated
-      # with the service DNS name as the fallback: an operator .env override
-      # lands (compose interpolation reads the project .env — the whole file
-      # relies on it) and the shipped default is no longer the loopback trap.
+      # VLM client endpoint, timeouts, and slot budget (must match ai-vlm service)
       - AI_VLM_URL=${AI_VLM_URL:-http://ai-vlm:8098}
-      # per-read IDLE budget, read OR write phase - NOT an attempt deadline
-      # (httpx resets it on every reply chunk; D1: a stalled reply is a
-      # budget - not retried, never breaker-charged - while an engine that
-      # dribbles within it runs on; keeping it inside S4's 30 s bounds the
-      # silent-server case, a slow connect adds AI_CONNECT_TIMEOUT on top),
-      # and below it the wake-on-open ping's own, deliberately generous, timeout.
       - AI_VLM_READ_TIMEOUT=${AI_VLM_READ_TIMEOUT:-25.0}
       - AI_VLM_WAKE_TIMEOUT_SECONDS=${AI_VLM_WAKE_TIMEOUT_SECONDS:-90.0}
-      # S-2 per-build enforcement: the probe runs by default, and the build
-      # assertion only fires when the operator names the build. Empty default
-      # is deliberate — compose cannot know which llama-server build a local
-      # build produced; .env.example ships the pinned b11819 for the shipped
-      # image. Threading is what makes setting it in .env actually DO something.
       - VLM_ENFORCEMENT_PROBE_ENABLED=${VLM_ENFORCEMENT_PROBE_ENABLED:-true}
       - VLM_REQUIRED_BUILD=${VLM_REQUIRED_BUILD:-}
-      # degraded-path event_verifications.model_id label (a failed call has no
-      # verdict to read the engine's own id from); must track VLM_MODEL_PATH's
-      # identity, which the ai-vlm service above reads from the same .env.
       - VLM_MODEL_ID=${VLM_MODEL_ID:-Qwen3VL-8B-Instruct-Q4_K_M}
-      # largest file embedded as ONE key frame. The guard exists because a
-      # base64 payload inflates ~4/3 and the prompt shares one llama.cpp slot
-      # (VLM_CTX_SIZE / VLM_PARALLEL) with the verdict's output — an oversized
-      # capture overflows the slot and the breaker reports a MODEL outage for
-      # a data problem. Operator-settable for a camera that shoots large
-      # stills; threading it is what makes setting it in .env DO something.
       - VLM_MAX_IMAGE_BYTES=${VLM_MAX_IMAGE_BYTES:-8388608}
-      # The vlm prompt budget, computed HERE from the ai-vlm service's own slot
-      # sizing (config.py vlm_context_window = VLM_CTX_SIZE // VLM_PARALLEL).
-      # The two vars must be threaded, not just set on ai-vlm: _fitted_prompt
-      # runs in this container, and an unthreaded var leaves it grading a
-      # prompt against Settings' default while the server runs the operator's
-      # value — the same one-sided wire as AI_VLM_URL above. Defaults match
-      # the ai-vlm block byte for byte (test_ai_vlm_compose_service pins it).
       - VLM_CTX_SIZE=${VLM_CTX_SIZE:-32768}
       - VLM_PARALLEL=${VLM_PARALLEL:-2}
       - VLM_SLEEP_IDLE_SECONDS=${VLM_SLEEP_IDLE_SECONDS:-300}
-      # LLM context budget for the token counter's defaults (config.py
-      # nemotron_context_window = CTX_SIZE // PARALLEL). The legacy 30B's own
-      # llama.cpp server is gone; the shipped verdict engine budgets its slots
-      # through VLM_CTX_SIZE/VLM_PARALLEL above, which mirror the ai-vlm
-      # service byte for byte (test_ai_vlm_compose_service pins that pair).
-      # These two keep the token counter's legacy-size defaults and the
-      # ai-gateway-side sizing knobs they fed; they no longer size ai-vlm.
       - CTX_SIZE=${CTX_SIZE:-262144}
+      # AI Gateway endpoints
       - PARALLEL=${PARALLEL:-8}
-      # AI Gateway routes — the Triton-served models run inside ai-gateway
       - USE_AI_GATEWAY=true
       - AI_GATEWAY_URL=http://ai-gateway:8090
       - YOLO26_URL=http://ai-gateway:8090/yolo26
-      # R8 S3 (owner rulings 1/4/5) retired the florence, clip and heavy
-      # enrichment routes: their Triton models are pruned and their gateway
-      # adapters are swept, so the three URL lines left with the settings
-      # fields they fed. ENRICHMENT_LIGHT_URL stays — /enrich-lt is the shipped
-      # light lane for the KEPT reid and threat models.
       - ENRICHMENT_LIGHT_URL=http://ai-gateway:8090/enrich-lt
-      # go2rtc RTSP-to-WebRTC streaming service (NEM-4958)
       - GO2RTC_API_URL=http://go2rtc:1984
-      # WebRTC URL is the external URL browsers use to connect (via localhost port mapping)
       - GO2RTC_WEBRTC_URL=${GO2RTC_WEBRTC_URL:-http://localhost:8555}
-      # R8 S3 deleted the nine ENRICHMENT_*_SERVICE heavy/light assignment
-      # knobs (their Settings fields and both readers are gone, and every model
-      # but threat/reid they could name was pruned from the Triton repository).
-      # The shipped enrichment wiring is the one line above.
-      # YOLO26_URL is set above in the AI Gateway routes block
       - DETECTOR_TYPE=${DETECTOR_TYPE:-yolo26}
       - FRONTEND_URL=http://frontend:${FRONTEND_INTERNAL_PORT:-8080}
-      # Always use /cameras (container mount point) regardless of host env var
       - FOSCAM_BASE_PATH=/cameras
-      # Foscam filename clock zone; threaded because Settings only sees what compose passes
       - CAMERA_TIMEZONE=${CAMERA_TIMEZONE:-}
       - DEBUG=${DEBUG:-false}
       - ADMIN_ENABLED=${ADMIN_ENABLED:-false}
-      # OD-12: true makes the backend refuse requests without a login session or API key
+      # OD-12 / O1.11: EXPOSE_LAN=true arms auth gate on /api and /ws; API_KEYS accepts machine callers
       - EXPOSE_LAN=${EXPOSE_LAN:-false}
-      # O1.11 (UR-33): the keys the gate accepts as an X-API-Key credential.
-      # Settings.api_keys is read from the PROCESS env, and the backend
-      # service has no env_file:/.env mount, so until this line existed the
-      # key form B1.5 built was unreachable in-container — .env carried keys
-      # the backend never saw. setup.py writes both vars into .env (the key
-      # exists in BOTH modes: exposure only starts checking it). A JSON list,
-      # which is what pydantic parses; :-[] default fails closed (no keys ->
-      # only session cookies pass, exactly as before this line).
       - API_KEYS=${API_KEYS:-[]}
-      # R55: the login cookie's Secure flag. Threaded like EXPOSE_LAN because
-      # a bare .env never reaches this container (no env_file:, .env is
-      # dockerignored, setup.py writes no override file) — without this line
-      # the documented SESSION_COOKIE_SECURE=false remedy for the plain-http
-      # login loop is unsettable in the shipped stack. Default true.
+      # Set SESSION_COOKIE_SECURE=false only for plain-HTTP local/tunnel logins
       - SESSION_COOKIE_SECURE=${SESSION_COOKIE_SECURE:-true}
       - FAST_PATH_ENABLED=${FAST_PATH_ENABLED:-false}
+      # OpenTelemetry distributed tracing -> Alloy -> Tempo
       - FAST_PATH_CONFIDENCE_THRESHOLD=${FAST_PATH_CONFIDENCE_THRESHOLD:-0.90}
       - TRASH_RETENTION_DAYS=${TRASH_RETENTION_DAYS:-30}
-      # OpenTelemetry distributed tracing (NEM-1629)
-      # Enabled by default since monitoring stack is included
       - OTEL_ENABLED=${OTEL_ENABLED:-true}
       - OTEL_SERVICE_NAME=${OTEL_SERVICE_NAME:-nemotron-backend}
       - OTEL_EXPORTER_OTLP_ENDPOINT=${OTEL_EXPORTER_OTLP_ENDPOINT:-http://alloy:4317}
       - OTEL_TRACE_SAMPLE_RATE=${OTEL_TRACE_SAMPLE_RATE:-1.0}
-      # Container orchestrator: connect to Podman socket for self-healing
-      # Socket mounted at /var/run/podman/podman.sock (backend runs as host user for access)
       - ORCHESTRATOR_DOCKER_HOST=${ORCHESTRATOR_DOCKER_HOST:-unix:///var/run/podman/podman.sock}
-      # Relax readiness: set false when pipeline workers fail to init (e.g. startup race)
       - READINESS_REQUIRE_PIPELINE_WORKERS=${READINESS_REQUIRE_PIPELINE_WORKERS:-false}
     depends_on:
       foscam-init:
@@ -616,10 +298,8 @@ services:
         condition: service_healthy
       redis:
         condition: service_healthy
-      # AI gateway — YOLO26 detection plus the light lane; backend health checks yolo26 via gateway
       ai-gateway:
         condition: service_healthy
-      # go2rtc for live streaming - non-critical, backend can start without it
       go2rtc:
         condition: service_healthy
     healthcheck:
@@ -639,8 +319,6 @@ services:
       resources:
         limits:
           cpus: '2'
-          # NEM-3890: Increased from 6G to 10G to prevent OOM kills
-          # Backend was at 90.74% memory usage (5.846GB / 6.442GB) before SIGKILL
           memory: 10G
         reservations:
           devices:
@@ -649,36 +327,22 @@ services:
               capabilities: [gpu]
 
   redis:
-    # Security hardening: Read-only root filesystem (NEM-4978)
     read_only: true
     tmpfs:
       - /tmp
-    # Security hardening: Prevent privilege escalation
-    # NOTE: Redis needs CHOWN/DAC_OVERRIDE for data persistence
     security_opt:
       - no-new-privileges:true
     cap_drop:
       - NET_RAW
       - SYS_ADMIN
       - SYS_PTRACE
-    # Redis tuning for connection handling
-    # NOTE: Sysctls require host-level configuration for rootless containers
-    # These settings should be configured by setup.py for production deployments:
-    #   sudo sysctl -w vm.overcommit_memory=1
-    #   sudo sysctl -w net.core.somaxconn=511
-    # See: https://redis.io/docs/management/admin/#background-saving-fails-with-a-fork-error
-    # Rootless Podman cannot set sysctls - must be configured at host level
-    # sysctls:
-    #   - net.core.somaxconn=511
+    # Host sysctls (vm.overcommit_memory=1, net.core.somaxconn=511) are configured by setup.py
     image: docker.io/library/redis:7.4-alpine3.21
-    # NEM-4496: Bind to localhost only to prevent external network access
     ports:
       - '127.0.0.1:${REDIS_PORT:-6379}:6379'
     volumes:
       - redis_data:/data
-    # SECURITY: Password authentication via REDIS_PASSWORD environment variable
-    # If REDIS_PASSWORD is set, Redis requires authentication for all connections.
-    # If REDIS_PASSWORD is empty or not set, Redis runs without authentication (local dev only).
+    # Requires REDIS_PASSWORD when set in .env
     command: >-
       sh -c '
       if [ -n "$$REDIS_PASSWORD" ]; then
@@ -692,7 +356,6 @@ services:
     environment:
       - REDIS_PASSWORD=${REDIS_PASSWORD:-}
     healthcheck:
-      # Use AUTH if password is set, otherwise just ping
       test: >-
         sh -c '
         if [ -n "$$REDIS_PASSWORD" ]; then
@@ -713,126 +376,7 @@ services:
           cpus: '1'
           memory: 512M
 
-  # =============================================================================
-  # Redis Sentinel for High Availability (NEM-3413) - Optional
-  # =============================================================================
-  # Redis Sentinel provides automatic failover and master discovery.
-  # Enable by setting REDIS_USE_SENTINEL=true in .env and uncommenting below.
-  #
-  # Requires at least 3 Sentinel instances for proper quorum (2 must agree for failover).
-  # Configure backend with:
-  #   - REDIS_USE_SENTINEL=true
-  #   - REDIS_SENTINEL_MASTER_NAME=mymaster
-  #   - REDIS_SENTINEL_HOSTS=sentinel1:26379,sentinel2:26379,sentinel3:26379
-  #
-  # To enable, uncomment the sentinel services below and add redis replicas.
-
-  # sentinel1:
-  #   image: docker.io/library/redis:7.4-alpine3.21
-  #   ports:
-  #     - '26379:26379'
-  #   volumes:
-  #     - ./config/sentinel.conf:/etc/redis/sentinel.conf:ro,z
-  #     - sentinel1_data:/data
-  #   command: >-
-  #     sh -c '
-  #     cp /etc/redis/sentinel.conf /data/sentinel.conf &&
-  #     if [ -n "$$REDIS_PASSWORD" ]; then
-  #       echo "sentinel auth-pass mymaster $$REDIS_PASSWORD" >> /data/sentinel.conf
-  #     fi &&
-  #     redis-sentinel /data/sentinel.conf
-  #     '
-  #   environment:
-  #     - REDIS_PASSWORD=${REDIS_PASSWORD:-}
-  #   depends_on:
-  #     redis:
-  #       condition: service_healthy
-  #   healthcheck:
-  #     test: ['CMD', 'redis-cli', '-p', '26379', 'ping']
-  #     interval: 10s
-  #     timeout: 5s
-  #     retries: 3
-  #   restart: unless-stopped
-  #   networks:
-  #     - security-net
-  #   deploy:
-  #     resources:
-  #       limits:
-  #         cpus: '0.25'
-  #         memory: 64M
-
-  # sentinel2:
-  #   image: docker.io/library/redis:7.4-alpine3.21
-  #   ports:
-  #     - '26380:26379'
-  #   volumes:
-  #     - ./config/sentinel.conf:/etc/redis/sentinel.conf:ro,z
-  #     - sentinel2_data:/data
-  #   command: >-
-  #     sh -c '
-  #     cp /etc/redis/sentinel.conf /data/sentinel.conf &&
-  #     if [ -n "$$REDIS_PASSWORD" ]; then
-  #       echo "sentinel auth-pass mymaster $$REDIS_PASSWORD" >> /data/sentinel.conf
-  #     fi &&
-  #     redis-sentinel /data/sentinel.conf
-  #     '
-  #   environment:
-  #     - REDIS_PASSWORD=${REDIS_PASSWORD:-}
-  #   depends_on:
-  #     redis:
-  #       condition: service_healthy
-  #   healthcheck:
-  #     test: ['CMD', 'redis-cli', '-p', '26379', 'ping']
-  #     interval: 10s
-  #     timeout: 5s
-  #     retries: 3
-  #   restart: unless-stopped
-  #   networks:
-  #     - security-net
-  #   deploy:
-  #     resources:
-  #       limits:
-  #         cpus: '0.25'
-  #         memory: 64M
-
-  # sentinel3:
-  #   image: docker.io/library/redis:7.4-alpine3.21
-  #   ports:
-  #     - '26381:26379'
-  #   volumes:
-  #     - ./config/sentinel.conf:/etc/redis/sentinel.conf:ro,z
-  #     - sentinel3_data:/data
-  #   command: >-
-  #     sh -c '
-  #     cp /etc/redis/sentinel.conf /data/sentinel.conf &&
-  #     if [ -n "$$REDIS_PASSWORD" ]; then
-  #       echo "sentinel auth-pass mymaster $$REDIS_PASSWORD" >> /data/sentinel.conf
-  #     fi &&
-  #     redis-sentinel /data/sentinel.conf
-  #     '
-  #   environment:
-  #     - REDIS_PASSWORD=${REDIS_PASSWORD:-}
-  #   depends_on:
-  #     redis:
-  #       condition: service_healthy
-  #   healthcheck:
-  #     test: ['CMD', 'redis-cli', '-p', '26379', 'ping']
-  #     interval: 10s
-  #     timeout: 5s
-  #     retries: 3
-  #   restart: unless-stopped
-  #   networks:
-  #     - security-net
-  #   deploy:
-  #     resources:
-  #       limits:
-  #         cpus: '0.25'
-  #         memory: 64M
-
-  # go2rtc for RTSP to WebRTC conversion (NEM-4958)
-  # Enables low-latency live video streaming from RTSP cameras to browser
-  # API: http://localhost:1984 (stream management)
-  # WebRTC: http://localhost:8555 (client connections)
+  # go2rtc RTSP-to-WebRTC gateway (API :1984, WebRTC :8555)
   go2rtc:
     read_only: true
     security_opt:
@@ -842,7 +386,6 @@ services:
     image: docker.io/alexxit/go2rtc:latest
     container_name: hsi-go2rtc
     restart: unless-stopped
-    # NEM-4486: Bind to localhost only to prevent unauthorized external access
     ports:
       - '127.0.0.1:${GO2RTC_API_PORT:-1984}:1984' # API
       - '127.0.0.1:${GO2RTC_WEBRTC_PORT:-8555}:8555' # WebRTC
@@ -872,10 +415,9 @@ services:
         limits:
           cpus: '1'
           memory: 256M
+    # Writable rootfs required: entrypoint updates nginx config and generates self-signed certs
 
   frontend:
-    # NOTE: read_only not used — nginx entrypoint uses sed -i on /etc/nginx/conf.d/default.conf
-    # and generates SSL certificates at runtime. These require a writable root filesystem.
     tmpfs:
       - /tmp
       - /var/run # nginx pid file
@@ -885,55 +427,25 @@ services:
       dockerfile: Dockerfile
       target: prod
     ports:
-      # HTTPS (direct access) and HTTP (for Cloudflare tunnel / Brev secure link)
-      # FRONTEND_HTTP_PORT exposes nginx HTTP for tunnels that send plain HTTP
-      # O1.6 (D10; OD-12): bind address derives from EXPOSE_LAN — setup.py
-      # writes FRONTEND_BIND_ADDRESS (127.0.0.1 default; 0.0.0.0 only when
-      # EXPOSE_LAN=true). The :-127.0.0.1 default is the fail-safe layer for a
-      # hand-edited .env that carries the flag without the derived var.
-      # Tunnels (Cloudflare/Brev) connect out to nginx, so a loopback host
-      # bind does not break one — but a tunnel still lets callers beyond this
-      # machine reach the UI: EXPOSE_LAN=true is what arms the auth gate for
-      # them (the wildcard bind is incidental; see the expose_lan Field).
+      # Binds 127.0.0.1 by default; 0.0.0.0 only when setup.py derives FRONTEND_BIND_ADDRESS from EXPOSE_LAN=true
       - '${FRONTEND_BIND_ADDRESS:-127.0.0.1}:${FRONTEND_HTTPS_PORT:-8444}:8443'
       - '${FRONTEND_BIND_ADDRESS:-127.0.0.1}:${FRONTEND_HTTP_PORT:-8080}:8080'
     volumes:
-      # SSL certificates - writable for auto-generation, or mount pre-existing certs
       - frontend_certs:/etc/nginx/certs:U
     environment:
-      # Extra SANs for the auto-generated certificate (e.g., your server's IP)
-      # Format: IP:192.168.1.100,DNS:myhost.local
       - SSL_SAN_EXTRA=${SSL_SAN_EXTRA:-}
-      # SSL/TLS Configuration
       # SSL disabled by default in compose (SSL_ENABLED=false; setup.py writes SSL_ENABLED=true)
-      # Set to false to serve HTTP only (no redirect to HTTPS); true enables HTTPS + redirect
       - SSL_ENABLED=${SSL_ENABLED:-false}
-      # Custom certificate paths (relative to /etc/nginx/certs mount)
       - SSL_CERT_PATH=${SSL_CERT_PATH:-/etc/nginx/certs/cert.pem}
       - SSL_KEY_PATH=${SSL_KEY_PATH:-/etc/nginx/certs/key.pem}
-      # HTTPS port for redirect (must match external port mapping)
       - FRONTEND_HTTPS_PORT=${FRONTEND_HTTPS_PORT:-8444}
-      # O1.11 (UR-33): the entrypoint renders two mode-gated pieces of nginx
-      # config — the /grafana/ auth_request include and the unpublished
-      # listen-8081 machine listener that injects X-API-Key for the
-      # Alertmanager webhook leg. Both arms render ONLY when EXPOSE_LAN is
-      # truthy (same vocabulary as setup_lib/core.py; the entrypoint re-
-      # derives from the raw flag so a hand-edited .env can't split the two
-      # sides), and the key reaches the render through this env — never a
-      # committed file. 8081 is deliberately NOT in ports: (compose-network
-      # only), so the listener adds no new externally reachable surface.
+      # Mode-gated nginx auth_request for /grafana/ and :8081 machine alert sink when EXPOSE_LAN=true
       - EXPOSE_LAN=${EXPOSE_LAN:-false}
       - MONITORING_API_KEY=${MONITORING_API_KEY:-}
-    # NOTE: VITE_* environment variables are NOT used at runtime.
-    # Vite bakes these values at build time. The frontend uses relative URLs
-    # (empty BASE_URL), and nginx proxies /api and /ws to the backend.
-    # See frontend/nginx.conf for proxy configuration.
     depends_on:
       backend:
         condition: service_started
     healthcheck:
-      # Use /health endpoint which returns 200 directly (avoids 301 redirect issues)
-      # FRONTEND_INTERNAL_PORT configures the internal nginx port (default: 8080)
       test:
         [
           'CMD',
@@ -956,18 +468,8 @@ services:
           cpus: '1'
           memory: 512M
 
-  # =============================================================================
-  # Monitoring Stack (Included by Default)
-  # =============================================================================
-  # Monitoring services are now part of the core deployment for full observability.
-  # Access points:
-  #   - Grafana: http://localhost:3002 (anonymous access enabled by default)
-  #   - Prometheus: http://localhost:9090
-  #   - Tempo: http://localhost:3200 (distributed tracing)
-  #   - Alertmanager: http://localhost:9093
+  # Grafana Tempo distributed trace backend (OTLP gRPC :4317, HTTP :3200)
 
-  # Grafana Tempo for distributed tracing (NEM-5545, replaces Jaeger+Elasticsearch)
-  # Lightweight trace backend with native OTLP ingestion and 30-day retention
   tempo:
     read_only: true
     security_opt:
@@ -998,26 +500,17 @@ services:
           memory: 1G
 
   prometheus:
-    # Security hardening: Read-only root filesystem (NEM-4978)
     read_only: true
     security_opt:
       - no-new-privileges:true
     cap_drop:
       - ALL
     image: docker.io/prom/prometheus:v3.1.0
-    # O1.11 (UR-33): with EXPOSE_LAN=true the gate refuses the /api/metrics
-    # scrape without an X-API-Key, and Prometheus v3.1 expands NO env var in
-    # its config (probe: sent "$MON_KEY" verbatim over the wire — even in
-    # basic_auth passwords). So the committed config carries the
-    # __HSI_MONITORING_API_KEY__ placeholder and the service renders it at
-    # boot into tmpfs /tmp (the rootfs is read_only; tmpfs mounts 1777, and
-    # prometheus runs nobody). Unexposed, the gate is off, the header (empty
-    # or not) is ignored, and the scrape behaves exactly as today.
+    # Renders __HSI_MONITORING_API_KEY__ into /tmp/prometheus.yml at boot for gated /api/metrics scrape
     environment:
       - MONITORING_API_KEY=${MONITORING_API_KEY:-}
     tmpfs:
       - /tmp
-    # NEM-4486: Bind to localhost only to prevent unauthorized external access
     ports:
       - '127.0.0.1:${PROMETHEUS_PORT:-9090}:9090'
     volumes:
@@ -1030,16 +523,6 @@ services:
       - ./monitoring/gpu-alerts.yml:/etc/prometheus/gpu-alerts.yml:ro,z
       - ./monitoring/ai-pipeline-alerts.yml:/etc/prometheus/ai-pipeline-alerts.yml:ro,z
       - prometheus_data:/prometheus
-    # The key reaches the shell via this service's environment, so it is a
-    # $$-escaped shell expansion (compose leaves $$ alone); retention keeps
-    # compose-side interpolation exactly as before this block changed.
-    # entrypoint: is NOT optional here — compose APPENDS command: to the image's
-    # ENTRYPOINT, and for this image the entrypoint IS /bin/prometheus. Without
-    # the override the container runs `/bin/prometheus /bin/sh -ec …` and dies
-    # with "unexpected /bin/sh" in BOTH modes (measured against
-    # prom/prometheus:v3.1.0). The interpreter lives in entrypoint:, so
-    # command: is the script alone — repeating /bin/sh -ec here would run the
-    # string /bin/sh with no arguments and exit.
     entrypoint: ['/bin/sh', '-ec']
     command:
       - >-
@@ -1050,8 +533,6 @@ services:
         --storage.tsdb.path=/prometheus
         --storage.tsdb.retention.time=${PROMETHEUS_RETENTION_TIME:-15d}
         --web.enable-lifecycle --web.enable-remote-write-receiver
-    # NEM-3898: Prometheus must wait for Alertmanager to be healthy before starting
-    # This ensures Prometheus can connect to Alertmanager for alert delivery
     depends_on:
       alertmanager:
         condition: service_healthy
@@ -1071,7 +552,6 @@ services:
           memory: 512M
 
   grafana:
-    # Security hardening: Read-only root filesystem (NEM-4978)
     read_only: true
     tmpfs:
       - /tmp
@@ -1083,8 +563,6 @@ services:
       context: ./monitoring/grafana
       dockerfile: Dockerfile
     image: nemotron-v3-home-security-intelligence-grafana:latest
-    # NEM-4486: Bind to localhost only to prevent unauthorized external access
-    # Access Grafana via the frontend nginx proxy at /grafana/ for production use
     ports:
       - '127.0.0.1:${GRAFANA_PORT:-3002}:3000'
     volumes:
@@ -1092,62 +570,27 @@ services:
       - ./monitoring/grafana/provisioning:/etc/grafana/provisioning:ro,z
       - ./monitoring/grafana/dashboards:/var/lib/grafana/dashboards:ro,z
     environment:
-      # Anonymous access enabled for local development (no login required)
-      # Set GF_AUTH_ANONYMOUS_ENABLED=false in .env to require login
-      # When disabling anonymous, also set GF_AUTH_DISABLE_LOGIN_FORM=false to enable login form
-      # O1.11 (UR-33): the nested default is load-bearing, not decoration.
-      # The OUTER key self-references, so the precedence is: hand-set
-      # GF_AUTH_ANONYMOUS_ENABLED (any value) > setup.py's derived
-      # GRAFANA_ANONYMOUS_ENABLED ("false" iff EXPOSE_LAN truthy) > "true"
-      # (today's behavior). A legacy .env that already said "false" can
-      # never have anonymous Admin flipped back ON by an upgrade; the
-      # derived channel can only ever turn it OFF. The renamed-only form
-      # would have silently resurrected anonymous Admin for exactly those
-      # users the moment they re-ran setup.py — see the render tests.
+      # Anonymous Admin in local loopback mode; disabled when EXPOSE_LAN=true enables auth.proxy
       - GF_AUTH_ANONYMOUS_ENABLED=${GF_AUTH_ANONYMOUS_ENABLED:-${GRAFANA_ANONYMOUS_ENABLED:-true}}
       - GF_AUTH_ANONYMOUS_ORG_ROLE=Admin
       - GF_AUTH_DISABLE_LOGIN_FORM=${GF_AUTH_DISABLE_LOGIN_FORM:-true}
-      # O1.11 DECIDE (recorded in the claim ack): nginx auth_request against
-      # the backend session + Grafana auth.proxy = one login for /grafana/
-      # and the three embedded dashboards. The frontend renders
-      # X-Auth-User ONLY behind a validated session, and Grafana trusts the
-      # header ONLY when this flag is on — setup.py derives both sides from
-      # EXPOSE_LAN so render and trust arm and disarm together.
-      # auto_sign_up=false is NOT an option here: probe (12.3.2) showed
-      # valid X-Auth-User requests 401 without it, and with it enabled +
-      # auto-assign-Viewer the header lands as role Viewer, never Admin.
       - GF_AUTH_PROXY_ENABLED=${GRAFANA_AUTH_PROXY_ENABLED:-false}
       - GF_AUTH_PROXY_HEADER_NAME=X-Auth-User
       - GF_AUTH_PROXY_AUTO_SIGN_UP=${GRAFANA_AUTH_PROXY_AUTO_SIGN_UP:-false}
       - GF_AUTH_PROXY_AUTO_SIGN_UP_ORG_ROLE=Viewer
       - GF_USERS_AUTO_ASSIGN_ORG=true
       - GF_USERS_AUTO_ASSIGN_ORG_ROLE=Viewer
-      # O1.11: the Backend-API datasource sends this key to the gated
-      # /api/system/* endpoints via httpHeaderName1 (Grafana core expands
-      # $VAR in provisioning AND forwards the header through the datasource
-      # proxy — probe, incl. through the frontend-only json datasource).
       - MONITORING_API_KEY=${MONITORING_API_KEY:-}
-      # Admin credentials (anonymous access is enabled by default, so password is optional)
-      # For production with login enabled: generate with openssl rand -base64 32
       - GF_SECURITY_ADMIN_USER=${GF_ADMIN_USER:-admin}
       - GF_SECURITY_ADMIN_PASSWORD=${GF_ADMIN_PASSWORD:-admin}
-      # Allow embedding Grafana dashboards in iframes (required for AI Performance page)
       - GF_SECURITY_ALLOW_EMBEDDING=true
-      # Enable Grafana Explore for distributed tracing (required for Tracing page)
       - GF_EXPLORE_ENABLED=true
       - GF_USERS_ALLOW_SIGN_UP=false
-      # Subpath configuration for nginx proxy at /grafana/
-      # This enables Grafana to be accessed via https://<host>:8444/grafana/
-      # Use relative root URL for reverse proxy compatibility (allows any hostname/port)
+      # Served under /grafana/ via frontend nginx proxy
       - GF_SERVER_ROOT_URL=/grafana/
       - GF_SERVER_SERVE_FROM_SUB_PATH=true
-      # Log HTTP requests (useful for debugging dashboard 404s)
       - GF_SERVER_ROUTER_LOGGING=true
-      # Plugins installed to /opt/grafana/plugins in image (avoids volume overwrite)
       - GF_PATHS_PLUGINS=/opt/grafana/plugins
-      # SMTP Configuration for Email Alerts (NEM-3511)
-      # Configure via .env file for email alerting capability
-      # See docs/operator/smtp-configuration.md for setup instructions
       - GF_SMTP_ENABLED=${GF_SMTP_ENABLED:-false}
       - GF_SMTP_HOST=${GF_SMTP_HOST:-smtp.example.com:587}
       - GF_SMTP_USER=${GF_SMTP_USER:-}
@@ -1181,21 +624,18 @@ services:
     cap_drop:
       - ALL
     image: docker.io/oliver006/redis_exporter:v1.55.0
-    # NEM-4486: Bind to localhost only to prevent unauthorized external access
     ports:
       - '127.0.0.1:${REDIS_EXPORTER_PORT:-9121}:9121'
     environment:
       - REDIS_ADDR=redis://redis:6379
-      # SECURITY: Redis password for exporter authentication (must match redis service)
       - REDIS_PASSWORD=${REDIS_PASSWORD:-}
     depends_on:
       redis:
         condition: service_healthy
-    # NOTE: redis_exporter is a minimal Go binary without shell tools (wget/curl).
-    # Disable container health check; rely on process running and Prometheus scraping.
     healthcheck:
       disable: true
     restart: unless-stopped
+    # Minimal Go binary without wget/curl; health monitored by Prometheus scrape
     networks:
       - security-net
     deploy:
@@ -1211,33 +651,16 @@ services:
     cap_drop:
       - ALL
     image: docker.io/prometheuscommunity/json-exporter:v0.6.0
-    # O1.11 (UR-33): the fourth machine caller — hsi-telemetry/hsi-stats/
-    # hsi-gpu probe /api/system/{telemetry,stats,gpu}, none of which is in
-    # the gate's OPEN_PATHS. json_exporter supports module headers (probe:
-    # modules.<name>.headers with a SCALAR value arrives on the wire) but
-    # expands no env vars, so the committed config carries the same
-    # placeholder and it renders here at boot — mode-gated on EXPOSE_LAN
-    # (same fail-safe vocabulary as setup_lib/core.py). Unexposed the header
-    # LINES are stripped, not blanked: the probes then go out with no header
-    # at all, byte-identical to today (a rendered-empty header would still
-    # ship a stray X-API-Key line; nginx and some proxies drop empty
-    # headers, but "today" had no line to drop).
+    # Renders MONITORING_API_KEY header into /tmp/json-exporter-config.yml when EXPOSE_LAN=true
     environment:
       - MONITORING_API_KEY=${MONITORING_API_KEY:-}
       - EXPOSE_LAN=${EXPOSE_LAN:-false}
     tmpfs:
       - /tmp
-    # NEM-4486: Bind to localhost only to prevent unauthorized external access
     ports:
       - '127.0.0.1:${JSON_EXPORTER_PORT:-7979}:7979'
     volumes:
       - ./monitoring/json-exporter-config.yml:/etc/json-exporter/config.yml:ro,z
-    # entrypoint: override required for the same reason as prometheus above
-    # (this image's entrypoint is /bin/json_exporter). The case arms .strip()
-    # the flag through tr -d [:space:] so a hand-edited .env line of
-    # EXPOSE_LAN= true renders exposed — the same decision setup_lib (which
-    # .strip()s) and pydantic already make. Without the strip the gate would
-    # arm while these headers render OFF: every probe 401s.
     entrypoint: ['/bin/sh', '-ec']
     command:
       - >-
@@ -1259,7 +682,6 @@ services:
           cpus: '0.5'
           memory: 64M
 
-  # Alertmanager for alert routing, grouping, and delivery (NEM-1631)
   alertmanager:
     read_only: true
     security_opt:
@@ -1267,34 +689,16 @@ services:
     cap_drop:
       - ALL
     image: docker.io/prom/alertmanager:v0.27.0
-    # O1.11 (UR-33): Alertmanager cannot attach an X-API-Key to a webhook in
-    # ANY release (probe: http_headers rejected by amtool v0.27.0 through
-    # v0.34.1, and the B1.5 gate reads neither basic_auth nor bearer), so the
-    # credential joins DOWNSTREAM at the frontend's unpublished machine
-    # listener and the sink URL moves there when EXPOSE_LAN is on. setup.py
-    # derives ALERT_SINK_URL from the mode; the ${...:-backend-url} default
-    # keeps a hand-edited .env on today's direct leg (gate off on the compose
-    # network anyway). The committed config carries __HSI_ALERT_SINK__ and
-    # Alertmanager expands no env vars of its own (same probe family as
-    # prometheus), so the config renders at boot into tmpfs /tmp.
+    # Renders ALERT_SINK_URL into /tmp/alertmanager.yml at boot
     environment:
       - ALERT_SINK_URL=${ALERT_SINK_URL:-http://backend:8000/api/webhooks/alerts}
     tmpfs:
       - /tmp
-    # NEM-4486: Bind to localhost only to prevent unauthorized external access
     ports:
       - '127.0.0.1:${ALERTMANAGER_PORT:-9093}:9093'
     volumes:
       - ./monitoring/alertmanager.yml:/etc/alertmanager/alertmanager.yml:ro,z
       - alertmanager_data:/alertmanager
-    # $$-escape: the sink arrives via this service's environment (where the
-    # line above guarantees the backend-URL default even for a .env that
-    # never sets ALERT_SINK_URL at all). The unescaped form would be
-    # compose-interpolated instead and bake an EMPTY url into the rendered
-    # config for such an env — alertmanager then fails validation on boot.
-    # entrypoint: override required (this image's entrypoint is
-    # /bin/alertmanager — measured: without the override the container runs
-    # `/bin/alertmanager /bin/sh -ec …` and dies "unexpected /bin/sh").
     entrypoint: ['/bin/sh', '-ec']
     command:
       - >-
@@ -1304,12 +708,6 @@ services:
         /bin/alertmanager --config.file=/tmp/alertmanager.yml
         --storage.path=/alertmanager --web.listen-address=:9093
         --cluster.listen-address=
-    # NEM-3898: Alertmanager starts independently without waiting for backend
-    # Prometheus depends on Alertmanager being healthy, so we cannot wait for backend here.
-    # Alertmanager has built-in retry logic for webhook delivery - it will retry failed
-    # webhook deliveries with exponential backoff until backend becomes available.
-    # This ensures the alerting pipeline (Prometheus -> Alertmanager) is ready early,
-    # even if alert webhook delivery is delayed until backend starts.
     healthcheck:
       test:
         ['CMD', 'wget', '--no-verbose', '--tries=1', '--spider', 'http://localhost:9093/-/healthy']
@@ -1322,11 +720,10 @@ services:
     deploy:
       resources:
         limits:
+          # Blackbox Exporter for endpoint probing
           cpus: '0.5'
           memory: 128M
 
-  # Blackbox Exporter for synthetic monitoring (NEM-1637)
-  # Probes endpoints for availability, latency, and health status
   blackbox-exporter:
     read_only: true
     security_opt:
@@ -1334,7 +731,6 @@ services:
     cap_drop:
       - ALL
     image: docker.io/prom/blackbox-exporter:v0.24.0
-    # NEM-4486: Bind to localhost only to prevent unauthorized external access
     ports:
       - '127.0.0.1:${BLACKBOX_EXPORTER_PORT:-9115}:9115'
     volumes:
@@ -1356,9 +752,8 @@ services:
         limits:
           cpus: '0.5'
           memory: 64M
+  # Loki log aggregation (receives container logs from Alloy)
 
-  # Loki for log aggregation (NEM-3093)
-  # Receives logs from Alloy and stores them for querying via Grafana
   loki:
     read_only: true
     security_opt:
@@ -1371,7 +766,6 @@ services:
       - ./monitoring/loki/loki-config.yml:/etc/loki/config.yml:ro,z
       - loki_data:/loki
     command: -config.file=/etc/loki/config.yml
-    # NEM-4486: Bind to localhost only to prevent unauthorized external access
     ports:
       - '127.0.0.1:${LOKI_PORT:-3100}:3100'
     healthcheck:
@@ -1388,11 +782,7 @@ services:
           cpus: '0.25'
           memory: 1G
 
-  # Pyroscope for continuous profiling (NEM-3097)
-  # Custom image with busybox/wget for health checks (the official image is scratch-based)
-  # Services push profiles via py-spy when PYROSCOPE_ENABLED=true
-  # NEM-3514: Upgraded from 1.4.0 to 1.18.0 to fix "unknown profile type: seconds" error.
-  # Fix: https://github.com/grafana/pyroscope/pull/4568 (released in v1.9.2+)
+  # Pyroscope continuous profiling server
   pyroscope:
     read_only: true
     security_opt:
@@ -1407,7 +797,6 @@ services:
       - ./monitoring/pyroscope/pyroscope-config.yml:/etc/pyroscope/config.yml:ro,z
       - pyroscope_data:/data
     command: -config.file=/etc/pyroscope/config.yml
-    # NEM-4486: Bind to localhost only to prevent unauthorized external access
     ports:
       - '127.0.0.1:${PYROSCOPE_PORT:-4040}:4040'
     networks:
@@ -1424,21 +813,8 @@ services:
           cpus: '0.25'
           memory: 512M
 
-  # cAdvisor for container CPU/memory metrics (NEM-3930)
-  # Provides detailed container-level resource usage metrics
-  # Access UI at http://localhost:8088
-  # cadvisor: Moved to rootful systemd service (same pattern as dcgm-exporter).
-  # cAdvisor requires privileged + host filesystem access (/sys/fs/cgroup, /proc, /dev/kmsg)
-  # which is incompatible with rootless Podman on cgroups v2 (causes .containerenv OCI errors).
-  # See: monitoring/cadvisor/cadvisor.service
-  # Install: sudo cp monitoring/cadvisor/cadvisor.service /etc/systemd/system/
-  #          sudo systemctl daemon-reload && sudo systemctl enable --now cadvisor
-
-  # Node Exporter for host system metrics (NEM-3931)
-  # Collects hardware and OS metrics from the host system
-  # Access metrics at http://localhost:9100/metrics
+  # Node Exporter for host hardware/OS metrics
   node-exporter:
-    # Security hardening: Drop all capabilities, prevent privilege escalation
     security_opt:
       - no-new-privileges:true
     cap_drop:
@@ -1450,7 +826,6 @@ services:
       - '--collector.filesystem.mount-points-exclude=^/(sys|proc|dev|host|etc)($$|/)'
     volumes:
       - /:/host:ro,rslave
-    # NEM-4486: Bind to localhost only to prevent unauthorized external access
     ports:
       - '127.0.0.1:${NODE_EXPORTER_PORT:-9100}:9100'
     pid: host
@@ -1472,22 +847,11 @@ services:
       - 'prometheus.scrape=true'
       - 'prometheus.port=9100'
 
-  # NVIDIA DCGM Exporter for GPU hardware metrics (NEM-4132, NEM-4150)
-  # Provides low-level GPU metrics: SM utilization, memory bandwidth, temperature, power, PCIe throughput
-  # Essential for understanding compute-bound vs memory-bound workloads
-  # Metrics exposed at :9400/metrics, scraped by Prometheus
-  # Custom counters enable PCIe throughput metrics for the GPU dashboard
+  # NVIDIA DCGM GPU metrics exporter (opt-in --profile gpu-rootful; requires rootful Podman)
   dcgm-exporter:
     image: nvcr.io/nvidia/k8s/dcgm-exporter:3.3.5-3.4.0-ubuntu22.04
     container_name: dcgm-exporter
     restart: unless-stopped
-    # KNOWN LIMITATION: DCGM nv-hostengine requires host-level root access to watch GPU fields.
-    # Rootless Podman cannot provide this even with privileged: true (user namespace isolation).
-    # This service is disabled by default (gpu-rootful profile) to prevent crash-looping.
-    # GPU metrics are available via alternative sources:
-    #   - Triton (ai-gateway:8002/metrics): nv_gpu_utilization, nv_gpu_memory_used_bytes
-    #   - Backend API (/api/system/gpu): hsi_gpu_utilization, hsi_gpu_memory_used_mb
-    # To enable: run with rootful podman or use `--profile gpu-rootful`
     profiles:
       - gpu-rootful
     security_opt:
@@ -1495,12 +859,10 @@ services:
     devices:
       - nvidia.com/gpu=all
     volumes:
-      # Custom counters CSV to enable PCIe throughput metrics (NEM-4150)
       - ./monitoring/dcgm/custom-counters.csv:/etc/dcgm-exporter/default-counters.csv:ro,z
     environment:
       - DCGM_EXPORTER_LISTEN=:9400
       - DCGM_EXPORTER_KUBERNETES=false
-    # NEM-4486: Bind to localhost only to prevent unauthorized external access
     ports:
       - '127.0.0.1:${DCGM_EXPORTER_PORT:-9400}:9400'
     cap_add:
@@ -1513,15 +875,10 @@ services:
       timeout: 10s
       retries: 3
 
-  # Alloy for log collection and eBPF profiling (NEM-3093, NEM-3922, NEM-4499)
-  # - Collects container logs from Podman and forwards to Loki
-  # - Profiles native C/C++ services (ai-vlm/llama.cpp) via eBPF and sends to Pyroscope
+  # Grafana Alloy (Podman log collector, OTLP trace receiver, and eBPF profiler)
   alloy:
     image: docker.io/grafana/alloy:v1.9.2
     container_name: alloy
-    # Minimal capabilities for eBPF profiling (replaces privileged: true)
-    # Requires host memlock limit: /etc/security/limits.d/50-memlock.conf
-    # Previously used privileged mode (NEM-4499) but alloy v1.9.2 works with caps + label=disable
     cap_add:
       - SYS_ADMIN # eBPF map creation, cgroup access
       - BPF # eBPF program loading
@@ -1536,17 +893,12 @@ services:
     user: root
     volumes:
       - ./monitoring/alloy/config.alloy:/etc/alloy/config.alloy:ro,z
-      # NOTE: rw required — Alloy reads container logs via Podman API
       - ${PODMAN_SOCKET:?PODMAN_SOCKET must be set}:${PODMAN_SOCKET}
       - /sys/kernel/debug:/sys/kernel/debug:ro
       - /sys/fs/cgroup:/sys/fs/cgroup:ro
       - /proc:/host/proc:ro
-      # eBPF profiler symbol cache for stack trace resolution (NEM-3922)
       - alloy_symb_cache:/tmp/symb-cache
     ulimits:
-      # eBPF profiling requires increased memory lock limit
-      # Rootless containers cannot set unlimited (-1), so use a high limit (8GB)
-      # Host limit should be configured by setup.py in /etc/security/limits.d/
       memlock:
         soft: 8589934592
         hard: 8589934592
@@ -1558,11 +910,6 @@ services:
       - --stability.level=public-preview
       - --storage.path=/tmp/alloy
       - /etc/alloy/config.alloy
-    # NEM-4486: Bind to localhost only to prevent unauthorized external access
-    # Owner ruling 2026-10-09 (O1.6): the OTLP pair carries that binding too —
-    # the bare short syntax published on all interfaces despite this comment.
-    # Host ports are 14317/14318, not 4317/4318: tempo already default-publishes
-    # 127.0.0.1:4317 (TEMPO_OTLP_GRPC) and duplicate explicit binds fail at up.
     ports:
       - '127.0.0.1:${ALLOY_UI_PORT:-12345}:12345' # Alloy UI
       - '127.0.0.1:${ALLOY_OTLP_GRPC_PORT:-14317}:4317' # OTLP gRPC (loopback)
@@ -1571,7 +918,6 @@ services:
       - loki
       - pyroscope
     healthcheck:
-      # Alloy doesn't have wget/curl - use process check instead
       test: ['CMD', 'pgrep', '-f', 'alloy']
       interval: 10s
       timeout: 5s
@@ -1592,17 +938,8 @@ volumes:
     driver: local
   tempo_data:
     driver: local
-  # Persistent HuggingFace cache volume (NEM-3812)
-  # Shared across all AI services to avoid re-downloading models
   hf_cache:
     driver: local
-  # Redis Sentinel volumes (uncomment when enabling Sentinel)
-  # sentinel1_data:
-  #   driver: local
-  # sentinel2_data:
-  #   driver: local
-  # sentinel3_data:
-  #   driver: local
   prometheus_data:
     driver: local
   grafana_data:
@@ -1613,99 +950,19 @@ volumes:
     driver: local
   pyroscope_data:
     driver: local
-  # Alloy eBPF profiler symbol cache for stack trace resolution (NEM-3922)
   alloy_symb_cache:
     driver: local
-  # Frontend SSL certificates volume for auto-generation with read-only filesystem
   frontend_certs:
     driver: local
-  # Triton/Gateway CUDA kernel cache (NEM-XXXX)
-  # Persists CUDA JIT compilation across container redeploys
   triton-kernel-cache:
     driver: local
-  # Triton TensorRT temporary compilation artifacts
   triton-tmp-cache:
     driver: local
-  # llama.cpp CUDA kernel cache (ai-vlm service)
-  # Persists llama.cpp compilation cache across redeploys
   llama-cache:
     driver: local
-  # NVIDIA CUDA JIT kernel cache for ai-vlm
   llama-nv-cache:
     driver: local
 
 networks:
   security-net:
     driver: bridge
-# ============================================================================
-# DOCKER SECRETS SETUP (Optional - Recommended for Production)
-# ============================================================================
-#
-# Docker Secrets provide enhanced security for credential management:
-#   - Credentials stored separately from environment variables
-#   - Not visible in 'docker inspect' output
-#   - Easier credential rotation without image rebuild
-#   - Secrets mounted read-only in /run/secrets/ inside containers
-#
-# SETUP INSTRUCTIONS:
-# ==================
-#
-# 1. Create secrets directory and files:
-#    mkdir -p secrets
-#    chmod 700 secrets
-#
-# 2. Generate strong passwords:
-#    openssl rand -base64 32 > secrets/postgres_password.txt
-#    openssl rand -base64 32 > secrets/redis_password.txt
-#    openssl rand -base64 32 > secrets/grafana_admin_password.txt
-#    chmod 600 secrets/*.txt
-#
-# 3. Add secret values to the files (or use commands above to generate):
-#    echo "your_postgres_password" > secrets/postgres_password.txt
-#    echo "your_redis_password" > secrets/redis_password.txt
-#    echo "your_grafana_password" > secrets/grafana_admin_password.txt
-#
-# 4. Enable Docker secrets by uncommenting the sections below
-#
-# 5. Validate configuration:
-#    docker compose -f docker-compose.prod.yml config
-#
-# 6. Start services with secrets:
-#    docker compose -f docker-compose.prod.yml up -d
-#
-# 7. Verify secrets are mounted in containers:
-#    docker compose -f docker-compose.prod.yml exec postgres ls -la /run/secrets/
-#
-# ROTATION PROCEDURE (Zero-Downtime):
-# ===================================
-#
-# 1. Update secret file:
-#    echo "new_password" > secrets/postgres_password.txt
-#
-# 2. Restart affected service:
-#    docker compose -f docker-compose.prod.yml restart postgres
-#
-# 3. Update dependent services if needed:
-#    docker compose -f docker-compose.prod.yml restart backend redis-exporter
-#
-# IMPORTANT NOTES:
-# ================
-#
-# - Docker Secrets work with Docker Swarm and standalone Docker/Podman
-# - Secrets are NOT encrypted at rest in standalone Docker (use full-disk encryption)
-# - Never commit secrets/ directory to version control
-# - Add secrets/ to .gitignore (already configured)
-# - When using secrets, REMOVE corresponding environment variables from .env
-# - Ensure file paths are relative to docker-compose.prod.yml location
-#
-# ============================================================================
-
-# Uncomment the entire sections below to enable Docker Secrets
-#
-# secrets:
-#   postgres_password:
-#     file: ./secrets/postgres_password.txt
-#   redis_password:
-#     file: ./secrets/redis_password.txt
-#   grafana_admin_password:
-#     file: ./secrets/grafana_admin_password.txt

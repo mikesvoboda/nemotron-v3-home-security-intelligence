@@ -278,13 +278,13 @@ image builds, and the golden paths stay green.
 **Assigned:** heavy-b, after `O3.3` (ruling 260); `O2.5`'s run has posted (ruling 323).
 **PR:** #7400. (rulings 241 and 260)
 
-- [ ] The prod file is the base; the CI stack and the fake AI are overlays. No service is defined in
+- [x] The prod file is the base; the CI stack and the fake AI are overlays. No service is defined in
       two files.
-- [ ] Settle image-version drift: one version per image.
+- [x] Settle image-version drift: one version per image.
 - [ ] Drop the seven fixed `container_name`s, so a test deployment can run every service beside a
       live stack (`O2.2` excludes them until then). Find and update every reference to those names
       first: scripts, dashboards, docs.
-- [ ] Cut comments to what an operator needs (42% of the prod file is comments today).
+- [x] Cut comments to what an operator needs (42% of the prod file is comments today).
 
 **Done when:** every supported combination renders with `podman compose ... config`, the deploy
 tool's tests pass, and the golden paths stay green.
