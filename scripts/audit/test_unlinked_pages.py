@@ -39,15 +39,17 @@ hypothetical:
     there are substring-only).
   * the self-exclusion is EXACT (``rel == docs/<cand>``): an ``endswith``
     exclusion would also swallow a same-named file in a different directory and
-    invent silence. The ``notes.md`` / ``research/notes.md`` pair pins both
+    invent silence. The ``notes.md`` / ``studies/notes.md`` pair pins both
     directions of that.
   * the candidate set comes from nav_coverage.py's LIVING classification: a
-    ``disabled: true`` stub or a dated record page must never enter it.
+    ``disabled: true`` stub, a dated record page, or a ``research/`` page
+    (ruling 335's record prefix) must never enter it.
 
-The fixture's arithmetic is pinned as literals, not recomputed: 16 docs pages,
-nav covers ``index.md`` only, 15 missing, 1 record (``plans/``) + 1 disabled
-(``development/moved.md``) flagged away, 13 living candidates -> 5 linked,
-4 cited, 4 nowhere. Any resolver breakage shifts one of those numbers.
+The fixture's arithmetic is pinned as literals, not recomputed: 22 docs pages,
+nav covers ``index.md`` only, 21 missing, 6 flagged away (``plans/`` +
+``uplevel/`` + the three ``research/`` records + 1 disabled
+(``development/moved.md``)), 15 living candidates -> 5 linked, 6 cited,
+4 nowhere. Any resolver breakage shifts one of those numbers.
 
 """
 
@@ -96,22 +98,30 @@ DOCS_FILES = {
     # CITED only: no link anywhere, but a code file names the stem.
     "operator/smtp.md": "# smtp\n",
     # CITED only via a record-tree PROSE mention (no link).
-    "research/old-scan.md": "# stale scan\n",
-    "uplevel/00-audit.md": "the scan lives in research/old-scan.md historically\n",
+    "studies/old-scan.md": "# stale scan\n",
+    "uplevel/00-audit.md": "the scan lives in studies/old-scan.md historically\n",
     # The same-named pair: each cites the other by stem, neither by link.
     "notes.md": "# notes\n",
-    "research/notes.md": "# research notes\n",
+    "studies/notes.md": "# studies notes\n",
     # README candidates that REACH the mention needle (arch/README.md never does —
-    # the link phase rescues it first). research/README.md exercises the
-    # directory-needle path ("research" appears in the uplevel prose and in
-    # research/notes.md's own title). The ROOT README.md exercises the
+    # the link phase rescues it first). studies/README.md exercises the
+    # directory-needle path ("studies" appears in the uplevel prose and in
+    # studies/notes.md's own title). The ROOT README.md exercises the
     # parent-'.' fallback: str(parent) would be "." — a needle matching every
     # period in the corpus — so the census must fall back to the stem, whose
     # only bounded mention is the explicit README.md link target above.
-    "research/README.md": "# research readme\n",
+    "studies/README.md": "# research readme\n",
     "README.md": "# root readme\n",
     # A disabled stub: out of the nav by design, never a candidate.
     "development/moved.md": "---\ndisabled: true\n---\n# moved\n",
+    # ruling 335: research/ is a record tree — its pages are never living
+    # candidates even when the tree shape matches the living fixtures above.
+    # Their bodies are deliberately inert (no living stem appears in them) so
+    # the record twins cannot perturb the exact-ref pins; their exemption is
+    # pinned by absence from the candidate set plus the unchanged counts.
+    "research/old-scan.md": "# dated record\n",
+    "research/notes.md": "# dated record\n",
+    "research/README.md": "# dated record\n",
 }
 
 CODE_FILES = {
@@ -244,9 +254,21 @@ def test_compound_identifier_does_not_cite(census: tuple[dict, str]) -> None:
 
 def test_record_tree_prose_mention_is_cited(census: tuple[dict, str]) -> None:
     result, _ = census
-    got = page(result, "research/old-scan.md")
+    got = page(result, "studies/old-scan.md")
     assert got["cls"] == "cited"
     assert got["refs"] == ["docs/uplevel/00-audit.md"]
+
+
+def test_research_pages_are_never_candidates(census: tuple[dict, str]) -> None:
+    """Ruling 335: research/ joined RECORD_DOC_PREFIXES, so its pages are
+    flagged record by nav_coverage and never enter the candidate set — the
+    twin shape of the living ``studies/`` fixtures above, present in the
+    fixture tree but absent from every page row."""
+    result, _ = census
+    paths = {p["path"] for p in result["pages"]}
+    assert "research/old-scan.md" not in paths
+    assert "research/notes.md" not in paths
+    assert "research/README.md" not in paths
 
 
 def test_self_exclusion_is_exact_same_name_other_dir(
@@ -259,25 +281,25 @@ def test_self_exclusion_is_exact_same_name_other_dir(
     assert page(result, "notes.md") == {
         "path": "notes.md",
         "cls": "cited",
-        "refs": ["docs/research/notes.md"],
+        "refs": ["docs/studies/notes.md"],
     }
-    assert page(result, "research/notes.md") == {
-        "path": "research/notes.md",
+    assert page(result, "studies/notes.md") == {
+        "path": "studies/notes.md",
         "cls": "cited",
         "refs": ["docs/notes.md"],
     }
 
 
 def test_readme_dir_needle_is_the_directory(census: tuple[dict, str]) -> None:
-    # research/README.md is unlinked; its honest needle is "research", and it is
-    # cited by the record prose AND by research/notes.md's own title — pinned
+    # studies/README.md is unlinked; its honest needle is "studies", and it is
+    # cited by the record prose AND by studies/notes.md's own title — pinned
     # exactly so a needle of "README" (237-file noise on the live tree) or a
     # dropped needle path both die here.
     result, _ = census
-    assert page(result, "research/README.md") == {
-        "path": "research/README.md",
+    assert page(result, "studies/README.md") == {
+        "path": "studies/README.md",
         "cls": "cited",
-        "refs": ["docs/research/notes.md", "docs/uplevel/00-audit.md"],
+        "refs": ["docs/studies/notes.md", "docs/uplevel/00-audit.md"],
     }
 
 
@@ -296,7 +318,7 @@ def test_root_readme_dot_parent_falls_back_to_stem(census: tuple[dict, str]) -> 
         "refs": [
             "docs/arch/README.md",
             "docs/guides/direct.md",
-            "docs/research/README.md",
+            "docs/studies/README.md",
         ],
     }
 
@@ -306,7 +328,7 @@ def test_unmentioned_page_is_nowhere(tmp_path: Path) -> None:
     # Strip the one prose mention; the page must go NOWHERE with empty refs.
     (tmp_path / "docs/uplevel/00-audit.md").write_text("nothing here\n", encoding="utf-8")
     result, _ = run_census(tmp_path)
-    got = page(result, "research/old-scan.md")
+    got = page(result, "studies/old-scan.md")
     assert got["cls"] == "nowhere"
     assert got["refs"] == []
 
@@ -330,5 +352,7 @@ def test_candidates_are_living_nav_missing_only(census: tuple[dict, str]) -> Non
     assert "plans/2026-01-01-old.md" not in paths
     # A disabled stub is out of the nav by design -> never a candidate.
     assert "development/moved.md" not in paths
+    # research/ is a record tree (ruling 335) -> never a candidate either.
+    assert "research/old-scan.md" not in paths
     # hub.md is living, nav-missing, and not itself linked TO -> in candidates.
     assert "hub.md" in paths

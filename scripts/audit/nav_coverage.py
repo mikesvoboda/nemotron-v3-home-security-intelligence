@@ -31,13 +31,18 @@ decorative: it must be exercised by the test suite, not merely present.
 
 CLASSIFICATION, not filtering. Every nav-missing page is reported. Pages the
 plan does not mean are FLAGGED, never dropped:
-  * ``disabled`` — frontmatter ``disabled: true``. All 30 redirect stubs under
-    docs/development/ at main carry exactly this flag (set-equal: no other page
-    in docs/ carries it, and no stub lacks it). Their nav absence is the stub's
-    PURPOSE — a stub is a page that must not be in the nav.
+  * ``disabled`` — frontmatter ``disabled: true``. The 29 "Moved" redirect
+    stubs of docs/development/ (the 2026-09-22 consolidation) carried exactly
+    this flag — set-equal, at the tree this census last measured before
+    ruling 335: no other page in docs/ carried it, and no stub lacked it.
+    Ruling 335 deletes those stubs outright, so the bucket is empty on the
+    tree this file now ships with; the flag keeps its meaning for any future
+    stub — a stub is a page that must not be in the nav, and its nav absence
+    is the stub's PURPOSE.
   * ``record`` — the dated record trees, the same tuple
     ``scripts/audit/retired_names.py`` ships (docs/plans/, docs/superpowers/,
-    docs/vss-integration/, docs/uplevel/). Records are history; B3.3/W1.1/W3.3
+    docs/vss-integration/, docs/uplevel/, docs/auto-vlm-research/,
+    docs/research/). Records are history; B3.3/W1.1/W3.3
     do not edit them, and counting them measures the wrong corpus.
 The headline is the LIVING and NOT-disabled count; the other buckets are
 reported beside it so the flip to gating is a switch, not a rewrite — the same
@@ -67,6 +72,8 @@ RECORD_DOC_PREFIXES = (
     "docs/uplevel/",
     # ruling 330: the autovlm design record (mirrors retired_names.py)
     "docs/auto-vlm-research/",
+    # ruling 335: research/ joins the record tuple (mirrors retired_names.py)
+    "docs/research/",
 )
 # The tuples above are REPO-relative because retired_names.py walks the whole
 # repo. This census walks docs/, so its paths are DOCS-relative and a raw

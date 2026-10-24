@@ -87,6 +87,13 @@ def build_tree(root: Path) -> None:
     (root / "docs" / "auto-vlm-research" / "01-architecture.md").write_text(
         "the nemotron design record\n", encoding="utf-8"
     )
+    # ruling 335: research/ joined the record tuple — its cited or linked pages
+    # are dated records the lane leaves alone, so their mentions cannot ride
+    # the census
+    (root / "docs" / "research").mkdir()
+    (root / "docs" / "research" / "01-inventory.md").write_text(
+        "the nemotron coverage record\n", encoding="utf-8"
+    )
 
 
 def run_script(tree: Path) -> tuple[int, str, str]:
@@ -174,6 +181,17 @@ def test_record_tree_auto_vlm_is_exempt(tmp_path: Path):
     result = scan(tmp_path)
     assert result["buckets"]["docs"] == 1  # architecture.md only
     assert "docs/auto-vlm-research/01-architecture.md" not in {f["path"] for f in result["files"]}
+
+
+def test_record_tree_research_is_exempt(tmp_path: Path):
+    """Ruling 335: docs/research/ joins the record tuple — the 11 cited or
+    linked research pages stay as dated records the lane leaves alone, so
+    their mentions cannot ride the census. Same red-first shape as the
+    auto-vlm pin: the fixture page names a retired name on purpose."""
+    build_tree(tmp_path)
+    result = scan(tmp_path)
+    assert result["buckets"]["docs"] == 1  # architecture.md only
+    assert "docs/research/01-inventory.md" not in {f["path"] for f in result["files"]}
 
 
 def test_names_match_plan_text():

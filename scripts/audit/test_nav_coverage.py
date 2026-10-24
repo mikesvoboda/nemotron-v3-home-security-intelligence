@@ -88,6 +88,9 @@ DOCS_FILES = {
     # is nav-missing on purpose (the fixture nav never lists it), so the
     # exemption is observable in living_docs_missing
     "auto-vlm-research/01-architecture.md": "# record\n",
+    # ruling 335: research/ joins the record tuple — its cited or linked
+    # pages stay as dated records the lane leaves alone
+    "research/06-model-type-comparison.md": "# record\n",
     # ordinary nav debt
     "extra/loose.md": "# loose\n",
 }
@@ -106,10 +109,15 @@ MISSING = {
     "off/disabled.md",
     "plans/2026-01-01-old.md",
     "auto-vlm-research/01-architecture.md",
+    "research/06-model-type-comparison.md",
     "extra/loose.md",
 }
 DISABLED = {"off/disabled.md"}
-RECORD = {"plans/2026-01-01-old.md", "auto-vlm-research/01-architecture.md"}
+RECORD = {
+    "plans/2026-01-01-old.md",
+    "auto-vlm-research/01-architecture.md",
+    "research/06-model-type-comparison.md",
+}
 LIVING_MISSING = {"AGENTS.md", "extra/loose.md"}
 DANGLING = {"nowhere/missing.md", "ghost/"}
 
@@ -241,6 +249,7 @@ included in the "nav" configuration:
   - off/disabled.md
   - plans/2026-01-01-old.md
   - auto-vlm-research/01-architecture.md
+  - research/06-model-type-comparison.md
   - extra/loose.md
 INFO    -  Doc file 'x.md' contains a link 'y.md', but the target is not found.
 INFO    -  Documentation built in 31.58 seconds

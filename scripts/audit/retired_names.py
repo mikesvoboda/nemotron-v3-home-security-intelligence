@@ -67,6 +67,10 @@ RECORD_DOC_PREFIXES = (
     # ruling 330: the autovlm design record, stamped 9cb9e60b0 — the docs lane
     # leaves it alone, so its pages are exempt the same way as the four above
     "docs/auto-vlm-research/",
+    # ruling 335: the research snapshots the lane does not delete (11 cited or
+    # linked pages) are dated records; the unreferenced 14 are deleted in the
+    # same PR
+    "docs/research/",
 )
 DOC_SUFFIXES = {".md"}
 # Extensionless files (Makefile, Dockerfile…) and ordinary text are scanned;
