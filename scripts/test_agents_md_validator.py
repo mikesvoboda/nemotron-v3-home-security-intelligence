@@ -219,7 +219,7 @@ EXPECTED_LINE_BASELINES = {
     "backend/AGENTS.md": 150,
     "frontend/AGENTS.md": 676,
     "monitoring/AGENTS.md": 383,
-    "scripts/AGENTS.md": 1214,
+    "scripts/AGENTS.md": 1223,
     "setup_lib/AGENTS.md": 167,
     "synthbench/AGENTS.md": 40,
     "ai/gateway/AGENTS.md": 45,
