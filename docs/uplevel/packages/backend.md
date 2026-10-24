@@ -376,11 +376,20 @@ Design: [`../4n-alerting.md`](../4n-alerting.md), "Packages" row 2. Covers F-236
 ### B4.3 The Web Push channel
 
 **Flags:** none. **Assigned:** backend, after `B4.2` (ruling 308). **Depends on:** `B4.2`.
-**PR:** none yet. (ruling 308, record 6326364266)
+**PR:** #7371. (ruling 308, record 6326364266)
 
 Design: [`../4n-alerting.md`](../4n-alerting.md), "Packages" row 3.
 
-- [ ] The test-only PR (step 2).
+- [x] The test-only PR (step 2): the `channels` package's tests consolidated under the zero
+      kill-loss protocol — `test_alert_delivery_channels.py` (the browser channel's 3 tests)
+      moved into `test_channel_adapters.py` (the canonical file for email, webhook, browser and
+      `payload`). Evidence (M4 mechanism, `mutate_only_covered_lines = false` via
+      `scripts/mutation-diff.py --configure-toml`, `MUTMAX=8`; base runs at `main` `553dfd137`
+      with both test files, head runs at `db3ce7d1d` with the single consolidated file;
+      stats cache cleared per module — see the report): browser 23 mutants 22 killed (kill-loss
+      0), email 153 (33, 0), webhook 124 (74, 0), payload 288 (45, 0). Ruff clean; 17 tests pass
+      with and without random ordering; 9916 unit/services and 27181 full unit pass; zero
+      production bytes.
 - [ ] The build PR: VAPID, the push adapter, the subscription API, expired subscriptions.
 - [ ] Golden path (pytest) against `[r308a]`'s push-service fake.
 

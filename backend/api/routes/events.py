@@ -1715,6 +1715,19 @@ async def bulk_create_events(
     camera_query = select(Camera.id).where(Camera.id.in_(camera_ids))
     camera_result = await db.execute(camera_query)
     valid_camera_ids = {row[0] for row in camera_result.all()}
+
+    # Validate all detection_ids exist before processing. B4.4 made this route
+    # honor detection_ids (it inserts EventDetection rows), so a nonexistent id
+    # would FK-violate on flush mid-transaction: the per-item handler reports
+    # the item failed but leaves the session poisoned, and the get_db teardown
+    # commit then raises after the response has started. Mirror the camera
+    # check so a missing detection fails its item cleanly instead.
+    detection_ids = {det_id for item in request.events for det_id in item.detection_ids}
+    valid_detection_ids: set[int] = set()
+    if detection_ids:
+        det_query = select(Detection.id).where(Detection.id.in_(detection_ids))
+        det_result = await db.execute(det_query)
+        valid_detection_ids = {row[0] for row in det_result.all()}
     verdict_events: list[tuple[Event, str]] = []
 
     for idx, item in enumerate(request.events):
@@ -1727,6 +1740,22 @@ async def bulk_create_events(
                         "status": BulkOperationStatus.FAILED,
                         "id": None,
                         "error": f"Camera not found: {item.camera_id}",
+                    }
+                )
+                failed += 1
+                continue
+
+            # Validate detection_ids exist (B4.4 links detections to events)
+            missing_detection_ids = [
+                det_id for det_id in item.detection_ids if det_id not in valid_detection_ids
+            ]
+            if missing_detection_ids:
+                results.append(
+                    {
+                        "index": idx,
+                        "status": BulkOperationStatus.FAILED,
+                        "id": None,
+                        "error": f"Detections not found: {missing_detection_ids}",
                     }
                 )
                 failed += 1
