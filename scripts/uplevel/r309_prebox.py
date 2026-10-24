@@ -110,7 +110,7 @@ def load_owlv2(model_dir: str | None, device: str) -> OwlV2Like:
 
     source = model_dir or "google/owlv2-base-patch16-ensemble"
     processor = Owlv2Processor.from_pretrained(source)
-    model = Owlv2ForObjectDetection.from_pretrained(source)
+    model: Any = Owlv2ForObjectDetection.from_pretrained(source)
     model.to(device)
     model.eval()
 
@@ -122,8 +122,15 @@ def load_owlv2(model_dir: str | None, device: str) -> OwlV2Like:
                 inputs = processor(text=[queries], images=image, return_tensors="pt").to(device)
                 outputs = model(**inputs)
                 target_sizes = t.tensor([[image.height, image.width]])
-                results = processor.post_process_object_detection(
-                    outputs, target_sizes=target_sizes
+                # The open-vocabulary post-processor (the closed-vocabulary
+                # `post_process_object_detection` is not on this processor).
+                # Its output labels index into `text_labels`, passed here so
+                # the ints resolve against OUR query order, not the encoded
+                # one.
+                results = processor.post_process_grounded_object_detection(
+                    outputs,
+                    target_sizes=target_sizes,  # type: ignore[arg-type]
+                    text_labels=[queries],
                 )[0]
             out: list[tuple[str, list[float], float]] = []
             for score, label, box in zip(
